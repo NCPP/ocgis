@@ -6,6 +6,7 @@ import numpy as np
 
 import ocgis
 from ocgis import constants
+from ocgis.constants import OutputFormatName
 from ocgis.ops.core import OcgOperations
 from ocgis.test.base import TestBase
 from ocgis.test.base import attr
@@ -22,12 +23,12 @@ class AbstractCalcBase(TestBase):
     def run_standard_operations(self, calc, capture=False, output_format=None):
         _aggregate = [False, True]
         _calc_grouping = [['month'], ['month', 'year'], 'all']
-        _output_format = output_format or [constants.OUTPUT_FORMAT_NUMPY, constants.OUTPUT_FORMAT_CSV_SHAPEFILE,
-                                           constants.OUTPUT_FORMAT_NETCDF]
+        _output_format = output_format or [constants.OutputFormatName.OCGIS, constants.OutputFormatName.CSV_SHAPEFILE,
+                                           constants.OutputFormatName.NETCDF]
         captured = []
         for ii, tup in enumerate(itertools.product(_aggregate, _calc_grouping, _output_format)):
             aggregate, calc_grouping, output_format = tup
-            if aggregate is True and output_format == constants.OUTPUT_FORMAT_NETCDF:
+            if aggregate is True and output_format == constants.OutputFormatName.NETCDF:
                 continue
             rd = self.test_data.get_rd('cancm4_tas', kwds={'time_region': {'year': [2001, 2002]}})
             try:
@@ -35,7 +36,7 @@ class AbstractCalcBase(TestBase):
                                     calc_grouping=calc_grouping, output_format=output_format, aggregate=aggregate,
                                     prefix=('standard_ops_' + str(ii)))
                 ret = ops.execute()
-                if output_format == constants.OUTPUT_FORMAT_NUMPY:
+                if output_format == constants.OutputFormatName.OCGIS:
                     refv = ret.get_element(variable_name=calc[0]['name'], container_ugid=25)
                     ref = refv.get_value()
                     if aggregate:
@@ -114,7 +115,8 @@ class Test(AbstractCalcBase):
         select_ugid = [2762]
 
         ops = ocgis.OcgOperations(dataset=rd, calc=calc, calc_grouping=calc_grouping, aggregate=aggregate,
-                                  calc_raw=calc_raw, geom=geom, select_ugid=select_ugid, output_format='numpy')
+                                  calc_raw=calc_raw, geom=geom, select_ugid=select_ugid,
+                                  output_format=OutputFormatName.OCGIS)
         ret = ops.execute()
         threshold = ret.get_element(container_ugid=2762, field_name='tasmax', variable_name='threshold').get_value()
         self.assertEqual(threshold.flatten()[0], 62)

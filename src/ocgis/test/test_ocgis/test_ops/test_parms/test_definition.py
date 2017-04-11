@@ -3,7 +3,7 @@ import tempfile
 import types
 
 from ocgis.calc.library.statistics import Mean
-from ocgis.constants import TagNames
+from ocgis.constants import TagName
 from ocgis.conv.numpy_ import NumpyConverter
 from ocgis.ops.parms.base import AbstractParameter
 from ocgis.ops.parms.definition import *
@@ -111,8 +111,8 @@ class Test(TestBase):
     def test_output_format(self):
         so = OutputFormat('csv')
         self.assertEqual(so.value, 'csv')
-        so.value = 'NUMPY'
-        self.assertEqual(so.value, 'numpy')
+        so.value = 'OCGIS'
+        self.assertEqual(so.value, 'ocgis')
 
     def test_select_ugid(self):
         so = GeomSelectUid()
@@ -446,7 +446,7 @@ class TestDataset(TestBase):
         dd = Dataset(efield, esmf_field_dimensions=dimensions)
         ofield = list(dd)[0]
         self.assertIsInstance(ofield, OcgField)
-        dimensioned = ofield.get_by_tag(TagNames.DATA_VARIABLES)[0]
+        dimensioned = ofield.get_by_tag(TagName.DATA_VARIABLES)[0]
         self.assertTrue(np.may_share_memory(dimensioned.get_value(), efield.data))
         self.assertNumpyAll(dimensioned.get_value(), efield.data)
 
@@ -745,19 +745,23 @@ class TestOutputFormat(TestBase):
     create_dir = False
 
     def test_init(self):
-        of = OutputFormat(constants.OUTPUT_FORMAT_CSV_SHAPEFILE_OLD)
-        self.assertEqual(of.value, constants.OUTPUT_FORMAT_CSV_SHAPEFILE)
+        of = OutputFormat('csv+')
+        self.assertEqual(of.value, constants.OutputFormatName.CSV_SHAPEFILE)
 
         of2 = OutputFormat(of)
         self.assertEqual(of.value, of2.value)
 
+        # Test "numpy" is accepted and converted to the OCGIS format.
+        of = OutputFormat('numpy')
+        self.assertEqual(of.value, constants.OutputFormatName.OCGIS)
+
     @attr('esmf')
     def test_init_esmpy(self):
-        oo = OutputFormat(constants.OUTPUT_FORMAT_ESMPY_GRID)
-        self.assertEqual(oo.value, constants.OUTPUT_FORMAT_ESMPY_GRID)
+        oo = OutputFormat(constants.OutputFormatName.ESMPY_GRID)
+        self.assertEqual(oo.value, constants.OutputFormatName.ESMPY_GRID)
 
     def test_get_converter_class(self):
-        of = OutputFormat(constants.OUTPUT_FORMAT_NUMPY)
+        of = OutputFormat(constants.OutputFormatName.OCGIS)
         self.assertEqual(of.get_converter_class(), NumpyConverter)
 
 

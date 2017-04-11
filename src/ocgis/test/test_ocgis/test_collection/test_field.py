@@ -10,10 +10,10 @@ from shapely.geometry import Point
 from shapely.geometry import box
 from shapely.geometry.base import BaseGeometry
 
-from ocgis import RequestDataset
+from ocgis import RequestDataset, vm
 from ocgis import constants
 from ocgis.collection.field import OcgField
-from ocgis.constants import HeaderNames, KeywordArguments, DriverKeys
+from ocgis.constants import HeaderName, KeywordArgument, DriverKey
 from ocgis.driver.csv_ import DriverCSV
 from ocgis.driver.nc import DriverNetcdf
 from ocgis.driver.vector import DriverVector
@@ -25,7 +25,7 @@ from ocgis.variable.crs import CoordinateReferenceSystem, WGS84, Spherical
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.variable.temporal import TemporalVariable
-from ocgis.vm.mpi import MPI_SIZE, MPI_RANK, MPI_COMM
+from ocgis.vmachine.mpi import MPI_SIZE, MPI_RANK, MPI_COMM
 
 
 class TestOcgField(AbstractTestInterface):
@@ -148,12 +148,8 @@ class TestOcgField(AbstractTestInterface):
         bbox = box(*bbox)
         spatial_sub = f2.grid.get_intersects(bbox).parent
         desired = OrderedDict([('time', (3,)), ('time_bounds', (3, 2)), ('other', (3,)), ('xc', (1,)), ('yc', (2,)),
-                               ('data', (1, 2)), ('ocgis_spatial_mask', (2, 1))])
+                               ('data', (1, 2)), ])
         self.assertEqual(spatial_sub.shapes, desired)
-
-        # path = self.get_temporary_file_path('foo.nc')
-        # spatial_sub.write_netcdf(psath)
-        # self.ncdump(path)
 
     def test_system_subsetting(self):
         """Test subsetting operations."""
@@ -182,7 +178,7 @@ class TestOcgField(AbstractTestInterface):
     def test_iter(self):
         field = self.get_ocgfield_example()
         field.set_geom(field.grid.get_abstraction_geometry())
-        field.geom.create_ugid(HeaderNames.ID_GEOMETRY)
+        field.geom.create_ugid(HeaderName.ID_GEOMETRY)
 
         geom2 = field.geom.deepcopy()
         geom2.set_name('geom2')
@@ -193,7 +189,7 @@ class TestOcgField(AbstractTestInterface):
         desired_tas_sum = field['tas'].get_value().sum()
 
         keywords = {'standardize': [True, False], 'melted': [False, True],
-                    KeywordArguments.DRIVER: [DriverKeys.CSV, None]}
+                    KeywordArgument.DRIVER: [DriverKey.CSV, None]}
 
         for k in self.iter_product_keywords(keywords):
             try:
@@ -210,17 +206,17 @@ class TestOcgField(AbstractTestInterface):
                             self.assertIsInstance(data['LB_TIME'], netcdftime.datetime)
                             self.assertIsInstance(data['UB_TIME'], netcdftime.datetime)
                     if k.melted:
-                        data_value = data[HeaderNames.VALUE]
+                        data_value = data[HeaderName.VALUE]
                         actual_tas_sum += data_value
-                        self.assertIn(HeaderNames.VARIABLE, data)
+                        self.assertIn(HeaderName.VARIABLE, data)
                     if k.standardize:
-                        self.assertIn(HeaderNames.ID_GEOMETRY, data)
+                        self.assertIn(HeaderName.ID_GEOMETRY, data)
                         if not k.melted:
-                            self.assertIn(HeaderNames.TEMPORAL, data)
-                            for tb in HeaderNames.TEMPORAL_BOUNDS:
+                            self.assertIn(HeaderName.TEMPORAL, data)
+                            for tb in HeaderName.TEMPORAL_BOUNDS:
                                 self.assertIn(tb, data)
                     else:
-                        self.assertNotIn(HeaderNames.ID_GEOMETRY, data)
+                        self.assertNotIn(HeaderName.ID_GEOMETRY, data)
                         if not k.melted:
                             self.assertIn(field.time.name, data)
                 if k.melted:
@@ -362,9 +358,10 @@ class TestOcgField(AbstractTestInterface):
 
     @attr('mpi')
     def test_write_parallel(self):
-        # Test writing by selective rank.
+        """Test writing by selective rank."""
+
         if MPI_SIZE != 3 and MPI_SIZE != 1:
-            raise SkipTest('serial or mpi-3 only')
+            raise SkipTest('MPI_SIZE != 1 or 3')
 
         ranks = list(range(MPI_SIZE))
 
@@ -382,17 +379,18 @@ class TestOcgField(AbstractTestInterface):
                     path = None
                 path = MPI_COMM.bcast(path)
 
-                if MPI_RANK == base_rank:
-                    geom = GeometryVariable(value=[Point(1, 2), Point(3, 4)], name='geom', dimensions='geom')
-                    data = Variable(name='data', value=[10, 20], dimensions='geom')
-                    field = OcgField(geom=geom)
-                    field.add_variable(data, is_data=data)
-                    self.assertFalse(os.path.isdir(path))
-                    field.write(path, driver=driver, ranks_to_write=[MPI_RANK])
-                    self.assertFalse(os.path.isdir(path))
+                with vm.scoped('field write by rank', [base_rank]):
+                    if not vm.is_null:
+                        geom = GeometryVariable(value=[Point(1, 2), Point(3, 4)], name='geom', dimensions='geom')
+                        data = Variable(name='data', value=[10, 20], dimensions='geom')
+                        field = OcgField(geom=geom)
+                        field.add_variable(data, is_data=data)
+                        self.assertFalse(os.path.isdir(path))
+                        field.write(path, driver=driver)
+                        self.assertFalse(os.path.isdir(path))
 
-                    rd = RequestDataset(path, driver=driver)
-                    in_field = rd.get()
-                    self.assertEqual(in_field['data'].dimensions[0].size, 2)
+                        rd = RequestDataset(path, driver=driver)
+                        in_field = rd.get()
+                        self.assertEqual(in_field['data'].dimensions[0].size, 2)
                 MPI_COMM.Barrier()
         MPI_COMM.Barrier()

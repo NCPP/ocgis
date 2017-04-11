@@ -11,7 +11,7 @@ from ocgis.calc.library.register import FunctionRegistry, register_icclim
 from ocgis.calc.library.statistics import Mean
 from ocgis.calc.library.thresholds import Threshold
 from ocgis.calc.temporal_groups import SeasonalTemporalGroup
-from ocgis.constants import TagNames
+from ocgis.constants import TagName
 from ocgis.exc import DefinitionValidationError, UnitsValidationError
 from ocgis.ops.core import OcgOperations
 from ocgis.ops.parms.definition import Calc, CalcGrouping
@@ -76,7 +76,7 @@ class TestAbstractIcclimPercentileArrayIndice(TestBase):
             field = self.get_field(ntime=365)
             # Values less than 1 mm/day will be masked inside icclim.
             # var = field.variables.first()
-            var = field.get_by_tag(TagNames.DATA_VARIABLES)[0]
+            var = field.get_by_tag(TagName.DATA_VARIABLES)[0]
             var.get_value()[:] = var.get_value() * mod
             tgd = field.temporal.get_grouping(['month'])
 
@@ -193,7 +193,7 @@ class TestTG10p(TestBase):
 
         # Test with a percentile dictionary.
         field_pd = tas.get_field_slice({'time': slice(0, 800)})
-        arr = field_pd['tas'].masked_value.squeeze()
+        arr = field_pd['tas'].get_masked_value().squeeze()
         dt_arr = field_pd.temporal.value_datetime
         percentile = 10
         window_width = 5

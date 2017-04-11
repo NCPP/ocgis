@@ -1,18 +1,22 @@
 import logging
 import os
 import shutil
+from abc import ABCMeta
 
-from ocgis import constants
+import six
+
+from ocgis import constants, vm
 from ocgis import exc, env
+from ocgis.base import AbstractOcgisObject
 from ocgis.conv.base import AbstractTabularConverter
 from ocgis.conv.meta import AbstractMetaConverter
 from ocgis.ops.engine import OperationsEngine
 from ocgis.ops.parms.definition import OutputFormat
 from ocgis.util.logging_ocgis import ocgis_lh, ProgressOcgOperations
-from ocgis.vm.mpi import MPI_RANK, MPI_COMM
 
 
-class Interpreter(object):
+@six.add_metaclass(ABCMeta)
+class Interpreter(AbstractOcgisObject):
     """Superclass for custom interpreter frameworks.
 
     :param ops: The input operations object to interpret.
@@ -50,8 +54,8 @@ class OcgInterpreter(Interpreter):
     """The OCGIS interpreter and execution framework."""
 
     # todo: creating a directory should be a feature of the output format not something handled by the interpreter
-    _no_directory = [constants.OUTPUT_FORMAT_NUMPY, constants.OUTPUT_FORMAT_ESMPY_GRID,
-                     constants.OUTPUT_FORMAT_METADATA_JSON, constants.OUTPUT_FORMAT_METADATA_OCGIS]
+    _no_directory = [constants.OutputFormatName.OCGIS, constants.OutputFormatName.ESMPY_GRID,
+                     constants.OutputFormatName.METADATA_JSON, constants.OutputFormatName.METADATA_OCGIS]
 
     def check(self):
         pass
@@ -75,7 +79,7 @@ class OcgInterpreter(Interpreter):
                 # Auxiliary files require that a directory be created.
                 outdir = os.path.join(self.ops.dir_output, prefix)
                 # Create and/or remove the output directory.
-                if MPI_RANK == 0:
+                if vm.rank == 0:
                     if os.path.exists(outdir):
                         if env.OVERWRITE:
                             shutil.rmtree(outdir)
@@ -84,7 +88,7 @@ class OcgInterpreter(Interpreter):
                     os.mkdir(outdir)
                 # Block until output directory is created. Most often the zero rank manages writing, but this is not a
                 # requirement.
-                MPI_COMM.Barrier()
+                vm.Barrier()
                 # On an exception, the output directory needs to be removed.
                 made_output_directory = True
             else:
@@ -139,14 +143,14 @@ class OcgInterpreter(Interpreter):
             # The output directory needs to be removed if one was created. Shutdown logging before to make sure there
             # is no file lock (Windows).
             ocgis_lh.shutdown()
-            if MPI_RANK == 0 and made_output_directory:
+            if vm.rank == 0 and made_output_directory:
                 shutil.rmtree(outdir)
             raise
         finally:
             ocgis_lh.shutdown()
 
             if env.ADD_OPS_MPI_BARRIER:
-                MPI_COMM.Barrier()
+                vm.Barrier()
 
     def _get_converter_(self, conv_klass, outdir, prefix, so):
         """
@@ -180,10 +184,10 @@ class OcgInterpreter(Interpreter):
             if self.ops.output_format in self._no_directory:
                 to_file = None
             else:
-                if MPI_RANK == 0:
+                if vm.rank == 0:
                     os.makedirs(os.path.join(outdir, 'logs'))
-                MPI_COMM.Barrier()
-                to_file = os.path.join(outdir, 'logs', '{prefix}-rank-{rank}.log'.format(prefix=prefix, rank=MPI_RANK))
+                vm.Barrier()
+                to_file = os.path.join(outdir, 'logs', '{prefix}-rank-{rank}.log'.format(prefix=prefix, rank=vm.rank))
         else:
             to_file = None
 

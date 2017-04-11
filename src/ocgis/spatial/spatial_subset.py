@@ -1,6 +1,7 @@
 from copy import deepcopy, copy
 
-from ocgis import env
+from ocgis import env, vm
+from ocgis.base import raise_if_empty
 from ocgis.collection.field import OcgField
 from ocgis.constants import WrappedState
 from ocgis.variable.crs import CFRotatedPole, CFSpherical
@@ -27,6 +28,7 @@ class SpatialSubsetOperation(object):
     def __init__(self, field, output_crs='input', wrap=None):
         if not isinstance(field, OcgField):
             raise ValueError('"field" must be an "OcgField" object.')
+        raise_if_empty(field)
 
         self.field = field
         self.output_crs = output_crs
@@ -112,22 +114,24 @@ class SpatialSubsetOperation(object):
             msg = 'The spatial operation "{0}" is not supported.'.format(operation)
             raise ValueError(msg)
 
-        # Select the nearest geometry if requested.
-        if select_nearest:
-            ret.set_abstraction_geom()
-            ret = ret.geom.get_nearest(base_geometry).parent
+        with vm.scoped_by_emptyable('return finalize', ret):
+            if not vm.is_null:
+                # Select the nearest geometry if requested.
+                if select_nearest:
+                    ret.set_abstraction_geom()
+                    ret = ret.geom.get_nearest(base_geometry).parent
 
-        # check for rotated pole and convert back to default CRS
-        if self._original_rotated_pole_state is not None and self.output_crs == 'input':
-            ret.update_crs(self._original_rotated_pole_state)
+                # check for rotated pole and convert back to default CRS
+                if self._original_rotated_pole_state is not None and self.output_crs == 'input':
+                    ret.update_crs(self._original_rotated_pole_state)
 
-        # wrap the data...
-        if self._get_should_wrap_(ret):
-            ret.wrap()
+                # wrap the data...
+                if self._get_should_wrap_(ret):
+                    ret.wrap()
 
-        # convert the coordinate system if requested...
-        if self.should_update_crs:
-            ret.update_crs(self.output_crs)
+                # convert the coordinate system if requested...
+                if self.should_update_crs:
+                    ret.update_crs(self.output_crs)
 
         return ret
 

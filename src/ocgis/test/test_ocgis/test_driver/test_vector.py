@@ -5,10 +5,10 @@ import numpy as np
 import six
 from shapely.geometry import Point
 
-from ocgis import RequestDataset
+from ocgis import RequestDataset, vm
 from ocgis import constants
 from ocgis.collection.field import OcgField
-from ocgis.constants import MPIDistributionMode, MPIWriteMode, DimensionNames
+from ocgis.constants import MPIWriteMode, DimensionName
 from ocgis.driver.base import AbstractDriver
 from ocgis.driver.vector import DriverVector, get_fiona_crs, get_fiona_schema
 from ocgis.test.base import TestBase, attr
@@ -17,7 +17,7 @@ from ocgis.variable.crs import WGS84, CoordinateReferenceSystem, Spherical
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.variable.temporal import TemporalVariable
-from ocgis.vm.mpi import MPI_RANK, MPI_COMM, MPI_SIZE, OcgMpi, variable_collection_scatter
+from ocgis.vmachine.mpi import MPI_RANK, MPI_COMM, MPI_SIZE, OcgMpi, variable_collection_scatter
 
 
 class TestDriverVector(TestBase):
@@ -43,8 +43,7 @@ class TestDriverVector(TestBase):
     def test_init(self):
         self.assertIsInstances(self.get_driver(), (DriverVector, AbstractDriver))
 
-        actual = [constants.OUTPUT_FORMAT_NUMPY, constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH,
-                  constants.OUTPUT_FORMAT_SHAPEFILE]
+        actual = [constants.OutputFormatName.OCGIS, constants.OutputFormatName.SHAPEFILE]
         self.assertAsSetEqual(actual, DriverVector.output_formats)
 
     @attr('data')
@@ -55,10 +54,11 @@ class TestDriverVector(TestBase):
         variable_names = ['time', 'lat', 'lon', 'tas']
         field.set_abstraction_geom()
         field.write(path, driver=DriverVector, variable_names=variable_names)
+
         read = RequestDataset(path).get()
         self.assertEqual(len(list(read.dimensions.values())[0]), 3 * 10 * 6)
-        self.assertEqual(rd.get().crs, Spherical())
         self.assertEqual(read.crs, Spherical())
+        self.assertEqual(rd.get().crs, Spherical())
 
     @attr('cfunits')
     def test_system_conform_units(self):
@@ -120,8 +120,10 @@ class TestDriverVector(TestBase):
             path, vc = [None] * 2
 
         path = MPI_COMM.bcast(path)
-        vc, _ = variable_collection_scatter(vc, ompi)
-        vc.write(path, driver=DriverVector)
+        vc = variable_collection_scatter(vc, ompi)
+        with vm.scoped_by_emptyable('write', vc):
+            if not vm.is_null:
+                vc.write(path, driver=DriverVector)
         MPI_COMM.Barrier()
 
         desired = 168
@@ -167,11 +169,11 @@ class TestDriverVector(TestBase):
         driver = self.get_driver()
         actual = driver.get_dist().mapping[MPI_RANK]
         desired = {None: {
-            'variables': {'STATE_FIPS': {'dist': MPIDistributionMode.DISTRIBUTED, 'dimensions': ('ocgis_geom',)},
-                          'STATE_ABBR': {'dist': MPIDistributionMode.DISTRIBUTED, 'dimensions': ('ocgis_geom',)},
-                          'UGID': {'dist': MPIDistributionMode.DISTRIBUTED, 'dimensions': ('ocgis_geom',)},
-                          'ID': {'dist': MPIDistributionMode.DISTRIBUTED, 'dimensions': ('ocgis_geom',)},
-                          'STATE_NAME': {'dist': MPIDistributionMode.DISTRIBUTED, 'dimensions': ('ocgis_geom',)}},
+            'variables': {'STATE_FIPS': {'dimensions': ('ocgis_geom',)},
+                          'STATE_ABBR': {'dimensions': ('ocgis_geom',)},
+                          'UGID': {'dimensions': ('ocgis_geom',)},
+                          'ID': {'dimensions': ('ocgis_geom',)},
+                          'STATE_NAME': {'dimensions': ('ocgis_geom',)}},
             'dimensions': {
                 'ocgis_geom': Dimension(name='ocgis_geom', size=51, size_current=51, dist=True, src_idx='auto')},
             'groups': {}}}
@@ -199,7 +201,7 @@ class TestDriverVector(TestBase):
         self.assertPrivateValueIsNone(field)
         sub = field.geom[10, 15, 25].parent
         self.assertPrivateValueIsNone(sub)
-        self.assertEqual(len(sub.dimensions[DimensionNames.GEOMETRY_DIMENSION]), 3)
+        self.assertEqual(len(sub.dimensions[DimensionName.GEOMETRY_DIMENSION]), 3)
 
     def test_get_variable_collection(self):
         driver = self.get_driver()
@@ -246,7 +248,7 @@ class TestDriverVector(TestBase):
         read = RequestDataset(uri=path).get()
         self.assertTrue(len(read) > 2)
         self.assertEqual(list(read.keys()),
-                         ['data', 'some_lats', 'some_lons', constants.DimensionNames.GEOMETRY_DIMENSION])
+                         ['data', 'some_lats', 'some_lons', constants.DimensionName.GEOMETRY_DIMENSION])
 
         # Test writing a subset of the variables.
         path = self.get_temporary_file_path('limited.shp')

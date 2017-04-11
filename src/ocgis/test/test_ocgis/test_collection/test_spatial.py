@@ -2,7 +2,7 @@ from shapely.geometry import Point
 
 from ocgis.collection.field import OcgField
 from ocgis.collection.spatial import SpatialCollection
-from ocgis.constants import TagNames
+from ocgis.constants import TagName
 from ocgis.driver.vector import DriverVector
 from ocgis.test.base import AbstractTestInterface
 from ocgis.variable.base import Variable
@@ -25,7 +25,7 @@ class TestSpatialCollection(AbstractTestInterface):
         field['exact1'].set_name('exact2')
         field['exact2'].get_value()[:] += 2
         field.set_name('exact2')
-        field.append_to_tags(TagNames.DATA_VARIABLES, 'exact2')
+        field.append_to_tags(TagName.DATA_VARIABLES, 'exact2')
         return field
 
     @property
@@ -60,7 +60,7 @@ class TestSpatialCollection(AbstractTestInterface):
         field1 = OcgField.from_variable_collection(gridxy.parent, dimension_map=dimension_map)
         field1.add_variable(exact)
         field1.set_name('exact1')
-        field1.append_to_tags(TagNames.DATA_VARIABLES, 'exact1')
+        field1.append_to_tags(TagName.DATA_VARIABLES, 'exact1')
         return field1
 
     def get_subset_field(self):

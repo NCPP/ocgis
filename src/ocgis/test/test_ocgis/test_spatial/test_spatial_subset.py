@@ -3,7 +3,7 @@ from copy import deepcopy
 import numpy as np
 from shapely import wkt
 
-from ocgis import CoordinateReferenceSystem
+from ocgis import CoordinateReferenceSystem, vm
 from ocgis import env
 from ocgis.collection.field import OcgField
 from ocgis.constants import WrappedState
@@ -16,7 +16,7 @@ from ocgis.util.helpers import make_poly
 from ocgis.util.itester import itr_products_keywords
 from ocgis.variable.crs import CFWGS84, CFRotatedPole, WGS84, CFSpherical
 from ocgis.variable.geom import GeometryVariable
-from ocgis.vm.mpi import MPI_COMM, MPI_RANK
+from ocgis.vmachine.mpi import MPI_COMM, MPI_RANK
 
 
 class TestSpatialSubsetOperation(TestBase):
@@ -160,7 +160,7 @@ class TestSpatialSubsetOperation(TestBase):
 
     @attr('slow', 'mpi')
     def test_get_spatial_subset(self):
-        # self.add_barrier = False
+
         ctr_test = 0
         for ss, k in self:
             for geometry_record in self.get_subset_geometries():
@@ -198,7 +198,9 @@ class TestSpatialSubsetOperation(TestBase):
                         continue
                     else:
                         self.assertIsInstance(ret, OcgField)
-                        ret.write(output_path)
+                        with vm.scoped_by_emptyable('write', ret):
+                            if not vm.is_null:
+                                ret.write(output_path)
 
         self.assertGreater(ctr_test, 5)
 

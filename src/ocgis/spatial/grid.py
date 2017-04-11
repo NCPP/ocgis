@@ -5,10 +5,10 @@ from pyproj import Proj, transform
 from shapely.geometry import Polygon, Point, box
 from shapely.geometry.base import BaseGeometry, BaseMultipartGeometry
 
-from ocgis import VariableCollection, Variable
+from ocgis import VariableCollection, Variable, vm
 from ocgis import constants
-from ocgis.base import get_dimension_names
-from ocgis.constants import WrappedState, KeywordArguments, VariableNames
+from ocgis.base import get_dimension_names, raise_if_empty
+from ocgis.constants import WrappedState, KeywordArgument, VariableName
 from ocgis.environment import ogr
 from ocgis.exc import GridDeficientError, EmptySubsetError, AllElementsMaskedError
 from ocgis.util.helpers import get_formatted_slice
@@ -16,8 +16,7 @@ from ocgis.variable.base import get_dslice, get_dimension_lengths
 from ocgis.variable.crs import CFRotatedPole
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable, AbstractSpatialContainer, get_masking_slice, GeometryProcessor
-from ocgis.vm.mpi import MPI_COMM, get_standard_comm_state, \
-    get_nonempty_ranks, MPI_RANK, MPI_SIZE
+from ocgis.vmachine.mpi import MPI_SIZE
 
 CreateGeometryFromWkb, Geometry, wkbGeometryCollection, wkbPoint = ogr.CreateGeometryFromWkb, ogr.Geometry, \
                                                                    ogr.wkbGeometryCollection, ogr.wkbPoint
@@ -117,13 +116,13 @@ class GridXY(AbstractSpatialContainer):
         self._y_name = y.name
 
         if mask is None:
-            self._mask_name = VariableNames.SPATIAL_MASK
+            self._mask_name = VariableName.SPATIAL_MASK
         else:
             self._mask_name = mask.name
             self.parent.add_variable(mask)
 
-        self._point_name = VariableNames.GEOMETRY_POINT
-        self._polygon_name = VariableNames.GEOMETRY_POLYGON
+        self._point_name = VariableName.GEOMETRY_POINT
+        self._polygon_name = VariableName.GEOMETRY_POLYGON
 
         new_variables = [x, y]
         if parent is None:
@@ -242,13 +241,7 @@ class GridXY(AbstractSpatialContainer):
 
     @property
     def is_empty(self):
-        x = self.parent[self._x_name]
-        y = self.parent[self._y_name]
-        if x.is_empty or y.is_empty:
-            ret = True
-        else:
-            ret = False
-        return ret
+        return self.parent.is_empty
 
     @property
     def mask_variable(self):
@@ -301,20 +294,15 @@ class GridXY(AbstractSpatialContainer):
     def shape_global(self):
         """Collective!"""
 
-        ner = get_nonempty_ranks(self)
-        ner = MPI_COMM.bcast(ner)
+        raise_if_empty(self)
 
-        if self.is_empty:
-            maxd = None
-        else:
-            maxd = [max(d.bounds_global) for d in self.dimensions]
-        shapes = MPI_COMM.gather(maxd)
-        if MPI_RANK == 0:
-            shapes = [shapes[ii] for ii in ner]
+        maxd = [max(d.bounds_global) for d in self.dimensions]
+        shapes = vm.gather(maxd)
+        if vm.rank == 0:
             shape_global = tuple(np.max(shapes, axis=0))
         else:
             shape_global = None
-        shape_global = MPI_COMM.bcast(shape_global)
+        shape_global = vm.bcast(shape_global)
 
         return shape_global
 
@@ -338,7 +326,7 @@ class GridXY(AbstractSpatialContainer):
         expand_grid(self)
 
     def get_mask(self, *args, **kwargs):
-        create = kwargs.get(KeywordArguments.CREATE, False)
+        create = kwargs.get(KeywordArgument.CREATE, False)
         mask_variable = self.mask_variable
         ret = None
         if mask_variable is None:
@@ -385,6 +373,8 @@ class GridXY(AbstractSpatialContainer):
 
     def get_distributed_slice(self, slc, **kwargs):
         """Collective!"""
+        raise_if_empty(self)
+
         if isinstance(slc, dict):
             y_slc = slc[self.dimensions[0].name]
             x_slc = slc[self.dimensions[1].name]
@@ -411,20 +401,24 @@ class GridXY(AbstractSpatialContainer):
         return self.get_spatial_operation(*args, **kwargs)
 
     def get_spatial_operation(self, spatial_op, subset_geom, return_slice=False, use_bounds='auto', original_mask=None,
-                              keep_touches='auto', cascade=True, optimized_bbox_subset=False, apply_slice=True,
-                              comm=None):
+                              keep_touches='auto', cascade=True, optimized_bbox_subset=False, apply_slice=True):
+        """Deep copies the mask if it exists."""
 
-        comm, rank, size = get_standard_comm_state(comm)
-        original_subset_target = subset_geom
+        raise_if_empty(self)
+
+        if self.get_mask() is None:
+            original_grid_has_mask = False
+        else:
+            original_grid_has_mask = True
 
         if use_bounds is True and self.abstraction == 'point':
             msg = '"use_bounds" is True and grid abstraction is "point". Only a polygon abstraction may use bounds ' \
                   'during a spatial subset operation.'
             raise ValueError(msg)
 
-        if not isinstance(original_subset_target, BaseGeometry):
+        if not isinstance(subset_geom, BaseGeometry):
             msg = 'Only Shapely geometries allowed for subsetting. Subset type is "{}".'.format(
-                type(original_subset_target))
+                type(subset_geom))
             raise ValueError(msg)
 
         if use_bounds == 'auto':
@@ -447,71 +441,75 @@ class GridXY(AbstractSpatialContainer):
         buffer_value = None
 
         if original_mask is None:
-            if not self.is_empty:
-                if not optimized_bbox_subset:
-                    buffer_value = self.resolution * 1.25
+            if not optimized_bbox_subset:
+                buffer_value = self.resolution * 1.25
 
-                if isinstance(original_subset_target, BaseMultipartGeometry):
-                    geom_itr = original_subset_target
+            if isinstance(subset_geom, BaseMultipartGeometry):
+                geom_itr = subset_geom
+            else:
+                geom_itr = [subset_geom]
+
+            for ctr, geom in enumerate(geom_itr):
+                if not optimized_bbox_subset:
+                    geom = geom.buffer(buffer_value).envelope
+                single_hint_mask = get_hint_mask_from_geometry_bounds(self, geom.bounds, invert=False)
+
+                if ctr == 0:
+                    hint_mask = single_hint_mask
                 else:
-                    geom_itr = [original_subset_target]
+                    hint_mask = np.logical_or(hint_mask, single_hint_mask)
 
-                for ctr, geom in enumerate(geom_itr):
-                    if not optimized_bbox_subset:
-                        geom = geom.buffer(buffer_value).envelope
-                    single_hint_mask = get_hint_mask_from_geometry_bounds(self, geom.bounds, invert=False)
+            hint_mask = np.invert(hint_mask)
 
-                    if ctr == 0:
-                        hint_mask = single_hint_mask
-                    else:
-                        hint_mask = np.logical_or(hint_mask, single_hint_mask)
-
-                hint_mask = np.invert(hint_mask)
-
-                original_mask = hint_mask
-                if not optimized_bbox_subset:
-                    mask = self.get_mask()
-                    if mask is not None:
-                        original_mask = np.logical_or(mask, hint_mask)
+            original_mask = hint_mask
+            if not optimized_bbox_subset:
+                mask = self.get_mask()
+                if mask is not None:
+                    original_mask = np.logical_or(mask, hint_mask)
 
         ret = self.copy()
+        if original_grid_has_mask:
+            ret.set_mask(ret.get_mask().copy())
+
         if optimized_bbox_subset:
-            sliced_grid, _, the_slice = get_masking_slice(original_mask, ret, apply_slice=apply_slice, comm=comm)
+            sliced_grid, _, the_slice = get_masking_slice(original_mask, ret, apply_slice=apply_slice)
         else:
-            fill_mask = None
+            fill_mask = original_mask
             geometry_fill = None
-            if not self.is_empty:
-                # If everything is masked, there is no reason to load the grid geometries.
-                if not original_mask.all():
-                    fill_mask = original_mask
-                    if perform_intersection:
-                        geometry_fill = np.zeros(fill_mask.shape, dtype=object)
-                    if size > 1:
-                        new_intersects_target = original_subset_target.intersection(box(*self.extent).buffer(1e-6))
-                    else:
-                        new_intersects_target = original_subset_target
-                    gp = GridGeometryProcessor(self, new_intersects_target, original_mask, keep_touches=keep_touches,
-                                               use_bounds=use_bounds)
-                    for idx, intersects_logical, current_geometry in gp.iter_intersects():
-                        fill_mask[idx] = not intersects_logical
-                        if perform_intersection and intersects_logical:
-                            geometry_fill[idx] = current_geometry.intersection(original_subset_target)
-                            # fill_mask = fill_mask.reshape(*original_mask.shape)
+            # If everything is masked, there is no reason to load the grid geometries.
+            if not original_mask.all():
+                if perform_intersection:
+                    geometry_fill = np.zeros(fill_mask.shape, dtype=object)
+                if vm.size > 1:
+                    new_intersects_target = subset_geom.intersection(box(*self.extent).buffer(1e-6))
+                else:
+                    new_intersects_target = subset_geom
+                gp = GridGeometryProcessor(self, new_intersects_target, original_mask, keep_touches=keep_touches,
+                                           use_bounds=use_bounds)
+                for idx, intersects_logical, current_geometry in gp.iter_intersects():
+                    fill_mask[idx] = not intersects_logical
+                    if perform_intersection and intersects_logical:
+                        geometry_fill[idx] = current_geometry.intersection(subset_geom)
             if perform_intersection:
                 if geometry_fill is None:
                     if use_bounds:
                         name = self._polygon_name
                     else:
                         name = self._point_name
-                    geometry_variable = GeometryVariable(is_empty=True, name=name)
+                    geometry_variable = GeometryVariable(name=name)
                 else:
                     if use_bounds:
                         geometry_variable = ret.get_polygon(value=geometry_fill, mask=fill_mask)
                     else:
                         geometry_variable = ret.get_point(value=geometry_fill, mask=fill_mask)
                 ret.parent.add_variable(geometry_variable, force=True)
-            sliced_grid, sliced_mask, the_slice = get_masking_slice(fill_mask, ret, apply_slice=apply_slice, comm=comm)
-            sliced_grid.set_mask(sliced_mask.get_value(), cascade=cascade)
+
+            sliced_grid, sliced_mask, the_slice = get_masking_slice(fill_mask, ret, apply_slice=apply_slice)
+
+            # Only modify the outgoing mask if any values are masked.
+            sliced_mask_value = sliced_mask.get_value()
+            if sliced_mask_value is not None and sliced_mask_value.any():
+                sliced_grid.set_mask(sliced_mask_value, cascade=cascade)
 
         if perform_intersection:
             obj_to_ret = sliced_grid.parent[geometry_variable.name]
@@ -551,8 +549,7 @@ class GridXY(AbstractSpatialContainer):
         elif isinstance(to_crs, CFRotatedPole):
             to_crs.update_with_rotated_pole_transformation(self, inverse=True)
         else:
-            # Rotated pole transforms can maintain grid vectorization. Other coordinate transforms require the grid
-            # be expanded.
+            # Grid must be expanded for a CRS transform.
             expand_grid(self)
 
             src_proj4 = self.crs.proj4
@@ -887,13 +884,14 @@ def remove_nones(target):
     return ret
 
 
-def get_extent_global(grid, comm=None):
-    comm, rank, size = get_standard_comm_state(comm=comm)
+def get_extent_global(grid):
+    raise_if_empty(grid)
+    assert isinstance(grid, GridXY)
 
     extent = grid.extent
-    extents = comm.gather(extent)
+    extents = vm.gather(extent)
 
-    if rank == 0:
+    if vm.rank == 0:
         extents = [e for e in extents if e is not None]
         extents = np.array(extents)
         ret = [None] * 4
@@ -904,7 +902,7 @@ def get_extent_global(grid, comm=None):
         ret = tuple(ret)
     else:
         ret = None
-    ret = comm.bcast(ret)
+    ret = vm.bcast(ret)
 
     return ret
 
@@ -1006,10 +1004,8 @@ def expand_grid(grid):
                 new_x_bounds[idx_y, idx_x, 3] = original_x_bounds[idx_x, 0]
 
             new_bounds_dimensions = new_dimensions + [Dimension('corners', size=4)]
-            y.set_bounds(Variable(name=name_y, value=new_y_bounds, dimensions=new_bounds_dimensions, dist=y.dist,
-                                  ranks=y.ranks))
-            x.set_bounds(Variable(name=name_x, value=new_x_bounds, dimensions=new_bounds_dimensions, dist=x.dist,
-                                  ranks=x.ranks))
+            y.set_bounds(Variable(name=name_y, value=new_y_bounds, dimensions=new_bounds_dimensions))
+            x.set_bounds(Variable(name=name_x, value=new_x_bounds, dimensions=new_bounds_dimensions))
 
     assert y.ndim == 2
     assert x.ndim == 2

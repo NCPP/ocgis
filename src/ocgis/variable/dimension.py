@@ -1,11 +1,11 @@
 import numpy as np
 import six
 
-from ocgis import constants
-from ocgis.base import AbstractNamedObject
-from ocgis.constants import DataTypes
+from ocgis import constants, vm
+from ocgis.base import AbstractNamedObject, raise_if_empty
+from ocgis.constants import DataType
 from ocgis.util.helpers import get_formatted_slice
-from ocgis.vm.mpi import get_global_to_local_slice, MPI_COMM, get_nonempty_ranks
+from ocgis.vmachine.mpi import get_global_to_local_slice, get_nonempty_ranks
 
 
 class Dimension(AbstractNamedObject):
@@ -155,48 +155,42 @@ class Dimension(AbstractNamedObject):
         self.__src_idx__ = value
 
     def convert_to_empty(self):
+        if not self.dist:
+            raise ValueError('Only distributed dimensions may be converted to empty.')
+
         self._bounds_local = (0, 0)
+        self._bounds_global = (0, 0)
         self._src_idx = None
         self._is_empty = True
+        self._size = 0
+        self._size_current = 0
 
-    def get_distributed_slice(self, slc, comm=None):
+    def get_distributed_slice(self, slc):
+        raise_if_empty(self)
+
         slc = get_formatted_slice(slc, 1)[0]
         if not isinstance(slc, slice):
             raise ValueError('Slice not recognized: {}'.format(slc))
 
-        # None slices return all dimension elements.
         if slc == slice(None):
             ret = self.copy()
         # Use standard slicing for non-distributed dimensions.
         elif not self.dist:
             ret = self[slc]
         else:
-            dimension_size = 0
-            # Handle empty dimensions. They will have zero size.
-            if self.is_empty:
+            local_slc = get_global_to_local_slice((slc.start, slc.stop), self.bounds_local)
+            # Slice does not overlap local bounds. The dimension is now empty with size 0.
+            if local_slc is None:
                 ret = self.copy()
                 ret.convert_to_empty()
-            # Handle non-empty dimension slicing.
+                dimension_size = 0
+            # Slice overlaps so do a slice on the dimension using the local slice.
             else:
-                local_slc = get_global_to_local_slice((slc.start, slc.stop), self.bounds_local)
-                # Slice does not overlap local bounds. The dimension is now empty with size 0.
-                if local_slc is None:
-                    ret = self.copy()
-                    ret.convert_to_empty()
-                # Slice overlaps and do a slice on the dimension using the local slice.
-                else:
-                    ret = self[slice(*local_slc)]
-                    dimension_size = len(ret)
-
-            # Find the length of the distributed dimension and update the global dimension information.
-            comm = comm or MPI_COMM
-            rank = comm.Get_rank()
-            size = comm.Get_size()
-
-            # Sum dimension sizes (empties will be zero). This sum is the new global bounds.
+                ret = self[slice(*local_slc)]
+                dimension_size = len(ret)
             assert dimension_size >= 0
-            dimension_sizes = comm.gather(dimension_size)
-            if rank == 0:
+            dimension_sizes = vm.gather(dimension_size)
+            if vm.rank == 0:
                 sum_dimension_size = 0
                 for ds in dimension_sizes:
                     try:
@@ -206,30 +200,32 @@ class Dimension(AbstractNamedObject):
                 bounds_global = (0, sum_dimension_size)
             else:
                 bounds_global = None
-            bounds_global = comm.bcast(bounds_global)
-            ret.bounds_global = bounds_global
+            bounds_global = vm.bcast(bounds_global)
+            if not ret.is_empty:
+                ret.bounds_global = bounds_global
 
             # Normalize the local bounds on live ranks.
-            non_empty_ranks = get_nonempty_ranks(ret, comm=comm)
-            non_empty_ranks = comm.bcast(non_empty_ranks)
-            if rank == non_empty_ranks[0]:
-                adjust = len(ret)
-            else:
-                adjust = None
-            adjust = comm.bcast(adjust, root=non_empty_ranks[0])
-            for current_rank in range(size):
-                if rank == current_rank:
-                    if rank in non_empty_ranks and rank != non_empty_ranks[0]:
-                        ret.bounds_local = [b + adjust for b in ret.bounds_local]
-                        adjust += len(ret)
-                adjust = comm.bcast(adjust, root=current_rank)
-
+            inner_live_ranks = get_nonempty_ranks(ret, vm)
+            with vm.scoped('bounds normaliztion', inner_live_ranks):
+                if not vm.is_null:
+                    if vm.rank == 0:
+                        adjust = len(ret)
+                    else:
+                        adjust = None
+                    adjust = vm.bcast(adjust)
+                    for current_rank in vm.ranks:
+                        if vm.rank == current_rank:
+                            if vm.rank != 0:
+                                ret.bounds_local = [b + adjust for b in ret.bounds_local]
+                                adjust += len(ret)
+                        vm.barrier()
+                        adjust = vm.bcast(adjust, root=current_rank)
         return ret
 
     def set_size(self, value, src_idx=None):
         if value is not None:
             if isinstance(src_idx, six.string_types) and src_idx == 'auto':
-                src_idx = create_src_idx(0, value, dtype=DataTypes.DIMENSION_SRC_INDEX)
+                src_idx = create_src_idx(0, value, dtype=DataType.DIMENSION_SRC_INDEX)
         elif value is None:
             src_idx = None
         else:

@@ -1,5 +1,5 @@
 from ocgis.base import AbstractOcgisObject
-from ocgis.constants import DriverKeys
+from ocgis.constants import DriverKey
 from .base import AbstractDriver
 from .csv_ import DriverCSV
 from .nc import DriverNetcdf, DriverNetcdfCF
@@ -21,7 +21,7 @@ driver_registry.drivers.append(DriverVector)
 def get_driver_class(key_or_class, default=None):
     ret = None
 
-    if key_or_class == AbstractDriver or key_or_class == DriverKeys.BASE:
+    if key_or_class == AbstractDriver or key_or_class == DriverKey.BASE:
         ret = AbstractDriver
     else:
         if default is not None:

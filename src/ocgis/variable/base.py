@@ -12,9 +12,9 @@ from numpy.ma.core import MaskedConstant
 
 from ocgis import constants
 from ocgis.base import AbstractNamedObject, get_dimension_names, get_variable_names, get_variables, iter_dict_slices, \
-    orphaned
+    orphaned, raise_if_empty
 from ocgis.collection.base import AbstractCollection
-from ocgis.constants import HeaderNames, KeywordArguments, DriverKeys
+from ocgis.constants import HeaderName, KeywordArgument, DriverKey
 from ocgis.exc import VariableInCollectionError, BoundsAlreadyAvailableError, EmptySubsetError, \
     ResolutionError, NoUnitsError, DimensionsRequiredError, DimensionMismatchError, MaskedDataFound
 from ocgis.util.helpers import get_iter, get_formatted_slice, get_bounds_from_1d, get_extrapolated_corners_esmf, \
@@ -24,7 +24,7 @@ from ocgis.variable.attributes import Attributes
 from ocgis.variable.crs import CoordinateReferenceSystem
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.iterator import Iterator
-from ocgis.vm.mpi import create_nd_slices, get_global_to_local_slice, MPI_COMM
+from ocgis.vmachine.mpi import create_nd_slices, get_global_to_local_slice
 
 
 def handle_empty(func):
@@ -149,14 +149,15 @@ class Variable(AbstractContainer, Attributes):
     _bounds_attribute_name = 'bounds'
 
     def __init__(self, name=None, value=None, dimensions=None, dtype=None, mask=None, attrs=None, fill_value=None,
-                 units='auto', parent=None, bounds=None, is_empty=None, dist=None, ranks=None,
+                 units='auto', parent=None, bounds=None, is_empty=None,
                  source_name=constants.UNINITIALIZED, uid=None, repeat_record=None):
-        if name is None:
-            raise ValueError('A variable name is required.')
-        if value is not None and dimensions is None:
-            msg = 'Variables with a value require dimensions. If this is a scalar variable, provide an empty list or ' \
-                  'tuple.'
-            raise ValueError(msg)
+        if not is_empty:
+            if name is None:
+                raise ValueError('A variable name is required.')
+            if value is not None and dimensions is None:
+                msg = 'Variables with a value require dimensions. If this is a scalar variable, provide an empty list or ' \
+                      'tuple.'
+                raise ValueError(msg)
 
         self._is_init = True
 
@@ -172,8 +173,6 @@ class Variable(AbstractContainer, Attributes):
         self._is_empty = is_empty
         self._bounds_name = None
 
-        self.dist = dist
-        self.ranks = ranks
         self.dtype = dtype
 
         self._fill_value = fill_value
@@ -342,18 +341,18 @@ class Variable(AbstractContainer, Attributes):
 
     @property
     def extent(self):
-        if self.is_empty:
-            ret = None
-        else:
-            target = self._get_extent_target_()
-            ret = target.compressed().min(), target.compressed().max()
+        raise_if_empty(self)
+
+        target = self._get_extent_target_()
+        ret = target.compressed().min(), target.compressed().max()
+
         return ret
 
     def _get_extent_target_(self):
         if self.has_bounds:
-            ret = self.bounds.masked_value
+            ret = self.bounds.get_masked_value()
         else:
-            ret = self.masked_value
+            ret = self.get_masked_value()
         return ret
 
     @property
@@ -380,7 +379,7 @@ class Variable(AbstractContainer, Attributes):
         return ret
 
     @property
-    def has_distributed_dimension(self):
+    def dist(self):
         """
         :return: ``True`` if the variable has a distributed dimension.
         :rtype: bool
@@ -422,7 +421,7 @@ class Variable(AbstractContainer, Attributes):
     def is_empty(self):
         if self._is_empty is None:
             ret = False
-            if self.has_distributed_dimension:
+            if self.dist:
                 for dim in self.dimensions:
                     if dim.is_empty:
                         ret = True
@@ -499,9 +498,10 @@ class Variable(AbstractContainer, Attributes):
     def value(self):
         raise NotImplementedError('Use <object>.get_value()')
 
+    # tdk: remove me
     @property
     def masked_value(self):
-        return self.get_masked_value()
+        raise NotImplementedError
 
     def _get_value_(self):
         if self.is_empty:
@@ -752,7 +752,7 @@ class Variable(AbstractContainer, Attributes):
 
         name = self.name
         if self.ndim == 0:
-            ret = OrderedDict(([HeaderNames.DATASET_IDENTIFER, self.parent.uid], [name, None]))
+            ret = OrderedDict(([HeaderName.DATASET_IDENTIFER, self.parent.uid], [name, None]))
         else:
             assert self.shape[0] == 1
             value = self._get_iter_value_().flatten()[0]
@@ -769,7 +769,7 @@ class Variable(AbstractContainer, Attributes):
                     value = self.get_value().flatten()[0]
             if pytypes:
                 value = np.array(value).tolist()
-            ret = OrderedDict(([HeaderNames.DATASET_IDENTIFER, self.parent.uid], [name, value]))
+            ret = OrderedDict(([HeaderName.DATASET_IDENTIFER, self.parent.uid], [name, value]))
 
             if self.has_bounds and add_bounds:
                 name_bounds = self.bounds.name
@@ -899,15 +899,14 @@ class Variable(AbstractContainer, Attributes):
 
         return ret
 
-    def get_distributed_slice(self, slc, comm=None):
-        comm = comm or MPI_COMM
-        rank = comm.Get_rank()
+    def get_distributed_slice(self, slc):
+        raise_if_empty(self)
 
         slc = get_formatted_slice(slc, self.ndim)
         new_dimensions = [None] * self.ndim
         dimensions = self.dimensions
         for idx in range(self.ndim):
-            new_dimensions[idx] = dimensions[idx].get_distributed_slice(slc[idx], comm=comm)
+            new_dimensions[idx] = dimensions[idx].get_distributed_slice(slc[idx])
 
         is_or_will_be_empty = self.is_empty or any([nd.is_empty for nd in new_dimensions])
 
@@ -924,20 +923,8 @@ class Variable(AbstractContainer, Attributes):
                     local_slc[idx] = slice(*local_slc_args)
             ret = self[local_slc]
 
-        # non_empty_ranks = get_nonempty_ranks(ret, comm=comm)
-        # non_empty_ranks = comm.bcast(non_empty_ranks)
-        # # Synchronize the dimensions.
-        # if rank in non_empty_ranks:
-        #     bounds_global = [d.bounds_global for d in new_dimensions]
-        # else:
-        #     bounds_global = None
-        # bounds_global = comm.bcast(bounds_global, root=non_empty_ranks[0])
         if not is_or_will_be_empty:
             ret.set_dimensions(new_dimensions, force=True)
-        # else:
-        #     pass
-        #     for dim, bg in zip(ret.dimensions, bounds_global):
-        #         dim.bounds_global = bg
 
         return ret
 
@@ -962,9 +949,9 @@ class Variable(AbstractContainer, Attributes):
         return self._value
 
     def get_iter(self, **kwargs):
-        add_bounds = kwargs.pop(KeywordArguments.ADD_BOUNDS, False)
-        driver = kwargs.pop(KeywordArguments.DRIVER, None)
-        repeaters = kwargs.pop(KeywordArguments.REPEATERS, None)
+        add_bounds = kwargs.pop(KeywordArgument.ADD_BOUNDS, False)
+        driver = kwargs.pop(KeywordArgument.DRIVER, None)
+        repeaters = kwargs.pop(KeywordArgument.REPEATERS, None)
 
         formatter = kwargs.get('formatter')
         if formatter is None and driver is not None:
@@ -992,11 +979,11 @@ class Variable(AbstractContainer, Attributes):
             repeaters = self.repeat_record
         elif repeaters is not None and self.repeat_record is not None:
             repeaters = repeaters + self.repeat_record
-        kwargs[KeywordArguments.REPEATERS] = repeaters
+        kwargs[KeywordArgument.REPEATERS] = repeaters
 
-        kwargs[KeywordArguments.VALUE] = self._get_iter_value_()
-        kwargs[KeywordArguments.FOLLOWERS] = followers
-        kwargs[KeywordArguments.MASK] = self.get_mask()
+        kwargs[KeywordArgument.VALUE] = self._get_iter_value_()
+        kwargs[KeywordArgument.FOLLOWERS] = followers
+        kwargs[KeywordArgument.MASK] = self.get_mask()
 
         itr = Iterator(self, **kwargs)
 
@@ -1088,7 +1075,7 @@ class SourcedVariable(Variable):
 
         if self._request_dataset is not None:
             repeaters = ret.repeaters
-            did_record = (HeaderNames.DATASET_IDENTIFER, self._request_dataset.uid)
+            did_record = (HeaderName.DATASET_IDENTIFER, self._request_dataset.uid)
             if repeaters is None:
                 ret.repeaters = [did_record]
             else:
@@ -1097,7 +1084,10 @@ class SourcedVariable(Variable):
         return ret
 
     def get_mask(self, *args, **kwargs):
-        eager = kwargs.pop(KeywordArguments.EAGER, True)
+        if self._is_empty:
+            return None
+
+        eager = kwargs.pop(KeywordArgument.EAGER, True)
         # When load from disk, the current mask and from disk masked should be merged with a logical OR.
         if eager:
             self.load()
@@ -1343,15 +1333,15 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
 
         from ocgis.driver.registry import get_driver_class
 
-        header_map = kwargs.pop(KeywordArguments.HEADER_MAP, None)
-        strict = kwargs.pop(KeywordArguments.STRICT, False)
-        melted = kwargs.get(KeywordArguments.MELTED)
-        driver = kwargs.pop(KeywordArguments.DRIVER, None)
+        header_map = kwargs.pop(KeywordArgument.HEADER_MAP, None)
+        strict = kwargs.pop(KeywordArgument.STRICT, False)
+        melted = kwargs.get(KeywordArgument.MELTED)
+        driver = kwargs.pop(KeywordArgument.DRIVER, None)
         if driver is not None:
             driver = get_driver_class(driver)
-        geom = kwargs.pop(KeywordArguments.GEOM, None)
-        variable = kwargs.pop(KeywordArguments.VARIABLE, None)
-        followers = kwargs.pop(KeywordArguments.FOLLOWERS, None)
+        geom = kwargs.pop(KeywordArgument.GEOM, None)
+        variable = kwargs.pop(KeywordArgument.VARIABLE, None)
+        followers = kwargs.pop(KeywordArgument.FOLLOWERS, None)
 
         if geom is None:
             geom_name = None
@@ -1363,7 +1353,7 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
             if geom_name is not None:
                 possible = [p for p in possible if p.name != geom_name]
             variable = possible[0]
-            kwargs[KeywordArguments.FOLLOWERS] = possible[1:]
+            kwargs[KeywordArgument.FOLLOWERS] = possible[1:]
         else:
             if not isinstance(variable, Iterator):
                 variable = get_variables(variable, self)[0]
@@ -1371,7 +1361,7 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
                 for ii, f in enumerate(followers):
                     if not isinstance(f, Iterator):
                         followers[ii] = get_variables(f, self)[0]
-            kwargs[KeywordArguments.FOLLOWERS] = followers
+            kwargs[KeywordArgument.FOLLOWERS] = followers
 
         has_melted = False if melted is None else True
 
@@ -1400,8 +1390,8 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
                         if strict:
                             raise
                 if has_melted:
-                    new_yld[HeaderNames.VARIABLE] = yld[HeaderNames.VARIABLE]
-                    new_yld[HeaderNames.VALUE] = yld[HeaderNames.VALUE]
+                    new_yld[HeaderName.VARIABLE] = yld[HeaderName.VARIABLE]
+                    new_yld[HeaderName.VALUE] = yld[HeaderName.VALUE]
                 if not strict:
                     for k, v in list(yld.items()):
                         if k not in header_map_keys:
@@ -1430,10 +1420,10 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
         self.pop(variable_name)
 
     def set_mask(self, variable, **kwargs):
-        exclude = kwargs.pop(KeywordArguments.EXCLUDE, None)
+        exclude = kwargs.pop(KeywordArgument.EXCLUDE, None)
         if exclude is not None:
             exclude = get_variable_names(exclude)
-        update = kwargs.pop(KeywordArguments.UPDATE, False)
+        update = kwargs.pop(KeywordArgument.UPDATE, False)
         names_container = [d.name for d in variable.dimensions]
         for k, v in list(self.items()):
             if exclude is not None and k in exclude:
@@ -1451,7 +1441,7 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
 
     def write(self, *args, **kwargs):
         from ocgis.driver.registry import get_driver_class
-        driver = kwargs.pop(KeywordArguments.DRIVER, DriverKeys.NETCDF)
+        driver = kwargs.pop(KeywordArgument.DRIVER, DriverKey.NETCDF)
         driver = get_driver_class(driver)
         args = list(args)
         args.insert(0, self)

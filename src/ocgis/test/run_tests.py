@@ -8,7 +8,7 @@ import six
 class RunAll(nose.plugins.Plugin):
     name = 'test_all'
     target = 'ocgis'
-    _attrs_standard = '!benchmark!remote'
+    _attrs_standard = '!release!remote'
 
     def __init__(self, *args, **kwargs):
         self.attrs = kwargs.pop('attrs', self._attrs_standard)
@@ -43,13 +43,13 @@ class RunAll(nose.plugins.Plugin):
 
 class RunMore(RunAll):
     name = 'test_more'
-    _attrs_standard = '!slow,!remote,!data,!benchmark'
+    _attrs_standard = '!slow,!remote,!data,!release'
 
 
 class RunNoESMF(RunAll):
     name = 'no-esmf'
     # _exclude = 'test_regrid.test_base|test_conv.test_esmpy'
-    _attrs_standard = '!esmf,!esmpy7,!remote,!slow,!data,!benchmark'
+    _attrs_standard = '!esmf,!esmpy7,!remote,!slow,!data,!release'
 
     # def wantFile(self, file):
     #     match = re.search(self._exclude, file)

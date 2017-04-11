@@ -159,11 +159,6 @@ Regridding
 
 .. _2d-flexible-mesh-example-label:
 
-Converting an ESRI Shapefile to UGRID
--------------------------------------
-
-.. literalinclude:: sphinx_examples/to_ugrid_2d_flexible_mesh.py
-
 Calculating TG90p using ``icclim``
 ----------------------------------
 

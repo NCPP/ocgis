@@ -8,7 +8,7 @@ from netCDF4 import date2num, num2date, netcdftime
 
 from ocgis import RequestDataset
 from ocgis import constants
-from ocgis.constants import HeaderNames, KeywordArguments
+from ocgis.constants import HeaderName, KeywordArgument
 from ocgis.exc import CannotFormatTimeError, IncompleteSeasonError
 from ocgis.ops.parms.definition import CalcGrouping
 from ocgis.test.base import attr, AbstractTestInterface
@@ -121,7 +121,7 @@ class Test(AbstractTestTemporal):
         end = datetime.datetime(1902, 12, 31)
         value = self.get_time_series(start, end)
         tvar = TemporalVariable(value=value, units=constants.DEFAULT_TEMPORAL_UNITS,
-                                dimensions=constants.DimensionNames.TEMPORAL)
+                                dimensions=constants.DimensionName.TEMPORAL)
 
         itr = iter_boolean_groups_from_time_regions(time_regions, tvar, yield_subset=yield_subset,
                                                     raise_if_incomplete=raise_if_incomplete)
@@ -171,8 +171,8 @@ class TestTemporalVariable(AbstractTestTemporal):
     @staticmethod
     def init_temporal_variable(**kwargs):
         # Provide a default time dimension.
-        if KeywordArguments.DIMENSIONS not in kwargs:
-            kwargs[KeywordArguments.DIMENSIONS] = constants.DimensionNames.TEMPORAL
+        if KeywordArgument.DIMENSIONS not in kwargs:
+            kwargs[KeywordArgument.DIMENSIONS] = constants.DimensionName.TEMPORAL
         return TemporalVariable(**kwargs)
 
     def get_template_units(self):
@@ -211,7 +211,7 @@ class TestTemporalVariable(AbstractTestTemporal):
         self.assertEqual(tv.units, 'days since 1990-1-1')
 
     def test_as_record(self):
-        keywords = {KeywordArguments.BOUNDS_NAMES: [None, HeaderNames.TEMPORAL_BOUNDS]}
+        keywords = {KeywordArgument.BOUNDS_NAMES: [None, HeaderName.TEMPORAL_BOUNDS]}
 
         for k in self.iter_product_keywords(keywords):
             tv = TemporalVariable(value=[1, 2, 3], dtype=float, name='time', dimensions='time')
@@ -220,14 +220,14 @@ class TestTemporalVariable(AbstractTestTemporal):
             self.assertIsInstance(tv.bounds, TemporalVariable)
 
             sub = tv[0]
-            kwds = {KeywordArguments.BOUNDS_NAMES: k.bounds_names}
+            kwds = {KeywordArgument.BOUNDS_NAMES: k.bounds_names}
             record = sub.as_record(**kwds)
             for v in list(record.values()):
                 self.assertNotIsInstance(v, float)
             self.assertEqual(len(record), 7)
 
             if k.bounds_names is not None:
-                for n in HeaderNames.TEMPORAL_BOUNDS:
+                for n in HeaderName.TEMPORAL_BOUNDS:
                     self.assertIn(n, record)
 
     def test_getitem(self):
@@ -694,8 +694,8 @@ class TestTemporalVariable(AbstractTestTemporal):
             bounds_upper = group.bounds.get_value()[idx, 1]
 
             sub = td[group.dgroups[idx]]
-            self.assertEqual(sub.masked_value.compressed().min(), bounds_lower)
-            self.assertEqual(sub.masked_value.compressed().max(), bounds_upper)
+            self.assertEqual(sub.get_masked_value().compressed().min(), bounds_lower)
+            self.assertEqual(sub.get_masked_value().compressed().max(), bounds_upper)
 
         self.assertEqual(group.get_value().tolist(),
                          [datetime.datetime(1900, 4, 16, 0, 0), datetime.datetime(1900, 7, 17, 0, 0),
@@ -874,7 +874,8 @@ class TestTemporalVariable(AbstractTestTemporal):
         self.assertEqual(set([20, 31]), set([d.day for d in ret.get_value().flat]))
 
         ret, indices = td.get_time_region({'day': [20, 31], 'month': [9, 10], 'year': [2003]}, return_indices=True)
-        self.assertNumpyAll(ret.masked_value, np.ma.array([dt(2003, 9, 20), dt(2003, 10, 20), dt(2003, 10, 31, )]))
+        self.assertNumpyAll(ret.get_masked_value(),
+                            np.ma.array([dt(2003, 9, 20), dt(2003, 10, 20), dt(2003, 10, 31, )]))
         self.assertEqual(ret.shape, indices.shape)
 
         self.assertEqual(ret.extent, (datetime.datetime(2003, 9, 20), datetime.datetime(2003, 10, 31)))
@@ -910,7 +911,7 @@ class TestTemporalVariable(AbstractTestTemporal):
         datetimes = get_datetime_from_months_time_units(vec, units)
         td = self.init_temporal_variable(value=vec, units=units, calendar='standard')
         ret = td.get_between(datetimes[0], datetimes[3])
-        self.assertNumpyAll(ret.masked_value, np.ma.array([0, 1, 2, 3]))
+        self.assertNumpyAll(ret.get_masked_value(), np.ma.array([0, 1, 2, 3]))
 
     def test_months_not_in_time_units(self):
         units = "days since 1900-01-01"
@@ -1013,7 +1014,7 @@ class TestTemporalVariable(AbstractTestTemporal):
                         format_time=[True, False])
         for k in self.iter_product_keywords(keywords, as_namedtuple=True):
             td = self.init_temporal_variable(**k._asdict())
-            self.assertNumpyAll(td.masked_value, np.ma.array(k.value))
+            self.assertNumpyAll(td.get_masked_value(), np.ma.array(k.value))
             try:
                 self.assertNumpyAll(td.value_datetime, np.ma.array(value_datetime))
             except CannotFormatTimeError:

@@ -11,7 +11,7 @@ from ocgis.test.base import attr, AbstractTestInterface
 from ocgis.variable.base import Variable
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.temporal import TemporalVariable
-from ocgis.vm.mpi import MPI_COMM, MPI_RANK
+from ocgis.vmachine.mpi import MPI_COMM, MPI_RANK
 
 
 class TestGridSplitter(AbstractTestInterface):
@@ -57,9 +57,7 @@ class TestGridSplitter(AbstractTestInterface):
         dst_template = os.path.join(self.current_dir_output, 'dst_{}.nc')
         index_path = os.path.join(self.current_dir_output, 'index_path.nc')
 
-        # barrier_print('before write_subsets')
         gs.write_subsets(src_template, dst_template, 'esmf_weights_{}.nc', index_path)
-        # barrier_print('after write_subsets')
 
         if MPI_RANK == 0:
             rank_sums = []
@@ -90,6 +88,8 @@ class TestGridSplitter(AbstractTestInterface):
         if MPI_RANK == 0:
             self.assertAlmostEqual(desired_sum, np.sum(rank_sums))
             self.assertTrue(os.path.exists(index_path))
+
+        MPI_COMM.Barrier()
 
         index_field = RequestDataset(index_path).get()
         self.assertTrue(len(list(index_field.keys())) > 2)

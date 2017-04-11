@@ -8,7 +8,7 @@ from shapely import wkt
 from shapely.geometry import Point, box, MultiPoint, LineString
 from shapely.geometry.multilinestring import MultiLineString
 
-from ocgis import RequestDataset
+from ocgis import RequestDataset, vm
 from ocgis import env, CoordinateReferenceSystem
 from ocgis.exc import EmptySubsetError
 from ocgis.spatial.grid import GridXY, get_geometry_variable
@@ -17,8 +17,7 @@ from ocgis.variable.base import Variable, VariableCollection
 from ocgis.variable.crs import WGS84, Spherical
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable, GeometryProcessor
-from ocgis.vm.mpi import OcgMpi, MPI_RANK, variable_scatter, MPI_SIZE, get_standard_comm_state, \
-    variable_gather, MPI_COMM
+from ocgis.vmachine.mpi import OcgMpi, MPI_RANK, variable_scatter, MPI_SIZE, variable_gather, MPI_COMM
 
 
 class TestGeometryProcessor(AbstractTestInterface):
@@ -98,7 +97,7 @@ class TestGeometryVariable(AbstractTestInterface):
         self.assertEqual(gvar.dtype, object)
 
         gvar = self.get_geometryvariable()
-        self.assertIsInstance(gvar.masked_value, MaskedArray)
+        self.assertIsInstance(gvar.get_masked_value(), MaskedArray)
         self.assertEqual(gvar.ndim, 1)
 
         # Test passing a "crs".
@@ -149,13 +148,18 @@ class TestGeometryVariable(AbstractTestInterface):
         sub_field_nc = field_nc.get_field_slice({'time': slice(0, 10)})
         self.assertEqual(sub_field_nc['tas']._dimensions, field_nc['tas']._dimensions)
         sub = sub_field_nc.grid.get_intersects(polygon)
-        abstraction_geometry = sub.get_abstraction_geometry()
-        sub.parent.add_variable(abstraction_geometry, force=True)
-        unioned = abstraction_geometry.get_unioned(spatial_average='tas')
-        if unioned is not None:
-            tas = unioned.parent['tas']
-            self.assertFalse(tas.is_empty)
-            self.assertAlmostEqual(tas.get_value().mean(), 273.45197, places=5)
+
+        # When split across two processes, there are floating point summing differences.
+        desired = {1: 2734.5195, 2: 2740.4014}
+        with vm.scoped_by_emptyable('grid intersects', sub):
+            if not vm.is_null:
+                abstraction_geometry = sub.get_abstraction_geometry()
+                sub.parent.add_variable(abstraction_geometry, force=True)
+                unioned = abstraction_geometry.get_unioned(spatial_average='tas')
+                if unioned is not None:
+                    tas = unioned.parent['tas']
+                    self.assertFalse(tas.is_empty)
+                    self.assertAlmostEqual(tas.get_value().sum(), desired[vm.size], places=4)
 
     def test_area(self):
         gvar = self.get_geometryvariable()
@@ -168,8 +172,6 @@ class TestGeometryVariable(AbstractTestInterface):
         n = ompi.create_dimension('n', 70, dist=True)
         ompi.update_dimension_bounds()
 
-        comm, rank, size = get_standard_comm_state()
-
         gvar = GeometryVariable(name='geom', dimensions=(m, n))
         ugid = gvar.create_ugid_global('gid')
 
@@ -177,7 +179,7 @@ class TestGeometryVariable(AbstractTestInterface):
             self.assertEqual(gvar.dist, ugid.dist)
 
         gathered = variable_gather(ugid)
-        if rank == 0:
+        if MPI_RANK == 0:
             actual = gathered.get_value()
             self.assertEqual(actual.size, len(set(actual.flatten().tolist())))
 
@@ -244,20 +246,30 @@ class TestGeometryVariable(AbstractTestInterface):
         self.assertEqual(pa.geom_type, 'overload')
 
     @attr('mpi')
+    def test_geom_type_global(self):
+        if MPI_SIZE != 3:
+            raise SkipTest('MPI_SIZE != 3')
+
+        geoms = [Point(1, 2), MultiPoint([Point(3, 4)]), Point(5, 6)]
+        geom = GeometryVariable(name='geom', value=[geoms[MPI_RANK]], dimensions='geom')
+        self.assertEqual(geom.geom_type, geoms[MPI_RANK].geom_type)
+        self.assertEqual(geom.geom_type_global, geoms[1].geom_type)
+
+    @attr('mpi')
     def test_get_intersects(self):
         dist = OcgMpi()
-        dimx = dist.create_dimension('x', 5, dist=False)
-        dimy = dist.create_dimension('y', 5, dist=True)
-        x = dist.create_variable(name='x', dimensions=[dimx, dimy])
-        y = dist.create_variable(name='y', dimensions=[dimx, dimy])
+        dist.create_dimension('x', 5, dist=False)
+        dist.create_dimension('y', 5, dist=True)
         dist.update_dimension_bounds()
 
         if MPI_RANK == 0:
             x = Variable(value=[1, 2, 3, 4, 5], name='x', dimensions=['x'])
             y = Variable(value=[10, 20, 30, 40, 50], name='y', dimensions=['y'])
+        else:
+            x, y = [None] * 2
 
-        x, dist = variable_scatter(x, dist)
-        y, dist = variable_scatter(y, dist)
+        x = variable_scatter(x, dist)
+        y = variable_scatter(y, dist)
 
         if MPI_RANK < 2:
             self.assertTrue(y.dimensions[0].dist)
@@ -277,10 +289,15 @@ class TestGeometryVariable(AbstractTestInterface):
         # self.write_fiona_htmp(grid.abstraction_geometry, 'grid-{}'.format(MPI_RANK))
 
         # Try an empty subset.
-        with self.assertRaises(EmptySubsetError):
-            pa.get_intersects(Point(-8000, 9000))
+        live_ranks = vm.get_live_ranks_from_object(pa)
+        vm.create_subcomm('test_get_intersects', live_ranks, is_current=True)
+        if not vm.is_null:
+            with self.assertRaises(EmptySubsetError):
+                pa.get_intersects(Point(-8000, 9000))
 
-        sub, slc = pa.get_intersects(polygon, return_slice=True)
+            sub, slc = pa.get_intersects(polygon, return_slice=True)
+        else:
+            sub, slc = [None] * 2
 
         # self.write_fiona_htmp(sub, 'sub-{}'.format(MPI_RANK))
 
@@ -291,13 +308,15 @@ class TestGeometryVariable(AbstractTestInterface):
             if MPI_SIZE == 2:
                 self.assertEqual(sub.shape[1], 2)
             # This is the distributed dimension.
-            if MPI_RANK < 5:
-                self.assertNotEqual(sub.shape[0], 3)
-            else:
-                self.assertTrue(sub.is_empty)
+            if MPI_RANK in live_ranks:
+                if MPI_RANK < 5:
+                    self.assertNotEqual(sub.shape[0], 3)
+                else:
+                    self.assertTrue(sub.is_empty)
 
-        desired_points_slc = pa.get_distributed_slice(slc).get_value()
-        if not pa.is_empty:
+        if not vm.is_null:
+            desired_points_slc = pa.get_distributed_slice(slc).get_value()
+
             desired_points_manual = [Point(x, y) for x, y in
                                      itertools.product(grid.x.get_value().flat, grid.y.get_value().flat)]
             desired_points_manual = [pt for pt in desired_points_manual if pt.intersects(polygon)]
@@ -311,11 +330,12 @@ class TestGeometryVariable(AbstractTestInterface):
                     self.assertTrue(found)
 
         # Test w/out an associated grid.
-        pa = self.get_geometryvariable(dimensions='ngeom')
-        polygon = box(0.5, 1.5, 1.5, 2.5)
-        sub = pa.get_intersects(polygon)
-        self.assertEqual(sub.shape, (1,))
-        self.assertEqual(sub.get_value()[0], Point(1, 2))
+        if not vm.is_null:
+            pa = self.get_geometryvariable(dimensions='ngeom')
+            polygon = box(0.5, 1.5, 1.5, 2.5)
+            sub = pa.get_intersects(polygon)
+            self.assertEqual(sub.shape, (1,))
+            self.assertEqual(sub.get_value()[0], Point(1, 2))
 
     def test_get_intersection(self):
         for return_indices in [True, False]:
@@ -351,7 +371,12 @@ class TestGeometryVariable(AbstractTestInterface):
             pa = get_geometry_variable(grid)
         else:
             pa = None
-        pa, dist = variable_scatter(pa, dist)
+        pa = variable_scatter(pa, dist)
+
+        vm.create_subcomm_by_emptyable('test_get_mask_from_intersects', pa, is_current=True)
+        if vm.is_null:
+            self.assertTrue(pa.is_empty)
+            return
 
         usi = [False]
         if env.USE_SPATIAL_INDEX:
@@ -460,7 +485,7 @@ class TestGeometryVariable(AbstractTestInterface):
     @attr('mpi')
     def test_get_unioned_spatial_average_parallel(self):
         if MPI_SIZE != 8:
-            raise SkipTest('MPI-8 only')
+            raise SkipTest('MPI_SIZE != 8')
 
         dist = OcgMpi()
         geom_count = dist.create_dimension('geom_count', size=8, dist=True)
@@ -481,12 +506,16 @@ class TestGeometryVariable(AbstractTestInterface):
 
         self.assertTrue(gvar.is_empty == data.is_empty == gvar.parent.is_empty)
 
-        unioned = gvar.get_unioned(spatial_average='data')
+        with vm.scoped_by_emptyable('union', gvar):
+            if vm.is_null:
+                unioned = None
+            else:
+                unioned = gvar.get_unioned(spatial_average='data')
 
         if unioned is not None:
             self.assertIsInstance(unioned, GeometryVariable)
             actual = unioned.parent[data.name]
-            self.assertAlmostEqual(actual.get_value().mean(), 5.1481481481481488)
+            self.assertAlmostEqual(actual.get_value().max(), 5.5466666666666677)
         else:
             self.assertIsNone(unioned)
 

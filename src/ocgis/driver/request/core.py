@@ -7,14 +7,13 @@ import six
 
 from ocgis import constants
 from ocgis import env
-from ocgis.constants import DriverKeys
+from ocgis.constants import DriverKey
 from ocgis.driver.registry import get_driver_class, driver_registry
 from ocgis.driver.request.base import AbstractRequestObject
 from ocgis.exc import RequestValidationError, NoDataVariablesFound, VariableNotFoundError
 from ocgis.util.helpers import get_iter, locate, validate_time_subset, get_tuple, get_by_sequence
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.util.units import get_units_object, get_are_units_equivalent
-from ocgis.vm.mpi import MPI_COMM
 
 
 # tdk: clean-up
@@ -123,14 +122,6 @@ class RequestDataset(AbstractRequestObject):
 
     .. _time units: http://netcdf4-python.googlecode.com/svn/trunk/docs/netCDF4-module.html#num2date
     .. _time calendar: http://netcdf4-python.googlecode.com/svn/trunk/docs/netCDF4-module.html#num2date
-
-    :param dist: Overloaded dimension distribution
-    :type dist: :class:`~ocgis.new_interface.mpi.OcgMpi`
-    :param comm: The MPI communicator.
-    :type comm: :class:`mpi4py.MPI_COMM`
-    :param bool use_default_dist: If ``True`` (the default), use a default MPI distribution determined by the driver.
-     If ``False``, do not apply a default distribution. In the absence of an overloaded distribution, defined by the
-     keyword argument ``dist``, no variables/dimensions will be distributed.
     """
 
     # tdk: RESUME: driver-specific option for netcdf: grid_abstraction - perhaps driver_options?
@@ -138,8 +129,7 @@ class RequestDataset(AbstractRequestObject):
                  time_subset_func=None, level_range=None, conform_units_to=None, crs='auto', t_units=None,
                  t_calendar=None, t_conform_units_to=None, grid_abstraction='auto', dimension_map=None,
                  field_name=None, driver=None, regrid_source=True, regrid_destination=False, metadata=None,
-                 format_time=True, opened=None, dist=None, comm=None, use_default_dist=True, uid=None,
-                 rename_variable=None):
+                 format_time=True, opened=None, uid=None, rename_variable=None):
 
         self._is_init = True
 
@@ -152,13 +142,7 @@ class RequestDataset(AbstractRequestObject):
         self._metadata = deepcopy(metadata)
         self._uri = None
         self._rename_variable = rename_variable
-        self.use_default_dist = use_default_dist
         self.uid = uid
-
-        # Set the default MPI communicator.
-        self.comm = comm or MPI_COMM
-        # Set the default dimension distribution.
-        self._dist = dist
 
         # This is an "open" file-like object that may be passed in-place of file location parameters.
         self.opened = opened
@@ -298,14 +282,6 @@ class RequestDataset(AbstractRequestObject):
         return self._dimension_map
 
     @property
-    def dist(self):
-        if self._dist is None:
-            ret = self.driver.dist
-        else:
-            ret = self._dist
-        return ret
-
-    @property
     def field_name(self):
         if self._field_name is None:
             # Use renamed variables for field names. Often there is a single variable in the request. This ensures
@@ -313,9 +289,9 @@ class RequestDataset(AbstractRequestObject):
             ret = list(get_iter(self.rename_variable))
             if len(ret) > 1:
                 msg = 'No default "field_name" based on variables name possible with multiple data variables: {}. ' \
-                      'Using default field name: {}.'.format(self.variable, constants.MiscNames.DEFAULT_FIELD_NAME)
+                      'Using default field name: {}.'.format(self.variable, constants.MiscName.DEFAULT_FIELD_NAME)
                 ocgis_lh(msg=msg, level=logging.WARN)
-                ret = constants.MiscNames.DEFAULT_FIELD_NAME
+                ret = constants.MiscName.DEFAULT_FIELD_NAME
             else:
                 ret = ret[0]
         else:
@@ -464,7 +440,7 @@ class RequestDataset(AbstractRequestObject):
             try:
                 name = self.field_name
             except NoDataVariablesFound:
-                name = constants.MiscNames.DEFAULT_FIELD_NAME
+                name = constants.MiscName.DEFAULT_FIELD_NAME
             kwargs['name'] = name
         return self.driver.get_field(*args, **kwargs)
 
@@ -572,7 +548,7 @@ def get_autodiscovered_driver(uri):
 
 
 def get_driver(driver):
-    return get_driver_class(key_or_class=driver, default=DriverKeys.NETCDF_CF)
+    return get_driver_class(key_or_class=driver, default=DriverKey.NETCDF_CF)
 
 
 def get_uri(uri, ignore_errors=False, followlinks=True):

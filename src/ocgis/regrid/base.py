@@ -10,7 +10,7 @@ from ocgis import constants
 from ocgis import env
 from ocgis.base import AbstractOcgisObject, get_dimension_names
 from ocgis.collection.field import OcgField
-from ocgis.constants import DimensionMapKeys, KeywordArguments
+from ocgis.constants import DimensionMapKey, KeywordArgument
 from ocgis.exc import RegriddingError, CornersInconsistentError
 from ocgis.spatial.grid import GridXY, expand_grid
 from ocgis.spatial.spatial_subset import SpatialSubsetOperation
@@ -131,8 +131,8 @@ def get_ocgis_grid_from_esmf_grid(egrid, crs=None, dimension_map=None):
     """
 
     if dimension_map is None:
-        dimension_map = {DimensionMapKeys.X: {'variable': 'x', 'bounds': 'x_bounds', 'names': ['x']},
-                         DimensionMapKeys.Y: {'variable': 'y', 'bounds': 'y_bounds', 'names': ['y']}}
+        dimension_map = {DimensionMapKey.X: {'variable': 'x', 'bounds': 'x_bounds', 'names': ['x']},
+                         DimensionMapKey.Y: {'variable': 'y', 'bounds': 'y_bounds', 'names': ['y']}}
 
     # OCGIS grid values are built on centers.
     coords = egrid.coords[ESMF.StaggerLoc.CENTER]
@@ -174,26 +174,26 @@ def get_ocgis_grid_from_esmf_grid(egrid, crs=None, dimension_map=None):
     if grid_corners is not None:
         grid_corners = np.ma.array(grid_corners)
 
-    grid_dimensions = [dimension_map[DimensionMapKeys.Y][DimensionMapKeys.NAMES][0],
-                       dimension_map[DimensionMapKeys.X][DimensionMapKeys.NAMES][0]]
+    grid_dimensions = [dimension_map[DimensionMapKey.Y][DimensionMapKey.NAMES][0],
+                       dimension_map[DimensionMapKey.X][DimensionMapKey.NAMES][0]]
     if grid_corners is not None:
         grid_bounds_dimensions = deepcopy(grid_dimensions)
         grid_bounds_dimensions.append(constants.DEFAULT_NAME_CORNERS_DIMENSION)
 
-        name = dimension_map[DimensionMapKeys.X][DimensionMapKeys.BOUNDS]
+        name = dimension_map[DimensionMapKey.X][DimensionMapKey.BOUNDS]
         x_bounds = Variable(name=name, value=grid_corners[1, ...],
                             dimensions=['y', 'x', constants.DEFAULT_NAME_CORNERS_DIMENSION])
 
-        name = dimension_map[DimensionMapKeys.Y][DimensionMapKeys.BOUNDS]
+        name = dimension_map[DimensionMapKey.Y][DimensionMapKey.BOUNDS]
         y_bounds = Variable(name=name, value=grid_corners[0, ...],
                             dimensions=['y', 'x', constants.DEFAULT_NAME_CORNERS_DIMENSION])
     else:
         x_bounds, y_bounds = [None] * 2
 
-    name = dimension_map[DimensionMapKeys.X][DimensionMapKeys.VARIABLE]
+    name = dimension_map[DimensionMapKey.X][DimensionMapKey.VARIABLE]
     x = Variable(name=name, dimensions=grid_dimensions, value=grid_value[1, ...], bounds=x_bounds)
 
-    name = dimension_map[DimensionMapKeys.Y][DimensionMapKeys.VARIABLE]
+    name = dimension_map[DimensionMapKey.Y][DimensionMapKey.VARIABLE]
     y = Variable(name=name, dimensions=grid_dimensions, value=grid_value[0, ...], bounds=y_bounds)
 
     ogrid = GridXY(x, y, crs=crs)
@@ -268,7 +268,7 @@ def get_ocgis_field_from_esmf_field(efield, dimensions=None, **kwargs):
      create from the ESMF field.
     :param dict kwargs: Any keyword arguments to the creation of the output OCGIS field. Values in ``kwargs`` are used
      in preference over any internal default values created in this function. The keyword argument
-     :attrs:`~ocgis.constants.KeywordArguments.IS_DATA` may not be overloaded.
+     :attrs:`~ocgis.constants.KeywordArgument.IS_DATA` may not be overloaded.
     :returns: An OCGIS field object.
     :rtype: :class:`~ocgis.OcgField`
     """
@@ -276,19 +276,19 @@ def get_ocgis_field_from_esmf_field(efield, dimensions=None, **kwargs):
     kwargs = kwargs.copy()
 
     if dimensions is not None:
-        kwargs[KeywordArguments.IS_DATA] = Variable(name=efield.name, value=efield.data, dimensions=dimensions)
+        kwargs[KeywordArgument.IS_DATA] = Variable(name=efield.name, value=efield.data, dimensions=dimensions)
 
-    grid = kwargs.pop(KeywordArguments.GRID, None)
-    dimension_map = kwargs.pop(KeywordArguments.DIMENSION_MAP, None)
+    grid = kwargs.pop(KeywordArgument.GRID, None)
+    dimension_map = kwargs.pop(KeywordArgument.DIMENSION_MAP, None)
     if grid is None:
-        crs = kwargs.pop(KeywordArguments.CRS, None)
+        crs = kwargs.pop(KeywordArgument.CRS, None)
         if crs is None:
             crs = get_crs_from_esmf_field(efield)
         grid = get_ocgis_grid_from_esmf_grid(efield.grid, crs=crs, dimension_map=dimension_map)
-    kwargs[KeywordArguments.GRID] = grid
+    kwargs[KeywordArgument.GRID] = grid
 
-    if KeywordArguments.CRS not in kwargs:
-        kwargs[KeywordArguments.CRS] = Spherical()
+    if KeywordArgument.CRS not in kwargs:
+        kwargs[KeywordArgument.CRS] = Spherical()
 
     field = OcgField(**kwargs)
 

@@ -1,3 +1,5 @@
+from ocgis import constants
+from ocgis import vm
 from ocgis.base import AbstractOcgisObject
 from ocgis.conv.meta import MetaOCGISConverter
 from ocgis.ops.engine import OperationsEngine
@@ -118,14 +120,15 @@ class OcgOperations(AbstractOcgisObject):
 
     def __init__(self, dataset=None, spatial_operation='intersects', geom=None, geom_select_sql_where=None,
                  geom_select_uid=None, geom_uid=None, aggregate=False, calc=None, calc_grouping=None,
-                 calc_raw=False, abstraction='auto', snippet=False, backend='ocg', prefix=None, output_format='numpy',
-                 agg_selection=False, select_ugid=None, vector_wrap=True, allow_empty=False, dir_output=None,
-                 slice=None, file_only=False, format_time=True, calc_sample_size=False, search_radius_mult=None,
-                 output_crs=None, interpolate_spatial_bounds=False, add_auxiliary_files=True, optimizations=None,
-                 callback=None, time_range=None, time_region=None, time_subset_func=None, level_range=None,
-                 conform_units_to=None, select_nearest=False, regrid_destination=None, regrid_options=None,
-                 melted=False, output_format_options=None, spatial_wrapping=None, spatial_reorder=False,
-                 optimized_bbox_subset=False):
+                 calc_raw=False, abstraction='auto', snippet=False, backend='ocg', prefix=None,
+                 output_format=constants.OutputFormatName.OCGIS, agg_selection=False, select_ugid=None,
+                 vector_wrap=True,
+                 allow_empty=False, dir_output=None, slice=None, file_only=False, format_time=True,
+                 calc_sample_size=False, search_radius_mult=None, output_crs=None, interpolate_spatial_bounds=False,
+                 add_auxiliary_files=True, optimizations=None, callback=None, time_range=None, time_region=None,
+                 time_subset_func=None, level_range=None, conform_units_to=None, select_nearest=False,
+                 regrid_destination=None, regrid_options=None, melted=False, output_format_options=None,
+                 spatial_wrapping=None, spatial_reorder=False, optimized_bbox_subset=False):
 
         # Tells "__setattr__" to not perform global validation until all values are initially set.
         self._is_init = True
@@ -337,6 +340,9 @@ class OcgOperations(AbstractOcgisObject):
 
         # No clipping with regridding.
         if self.regrid_destination is not None:
+            if vm.size > 1:
+                msg = 'No regridding in parallel. Use ESMPy in stand-alone parallel mode.'
+                raise DefinitionValidationError(RegridDestination, msg)
             if self.spatial_operation == 'clip':
                 msg = 'Regridding not allowed with spatial "clip" operation.'
                 raise DefinitionValidationError(SpatialOperation, msg)
@@ -349,7 +355,7 @@ class OcgOperations(AbstractOcgisObject):
 
         # if there is not output CRS and projections differ, raise an exception. however, it is okay to have data with
         # different projections in the numpy output.
-        if len(projections) > 1 and self.output_format != 'numpy':  # @UndefinedVariable
+        if len(projections) > 1 and self.output_format != constants.OutputFormatName.OCGIS:
             if self.output_crs is None:
                 _raise_('Dataset coordinate reference systems must be equivalent if no output CRS is chosen.',
                         obj=OutputCRS)
@@ -369,7 +375,7 @@ class OcgOperations(AbstractOcgisObject):
                 self._get_object_('output_crs')._value = Spherical()
 
         # Only WGS84 coordinate system may be written to GeoJSON.
-        if self.output_format == constants.OUTPUT_FORMAT_GEOJSON:
+        if self.output_format == constants.OutputFormatName.GEOJSON:
             msg = 'Only data with a WGS84 or Spherical projection may be written to GeoJSON.'
             if self.output_crs is not None:
                 if self.output_crs != WGS84() and self.output_crs != Spherical():

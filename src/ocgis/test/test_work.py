@@ -7,7 +7,7 @@ from shapely.geometry.multipoint import MultiPoint
 
 from ocgis import RequestDataset, OcgOperations, env
 from ocgis import constants
-from ocgis.constants import HeaderNames
+from ocgis.constants import HeaderName
 from ocgis.test.base import TestBase, attr
 
 """
@@ -26,7 +26,7 @@ class Test20150119(TestBase):
         ret = ops.execute()
         rd2 = RequestDataset(ret)
         field2 = rd2.get()
-        self.assertAsSetEqual(list(field.keys()) + [HeaderNames.ID_GEOMETRY], list(field2.keys()))
+        self.assertAsSetEqual(list(field.keys()) + [HeaderName.ID_GEOMETRY], list(field2.keys()))
         self.assertEqual((1,), field2.data_variables[0].shape)
 
     def test_shapefile_through_operations(self):
@@ -37,7 +37,7 @@ class Test20150119(TestBase):
         ret = ops.execute()
         rd2 = RequestDataset(ret)
         field2 = rd2.get()
-        self.assertAsSetEqual(list(field.keys()) + [HeaderNames.ID_GEOMETRY], list(field2.keys()))
+        self.assertAsSetEqual(list(field.keys()) + [HeaderName.ID_GEOMETRY], list(field2.keys()))
         self.assertEqual((51,), field2.data_variables[0].shape)
 
 
@@ -46,7 +46,7 @@ class Test20150224(TestBase):
     def test_subset_with_shapefile_no_ugid(self):
         """Test a subset operation using a shapefile without a UGID attribute."""
 
-        output_format = [constants.OUTPUT_FORMAT_NUMPY, constants.OUTPUT_FORMAT_CSV_SHAPEFILE]
+        output_format = [constants.OutputFormatName.OCGIS, constants.OutputFormatName.CSV_SHAPEFILE]
 
         geom = self.get_shapefile_path_with_no_ugid()
         geom_select_uid = [8, 11]
@@ -58,7 +58,7 @@ class Test20150224(TestBase):
                                 output_format=of)
             self.assertEqual(len(ops.geom), 2)
             ret = ops.execute()
-            if of == constants.OUTPUT_FORMAT_NUMPY:
+            if of == constants.OutputFormatName.OCGIS:
                 for element in geom_select_uid:
                     self.assertIn(element, ret.children)
                 self.assertAsSetEqual(list(ret.properties[8].keys()), ['STATE_FIPS', 'ID', 'STATE_NAME', 'STATE_ABBR'])
@@ -120,7 +120,8 @@ class Test20150608(TestBase):
         mp = MultiPoint(pts)
 
         rd = self.test_data.get_rd('cancm4_tas')
-        coll = OcgOperations(dataset=rd, output_format='numpy', snippet=True, geom=mp).execute()
+        coll = OcgOperations(dataset=rd, output_format=constants.OutputFormatName.OCGIS, snippet=True,
+                             geom=mp).execute()
         mu1 = coll.get_element(variable_name='tas').get_masked_value().sum()
         nc_path = OcgOperations(dataset=rd, output_format='nc', snippet=True, geom=mp).execute()
         with self.nc_scope(nc_path) as ds:

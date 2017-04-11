@@ -8,10 +8,10 @@ import numpy as np
 import six
 from netCDF4._netCDF4 import VLType, MFDataset, MFTime
 
-from ocgis import constants
+from ocgis import constants, vm
 from ocgis import env
-from ocgis.base import orphaned
-from ocgis.constants import MPIWriteMode, MPIDistributionMode, DimensionMapKeys, KeywordArguments, DriverKeys, CFNames
+from ocgis.base import orphaned, raise_if_empty
+from ocgis.constants import MPIWriteMode, DimensionMapKey, KeywordArgument, DriverKey, CFName
 from ocgis.driver.base import AbstractDriver, get_group, driver_scope
 from ocgis.exc import ProjectionDoesNotMatch, PayloadProtectedError, OcgWarning, NoDataVariablesFound
 from ocgis.util.helpers import itersubclasses, get_iter, get_formatted_slice, get_by_key_list
@@ -21,12 +21,11 @@ from ocgis.variable.base import SourcedVariable, ObjectType, VariableCollection,
 from ocgis.variable.crs import CFCoordinateReferenceSystem, CoordinateReferenceSystem
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.temporal import TemporalVariable
-from ocgis.vm.mpi import MPI_COMM, barrier_ranks
 
 
 class DriverNetcdf(AbstractDriver):
     extensions = ('.*\.nc', 'http.*')
-    key = DriverKeys.NETCDF
+    key = DriverKey.NETCDF
     output_formats = 'all'
     common_extension = 'nc'
 
@@ -58,21 +57,19 @@ class DriverNetcdf(AbstractDriver):
          netCDF file.
         :keyword bool unlimited_to_fixed_size: (``=False``) If ``True``, convert the unlimited dimension to a fixed size.
         """
+        # There should never be any write operations associated with an empty variable.
+        raise_if_empty(var)
+
         # Write the parent collection if available on the variable.
         if not var.is_orphaned:
             parent_kwargs = {}
-            parent_kwargs[KeywordArguments.RANKS_TO_WRITE] = kwargs.pop(KeywordArguments.RANKS_TO_WRITE, None)
-            parent_kwargs[KeywordArguments.VARIABLE_KWARGS] = kwargs
+            parent_kwargs[KeywordArgument.VARIABLE_KWARGS] = kwargs
             return var.parent.write(dataset, **parent_kwargs)
-
-        # There should never be any write operations associated with an empty variable.
-        if var.is_empty:
-            return
 
         assert isinstance(dataset, nc.Dataset)
 
-        file_only = kwargs.pop(KeywordArguments.FILE_ONLY, False)
-        unlimited_to_fixed_size = kwargs.pop(KeywordArguments.UNLIMITED_TO_FIXED_SIZE, False)
+        file_only = kwargs.pop(KeywordArgument.FILE_ONLY, False)
+        unlimited_to_fixed_size = kwargs.pop(KeywordArgument.UNLIMITED_TO_FIXED_SIZE, False)
 
         # No data should be written during a global write. Data will be filled in during the append process.
         if write_mode == MPIWriteMode.TEMPLATE:
@@ -156,8 +153,7 @@ class DriverNetcdf(AbstractDriver):
         dataset.sync()
 
     @classmethod
-    def _write_variable_collection_main_(cls, vc, opened_or_path, comm, rank, size, write_mode, ranks_to_write,
-                                         **kwargs):
+    def _write_variable_collection_main_(cls, vc, opened_or_path, write_mode, **kwargs):
         """
         Write the variable collection to an open netCDF dataset or file path.
 
@@ -170,7 +166,6 @@ class DriverNetcdf(AbstractDriver):
          ``createVariable``. See http://unidata.github.io/netcdf4-python/netCDF4.Dataset-class.html#createVariable
         """
         assert write_mode is not None
-        assert ranks_to_write is not None
 
         dataset_kwargs = kwargs.get('dataset_kwargs', {})
         variable_kwargs = kwargs.get('variable_kwargs', {})
@@ -182,18 +177,18 @@ class DriverNetcdf(AbstractDriver):
             mode = 'w'
 
         # Write the data on each rank.
-        for idx, rank_to_write in enumerate(ranks_to_write):
+        for idx, rank_to_write in enumerate(vm.ranks):
             # The template write only occurs on the first rank.
-            if write_mode == MPIWriteMode.TEMPLATE and rank_to_write != ranks_to_write[0]:
+            if write_mode == MPIWriteMode.TEMPLATE and rank_to_write != 0:
                 pass
             # If this is not a template write, fill the data.
-            elif rank == rank_to_write:
+            elif vm.rank == rank_to_write:
                 with driver_scope(cls, opened_or_path=opened_or_path, mode=mode, **dataset_kwargs) as dataset:
                     # Write global attributes if we are not filling data.
                     if write_mode != MPIWriteMode.FILL:
                         vc.write_attributes_to_netcdf_object(dataset)
                     # This is the main variable write loop.
-                    variables_to_write = get_variables_to_write(vc, write_mode, rank, ranks_to_write)
+                    variables_to_write = get_variables_to_write(vc)
                     for variable in variables_to_write:
                         # Load the variable's data before orphaning. The variable needs its parent to know which
                         # group it is in.
@@ -210,7 +205,7 @@ class DriverNetcdf(AbstractDriver):
                             group = dataset.groups[child.name]
                         child.write(group, write_mode=write_mode, **kwargs)
                     dataset.sync()
-            barrier_ranks(ranks_to_write, comm=comm)
+            vm.barrier()
 
     def _get_dimensions_main_(self, group_metadata):
         return tuple(get_dimensions_from_netcdf_metadata(group_metadata, list(group_metadata['dimensions'].keys())))
@@ -221,7 +216,7 @@ class DriverNetcdf(AbstractDriver):
         return ret
 
     def _init_variable_from_source_main_(self, variable, variable_object):
-        init_variable_using_metadata_for_netcdf(self, variable, self.rd.metadata)
+        init_variable_using_metadata_for_netcdf(variable, self.rd.metadata)
 
     @staticmethod
     def _open_(uri, mode='r', **kwargs):
@@ -243,7 +238,7 @@ class DriverNetcdf(AbstractDriver):
 
 
 class DriverNetcdfCF(DriverNetcdf):
-    key = DriverKeys.NETCDF_CF
+    key = DriverKey.NETCDF_CF
     _default_crs = env.DEFAULT_COORDSYS
     _priority = True
 
@@ -280,19 +275,19 @@ class DriverNetcdfCF(DriverNetcdf):
         # Check for coordinate system variables. This will check every variable.
         crs_name = get_coordinate_system_variable_name(self, group_metadata)
         if crs_name is not None:
-            ret[DimensionMapKeys.CRS] = {DimensionMapKeys.VARIABLE: crs_name}
+            ret[DimensionMapKey.CRS] = {DimensionMapKey.VARIABLE: crs_name}
 
         return ret
 
     @staticmethod
     def get_data_variable_names(group_metadata, group_dimension_map):
-        axes_needed = [DimensionMapKeys.TIME, DimensionMapKeys.X, DimensionMapKeys.Y]
+        axes_needed = [DimensionMapKey.TIME, DimensionMapKey.X, DimensionMapKey.Y]
         dvars = []
 
         dimension_names_needed = []
         for axis in axes_needed:
             try:
-                dimension_names_needed += group_dimension_map[axis].get(DimensionMapKeys.NAMES, [])
+                dimension_names_needed += group_dimension_map[axis].get(DimensionMapKey.NAMES, [])
             except KeyError:
                 # A required axis is missing in the dimension map. Hence, there are no dimensioned variables in the
                 # group
@@ -308,11 +303,11 @@ class DriverNetcdfCF(DriverNetcdf):
         return tuple(dvars)
 
     def get_distributed_dimension_name(self, dimension_map, dimensions_metadata):
-        if DimensionMapKeys.X in dimension_map and DimensionMapKeys.Y in dimension_map:
+        if DimensionMapKey.X in dimension_map and DimensionMapKey.Y in dimension_map:
             sizes = np.zeros(2, dtype={'names': ['dim', 'size'], 'formats': [object, int]})
 
-            dimension_name_x = dimension_map[DimensionMapKeys.X]['names'][0]
-            dimension_name_y = dimension_map[DimensionMapKeys.Y]['names'][0]
+            dimension_name_x = dimension_map[DimensionMapKey.X]['names'][0]
+            dimension_name_y = dimension_map[DimensionMapKey.Y]['names'][0]
 
             sizes[0] = (dimension_name_x, dimensions_metadata[dimension_name_x]['size'])
             sizes[1] = (dimension_name_y, dimensions_metadata[dimension_name_y]['size'])
@@ -326,12 +321,11 @@ class DriverNetcdfCF(DriverNetcdf):
         return get_crs_variable(group_metadata)
 
     @classmethod
-    def _get_variable_collection_write_target_(cls, field):
+    def _get_field_write_target_(cls, field):
         if not field.is_empty:
-            # This change to the field can be maintained following a write.
+            # These changes to the field can be maintained following a write.
             if field.crs is not None:
-                for data_variable in field.data_variables:
-                    field[data_variable.name].attrs['grid_mapping'] = field.crs.name
+                field.crs.format_field(field)
 
             # Putting units on bounds for netCDF-CF can confuse some parsers.
             if field.grid is not None and field.grid.has_bounds:
@@ -375,58 +369,44 @@ def read_from_collection(target, request_dataset, parent=None, name=None, source
     return ret
 
 
-def init_variable_using_metadata_for_netcdf(driver, variable, metadata):
+def init_variable_using_metadata_for_netcdf(variable, metadata):
     source = get_group(metadata, variable.group, has_root=False)
     desired_name = variable.source_name
     var = source['variables'][desired_name]
 
-    # Use the distribution to identify if this is an isolated variable. Isolated variables exist on select ranks.
-    dist_for_var = driver.dist.get_variable(variable)
-
-    # tdk: understand issues with the null communicator
-    # rank = driver.rd.comm.Get_rank()
-    rank = MPI_COMM.Get_rank()
-
-    if dist_for_var['dist'] == MPIDistributionMode.ISOLATED and rank not in dist_for_var['ranks']:
-        variable._is_empty = True
-
-    # Update the variable's distribution and rank information.
-    variable.dist = dist_for_var['dist']
-    if variable.dist == MPIDistributionMode.ISOLATED:
-        variable.ranks = dist_for_var['ranks']
+    if vm.is_null:
+        variable.convert_to_empty()
     else:
-        variable.ranks = 'all'
+        # Update data type and fill value.
+        if variable._dtype is None:
+            var_dtype = var['dtype']
+            desired_dtype = deepcopy(var_dtype)
+            if isinstance(var_dtype, VLType):
+                desired_dtype = ObjectType(var_dtype)
+            elif var['dtype_packed'] is not None:
+                desired_dtype = deepcopy(var['dtype_packed'])
+            variable._dtype = desired_dtype
 
-    # Update data type and fill value.
-    if variable._dtype is None:
-        var_dtype = var['dtype']
-        desired_dtype = deepcopy(var_dtype)
-        if isinstance(var_dtype, VLType):
-            desired_dtype = ObjectType(var_dtype)
-        elif var['dtype_packed'] is not None:
-            desired_dtype = deepcopy(var['dtype_packed'])
-        variable._dtype = desired_dtype
+        if variable._fill_value is None:
+            if var['fill_value_packed'] is not None:
+                desired_fill_value = var['fill_value_packed']
+            else:
+                desired_fill_value = var['fill_value']
+            variable._fill_value = deepcopy(desired_fill_value)
 
-    if variable._fill_value is None:
-        if var['fill_value_packed'] is not None:
-            desired_fill_value = var['fill_value_packed']
-        else:
-            desired_fill_value = var['fill_value']
-        variable._fill_value = deepcopy(desired_fill_value)
-
-    variable_attrs = variable._attrs
-    # Offset and scale factors are not supported by OCGIS. The data is unpacked when written to a new output file.
-    # tdk: consider supporting offset and scale factors
-    exclude = ['add_offset', 'scale_factor']
-    for k, v in list(var['attributes'].items()):
-        if k in exclude:
-            continue
-        if k not in variable_attrs:
-            variable_attrs[k] = deepcopy(v)
-    # The conform units to value should be the default units value. Units will be converted on variable load.
-    conform_units_to = var.get('conform_units_to')
-    if conform_units_to is not None:
-        variable_attrs['units'] = conform_units_to
+        variable_attrs = variable._attrs
+        # Offset and scale factors are not supported by OCGIS. The data is unpacked when written to a new output file.
+        # tdk: consider supporting offset and scale factors
+        exclude = ['add_offset', 'scale_factor']
+        for k, v in list(var['attributes'].items()):
+            if k in exclude:
+                continue
+            if k not in variable_attrs:
+                variable_attrs[k] = deepcopy(v)
+        # The conform units to value should be the default units value. Units will be converted on variable load.
+        conform_units_to = var.get('conform_units_to')
+        if conform_units_to is not None:
+            variable_attrs['units'] = conform_units_to
 
 
 def get_coordinate_system_variable_name(driver_object, group_metadata):
@@ -484,22 +464,13 @@ def get_value_from_request_dataset(variable):
     return ret
 
 
-def get_variables_to_write(vc, write_mode, rank, ranks_to_write):
+def get_variables_to_write(vc):
     from ocgis.variable.geom import GeometryVariable
     ret = []
-    for variable in list(vc.values()):
+    for variable in vc.values():
         if isinstance(variable, GeometryVariable):
             continue
         else:
-            # For isolated and replicated variables, only write once.
-            if write_mode != MPIWriteMode.TEMPLATE:
-                if variable.dist is not None and variable.dist != MPIDistributionMode.DISTRIBUTED:
-                    if variable.dist == MPIDistributionMode.REPLICATED:
-                        if rank != ranks_to_write[0]:
-                            continue
-                    else:
-                        if rank != variable.ranks[0]:
-                            continue
             ret.append(variable)
     return ret
 
@@ -578,7 +549,7 @@ def get_dimension_map_entry(axis, variables, dimensions, strict=False):
 
     # Try to find by default names.
     if not strict and len(axis_vars) == 0:
-        possible_names = CFNames.get_name_mapping().get(axis, [])
+        possible_names = CFName.get_name_mapping().get(axis, [])
         for pn in possible_names:
             if pn in list(variables.keys()):
                 axis_vars.append(variables[pn]['name'])

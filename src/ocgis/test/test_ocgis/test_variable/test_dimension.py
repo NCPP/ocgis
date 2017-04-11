@@ -1,10 +1,14 @@
+from unittest import SkipTest
+
 import numpy as np
 import six
 
-from ocgis.constants import DataTypes
+from ocgis import vm
+from ocgis.constants import DataType
+from ocgis.exc import EmptyObjectError
 from ocgis.test.base import attr, AbstractTestInterface
 from ocgis.variable.dimension import Dimension
-from ocgis.vm.mpi import OcgMpi, MPI_SIZE, MPI_RANK
+from ocgis.vmachine.mpi import OcgMpi, MPI_SIZE, MPI_RANK, get_nonempty_ranks
 
 
 class TestDimension(AbstractTestInterface):
@@ -27,7 +31,7 @@ class TestDimension(AbstractTestInterface):
         dim = Dimension('foo', size=23)
         self.assertEqual(dim.size, 23)
 
-        src_idx = np.arange(0, 10, dtype=DataTypes.DIMENSION_SRC_INDEX)
+        src_idx = np.arange(0, 10, dtype=DataType.DIMENSION_SRC_INDEX)
         dim = self.get_dimension(src_idx=src_idx)
         self.assertNumpyAll(dim._src_idx, src_idx)
         self.assertEqual(dim._src_idx.shape[0], 10)
@@ -63,10 +67,13 @@ class TestDimension(AbstractTestInterface):
         self.assertEqual(dim.bounds_local, (0, 2))
 
     def test_convert_to_empty(self):
-        dim = Dimension('three', 3, src_idx=[10, 11, 12])
+        dim = Dimension('three', 3, src_idx=[10, 11, 12], dist=True)
         dim.convert_to_empty()
         self.assertFalse(dim.is_unlimited)
         self.assertTrue(dim.is_empty)
+        self.assertEqual(len(dim), 0)
+        self.assertEqual(dim.size, 0)
+        self.assertEqual(dim.size_current, 0)
 
     def test_copy(self):
         sd = self.get_dimension(src_idx=np.arange(10))
@@ -98,19 +105,25 @@ class TestDimension(AbstractTestInterface):
             dist = OcgMpi()
             dim = dist.create_dimension('five', 5, dist=d, src_idx='auto')
             dist.update_dimension_bounds()
-            self.assertEqual(dim.bounds_global, (0, 5))
+            if not dim.is_empty:
+                self.assertEqual(dim.bounds_global, (0, 5))
 
             if dim.dist:
                 if MPI_RANK > 1:
                     self.assertTrue(dim.is_empty)
                 else:
                     self.assertFalse(dim.is_empty)
-            sub = dim.get_distributed_slice(slice(1, 3))
+            with vm.scoped_by_emptyable('dim slice', dim):
+                if not vm.is_null:
+                    sub = dim.get_distributed_slice(slice(1, 3))
+                else:
+                    sub = None
 
             if dim.dist:
                 if not dim.is_empty:
                     self.assertIsNotNone(dim._src_idx)
-                self.assertEqual(sub.bounds_global, (0, 2))
+                else:
+                    self.assertIsNone(sub)
 
                 if MPI_SIZE == 2:
                     desired_emptiness = {0: False, 1: True}[MPI_RANK]
@@ -118,7 +131,7 @@ class TestDimension(AbstractTestInterface):
                     self.assertEqual(sub.is_empty, desired_emptiness)
                     self.assertEqual(sub.bounds_local, desired_bounds_local)
                 if MPI_SIZE >= 5 and 0 < MPI_RANK > 2:
-                    self.assertTrue(sub.is_empty)
+                    self.assertTrue(sub is None or sub.is_empty)
             else:
                 self.assertEqual(len(dim), 5)
                 self.assertEqual(dim.bounds_global, (0, 5))
@@ -127,9 +140,51 @@ class TestDimension(AbstractTestInterface):
         dist = OcgMpi()
         dim = dist.create_dimension('five', 5, dist=True, src_idx='auto')
         dist.update_dimension_bounds()
-        sub = dim.get_distributed_slice(slice(2, 4))
+        with vm.scoped_by_emptyable('five slice', dim):
+            if not vm.is_null:
+                sub2 = dim.get_distributed_slice(slice(2, 4))
+            else:
+                sub2 = None
         if MPI_SIZE == 3 and MPI_RANK == 2:
+            self.assertIsNone(sub2)
+
+    @attr('mpi')
+    def test_get_distributed_slice_on_rank_subset(self):
+        """Test with some a priori empty dimensions."""
+        if MPI_SIZE != 4:
+            raise SkipTest('MPI_SIZE != 4')
+
+        ompi = OcgMpi()
+        dim = ompi.create_dimension('eight', 8, dist=True)
+        ompi.update_dimension_bounds()
+
+        sub = dim.get_distributed_slice(slice(2, 6))
+
+        live_ranks = get_nonempty_ranks(sub, vm)
+        if MPI_RANK in [1, 2]:
+            self.assertFalse(sub.is_empty)
+        else:
             self.assertTrue(sub.is_empty)
+            self.assertEqual(sub.bounds_local, (0, 0))
+            self.assertEqual(sub.bounds_global, (0, 0))
+
+        with vm.scoped('live rank dim subset', live_ranks):
+            if not vm.is_null:
+                sub2 = sub.get_distributed_slice(slice(2, 4))
+            else:
+                sub2 = None
+
+        if MPI_RANK == 2:
+            self.assertEqual(sub2.bounds_local, (0, 2))
+            self.assertEqual(sub2.bounds_global, (0, 2))
+            self.assertFalse(sub2.is_empty)
+        else:
+            self.assertTrue(sub2 is None or sub2.is_empty)
+
+        # Try again w/out scoping.
+        if sub.is_empty:
+            with self.assertRaises(EmptyObjectError):
+                sub.get_distributed_slice(slice(2, 4))
 
     @attr('mpi')
     def test_get_distributed_slice_simple(self):
@@ -137,9 +192,20 @@ class TestDimension(AbstractTestInterface):
         dim = ompi.create_dimension('five', 5, dist=True, src_idx='auto')
         ompi.update_dimension_bounds(min_elements=1)
 
-        sub = dim.get_distributed_slice(slice(2, 4))
+        with vm.scoped_by_emptyable('simple slice test', dim):
+            if not vm.is_null:
+                sub = dim.get_distributed_slice(slice(2, 4))
+            else:
+                sub = None
 
-        self.assertEqual(sub.bounds_global, (0, 2))
+        if sub is not None and not sub.is_empty:
+            self.assertEqual(sub.bounds_global, (0, 2))
+        else:
+            if dim.is_empty:
+                self.assertIsNone(sub)
+            else:
+                self.assertEqual(sub.bounds_global, (0, 0))
+                self.assertEqual(sub.bounds_local, (0, 0))
 
         # Test global bounds are updated.
         ompi = OcgMpi()
@@ -160,10 +226,11 @@ class TestDimension(AbstractTestInterface):
         sub = dim.get_distributed_slice(slice(12, 112))
         if sub.is_empty:
             self.assertEqual(sub.bounds_local, (0, 0))
+            self.assertEqual(sub.bounds_global, (0, 0))
             self.assertIsNone(sub._src_idx)
         else:
             self.assertIsNotNone(sub._src_idx)
-        self.assertEqual(sub.bounds_global, (0, 100))
+            self.assertEqual(sub.bounds_global, (0, 100))
 
         if MPI_SIZE == 4:
             desired = {0: (0, 78), 1: (78, 100)}

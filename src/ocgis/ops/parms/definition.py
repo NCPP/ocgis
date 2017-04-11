@@ -20,7 +20,7 @@ from ocgis import env
 from ocgis.calc.eval_function import EvalFunction, MultivariateEvalFunction
 from ocgis.calc.library import register
 from ocgis.collection.field import OcgField
-from ocgis.constants import WrapAction, DimensionMapKeys, KeywordArguments
+from ocgis.constants import WrapAction, DimensionMapKey, KeywordArgument
 from ocgis.conv.base import get_converter, get_converter_map
 from ocgis.driver.request.base import AbstractRequestObject
 from ocgis.exc import DefinitionValidationError
@@ -83,7 +83,7 @@ class AggregateSelection(base.BooleanParameter):
         self.output_format = output_format
 
         # We always aggregate the selection geometries if this is netCDF output.
-        if self.output_format == constants.OUTPUT_FORMAT_NETCDF:
+        if self.output_format == constants.OutputFormatName.NETCDF:
             init_value = True
 
         super(AggregateSelection, self).__init__(init_value=init_value)
@@ -479,8 +479,8 @@ class Dataset(base.AbstractParameter):
 
             if env.USE_ESMF and isinstance(element, ESMF.Field):
                 from ocgis.regrid.base import get_ocgis_field_from_esmf_field
-                dimension_map = {DimensionMapKeys.X: {DimensionMapKeys.VARIABLE: 'x', DimensionMapKeys.NAMES: ['x']},
-                                 DimensionMapKeys.Y: {DimensionMapKeys.VARIABLE: 'y', DimensionMapKeys.NAMES: ['y']}}
+                dimension_map = {DimensionMapKey.X: {DimensionMapKey.VARIABLE: 'x', DimensionMapKey.NAMES: ['x']},
+                                 DimensionMapKey.Y: {DimensionMapKey.VARIABLE: 'y', DimensionMapKey.NAMES: ['y']}}
                 element = get_ocgis_field_from_esmf_field(element, dimensions=self.esmf_field_dimensions,
                                                           dimension_map=dimension_map)
 
@@ -614,7 +614,7 @@ class Geom(base.AbstractParameter):
 
     def __init__(self, *args, **kwargs):
         self.select_ugid = kwargs.pop('select_ugid', None)
-        self.union = kwargs.pop(KeywordArguments.UNION, False)
+        self.union = kwargs.pop(KeywordArgument.UNION, False)
         self.geom_select_sql_where = kwargs.pop(GeomSelectSqlWhere.name, None)
         self.geom_uid = kwargs.pop(GeomUid.name, None)
         # just store the value if it is a parameter object
@@ -743,7 +743,7 @@ class Geom(base.AbstractParameter):
 
             kwds['select_sql_where'] = self.geom_select_sql_where
             kwds['uid'] = self.geom_uid
-            kwds[KeywordArguments.UNION] = self.union
+            kwds[KeywordArgument.UNION] = self.union
             ret = GeomCabinetIterator(**kwds)
         return ret
 
@@ -859,7 +859,7 @@ class Melted(base.BooleanParameter):
     :keyword dataset:
     :type dataset: :class:`ocgis.driver.parms.definition.Dataset`
     :keyword output_format:
-    :type output_format: :class:`ocgis.driver.parms.definition.OutputFormat`
+    :type output_format: :class:`ocgis.driver.parms.definition.OutputFormatName`
     """
 
     name = 'melted'
@@ -922,14 +922,19 @@ class OutputCRS(base.AbstractParameter):
 
 class OutputFormat(base.StringOptionParameter):
     name = 'output_format'
-    default = constants.OUTPUT_FORMAT_NUMPY
+    default = constants.OutputFormatName.OCGIS
     valid = list(get_converter_map().keys())
 
     def __init__(self, init_value=None):
         try:
+            if isinstance(init_value, six.string_types):
+                init_value = init_value.lower()
             # Maintain the old CSV-Shapefile output format key.
-            if init_value == constants.OUTPUT_FORMAT_CSV_SHAPEFILE_OLD:
-                init_value = constants.OUTPUT_FORMAT_CSV_SHAPEFILE
+            if init_value == 'csv+':
+                init_value = constants.OutputFormatName.CSV_SHAPEFILE
+            # Maintain the old NumPy key.
+            if init_value == 'numpy':
+                init_value = constants.OutputFormatName.OCGIS
         except AttributeError:
             # Allow the object to initialized by itself.
             if not isinstance(init_value, self.__class__):
@@ -1124,11 +1129,11 @@ class Slice(base.IterableParameter, base.AbstractParameter):
     def parse_all(self, values):
         try:
             new_values = {}
-            new_values[DimensionMapKeys.REALIZATION] = values[0]
-            new_values[DimensionMapKeys.TIME] = values[1]
-            new_values[DimensionMapKeys.LEVEL] = values[2]
-            new_values[DimensionMapKeys.Y] = values[3]
-            new_values[DimensionMapKeys.X] = values[4]
+            new_values[DimensionMapKey.REALIZATION] = values[0]
+            new_values[DimensionMapKey.TIME] = values[1]
+            new_values[DimensionMapKey.LEVEL] = values[2]
+            new_values[DimensionMapKey.Y] = values[3]
+            new_values[DimensionMapKey.X] = values[4]
         except IndexError:
             # This implies the length is not correct. Let the validater catch this.
             new_values = values

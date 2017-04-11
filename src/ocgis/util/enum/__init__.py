@@ -683,7 +683,7 @@ if pyver >= 3.0:
             for cls in self.__class__.mro()
             for m in cls.__dict__
             if m[0] != '_' and m not in self._member_map_
-            ]
+        ]
         return (['__class__', '__doc__', '__module__', ] + added_behavior)
 
 

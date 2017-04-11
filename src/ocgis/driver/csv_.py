@@ -3,14 +3,15 @@ from collections import OrderedDict
 
 import six
 
-from ocgis.constants import MPIWriteMode, KeywordArguments, DriverKeys
+from ocgis import vm
+from ocgis.base import raise_if_empty
+from ocgis.constants import MPIWriteMode, KeywordArgument, DriverKey
 from ocgis.driver.base import driver_scope, AbstractTabularDriver
-from ocgis.vm.mpi import barrier_ranks
 
 
 class DriverCSV(AbstractTabularDriver):
     extensions = ('.*\.csv',)
-    key = DriverKeys.CSV
+    key = DriverKey.CSV
     output_formats = 'all'
     common_extension = 'csv'
 
@@ -52,28 +53,25 @@ class DriverCSV(AbstractTabularDriver):
         return meta
 
     @classmethod
-    def _write_variable_collection_main_(cls, vc, opened_or_path, comm, rank, size, write_mode, ranks_to_write,
-                                         **kwargs):
-        iter_kwargs = kwargs.pop(KeywordArguments.ITER_KWARGS, {})
+    def _write_variable_collection_main_(cls, vc, opened_or_path, write_mode, **kwargs):
+        raise_if_empty(vc)
 
-        if vc.is_empty:
-            fieldnames = None
-        else:
-            fieldnames = list(six.next(vc.iter(**iter_kwargs))[1].keys())
+        iter_kwargs = kwargs.pop(KeywordArgument.ITER_KWARGS, {})
 
-        if rank == ranks_to_write[0] and write_mode != MPIWriteMode.FILL:
+        fieldnames = list(six.next(vc.iter(**iter_kwargs))[1].keys())
+
+        if vm.rank == 0 and write_mode != MPIWriteMode.FILL:
             with driver_scope(cls, opened_or_path, mode='w') as opened:
                 writer = csv.DictWriter(opened, fieldnames)
                 writer.writeheader()
-
         if write_mode != MPIWriteMode.TEMPLATE:
-            for current_rank_write in ranks_to_write:
-                if rank == current_rank_write:
+            for current_rank_write in vm.ranks:
+                if vm.rank == current_rank_write:
                     with driver_scope(cls, opened_or_path, mode='a') as opened:
                         writer = csv.DictWriter(opened, fieldnames)
                         for _, record in vc.iter(**iter_kwargs):
                             writer.writerow(record)
-                barrier_ranks(ranks_to_write, comm=comm)
+                vm.barrier()
 
     def _init_variable_from_source_main_(self, *args, **kwargs):
         pass

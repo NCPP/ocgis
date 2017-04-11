@@ -9,13 +9,14 @@ from shapely.geometry import Point, Polygon
 from shapely.geometry.base import BaseMultipartGeometry
 
 from ocgis import constants
-from ocgis.base import AbstractInterfaceObject
-from ocgis.constants import MPIWriteMode, WrappedState, WrapAction, KeywordArguments
+from ocgis.base import AbstractInterfaceObject, raise_if_empty
+from ocgis.constants import MPIWriteMode, WrappedState, WrapAction, KeywordArgument, CFName
 from ocgis.environment import osr
 from ocgis.exc import ProjectionCoordinateNotFound, ProjectionDoesNotMatch
 from ocgis.spatial.wrap import GeometryWrapper, CoordinateArrayWrapper
 from ocgis.util.helpers import iter_array, get_iter
-from ocgis.vm.mpi import get_standard_comm_state
+
+# from ocgis.vm.mpi import get_standard_comm_state
 
 SpatialReference = osr.SpatialReference
 
@@ -122,10 +123,6 @@ class CoordinateReferenceSystem(AbstractInterfaceObject):
         return False
 
     @property
-    def has_distributed_dimension(self):
-        return False
-
-    @property
     def has_initialized_parent(self):
         return False
 
@@ -175,6 +172,14 @@ class CoordinateReferenceSystem(AbstractInterfaceObject):
 
     def extract(self):
         return self
+
+    def format_field(self, field):
+        """
+        :param field: The field to format.
+        :type field: :class:`~ocgis.OcgField`
+        """
+        for data_variable in field.data_variables:
+            field[data_variable.name].attrs[CFName.GRID_MAPPING] = field.crs.name
 
     def get_mask(self):
         return None
@@ -245,7 +250,7 @@ class CoordinateReferenceSystem(AbstractInterfaceObject):
             raise NotImplementedError(state_dst)
         return ret
 
-    def get_wrapped_state(self, target, comm=None):
+    def get_wrapped_state(self, target):
         """
         :param field: Return the wrapped state of a field. This function only checks grid centroids and geometry
          exteriors. Bounds/corners on the grid are excluded.
@@ -254,9 +259,11 @@ class CoordinateReferenceSystem(AbstractInterfaceObject):
         # TODO: Wrapped state should operate on the x-coordinate variable vectors or geometries only.
         from ocgis.collection.field import OcgField
         from ocgis.spatial.grid import GridXY
+        from ocgis import vm
 
-        comm, rank, size = get_standard_comm_state(comm)
+        raise_if_empty(self)
 
+        ret = None
         # If this is not a geographic coordinate system, wrapped state is undefined.
         if not self.is_geographic:
             ret = None
@@ -283,8 +290,8 @@ class CoordinateReferenceSystem(AbstractInterfaceObject):
                         ret = flag
                         break
 
-        rets = comm.gather(ret)
-        if rank == 0:
+        rets = vm.gather(ret)
+        if vm.rank == 0:
             rets = set(rets)
             if WrappedState.WRAPPED in rets:
                 ret = WrappedState.WRAPPED
@@ -294,7 +301,7 @@ class CoordinateReferenceSystem(AbstractInterfaceObject):
                 ret = list(rets)[0]
         else:
             ret = None
-        ret = comm.bcast(ret)
+        ret = vm.bcast(ret)
 
         return ret
 
@@ -397,7 +404,30 @@ class CoordinateReferenceSystem(AbstractInterfaceObject):
         return select
 
 
-class Spherical(CoordinateReferenceSystem):
+class CRS(CoordinateReferenceSystem):
+    """Here for convenience."""
+
+
+@six.add_metaclass(abc.ABCMeta)
+class AbstractSphericalCoordinateReferenceSystem(CoordinateReferenceSystem):
+    def format_field(self, field):
+        super(AbstractSphericalCoordinateReferenceSystem, self).format_field(field)
+
+        def _update_attr_(target, name, value, clobber=False):
+            attrs = target.attrs
+            if name not in attrs or (name in attrs and clobber):
+                attrs[name] = value
+
+        updates = {field.x: {CFName.UNITS: 'degrees_east',
+                             CFName.STANDARD_NAME: 'longitude'},
+                   field.y: {CFName.UNITS: 'degrees_north',
+                             CFName.STANDARD_NAME: 'latitude'}}
+        for target, name_values in updates.items():
+            for k, v in name_values.items():
+                _update_attr_(target, k, v)
+
+
+class Spherical(AbstractSphericalCoordinateReferenceSystem):
     """
     A spherical model of the Earth's surface with equivalent semi-major and semi-minor axes.
 
@@ -413,7 +443,7 @@ class Spherical(CoordinateReferenceSystem):
         self.major_axis = semi_major_axis
 
 
-class WGS84(CoordinateReferenceSystem):
+class WGS84(AbstractSphericalCoordinateReferenceSystem):
     """
     A representation of the Earth using the WGS84 datum (i.e. EPSG code 4326).
     """
@@ -714,7 +744,7 @@ class CFRotatedPole(CFCoordinateReferenceSystem):
         """
 
         variable = super(CFRotatedPole, self).write_to_rootgrp(rootgrp, **kwargs)
-        if kwargs.get(KeywordArguments.WITH_PROJ4, False):
+        if kwargs.get(KeywordArgument.WITH_PROJ4, False):
             variable.proj4 = ''
             variable.proj4_transform = self._trans_proj
         return variable

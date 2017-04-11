@@ -8,7 +8,7 @@ from ocgis import constants
 from ocgis.calc import tile
 from ocgis.calc.base import AbstractMultivariateFunction
 from ocgis.calc.engine import OcgCalculationEngine
-from ocgis.constants import TagNames
+from ocgis.constants import TagName
 from ocgis.ops.core import OcgOperations
 from ocgis.util.helpers import ProgressBar
 
@@ -40,7 +40,7 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
 
     assert isinstance(ops, OcgOperations)
     assert ops.calc is not None
-    assert ops.output_format == constants.OUTPUT_FORMAT_NETCDF
+    assert ops.output_format == constants.OutputFormatName.NETCDF
 
     # Ensure that progress is not showing 100% at first.
     if ops.callback is not None:
@@ -87,13 +87,13 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
             if verbose:
                 print('geometry subset is present. calculating slice offsets...')
             ops_offset = deepcopy(ops)
-            ops_offset.output_format = 'numpy'
+            ops_offset.output_format = constants.OutputFormatName.OCGIS
             ops_offset.calc = None
             ops_offset.agg_selection = True
             ops_offset.snippet = False
             coll = ops_offset.execute()
 
-            for row in coll.iter_melted(tag=TagNames.DATA_VARIABLES):
+            for row in coll.iter_melted(tag=TagName.DATA_VARIABLES):
                 assert row['variable']._value is None
 
             ref_field = coll.get_element()
@@ -177,7 +177,7 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
                 ops_slice = deepcopy(ops)
                 ops_slice.geom = None
                 ops_slice.slice = [None, None, None, row, col]
-                ops_slice.output_format = 'numpy'
+                ops_slice.output_format = constants.OutputFormatName.OCGIS
                 ops_slice.optimizations = optimizations
                 # return the object slice
                 ret = ops_slice.execute()

@@ -93,8 +93,8 @@ class TestRegrid(TestSimpleBase):
         gcm = gcm.grid.get_intersects(poly).parent
         gcm.set_crs(Spherical())
 
-        self.assertFalse(downscaled.grid.get_mask().any())
-        self.assertFalse(gcm.grid.get_mask().any())
+        self.assertIsNone(downscaled.grid.get_mask())
+        self.assertIsNone(gcm.grid.get_mask())
 
         from ocgis.regrid.base import regrid_field
         regridded = regrid_field(downscaled, gcm)

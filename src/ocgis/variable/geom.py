@@ -13,18 +13,17 @@ from shapely.geometry.base import BaseGeometry
 from shapely.ops import cascaded_union
 from shapely.prepared import prep
 
-from ocgis import SourcedVariable, Variable
+from ocgis import SourcedVariable, Variable, vm
 from ocgis import constants
 from ocgis import env
-from ocgis.base import AbstractInterfaceObject, get_dimension_names, get_variable_names
+from ocgis.base import AbstractInterfaceObject, get_dimension_names, get_variable_names, raise_if_empty
 from ocgis.base import AbstractOcgisObject
-from ocgis.constants import WrapAction, KeywordArguments, HeaderNames
+from ocgis.constants import WrapAction, KeywordArgument, HeaderName
 from ocgis.environment import ogr
 from ocgis.exc import EmptySubsetError
 from ocgis.util.helpers import iter_array, get_none_or_slice, get_trimmed_array_by_mask, get_swap_chain
 from ocgis.variable.base import AbstractContainer, get_dimension_lengths
 from ocgis.variable.iterator import Iterator
-from ocgis.vm.mpi import get_nonempty_ranks, get_standard_comm_state
 
 CreateGeometryFromWkb, Geometry, wkbGeometryCollection, wkbPoint = ogr.CreateGeometryFromWkb, ogr.Geometry, \
                                                                    ogr.wkbGeometryCollection, ogr.wkbPoint
@@ -62,6 +61,8 @@ class AbstractSpatialObject(AbstractInterfaceObject):
 
     @property
     def wrapped_state(self):
+        raise_if_empty(self)
+
         if self.crs is None:
             ret = None
         else:
@@ -69,18 +70,20 @@ class AbstractSpatialObject(AbstractInterfaceObject):
         return ret
 
     def unwrap(self):
-        if not self.is_empty:
-            if self.crs is None or not self.crs.is_geographic:
-                raise ValueError("Only spherical coordinate systems may be wrapped/unwrapped.")
-            else:
-                self.crs.wrap_or_unwrap(WrapAction.UNWRAP, self)
+        raise_if_empty(self)
+
+        if self.crs is None or not self.crs.is_geographic:
+            raise ValueError("Only spherical coordinate systems may be wrapped/unwrapped.")
+        else:
+            self.crs.wrap_or_unwrap(WrapAction.UNWRAP, self)
 
     def wrap(self):
-        if not self.is_empty:
-            if self.crs is None or not self.crs.is_geographic:
-                raise ValueError("Only spherical coordinate systems may be wrapped/unwrapped.")
-            else:
-                self.crs.wrap_or_unwrap(WrapAction.WRAP, self)
+        raise_if_empty(self)
+
+        if self.crs is None or not self.crs.is_geographic:
+            raise ValueError("Only spherical coordinate systems may be wrapped/unwrapped.")
+        else:
+            self.crs.wrap_or_unwrap(WrapAction.WRAP, self)
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -96,10 +99,7 @@ class AbstractOperationsSpatialObject(AbstractSpatialObject):
     @abstractmethod
     def update_crs(self, to_crs):
         """Update coordinate system in-place."""
-
-        if self.is_empty:
-            self.crs = to_crs
-            return self
+        raise_if_empty(self)
 
         if self.crs is None:
             msg = 'The current CRS is None and cannot be updated.'
@@ -233,12 +233,12 @@ class GeometryVariable(AbstractSpatialVariable):
         if kwargs.get('name') is None:
             kwargs['name'] = 'geom'
 
-        ugid = kwargs.pop(KeywordArguments.UGID, None)
+        ugid = kwargs.pop(KeywordArgument.UGID, None)
 
         super(GeometryVariable, self).__init__(*args, **kwargs)
 
         if ugid is not None:
-            ugid_var = Variable(name=HeaderNames.ID_SELECTION_GEOMETRY, value=[ugid], dimensions=self.dimensions)
+            ugid_var = Variable(name=HeaderName.ID_SELECTION_GEOMETRY, value=[ugid], dimensions=self.dimensions)
             self.set_ugid(ugid_var)
 
     @property
@@ -246,7 +246,7 @@ class GeometryVariable(AbstractSpatialVariable):
         if self.is_empty:
             fill = None
         else:
-            r_value = self.masked_value
+            r_value = self.get_masked_value()
             fill = np.ones(r_value.shape, dtype=env.NP_FLOAT)
 
             mask = self.get_mask()
@@ -270,14 +270,23 @@ class GeometryVariable(AbstractSpatialVariable):
 
     @property
     def geom_type(self):
-        # tdk: This needs to be optimized. Also, should this work in parallel? A resolution limit could be used. We
-        # tdk:   could also state that the first geometry is always used. The point is to avoid reading all the geometries
-        # tdk:   just to identify the geometry type.
         # Geometry objects may change part counts during operations. It is better to scan and update the geometry types
         # to account for these operations.
         if self._geom_type == 'auto':
             self._geom_type = get_geom_type(self.get_value())
         return self._geom_type
+
+    @property
+    def geom_type_global(self):
+        raise_if_empty(self)
+        geom_types = vm.gather(self.geom_type)
+        if vm.rank == 0:
+            for g in geom_types:
+                if g.startswith('Multi'):
+                    break
+        else:
+            g = None
+        return vm.bcast(g)
 
     @property
     def weights(self):
@@ -301,25 +310,23 @@ class GeometryVariable(AbstractSpatialVariable):
         self.set_ugid(ret)
         return ret
 
-    def create_ugid_global(self, name, start=1, comm=None):
+    def create_ugid_global(self, name, start=1):
         """Collective!"""
-        comm, rank, size = get_standard_comm_state(comm=comm)
 
-        ner = get_nonempty_ranks(self)
-        sizes = comm.gather(self.size)
-        rank_start = None
-        if rank == 0:
+        if self.is_empty:
+            raise ValueError('Geometry variable must not be empty.')
+
+        sizes = vm.gather(self.size)
+        if vm.rank == 0:
             start = start
-            for n in ner:
-                if n == 0:
+            for idx, n in enumerate(vm.ranks):
+                if n == vm.rank:
                     rank_start = start
                 else:
-                    comm.send(start, dest=n)
-                start += sizes[n]
-        elif not self.is_empty:
-            rank_start = comm.recv(source=0)
+                    vm.comm.send(start, dest=n)
+                start += sizes[idx]
         else:
-            pass
+            rank_start = vm.comm.recv(source=0)
 
         return self.create_ugid(name, start=rank_start)
 
@@ -358,14 +365,18 @@ class GeometryVariable(AbstractSpatialVariable):
         :return:
         :raises: EmptySubsetError
         """
-        return_slice = kwargs.pop(KeywordArguments.RETURN_SLICE, False)
-        cascade = kwargs.pop(KeywordArguments.CASCADE, True)
-        comm = kwargs.pop(KeywordArguments.COMM, None)
-        comm, rank, size = get_standard_comm_state(comm=comm)
+
+        if self.is_empty:
+            raise ValueError('Operation not valid on empty geometry variables.')
+
+        return_slice = kwargs.pop(KeywordArgument.RETURN_SLICE, False)
+        cascade = kwargs.pop(KeywordArgument.CASCADE, True)
+        # comm = kwargs.pop(KeywordArgument.COMM, None)
+        # comm, rank, size = get_standard_comm_state(comm=comm)
 
         ret = self.copy()
         intersects_mask_value = ret.get_mask_from_intersects(*args, **kwargs)
-        ret, ret_mask, ret_slice = get_masking_slice(intersects_mask_value, ret, comm=comm)
+        ret, ret_mask, ret_slice = get_masking_slice(intersects_mask_value, ret)
 
         if not ret.is_empty:
             ret.set_mask(ret_mask.get_value(), cascade=cascade, update=True)
@@ -401,9 +412,9 @@ class GeometryVariable(AbstractSpatialVariable):
          geometries tests for intersection. If ``False``, perform the intersection as is.
         """
 
-        inplace = kwargs.pop(KeywordArguments.INPLACE, False)
-        intersects_check = kwargs.pop(KeywordArguments.INTERSECTS_CHECK, True)
-        return_slice = kwargs.get(KeywordArguments.RETURN_SLICE, False)
+        inplace = kwargs.pop(KeywordArgument.INPLACE, False)
+        intersects_check = kwargs.pop(KeywordArgument.INTERSECTS_CHECK, True)
+        return_slice = kwargs.get(KeywordArgument.RETURN_SLICE, False)
         subset_geometry = args[0]
 
         if intersects_check:
@@ -437,7 +448,7 @@ class GeometryVariable(AbstractSpatialVariable):
         return ret
 
     def get_iter(self, *args, **kwargs):
-        should_add = kwargs.pop(KeywordArguments.ADD_GEOM_UID, False)
+        should_add = kwargs.pop(KeywordArgument.ADD_GEOM_UID, False)
 
         if should_add and self.ugid is not None:
             followers = [self.ugid]
@@ -448,18 +459,18 @@ class GeometryVariable(AbstractSpatialVariable):
 
     def get_mask_from_intersects(self, geometry_or_bounds, use_spatial_index=env.USE_SPATIAL_INDEX, keep_touches=False,
                                  original_mask=None):
+
+        if self.is_empty:
+            raise ValueError('No empty geometry variables allowed.')
+
         # Transform bounds sequence to a geometry.
         if not isinstance(geometry_or_bounds, BaseGeometry):
             geometry_or_bounds = box(*geometry_or_bounds)
 
-        # Handle empty variables.
-        if self.is_empty:
-            ret = None
-        else:
-            ret = geometryvariable_get_mask_from_intersects(self, geometry_or_bounds,
-                                                            use_spatial_index=use_spatial_index,
-                                                            keep_touches=keep_touches,
-                                                            original_mask=original_mask)
+        ret = geometryvariable_get_mask_from_intersects(self, geometry_or_bounds,
+                                                        use_spatial_index=use_spatial_index,
+                                                        keep_touches=keep_touches,
+                                                        original_mask=original_mask)
         return ret
 
     def get_nearest(self, target, return_indices=False):
@@ -503,7 +514,7 @@ class GeometryVariable(AbstractSpatialVariable):
         si = SpatialIndex()
         # Use compressed masked values if target is not available.
         if target is None:
-            target = self.masked_value.compressed()
+            target = self.get_masked_value().compressed()
         # Add the geometries to the index.
         r_add = si.add
         for idx, geom in iter_array(target, return_value=True):
@@ -511,20 +522,11 @@ class GeometryVariable(AbstractSpatialVariable):
 
         return si
 
-    def get_unioned(self, dimensions=None, union_dimension=None, spatial_average=None, comm=None):
+    def get_unioned(self, dimensions=None, union_dimension=None, spatial_average=None, root=0):
         """
         Unions _unmasked_ geometry objects. Collective across communicator.
         """
         # tdk: optimize
-
-        comm, rank, size = get_standard_comm_state(comm=comm)
-        ner = get_nonempty_ranks(self)
-        if rank == 0:
-            root = ner[0]
-        else:
-            root = None
-        root = comm.bcast(root)
-        ner = comm.bcast(ner)
 
         # Get dimension names and lengths for the dimensions to union.
         if dimensions is None:
@@ -541,7 +543,7 @@ class GeometryVariable(AbstractSpatialVariable):
         # Get the new dimensions for the geometry variable. The union dimension is always the last dimension.
         if union_dimension is None:
             from ocgis.variable.dimension import Dimension
-            union_dimension = Dimension(constants.DimensionNames.UNIONED_GEOMETRY, 1)
+            union_dimension = Dimension(constants.DimensionName.UNIONED_GEOMETRY, 1)
         new_dimensions = []
         for dim in self.dimensions:
             if dim.name not in dimension_names:
@@ -557,39 +559,44 @@ class GeometryVariable(AbstractSpatialVariable):
         ret.set_dimensions(new_dimensions)
         ret.allocate_value()
 
-        if not self.is_empty:
-            # Destination indices in the return variable are filled with non-masked, unioned geometries.
-            for dst_indices in product(*[list(range(dl)) for dl in get_dimension_lengths(new_dimensions)]):
-                dst_slc = {new_dimensions[ii].name: dst_indices[ii] for ii in range(len(new_dimensions))}
+        # Destination indices in the return variable are filled with non-masked, unioned geometries.
+        for dst_indices in product(*[list(range(dl)) for dl in get_dimension_lengths(new_dimensions)]):
+            dst_slc = {new_dimensions[ii].name: dst_indices[ii] for ii in range(len(new_dimensions))}
 
-                # Select the geometries to union skipping any masked geometries.
-                to_union = deque()
-                for indices in product(*[list(range(dl)) for dl in dimension_lengths]):
-                    dslc = {dimension_names[ii]: indices[ii] for ii in range(len(dimension_names))}
-                    sub = self[dslc]
-                    sub_mask = sub.get_mask()
-                    if sub_mask is None:
+            # Select the geometries to union skipping any masked geometries.
+            to_union = deque()
+            for indices in product(*[list(range(dl)) for dl in dimension_lengths]):
+                dslc = {dimension_names[ii]: indices[ii] for ii in range(len(dimension_names))}
+                sub = self[dslc]
+                sub_mask = sub.get_mask()
+                if sub_mask is None:
+                    to_union.append(sub.get_value().flatten()[0])
+                else:
+                    if not sub_mask.flatten()[0]:
                         to_union.append(sub.get_value().flatten()[0])
-                    else:
-                        if not sub_mask.flatten()[0]:
-                            to_union.append(sub.get_value().flatten()[0])
 
-                # Execute the union operation.
-                processed_to_union = deque()
-                for geom in to_union:
-                    if isinstance(geom, MultiPolygon) or isinstance(geom, MultiPoint):
-                        for element in geom:
-                            processed_to_union.append(element)
-                    else:
-                        processed_to_union.append(geom)
-                unioned = cascaded_union(processed_to_union)
+            # Execute the union operation.
+            processed_to_union = deque()
+            for geom in to_union:
+                if isinstance(geom, MultiPolygon) or isinstance(geom, MultiPoint):
+                    for element in geom:
+                        processed_to_union.append(element)
+                else:
+                    processed_to_union.append(geom)
+            unioned = cascaded_union(processed_to_union)
 
-                # Fill the return geometry variable value with the unioned geometry.
-                to_fill = ret[dst_slc].get_value()
-                to_fill[0] = unioned
+            # Pull unioned geometries and union again for the final unioned geometry.
+            if vm.size > 1:
+                unioned_gathered = vm.gather(unioned)
+                if vm.rank == root:
+                    unioned = cascaded_union(unioned_gathered)
+
+            # Fill the return geometry variable value with the unioned geometry.
+            to_fill = ret[dst_slc].get_value()
+            to_fill[0] = unioned
 
         # Spatial average shared dimensions.
-        if spatial_average is not None and not self.is_empty:
+        if spatial_average is not None:
             # Get source data to weight.
             for var_to_weight in filter(lambda ii: ii.name in variable_names_to_weight, list(self.parent.values())):
                 # Holds sizes of dimensions to iterate. These dimension are not squeezed by the weighted averaging.
@@ -608,7 +615,7 @@ class GeometryVariable(AbstractSpatialVariable):
                 # Reference the weights on the source geometry variable.
                 weights = self[{nsa: slice(None) for nsa in names_to_slice_all}].weights
 
-                # Path is there are iteration dimensions. Checks for axes ordering in addition.
+                # Path if there are iteration dimensions. Checks for axes ordering in addition.
                 if len(range_to_itr) > 0:
                     # New dimensions for the spatially averaged variable. Unioned dimension is always last. Remove the
                     # dimensions aggregated by the weighted average.
@@ -641,13 +648,21 @@ class GeometryVariable(AbstractSpatialVariable):
                         w_slc = {names_to_itr[ii]: nonweighted_indices[ii] for ii in range(len_names_to_itr)}
                         for nsa in names_to_slice_all:
                             w_slc[nsa] = slice_none
-                        data_to_weight = var_to_weight[w_slc].masked_value
+                        data_to_weight = var_to_weight[w_slc].get_masked_value()
                         if should_squeeze:
                             data_to_weight = np_squeeze(data_to_weight, axis=tuple(squeeze_out))
                         weighted_value = np_atleast_1d(np_ma_average(data_to_weight, weights=weights))
                         target[w_slc].get_value()[:] = weighted_value
                 else:
-                    weighted_value = np.atleast_1d(np.ma.average(var_to_weight.masked_value, weights=weights))
+                    target_to_weight = var_to_weight.get_masked_value()
+                    # Sort to minimize floating point sum errors.
+                    target_to_weight = target_to_weight.flatten()
+                    weights = weights.flatten()
+                    sindices = np.argsort(target_to_weight)
+                    target_to_weight = target_to_weight[sindices]
+                    weights = weights[sindices]
+
+                    weighted_value = np.atleast_1d(np.ma.average(target_to_weight, weights=weights))
                     target = ret.parent[var_to_weight.name]
                     target.set_mask(None)
                     target.set_value(None)
@@ -655,18 +670,23 @@ class GeometryVariable(AbstractSpatialVariable):
                     target.set_value(weighted_value)
 
             # Collect areas of live ranks and convert to weights.
-            if size > 1:
-                root = ner[0]
-                if rank == root:
-                    live_rank_areas = [ret.area.data[0]]
-                if rank in ner and rank != root:
-                    comm.send(ret.area.data[0], dest=root)
+            if vm.size > 1:
+                # If there is no area information (points for example, we need to use counts).
+                if ret.area.data[0].max() == 0:
+                    weight_or_proxy = float(self.size)
                 else:
-                    for tner in ner:
-                        if tner != rank:
-                            recv_area = comm.recv(source=tner)
+                    weight_or_proxy = ret.area.data[0]
+
+                if vm.rank != root:
+                    vm.comm.send(weight_or_proxy, dest=root)
+                else:
+                    live_rank_areas = [weight_or_proxy]
+                    for tner in vm.ranks:
+                        if tner != vm.rank:
+                            recv_area = vm.comm.recv(source=tner)
                             live_rank_areas.append(recv_area)
                     live_rank_areas = np.array(live_rank_areas)
+
                     rank_weights = live_rank_areas / np.max(live_rank_areas)
 
                 for var_to_weight in filter(lambda ii: ii.name in variable_names_to_weight, list(ret.parent.values())):
@@ -676,29 +696,31 @@ class GeometryVariable(AbstractSpatialVariable):
                     for idx_slc in var_to_weight.iter_dict_slices(dimensions=dimensions_to_itr):
                         idx_slc.update(slc)
                         to_weight = var_to_weight[idx_slc].get_value().flatten()[0]
-
-                        if rank == root:
+                        if vm.rank == root:
                             collected_to_weight = [to_weight]
-                        if rank in ner and rank != root:
-                            comm.send(to_weight, dest=root)
+                        if not vm.rank == root:
+                            vm.comm.send(to_weight, dest=root)
                         else:
-                            for tner in ner:
-                                if tner != root:
-                                    recv_to_weight = comm.recv(source=tner)
+                            for tner in vm.ranks:
+                                if not tner == root:
+                                    recv_to_weight = vm.comm.recv(source=tner)
                                     collected_to_weight.append(recv_to_weight)
+
+                            # Sort to minimize floating point sum errors.
+                            collected_to_weight = np.array(collected_to_weight)
+                            sindices = np.argsort(collected_to_weight)
+                            collected_to_weight = collected_to_weight[sindices]
+                            rank_weights = rank_weights[sindices]
+
                             weighted = np.atleast_1d(np.ma.average(collected_to_weight, weights=rank_weights))
                             var_to_weight[idx_slc].get_value()[:] = weighted
-
-        if rank == root:
+        if vm.rank == root:
             return ret
         else:
-            return None
+            return
 
     def update_crs(self, to_crs):
         super(GeometryVariable, self).update_crs(to_crs)
-
-        if self.is_empty:
-            return
 
         if self.crs != to_crs:
             # Be sure and project masked geometries to maintain underlying geometries.
@@ -717,7 +739,7 @@ class GeometryVariable(AbstractSpatialVariable):
 
     def iter_records(self, use_mask=True):
         if use_mask:
-            to_itr = self.masked_value.compressed()
+            to_itr = self.get_masked_value().compressed()
         else:
             to_itr = self.get_value().flat
         r_geom_class = GEOM_TYPE_MAPPING[self.geom_type]
@@ -732,11 +754,11 @@ class GeometryVariable(AbstractSpatialVariable):
     def set_ugid(self, variable):
         if variable is None:
             self._name_ugid = None
-            self.attrs.pop(constants.AttributeNames.UNIQUE_GEOMETRY_IDENTIFIER, None)
+            self.attrs.pop(constants.AttributeName.UNIQUE_GEOMETRY_IDENTIFIER, None)
         else:
             self.parent.add_variable(variable, force=True)
             self._name_ugid = variable.name
-            self.attrs[constants.AttributeNames.UNIQUE_GEOMETRY_IDENTIFIER] = variable.name
+            self.attrs[constants.AttributeName.UNIQUE_GEOMETRY_IDENTIFIER] = variable.name
 
     def set_value(self, value, **kwargs):
         if not isinstance(value, ndarray) and value is not None:
@@ -755,18 +777,18 @@ class GeometryVariable(AbstractSpatialVariable):
         from ocgis.collection.field import OcgField
         from ocgis.driver.vector import DriverVector
         field = OcgField(geom=self, crs=self.crs)
-        kwargs[KeywordArguments.DRIVER] = DriverVector
+        kwargs[KeywordArgument.DRIVER] = DriverVector
         field.write(*args, **kwargs)
 
     def _get_extent_(self):
         raise NotImplementedError
 
 
-def get_masking_slice(intersects_mask_value, target, apply_slice=True, comm=None):
+def get_masking_slice(intersects_mask_value, target, apply_slice=True):
     """Collective!"""
-    comm, rank, size = get_standard_comm_state(comm=comm)
+    raise_if_empty(target)
 
-    if intersects_mask_value is None or target.is_empty:
+    if intersects_mask_value is None:
         local_slice = None
     else:
         if intersects_mask_value.all():
@@ -786,8 +808,8 @@ def get_masking_slice(intersects_mask_value, target, apply_slice=True, comm=None
     else:
         offset_local_slice = None
 
-    gathered_offset_local_slices = comm.gather(offset_local_slice)
-    if rank == 0:
+    gathered_offset_local_slices = vm.gather(offset_local_slice)
+    if vm.rank == 0:
         gathered_offset_local_slices = [g for g in gathered_offset_local_slices if g is not None]
         if len(gathered_offset_local_slices) == 0:
             raise_empty_subset = True
@@ -800,24 +822,24 @@ def get_masking_slice(intersects_mask_value, target, apply_slice=True, comm=None
     else:
         global_slice = None
         raise_empty_subset = None
-    raise_empty_subset = comm.bcast(raise_empty_subset)
+    raise_empty_subset = vm.bcast(raise_empty_subset)
     if raise_empty_subset:
         raise EmptySubsetError
-    global_slice = comm.bcast(global_slice)
+    global_slice = vm.bcast(global_slice)
     global_slice = tuple([slice(g[0], g[1]) for g in global_slice])
 
-    if local_slice is None:
-        intersects_mask_is_empty = True
-    else:
-        intersects_mask_is_empty = False
+    # if local_slice is None:
+    #     intersects_mask_is_empty = True
+    # else:
+    #     intersects_mask_is_empty = False
 
     intersects_mask = Variable(name='mask_gather', value=intersects_mask_value, dimensions=target.dimensions,
-                               dtype=bool, is_empty=intersects_mask_is_empty)
+                               dtype=bool)  # , is_empty=intersects_mask_is_empty)
 
     if apply_slice:
-        if size > 1:
-            ret = target.get_distributed_slice(global_slice, comm=comm)
-            ret_mask = intersects_mask.get_distributed_slice(global_slice, comm=comm)
+        if vm.size_global > 1:
+            ret = target.get_distributed_slice(global_slice)
+            ret_mask = intersects_mask.get_distributed_slice(global_slice)
         else:
             ret = target.__getitem__(global_slice)
             ret_mask = intersects_mask.__getitem__(global_slice)

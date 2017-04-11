@@ -7,21 +7,19 @@ import fiona
 import numpy as np
 from shapely.geometry import mapping
 
-from ocgis import constants
-from ocgis.constants import MPIWriteMode, DimensionNames, KeywordArguments, DriverKeys
+from ocgis import constants, vm
+from ocgis.constants import MPIWriteMode, DimensionName, KeywordArgument, DriverKey
 from ocgis.driver.base import driver_scope, AbstractTabularDriver
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import SourcedVariable, VariableCollection
 from ocgis.variable.crs import CoordinateReferenceSystem
 from ocgis.variable.geom import GeometryVariable
-from ocgis.vm.mpi import barrier_ranks
 
 
 class DriverVector(AbstractTabularDriver):
     extensions = ('.*\.shp',)
-    key = DriverKeys.VECTOR
-    output_formats = [constants.OUTPUT_FORMAT_NUMPY, constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH,
-                      constants.OUTPUT_FORMAT_SHAPEFILE]
+    key = DriverKey.VECTOR
+    output_formats = [constants.OutputFormatName.OCGIS, constants.OutputFormatName.SHAPEFILE]
     common_extension = 'shp'
 
     def init_variable_value(self, variable):
@@ -60,7 +58,7 @@ class DriverVector(AbstractTabularDriver):
         return ret
 
     def get_dimension_map(self, group_metadata):
-        ret = {'geom': {'variable': DimensionNames.GEOMETRY_DIMENSION}}
+        ret = {'geom': {'variable': DimensionName.GEOMETRY_DIMENSION}}
         crs = self.get_crs(group_metadata)
         if crs is not None:
             ret['crs'] = {'variable': crs.name}
@@ -74,7 +72,7 @@ class DriverVector(AbstractTabularDriver):
         parent = VariableCollection(**kwargs)
         for n, v in list(self.metadata_source['variables'].items()):
             SourcedVariable(name=n, request_dataset=self.rd, parent=parent)
-        GeometryVariable(name=DimensionNames.GEOMETRY_DIMENSION, request_dataset=self.rd, parent=parent)
+        GeometryVariable(name=DimensionName.GEOMETRY_DIMENSION, request_dataset=self.rd, parent=parent)
         crs = self.get_crs(self.metadata_source)
         if crs is not None:
             parent.add_variable(crs)
@@ -124,7 +122,7 @@ class DriverVector(AbstractTabularDriver):
                             else:
                                 raise
                     try:
-                        ret[constants.DimensionNames.GEOMETRY_DIMENSION][idx] = row['geom']
+                        ret[constants.DimensionName.GEOMETRY_DIMENSION][idx] = row['geom']
                     except KeyError:
                         pass
         return ret
@@ -141,7 +139,7 @@ class DriverVector(AbstractTabularDriver):
     def _get_metadata_main_(self):
         with driver_scope(self) as data:
             m = data.sc.get_meta(path=self.rd.uri)
-            geom_dimension_name = DimensionNames.GEOMETRY_DIMENSION
+            geom_dimension_name = DimensionName.GEOMETRY_DIMENSION
             m['dimensions'] = {geom_dimension_name: {'size': len(data), 'name': geom_dimension_name}}
             m['variables'] = OrderedDict()
 
@@ -180,8 +178,8 @@ class DriverVector(AbstractTabularDriver):
         return ret
 
     @classmethod
-    def _write_variable_collection_main_(cls, vc, opened_or_path, comm, rank, size, write_mode, ranks_to_write,
-                                         **kwargs):
+    def _write_variable_collection_main_(cls, vc, opened_or_path, write_mode, **kwargs):
+
         from ocgis.collection.field import OcgField
 
         if not isinstance(vc, OcgField):
@@ -191,25 +189,23 @@ class DriverVector(AbstractTabularDriver):
         fiona_schema = kwargs.get('fiona_schema')
         fiona_driver = kwargs.get('fiona_driver', 'ESRI Shapefile')
         iter_kwargs = kwargs.pop('iter_kwargs', {})
-        iter_kwargs[KeywordArguments.DRIVER] = cls
+        iter_kwargs[KeywordArgument.DRIVER] = cls
 
         # This finds the geometry variable used in the iterator. Need for the general geometry type that may not be
         # determined using the record iterator.
-        if not vc.is_empty:
-            geom_variable = vc.geom
-            if geom_variable is None:
-                raise ValueError('A geometry variable is required for writing to vector GIS formats.')
+        geom_variable = vc.geom
+        if geom_variable is None:
+            raise ValueError('A geometry variable is required for writing to vector GIS formats.')
 
         # Open the output Fiona object using overloaded values or values determined at call-time.
         if not cls.inquire_opened_state(opened_or_path):
             if fiona_crs is None:
                 if vc.crs is not None:
                     fiona_crs = vc.crs.value
-            if not vc.is_empty:
-                _, archetype_record = next(vc.iter(**iter_kwargs))
-                archetype_record = format_record_for_fiona(fiona_driver, archetype_record)
-                if fiona_schema is None:
-                    fiona_schema = get_fiona_schema(geom_variable.geom_type, archetype_record)
+            _, archetype_record = next(vc.iter(**iter_kwargs))
+            archetype_record = format_record_for_fiona(fiona_driver, archetype_record)
+            if fiona_schema is None:
+                fiona_schema = get_fiona_schema(geom_variable.geom_type, archetype_record)
         else:
             fiona_schema = opened_or_path.schema
             fiona_crs = opened_or_path.crs
@@ -223,20 +219,20 @@ class DriverVector(AbstractTabularDriver):
 
         # Write the template file.
         if fiona_driver != 'GeoJSON':
-            if rank == ranks_to_write[0] and write_mode != MPIWriteMode.FILL:
+            if vm.rank == 0 and write_mode != MPIWriteMode.FILL:
                 with driver_scope(cls, opened_or_path=opened_or_path, mode='w', driver=fiona_driver, crs=fiona_crs,
                                   schema=fiona_schema) as _:
                     pass
 
         # Write data on each rank to the file.
         if write_mode != MPIWriteMode.TEMPLATE:
-            for rank_to_write in ranks_to_write:
-                if rank == rank_to_write:
+            for rank_to_write in vm.ranks:
+                if vm.rank == rank_to_write:
                     with driver_scope(cls, opened_or_path=opened_or_path, mode=mode, driver=fiona_driver,
                                       crs=fiona_crs, schema=fiona_schema) as sink:
                         itr = vc.iter(**iter_kwargs)
                         write_records_to_fiona(sink, itr, fiona_driver)
-                barrier_ranks(ranks_to_write, comm=comm)
+                vm.barrier()
 
 
 def format_record_for_fiona(driver, record):

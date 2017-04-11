@@ -8,7 +8,7 @@ import ocgis
 from ocgis import SpatialCollection, Variable
 from ocgis import env
 from ocgis.collection.field import OcgField
-from ocgis.constants import TagNames, DimensionMapKeys
+from ocgis.constants import TagName, DimensionMapKey
 from ocgis.conv.numpy_ import NumpyConverter
 from ocgis.ops.core import OcgOperations
 from ocgis.ops.engine import OperationsEngine
@@ -46,8 +46,8 @@ class TestOperationsEngine(AbstractTestInterface):
     def test_abstraction_not_available(self):
         """Test appropriate exception is raised when a selected abstraction is not available."""
 
-        dmap = {DimensionMapKeys.X: {DimensionMapKeys.VARIABLE: 'x'},
-                DimensionMapKeys.Y: {DimensionMapKeys.VARIABLE: 'y'}}
+        dmap = {DimensionMapKey.X: {DimensionMapKey.VARIABLE: 'x'},
+                DimensionMapKey.Y: {DimensionMapKey.VARIABLE: 'y'}}
         rd = self.test_data.get_rd('daymet_tmax', kwds={'dimension_map': dmap})
         ops = ocgis.OcgOperations(dataset=rd, abstraction='polygon', geom='state_boundaries', select_ugid=[25])
         with self.assertRaises(ValueError):
@@ -152,7 +152,7 @@ class TestOperationsEngine(AbstractTestInterface):
             colls = list(subset)
             self.assertEqual(len(colls), 4)
             for coll in colls:
-                for d in coll.iter_melted(tag=TagNames.DATA_VARIABLES):
+                for d in coll.iter_melted(tag=TagName.DATA_VARIABLES):
                     field = d['field']
                     self.assertEqual(field.crs, env.DEFAULT_COORDSYS)
                     self.assertTrue(d['variable'].get_value().mean() > 100)
@@ -205,7 +205,7 @@ class TestOperationsEngine(AbstractTestInterface):
         colls = list(subset)
         self.assertEqual(len(colls), 1)
         for coll in colls:
-            for dd in coll.iter_melted(tag=TagNames.DATA_VARIABLES):
+            for dd in coll.iter_melted(tag=TagName.DATA_VARIABLES):
                 self.assertEqual(dd['variable'].shape, (28, 4, 4))
 
     @attr('data', 'esmf')
@@ -227,7 +227,7 @@ class TestOperationsEngine(AbstractTestInterface):
         colls = list(subset)
         self.assertEqual(len(colls), 2)
         for coll in colls:
-            for dd in coll.iter_melted(tag=TagNames.DATA_VARIABLES):
+            for dd in coll.iter_melted(tag=TagName.DATA_VARIABLES):
                 field = dd['field']
                 variable = dd['variable']
                 if field.name == 'tas':

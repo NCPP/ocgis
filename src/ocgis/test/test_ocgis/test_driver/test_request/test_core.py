@@ -4,7 +4,7 @@ import numpy as np
 
 from ocgis import RequestDataset
 from ocgis.collection.field import OcgField
-from ocgis.constants import TagNames, MiscNames
+from ocgis.constants import TagName, MiscName
 from ocgis.driver.nc import DriverNetcdf, DriverNetcdfCF
 from ocgis.driver.request.core import get_autodiscovered_driver, get_is_none
 from ocgis.exc import RequestValidationError, \
@@ -144,7 +144,7 @@ class TestRequestDataset(TestSimpleBase):
             rd = self.get_request_dataset_netcdf(field_name=name)
             field = rd.get()
             if name is None:
-                desired = MiscNames.DEFAULT_FIELD_NAME
+                desired = MiscName.DEFAULT_FIELD_NAME
             else:
                 desired = name
             self.assertEqual(field.name, desired)
@@ -192,7 +192,7 @@ class TestRequestDataset(TestSimpleBase):
         self.assertNotIn(self.var, field)
         self.assertIn('unfoo', field)
         self.assertEqual(field['unfoo'].source_name, self.var)
-        self.assertIn('unfoo', field._tags[TagNames.DATA_VARIABLES])
+        self.assertIn('unfoo', field._tags[TagName.DATA_VARIABLES])
 
     @attr('cfunits')
     def test_t_conform_units_to(self):

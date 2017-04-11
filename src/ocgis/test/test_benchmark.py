@@ -7,10 +7,10 @@ from ocgis.test.base import TestBase, attr
 
 
 class Test(TestBase):
-    @attr('benchmark')
+    @attr('release')
     def test(self):
         raise SkipTest('benchmarking only')
-        # development laptop: 8 procs: 146 seconds
+        # development laptop: 8 procs: 139 seconds
         ocgis.env.VERBOSE = True
         uri = '/home/benkoziol/l/data/bekozi-work/lisa-rensi-nwm/nwm.t00z.analysis_assim.terrain_rt.tm00.conus.nc_georeferenced.nc'
         # dimension_map = {'time': {'variable': 'time', 'names': ['time']},
@@ -25,8 +25,8 @@ class Test(TestBase):
         # barrier_print(rd.dist.get_dimension('x').bounds_local)
         # barrier_print(rd.dist.get_dimension('y').bounds_local)
         # tkk
-        field = rd.get()
-        None
+        # field = rd.get()
+        # None
 
         ops = OcgOperations(dataset=rd, geom='state_boundaries', geom_select_uid=[16])
         ret = ops.execute()

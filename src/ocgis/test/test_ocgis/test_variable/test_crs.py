@@ -7,7 +7,7 @@ from shapely.geometry import Point, MultiPoint
 from shapely.geometry.multipolygon import MultiPolygon
 
 import ocgis
-from ocgis import constants
+from ocgis import constants, vm
 from ocgis.collection.field import OcgField
 from ocgis.constants import WrapAction, WrappedState
 from ocgis.spatial.grid import GridXY
@@ -18,7 +18,7 @@ from ocgis.util.itester import itr_products_keywords
 from ocgis.variable.base import Variable
 from ocgis.variable.crs import CoordinateReferenceSystem, WGS84, CFAlbersEqualArea, CFLambertConformal, \
     CFRotatedPole, CFWGS84, Spherical, CFCoordinateReferenceSystem, CFSpherical
-from ocgis.vm.mpi import OcgMpi, MPI_RANK, variable_scatter
+from ocgis.vmachine.mpi import OcgMpi, MPI_RANK, variable_scatter
 
 
 class TestCoordinateReferenceSystem(TestBase):
@@ -129,16 +129,28 @@ class TestCoordinateReferenceSystem(TestBase):
                 vy = Variable(name='y', value=[0], dimensions='y')
             else:
                 vx, vy = [None] * 2
-            vx, _ = variable_scatter(vx, ompi)
-            vy, _ = variable_scatter(vy, ompi)
+            vx = variable_scatter(vx, ompi)
+            vy = variable_scatter(vy, ompi)
 
             grid = GridXY(vx, vy)
             field = OcgField(grid=grid, crs=k.crs)
 
-            if k.crs is None:
-                self.assertIsNone(field.wrapped_state)
+            with vm.scoped_by_emptyable('wrap', field):
+                if not vm.is_null:
+                    wrapped_state = field.wrapped_state
+                else:
+                    wrapped_state = None
+
+            if not field.is_empty:
+                if k.crs is None:
+                    self.assertIsNone(wrapped_state)
+                else:
+                    self.assertIsNotNone(wrapped_state)
+
+            if k.crs is None or field.is_empty:
+                self.assertIsNone(wrapped_state)
             else:
-                self.assertEqual(field.wrapped_state, k.values['desired'])
+                self.assertEqual(wrapped_state, k.values['desired'])
 
     def test_get_wrapped_state_from_array(self):
 

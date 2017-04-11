@@ -8,7 +8,7 @@ from ocgis import env
 from ocgis.calc.base import AbstractMultivariateFunction, AbstractKeyedOutputFunction
 from ocgis.calc.engine import OcgCalculationEngine
 from ocgis.calc.eval_function import MultivariateEvalFunction
-from ocgis.constants import KeywordArguments
+from ocgis.constants import KeywordArgument
 from ocgis.conv.base import AbstractCollectionConverter
 from ocgis.driver.nc import DriverNetcdf, DriverNetcdfCF
 from ocgis.exc import DefinitionValidationError
@@ -109,7 +109,6 @@ class NcConverter(AbstractCollectionConverter):
 
     def _finalize_(self, ds):
         pass
-        # ds.close()
 
     def _get_file_format_(self):
         file_format = set()
@@ -167,12 +166,12 @@ class NcConverter(AbstractCollectionConverter):
         arch.attrs['history'] = original_history_str + history_str
 
         # Pull in dataset and variable keyword arguments.
-        unlimited_to_fixedsize = self.options.get(KeywordArguments.UNLIMITED_TO_FIXED_SIZE, False)
-        write_kwargs[KeywordArguments.VARIABLE_KWARGS] = variable_kwargs
-        variable_kwargs[KeywordArguments.UNLIMITED_TO_FIXED_SIZE] = unlimited_to_fixedsize
+        unlimited_to_fixedsize = self.options.get(KeywordArgument.UNLIMITED_TO_FIXED_SIZE, False)
+        write_kwargs[KeywordArgument.VARIABLE_KWARGS] = variable_kwargs
+        variable_kwargs[KeywordArgument.UNLIMITED_TO_FIXED_SIZE] = unlimited_to_fixedsize
 
         # This is the output path. The driver handles MPI writing.
-        path = write_kwargs.pop(KeywordArguments.PATH)
+        path = write_kwargs.pop(KeywordArgument.PATH)
 
         # Write the field.
         arch.write(path, **write_kwargs)

@@ -3,7 +3,7 @@ from datetime import datetime as dt
 import ocgis
 from ocgis.base import get_variable_names, orphaned
 from ocgis.calc.library.index.heat_index import HeatIndex
-from ocgis.constants import TagNames
+from ocgis.constants import TagName
 from ocgis.exc import UnitsValidationError
 from ocgis.test.base import attr, AbstractTestField
 from ocgis.variable.base import VariableCollection
@@ -60,7 +60,7 @@ class TestHeatIndex(AbstractTestField):
         with orphaned(field_rhs['rhsmax']):
             field.add_variable(field_rhs['rhsmax'], is_data=True)
 
-        self.assertEqual(set(get_variable_names(field.get_by_tag(TagNames.DATA_VARIABLES))),
+        self.assertEqual(set(get_variable_names(field.get_by_tag(TagName.DATA_VARIABLES))),
                          {'tasmax', 'rhsmax'})
         hi = HeatIndex(field=field, parms={'tas': 'tasmax', 'rhs': 'rhsmax'})
         with self.assertRaises(UnitsValidationError):
@@ -72,7 +72,7 @@ class TestHeatIndex(AbstractTestField):
         field_rhs = self.get_field(name='rhsmax', units='percent', with_value=True)
         with orphaned(field_rhs['rhsmax']):
             field.add_variable(field_rhs['rhsmax'], is_data=True)
-        self.assertEqual(set(get_variable_names(field.get_by_tag(TagNames.DATA_VARIABLES))),
+        self.assertEqual(set(get_variable_names(field.get_by_tag(TagName.DATA_VARIABLES))),
                          set(['tasmax', 'rhsmax']))
         hi = HeatIndex(field=field, parms={'tas': 'tasmax', 'rhs': 'rhsmax'})
         vc = hi.execute()

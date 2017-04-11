@@ -386,3 +386,23 @@ class DimensionsRequiredError(OcgException):
 
 class OcgMpiError(OcgException):
     """Raised for MPI-related exceptions."""
+
+
+class EmptyObjectError(OcgException):
+    """Raised when an empty object is not allowed."""
+
+
+class SubcommNotFoundError(OcgMpiError):
+    """Raised when a subcommunicator is not found."""
+
+    def __init__(self, name):
+        message = "Subcommunicator '{}' not found.".format(name)
+        super(SubcommNotFoundError, self).__init__(message=message)
+
+
+class SubcommAlreadyCreatedError(OcgMpiError):
+    """Raised when a subcommunicator name already exists."""
+
+    def __init__(self, name):
+        message = "Subcommunicator '{}' already created.".format(name)
+        super(SubcommAlreadyCreatedError, self).__init__(message=message)

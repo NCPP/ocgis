@@ -7,15 +7,16 @@ from pprint import pformat
 import fiona
 import six
 
-from ocgis import constants
+from ocgis import constants, vm
 from ocgis import env
 from ocgis import messages
 from ocgis.base import AbstractOcgisObject
-from ocgis.constants import TagNames, MPIWriteMode, KeywordArguments
+from ocgis.collection.spatial import SpatialCollection
+from ocgis.constants import TagName, MPIWriteMode, KeywordArgument, SubcommName
 from ocgis.driver.vector import DriverVector
 from ocgis.util.helpers import get_iter, get_tuple
 from ocgis.util.logging_ocgis import ocgis_lh
-from ocgis.vm.mpi import MPI_RANK
+from ocgis.vmachine.mpi import MPI_RANK
 
 FIONA_FIELD_TYPES_REVERSED = {v: k for k, v in fiona.FIELD_TYPES_MAP.items()}
 FIONA_FIELD_TYPES_REVERSED[str] = 'str'
@@ -105,6 +106,7 @@ class AbstractCollectionConverter(AbstractFileConverter):
     _add_ugeom_nest = True  # Nest the user geometry in a overview geometry shapefile folder.
     _add_source_meta = True  # Add a source metadata file.
     _use_upper_keys = True  # If headers should be capitalized.
+    _allow_empty = False
 
     def __init__(self, colls, **kwargs):
         self.colls = colls
@@ -113,6 +115,13 @@ class AbstractCollectionConverter(AbstractFileConverter):
         self.add_auxiliary_files = kwargs.pop('add_auxiliary_files', True)
 
         super(AbstractCollectionConverter, self).__init__(**kwargs)
+
+    def __iter__(self):
+        for coll in self.colls:
+            assert isinstance(coll, SpatialCollection)
+            if not self._allow_empty and coll.is_empty:
+                continue
+            yield coll
 
     @property
     def geom_uid(self):
@@ -124,28 +133,6 @@ class AbstractCollectionConverter(AbstractFileConverter):
         else:
             ret = none_target
         return ret
-
-    def get_headers(self, coll):
-        """
-        :type coll: :class:`ocgis.SpatialCollection`
-        :returns: A list of headers from the first element return from the collection iterator.
-        :rtype: [str, ...]
-        """
-
-        ret = self.get_iter_from_spatial_collection(coll)
-        ret = next(ret)
-        ret = list(ret[1].keys())
-        return ret
-
-    def get_iter_from_spatial_collection(self, coll):
-        """
-        :type coll: :class:`ocgis.SpatialCollection`
-        :returns: A generator from the input collection.
-        :rtype: generator
-        """
-
-        itr = coll.get_iter_dict(use_upper_keys=self._use_upper_keys)
-        return itr
 
     def _build_(self, *args, **kwargs):
         raise NotImplementedError
@@ -170,26 +157,6 @@ class AbstractCollectionConverter(AbstractFileConverter):
             os.mkdir(path)
         return path
 
-    @staticmethod
-    def _get_should_append_to_unique_geometry_store_(store, geom, ugid):
-        """
-        :param sequence store:
-        :param geom:
-        :type geom: :class:`shapely.Geometry`
-        :param ugid:
-        :type ugid: int
-        """
-
-        ret = True
-        test_all = []
-        for row in store:
-            test_geom = row['geom'].almost_equals(geom)
-            test_ugid = row['ugid'] == ugid
-            test_all.append(all([test_geom, test_ugid]))
-        if any(test_all):
-            ret = False
-        return ret
-
     def write(self):
         ocgis_lh('starting write method', self._log, logging.DEBUG)
 
@@ -197,10 +164,10 @@ class AbstractCollectionConverter(AbstractFileConverter):
         write_ugeom = False
 
         # Path to the output object.
-        f = {KeywordArguments.PATH: self.path}
+        f = {KeywordArgument.PATH: self.path}
 
         build = True
-        for coll in iter(self.colls):
+        for coll in self:
             # This will be changed to "write" if we are on the build loop.
             write_mode = MPIWriteMode.APPEND
 
@@ -214,7 +181,7 @@ class AbstractCollectionConverter(AbstractFileConverter):
                     write_ugeom = True
 
                 if write_ugeom:
-                    if MPI_RANK == 0:
+                    if vm.rank == 0:
                         # The output file name for the user geometries.
                         ugid_shp_name = self.prefix + '_ugid.shp'
                         if self._add_ugeom_nest:
@@ -226,19 +193,14 @@ class AbstractCollectionConverter(AbstractFileConverter):
 
                 build = False
 
-            f[KeywordArguments.WRITE_MODE] = write_mode
+            f[KeywordArgument.WRITE_MODE] = write_mode
             self._write_coll_(f, coll)
 
-            if write_ugeom and MPI_RANK == 0:
-                for subset_field in list(coll.children.values()):
-                    # TODO: this should react to live ranks and not assume rank 0 is going to hit this every time.
-                    enter_value = subset_field._is_empty
-                    subset_field._is_empty = False
-                    try:
-                        subset_field.write(ugeom_fiona_path, write_mode=write_mode, driver=DriverVector,
-                                           ranks_to_write=(0,))
-                    finally:
-                        subset_field._is_empty = enter_value
+            if write_ugeom:
+                with vm.scoped(SubcommName.UGEOM_WRITE, [0]):
+                    if not vm.is_null:
+                        for subset_field in list(coll.children.values()):
+                            subset_field.write(ugeom_fiona_path, write_mode=write_mode, driver=DriverVector)
 
         # The metadata and dataset descriptor files may only be written if OCGIS operations are present.
         ops = self.ops
@@ -281,7 +243,7 @@ class AbstractTabularConverter(AbstractCollectionConverter):
     """
 
     def __init__(self, *args, **kwargs):
-        self.melted = kwargs.pop(KeywordArguments.MELTED, None) or False
+        self.melted = kwargs.pop(KeywordArgument.MELTED, None) or False
         super(AbstractTabularConverter, self).__init__(*args, **kwargs)
 
 
@@ -310,21 +272,20 @@ def get_converter_map():
     from ocgis.conv.nc import NcConverter
     from ocgis.conv.meta import MetaOCGISConverter, MetaJSONConverter
 
-    mmap = {constants.OUTPUT_FORMAT_SHAPEFILE: ShpConverter,
-            constants.OUTPUT_FORMAT_CSV: CsvConverter,
-            constants.OUTPUT_FORMAT_CSV_SHAPEFILE: CsvShapefileConverter,
-            constants.OUTPUT_FORMAT_NUMPY: NumpyConverter,
-            constants.OUTPUT_FORMAT_GEOJSON: GeoJsonConverter,
-            constants.OUTPUT_FORMAT_NETCDF: NcConverter,
-            constants.OUTPUT_FORMAT_METADATA_JSON: MetaJSONConverter,
-            constants.OUTPUT_FORMAT_METADATA_OCGIS: MetaOCGISConverter,
-            # constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH: NcUgrid2DFlexibleMeshConverter,
+    mmap = {constants.OutputFormatName.SHAPEFILE: ShpConverter,
+            constants.OutputFormatName.CSV: CsvConverter,
+            constants.OutputFormatName.CSV_SHAPEFILE: CsvShapefileConverter,
+            constants.OutputFormatName.OCGIS: NumpyConverter,
+            constants.OutputFormatName.GEOJSON: GeoJsonConverter,
+            constants.OutputFormatName.NETCDF: NcConverter,
+            constants.OutputFormatName.METADATA_JSON: MetaJSONConverter,
+            constants.OutputFormatName.METADATA_OCGIS: MetaOCGISConverter,
             }
 
     # ESMF is an optional dependendency.
     if env.USE_ESMF:
         from ocgis.conv.esmpy import ESMPyConverter
-        mmap[constants.OUTPUT_FORMAT_ESMPY_GRID] = ESMPyConverter
+        mmap[constants.OutputFormatName.ESMPY_GRID] = ESMPyConverter
 
     return mmap
 
@@ -343,7 +304,7 @@ def _write_dataset_identifier_file_(path, ops):
                 try:
                     itr = get_iter(element.variable)
                 except AttributeError:
-                    itr = element.get_by_tag(TagNames.DATA_VARIABLES)
+                    itr = element.get_by_tag(TagName.DATA_VARIABLES)
                 for idx, variable in enumerate(itr):
                     row = row_template.copy()
                     try:
@@ -394,4 +355,3 @@ def _write_source_meta_(path, operations):
         for line in to_write:
             f.write(line)
             f.write('\n')
-            # f.writelines(to_write)

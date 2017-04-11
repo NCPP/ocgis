@@ -5,13 +5,15 @@ from functools import reduce
 import numpy as np
 import six
 
-from ocgis.base import AbstractOcgisObject
-from ocgis.constants import MPIDistributionMode, DataTypes, MPITags
+from ocgis import constants
+from ocgis.base import AbstractOcgisObject, raise_if_empty
+from ocgis.constants import DataType, MPITag
 from ocgis.exc import DimensionNotFound
 from ocgis.util.helpers import get_optimal_slice_from_array, get_iter
 
 try:
     from mpi4py import MPI
+    from mpi4py.MPI import COMM_NULL
 except ImportError:
     MPI_ENABLED = False
 else:
@@ -63,25 +65,37 @@ if MPI_ENABLED and MPI.COMM_WORLD.Get_size() > 1:
     MPI_COMM = MPI.COMM_WORLD
 else:
     MPI_COMM = DummyMPIComm()
+    COMM_NULL = constants.MPI_COMM_NULL_VALUE
 MPI_SIZE = MPI_COMM.Get_size()
 MPI_RANK = MPI_COMM.Get_rank()
 
 
 class OcgMpi(AbstractOcgisObject):
-    def __init__(self, size=MPI_SIZE):
+    def __init__(self, size=None, ranks=None):
+        if size is None:
+            size = MPI_SIZE
+            # size = vm.size
+        if ranks is None:
+            # if size is None:
+            #     ranks = vm.live_ranks
+            # else:
+            ranks = tuple(range(size))
+
+        self.ranks = ranks
         self.size = size
         self.mapping = {}
-        for rank in range(size):
+        for rank in self.ranks:
             self.mapping[rank] = get_template_rank_dict()
 
         self.has_updated_dimensions = False
 
     def add_dimension(self, dim, group=None, force=False):
         from ocgis import Dimension
+
         if not isinstance(dim, Dimension):
             raise ValueError('"dim" must be a "Dimension" object.')
 
-        for rank in range(self.size):
+        for rank in self.ranks:
             if rank != MPI_RANK:
                 to_add_dim = dim.copy()
             else:
@@ -97,18 +111,12 @@ class OcgMpi(AbstractOcgisObject):
         for dim in dims:
             self.add_dimension(dim, **kwargs)
 
-    def add_variable(self, name_or_variable, ranks='all', dist=MPIDistributionMode.REPLICATED, force=False,
-                     dimensions=None, group=None):
+    def add_variable(self, name_or_variable, force=False, dimensions=None, group=None):
         """
         Add a variable to the distribution mapping.
 
         :param name_or_variable: The variable or variable name to add to the distribution.
         :type name_or_variable: :class:`~ocgis.new_interface.variable.Variable`
-        :param ranks: If ``'all'``, add variable to all ranks. Otherwise, add to the integer ranks. Should be ``'all'``
-         except for isolated variables which require a sequence of integer home ranks.
-        :type ranks: str/int
-        :param dist: The distribution mode.
-        :type dist: :class:`~ocgis.constants.MPIDistributionMode`
         :param force: If ``True``, overwrite any variables with the same name.
         :param sequence dimensions: A sequence of dimension names if ``name_or_variable`` is a name. Otherwise,
          dimensions are pulled from the variable object.
@@ -132,18 +140,13 @@ class OcgMpi(AbstractOcgisObject):
             dimensions = []
         dimensions = tuple(dimensions)
 
-        for rank_home in range(self.size):
+        for rank_home in self.ranks:
             the_group = self._create_or_get_group_(group, rank_home)
             if not force and name in the_group['variables']:
                 msg = 'Variable with name "{}" already in group "{}" and "force=False".'
                 raise ValueError(msg.format(name, group))
             else:
-                the_group['variables'][name] = {'dist': dist, 'dimensions': dimensions}
-
-            if dist == MPIDistributionMode.ISOLATED:
-                if ranks == 'all':
-                    raise ValueError('Isolated variables should not be added to "all" ranks.')
-                the_group['variables'][name]['ranks'] = tuple(get_iter(ranks, dtype=int))
+                the_group['variables'][name] = {'dimensions': dimensions}
 
     def add_variables(self, vars, **kwargs):
         for var in vars:
@@ -151,6 +154,7 @@ class OcgMpi(AbstractOcgisObject):
 
     def create_dimension(self, *args, **kwargs):
         from ocgis import Dimension
+
         group = kwargs.pop('group', None)
         dim = Dimension(*args, **kwargs)
         self.add_dimension(dim, group=group)
@@ -165,53 +169,10 @@ class OcgMpi(AbstractOcgisObject):
 
     def create_variable(self, *args, **kwargs):
         from ocgis import Variable
-
-        dist = kwargs.get('dist', MPIDistributionMode.REPLICATED)
-        kwargs['dist'] = dist
-
         group = kwargs.pop('group', None)
-        ranks = kwargs.get('ranks', None)
-
-        if ranks is None:
-            if dist in (MPIDistributionMode.REPLICATED, MPIDistributionMode.DISTRIBUTED):
-                ranks = 'all'
-            elif dist == MPIDistributionMode.ISOLATED:
-                ranks = (0,)
-            kwargs['ranks'] = ranks
-
         var = Variable(*args, **kwargs)
-
-        # Variables with distributed dimensions are always distributed.
-        if var.has_dimensions:
-            for dim in var.dimensions:
-                if dim.dist:
-                    var.dist = MPIDistributionMode.DISTRIBUTED
-                    break
-
-        self.add_variable(var, group=group, ranks=ranks, dist=dist)
+        self.add_variable(var, group=group)
         return var
-
-    def gather_dimensions(self, group=None, root=0):
-        target_group = self.get_group(group=group)
-        new_dimensions = [None] * len(target_group['dimensions'])
-        for idx, dim in enumerate(target_group['dimensions']):
-            if dim.dist:
-                dim = self._gather_dimension_(dim.name, group=group, root=root)
-            else:
-                pass
-            new_dimensions[idx] = dim
-
-        if self.rank == root:
-            target_group['dimensions'] = []
-            for dim in new_dimensions:
-                self.add_dimension(dim, group=group)
-        else:
-            pass
-
-        if self.rank == root:
-            return self.get_group(group=group)
-        else:
-            return None
 
     def get_bounds_local(self, group=None, rank=MPI_RANK):
         the_group = self.get_group(group=group, rank=rank)
@@ -251,10 +212,6 @@ class OcgMpi(AbstractOcgisObject):
 
         group_data = self.get_group(group, rank=rank)
         return group_data['variables'][name]
-
-    def get_variable_ranks(self, *args, **kwargs):
-        variable_dist = self.get_variable(*args, **kwargs)
-        return variable_dist.get('ranks', tuple(range(self.size)))
 
     def get_group(self, group=None, rank=MPI_RANK):
         return self._create_or_get_group_(group, rank=rank)
@@ -328,15 +285,6 @@ class OcgMpi(AbstractOcgisObject):
                     # If there are no local bounds, the dimension is empty.
                     distributed_dimension.convert_to_empty()
 
-                # Update distributed variables. If a variable has a distributed dimension, it must be distributed.
-                # That's it.
-                for variable_name, variable_data in list(group_data['variables'].items()):
-                    if len(variable_data['dimensions']) > 0:
-                        for dimension_name in variable_data['dimensions']:
-                            if group_data['dimensions'][dimension_name].dist:
-                                variable_data['dist'] = MPIDistributionMode.DISTRIBUTED
-                                break
-
         self.has_updated_dimensions = True
 
     def _create_or_get_group_(self, group, rank=MPI_RANK):
@@ -356,46 +304,6 @@ class OcgMpi(AbstractOcgisObject):
             if g not in ret:
                 ret[g] = {'groups': {}, 'dimensions': {}, 'variables': {}}
             ret = ret[g]
-        return ret
-
-    def _gather_dimension_(self, name, group=None, root=0):
-        dim = self.get_dimension(name, group=group)
-        parts = self.comm.gather(dim, root=root)
-        if self.rank == root:
-            new_size = 0
-            for part in parts:
-                if not part.is_empty:
-                    new_size += len(part)
-                else:
-                    pass
-
-            # Only update the size if it is set.
-            if dim.size is not None:
-                dim._size = new_size
-            else:
-                pass
-            dim._size_current = new_size
-
-            if dim._src_idx is not None:
-                new_src_idx = np.zeros(new_size, dtype=dim._src_idx.dtype)
-                for part in parts:
-                    if not part.is_empty:
-                        lower, upper = part.bounds_local
-                        new_src_idx[lower:upper] = part._src_idx
-                    else:
-                        pass
-                dim._src_idx = new_src_idx
-            else:
-                pass
-
-            # Dimension is no longer distributed and should not have local bounds.
-            dim._bounds_local = None
-            # Dimension is no longer empty as its component parts have been gathered across ranks.
-            dim.is_empty = False
-
-            ret = dim
-        else:
-            ret = None
         return ret
 
 
@@ -421,14 +329,14 @@ def barrier_ranks(ranks, comm=None):
                 received = [root]
                 for irank in ranks:
                     if irank != root:
-                        comm.recv(source=irank, tag=MPITags.BARRIER)
+                        comm.recv(source=irank, tag=MPITag.BARRIER)
                         received.append(irank)
                 for irank in ranks:
                     if irank != root:
-                        comm.send(True, dest=irank, tag=MPITags.BARRIER)
+                        comm.send(True, dest=irank, tag=MPITag.BARRIER)
             else:
-                comm.send(True, dest=root, tag=MPITags.BARRIER)
-                comm.recv(source=root, tag=MPITags.BARRIER)
+                comm.send(True, dest=root, tag=MPITag.BARRIER)
+                comm.recv(source=root, tag=MPITag.BARRIER)
 
 
 def create_slices(length, size):
@@ -505,12 +413,12 @@ def gather_ranks(ranks, value, root=0, comm=None):
             if rank == curr_rank:
                 gathered[idx] = value
         elif rank == curr_rank:
-            comm.send(value, dest=root)
+            comm.send(value, dest=root, tag=MPITag.GATHER)
 
     if rank == root:
         for idx, recv_rank in enumerate(ranks):
             if recv_rank != root:
-                recv = comm.recv(source=recv_rank)
+                recv = comm.recv(source=recv_rank, tag=MPITag.GATHER)
                 gathered[idx] = recv
 
     return gathered
@@ -605,19 +513,36 @@ def mpi_group_scope(ranks, comm=None):
             sub_group.Free()
 
 
-def scatter_ranks(ranks, value, root=0, comm=None):
+def bcast_ranks(ranks, value, root=0, comm=None):
     comm, rank, size = get_standard_comm_state(comm=comm)
 
     if rank == root:
         for target_rank in ranks:
             if target_rank != root:
-                comm.send(value, dest=target_rank, tag=MPITags.SCATTER)
+                comm.send(value, dest=target_rank, tag=MPITag.BCAST)
     elif rank in ranks:
-        value = comm.recv(source=root, tag=MPITags.SCATTER)
+        value = comm.recv(source=root, tag=MPITag.BCAST)
     else:
         value = None
 
     return value
+
+
+def scatter_ranks(ranks, value, root=0, comm=None):
+    comm, rank, size = get_standard_comm_state(comm=comm)
+
+    if rank == root:
+        for target_rank, target_value in zip(ranks, value):
+            if target_rank != root:
+                comm.send(target_value, dest=target_rank, tag=MPITag.SCATTER)
+            else:
+                ret_value = target_value
+    elif rank in ranks:
+        ret_value = comm.recv(source=root, tag=MPITag.SCATTER)
+    else:
+        ret_value = None
+
+    return ret_value
 
 
 def ogather(elements):
@@ -658,26 +583,19 @@ def find_dimension_in_sequence(dimension_name, dimensions):
     return ret
 
 
-def get_nonempty_ranks(target, ranks=None, comm=None, root=0):
-    comm, rank, size = get_standard_comm_state(comm)
-    if ranks is None:
-        ranks = list(range(size))
+def get_nonempty_ranks(target, the_vm):
+    """Collective!"""
 
-    if rank == root:
-        is_empty = [None] * len(ranks)
-        is_empty[rank] = target.is_empty
-        for curr_rank in ranks:
-            if curr_rank != root:
-                is_empty[curr_rank] = comm.recv(source=curr_rank)
-    else:
-        comm.send(target.is_empty, dest=root)
-
-    if rank == root:
-        select_not_empty = np.invert(is_empty)
-        ret = tuple(np.arange(size)[select_not_empty].tolist())
+    gathered = the_vm.gather(target.is_empty)
+    if the_vm.rank == 0:
+        ret = []
+        for idx, rank in enumerate(the_vm.ranks):
+            if not gathered[idx]:
+                ret.append(rank)
+        ret = tuple(ret)
     else:
         ret = None
-
+    ret = the_vm.bcast(ret)
     return ret
 
 
@@ -717,47 +635,48 @@ def rank_print(*args):
     print(msg)
 
 
-def variable_gather(variable, root=0, comm=None):
-    comm = comm or MPI_COMM
-    rank = comm.Get_rank()
-    size = comm.Get_size()
+def variable_gather(variable, root=0):
+    from ocgis import vm
 
-    if size > 1:
-        new_variable = variable.copy()
-        new_variable.dtype = variable.dtype
-        new_variable.set_mask(None)
-        new_variable.set_value(None)
-        new_variable.set_dimensions(None)
+    if variable.is_empty:
+        raise ValueError('No empty variables allowed.')
+
+    if vm.size > 1:
+        if vm.rank == root:
+            new_variable = variable.copy()
+            new_variable.dtype = variable.dtype
+            new_variable.set_mask(None)
+            new_variable.set_value(None)
+            new_variable.set_dimensions(None)
+            assert not new_variable.has_allocated_value
+        else:
+            new_variable = None
     else:
         new_variable = variable
         for dim in new_variable.dimensions:
             dim.dist = False
 
-    if size > 1:
-        if rank == root:
+    if vm.size > 1:
+        if vm.rank == root:
             new_dimensions = [None] * variable.ndim
         else:
             new_dimensions = None
-        assert not new_variable.has_allocated_value
 
         for idx, dim in enumerate(variable.dimensions):
             if dim.dist:
-                parts = comm.gather(dim, root=root)
-                variable_is_empty = comm.gather(variable.is_empty, root=root)
-            if rank == root:
+                parts = vm.gather(dim)
+            if vm.rank == root:
                 new_dim = dim.copy()
                 if dim.dist:
                     new_size = 0
                     has_src_idx = False
-                    for vempty, part in zip(variable_is_empty, parts):
-                        if not part.is_empty and not vempty:
-                            has_src_idx = part._src_idx is not None
-                            new_size += len(part)
+                    for part in parts:
+                        has_src_idx = part._src_idx is not None
+                        new_size += len(part)
                     if has_src_idx:
-                        new_src_idx = np.zeros(new_size, dtype=DataTypes.DIMENSION_SRC_INDEX)
+                        new_src_idx = np.zeros(new_size, dtype=DataType.DIMENSION_SRC_INDEX)
                         for part in parts:
-                            if not part.is_empty:
-                                new_src_idx[part.bounds_local[0]: part.bounds_local[1]] = part._src_idx
+                            new_src_idx[part.bounds_local[0]: part.bounds_local[1]] = part._src_idx
                     else:
                         new_src_idx = None
                     new_dim = dim.copy()
@@ -765,44 +684,39 @@ def variable_gather(variable, root=0, comm=None):
                     new_dim.dist = False
                 new_dimensions[idx] = new_dim
 
-        if rank == root:
+        if vm.rank == root:
             new_variable.set_dimensions(new_dimensions, force=True)
 
-        gathered_variables = comm.gather(variable, root=root)
+        gathered_variables = vm.gather(variable)
 
-        if rank == root:
+        if vm.rank == root:
             for idx, gv in enumerate(gathered_variables):
-                if not gv.is_empty:
-                    destination_slice = [slice(*dim.bounds_local) for dim in gv.dimensions]
-                    new_variable.__setitem__(destination_slice, gv)
-
-            new_variable.dist = None
-            new_variable.ranks = None
-
+                destination_slice = [slice(*dim.bounds_local) for dim in gv.dimensions]
+                new_variable.__setitem__(destination_slice, gv)
             return new_variable
         else:
             return
     else:
-        new_variable.dist = None
-        new_variable.ranks = None
         return new_variable
 
 
-def variable_scatter(variable, dest_mpi, root=0, comm=None):
-    comm = comm or MPI_COMM
-    rank = comm.Get_rank()
+def variable_scatter(variable, dest_dist, root=0):
+    from ocgis import vm
 
-    if rank == root:
-        if variable.dist is not None:
+    if variable is not None:
+        raise_if_empty(variable)
+
+    if vm.rank == root:
+        if variable.dist:
             raise ValueError('Only variables with no prior distribution may be scattered.')
-        if not dest_mpi.has_updated_dimensions:
+        if not dest_dist.has_updated_dimensions:
             raise ValueError('The destination distribution must have updated dimensions.')
 
     # Synchronize distribution across processors.
-    dest_mpi = comm.bcast(dest_mpi, root=root)
+    dest_dist = vm.bcast(dest_dist)
 
     # Find the appropriate group for the dimensions.
-    if rank == root:
+    if vm.rank == root:
         group = variable.group
         dimension_names = [dim.name for dim in variable.dimensions]
     else:
@@ -810,32 +724,32 @@ def variable_scatter(variable, dest_mpi, root=0, comm=None):
         dimension_names = None
 
     # Synchronize the processes with the MPI distribution and the group containing the dimensions.
-    dest_mpi = comm.bcast(dest_mpi, root=root)
-    group = comm.bcast(group, root=root)
-    dimension_names = comm.bcast(dimension_names, root=root)
+    dest_dist = vm.bcast(dest_dist)
+    group = vm.bcast(group)
+    dimension_names = vm.bcast(dimension_names)
 
     # These are the dimensions for the local process.
-    dest_dimensions = dest_mpi.get_dimensions(dimension_names, group=group)
+    dest_dimensions = dest_dist.get_dimensions(dimension_names, group=group)
 
     # barrier_print('dest_dimensions bounds_global: ', [(d.name, d.bounds_global) for d in dest_dimensions])
 
     # Slice the variables collecting the sequence to scatter to the MPI procs.
-    if rank == root:
-        size = dest_mpi.size
+    if vm.rank == root:
+        size = dest_dist.size
         if size > 1:
             slices = [None] * size
             # Get the slices need to scatter the variables. These are essentially the local bounds on each dimension.
-            empty_ranks = dest_mpi.get_empty_ranks()
+            empty_ranks = dest_dist.get_empty_ranks()
             empty_variable = variable.copy()
             empty_variable.convert_to_empty()
             for current_rank in range(size):
                 if current_rank in empty_ranks:
                     slices[current_rank] = None
                 else:
-                    current_dimensions = list(dest_mpi.get_group(group=group, rank=current_rank)['dimensions'].values())
+                    current_dimensions = list(
+                        dest_dist.get_group(group=group, rank=current_rank)['dimensions'].values())
                     slices[current_rank] = {dim.name: slice(*dim.bounds_local) for dim in current_dimensions if
                                             dim.name in variable.parent.dimensions}
-
             # Slice the variables. These sliced variables are the scatter targets.
             variables_to_scatter = [None] * size
             for idx, slc in enumerate(slices):
@@ -849,52 +763,38 @@ def variable_scatter(variable, dest_mpi, root=0, comm=None):
         variables_to_scatter = None
 
     # Scatter the variable across processes.
-    scattered_variable = comm.scatter(variables_to_scatter, root=root)
+    scattered_variable = vm.scatter(variables_to_scatter, root=root)
     # Update the scattered variable dimensions with the destination dimensions on the process. Everything should align
     # shape-wise. If they don't, an exception will be raised.
     scattered_variable.set_dimensions(dest_dimensions, force=True)
-    # The variable is now distributed.
-    if scattered_variable.has_distributed_dimension:
-        scattered_variable.dist = MPIDistributionMode.DISTRIBUTED
-    else:
-        scattered_variable.dist = MPIDistributionMode.REPLICATED
 
-    return scattered_variable, dest_mpi
+    return scattered_variable
 
 
-def variable_collection_scatter(variable_collection, dest_mpi, root=0, comm=None):
-    comm = comm or MPI_COMM
-    rank = comm.Get_rank()
+def variable_collection_scatter(variable_collection, dest_dist):
+    from ocgis import vm
 
-    if rank == root:
+    if vm.rank == 0:
         target = variable_collection.first()
     else:
         target = None
-    sv, dest_mpi = variable_scatter(target, dest_mpi, root=root, comm=comm)
+    sv = variable_scatter(target, dest_dist)
     svc = sv.parent
 
-    # The variable is now distributed.
-    for scattered_variable in list(svc.values()):
-        if not scattered_variable.is_empty:
-            if scattered_variable.has_distributed_dimension:
-                scattered_variable.dist = MPIDistributionMode.DISTRIBUTED
-            else:
-                scattered_variable.dist = MPIDistributionMode.REPLICATED
-
-    if rank == root:
+    if vm.rank == 0:
         n_children = len(variable_collection.children)
     else:
         n_children = None
-    n_children = comm.bcast(n_children, root=root)
-    if rank == root:
+    n_children = vm.bcast(n_children)
+    if vm.rank == 0:
         children = list(variable_collection.children.values())
     else:
         children = [None] * n_children
     for child in children:
-        scattered_child = variable_collection_scatter(child, dest_mpi, root=root, comm=comm)[0]
+        scattered_child = variable_collection_scatter(child, dest_dist)[0]
         svc.add_child(scattered_child, force=True)
 
-    return svc, dest_mpi
+    return svc
 
 
 def vgather(elements):

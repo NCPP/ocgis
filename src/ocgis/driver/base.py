@@ -7,16 +7,16 @@ from warnings import warn
 import six
 
 from ocgis import constants
-from ocgis.base import AbstractOcgisObject
+from ocgis import vm
+from ocgis.base import AbstractOcgisObject, raise_if_empty
 from ocgis.base import get_variable_names
 from ocgis.collection.field import OcgField
-from ocgis.constants import MPIDistributionMode, MPIWriteMode, TagNames, KeywordArguments, DimensionMapKeys
-from ocgis.exc import DefinitionValidationError, OcgMpiError, NoDataVariablesFound, RequestValidationError
+from ocgis.constants import MPIWriteMode, TagName, KeywordArgument, DimensionMapKey
+from ocgis.exc import DefinitionValidationError, NoDataVariablesFound, RequestValidationError
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import SourcedVariable, VariableCollection
 from ocgis.variable.dimension import Dimension
-from ocgis.vm.mpi import find_dimension_in_sequence, OcgMpi, get_nonempty_ranks, \
-    get_standard_comm_state
+from ocgis.vmachine.mpi import find_dimension_in_sequence, OcgMpi
 
 
 # TODO: Make the driver accept no arguments at initialization. The request dataset should be passed around as a parameter.
@@ -35,8 +35,8 @@ class AbstractDriver(AbstractOcgisObject):
     def __init__(self, rd):
         self.rd = rd
         self._metadata_raw = None
-        self._dist = None
         self._dimension_map_raw = None
+        self._dist = None
 
     def __eq__(self, other):
         return self.key == other.key
@@ -104,25 +104,25 @@ class AbstractDriver(AbstractOcgisObject):
     def format_dimension_map(self, group_dimension_map, group_metadata):
         """Any standardization of the dimension map to pass to the field."""
 
-        to_evaluate = [DimensionMapKeys.X, DimensionMapKeys.Y, DimensionMapKeys.LEVEL, DimensionMapKeys.REALIZATION,
-                       DimensionMapKeys.TIME]
+        to_evaluate = [DimensionMapKey.X, DimensionMapKey.Y, DimensionMapKey.LEVEL, DimensionMapKey.REALIZATION,
+                       DimensionMapKey.TIME]
         for te in to_evaluate:
             if te in group_dimension_map:
-                if DimensionMapKeys.NAMES not in group_dimension_map[te]:
+                if DimensionMapKey.NAMES not in group_dimension_map[te]:
                     # Attempt to pull the dimension name from the variable. Fail if more than one dimension.
-                    vdims = group_metadata['variables'][group_dimension_map[te][DimensionMapKeys.VARIABLE]][
+                    vdims = group_metadata['variables'][group_dimension_map[te][DimensionMapKey.VARIABLE]][
                         'dimensions']
                     if len(vdims) > 1:
                         msg = 'Dimension map entry "{}" has no dimension "{}" and the target variable "{}" has more ' \
                               'than one dimension. "names" must be overloaded for the dimension map entry.)'
-                        msg = msg.format(te, DimensionMapKeys.NAMES, group_dimension_map[te][DimensionMapKeys.VARIABLE])
+                        msg = msg.format(te, DimensionMapKey.NAMES, group_dimension_map[te][DimensionMapKey.VARIABLE])
                         raise RequestValidationError('dimension_map', msg)
                     else:
-                        group_dimension_map[te][DimensionMapKeys.NAMES] = list(vdims)
-        if DimensionMapKeys.CRS not in group_dimension_map:
+                        group_dimension_map[te][DimensionMapKey.NAMES] = list(vdims)
+        if DimensionMapKey.CRS not in group_dimension_map:
             crs = self.get_crs(group_metadata)
             if crs is not None:
-                group_dimension_map[DimensionMapKeys.CRS] = {DimensionMapKeys.VARIABLE: crs.name}
+                group_dimension_map[DimensionMapKey.CRS] = {DimensionMapKey.VARIABLE: crs.name}
         for group_key in iter_all_group_keys(group_dimension_map, has_root=False):
             group_dimension_map = get_group(group_dimension_map, group_key, has_root=False)
             group_metadata = get_group(group_metadata, group_key, has_root=False)
@@ -150,18 +150,11 @@ class AbstractDriver(AbstractOcgisObject):
 
     def get_dist(self):
         """
-        :return: The dimension distribution object.
-        :rtype: :class:`ocgis.new_interface.mpi.OcgMpi`
+        :rtype: :class:`ocgis.OcgVM`
         """
-        # tdk: in the case of a spatial reorder the distribution dimension must be by row.
-        # Allow the request dataset to overload the distribution
-        if self.rd._dist is not None:
-            # Ensure the distribution is updated.
-            assert self.rd._dist.has_updated_dimensions
-            return self.rd._dist
-        # Otherwise, create the template distribution object.
-        else:
-            dist = OcgMpi(size=self.rd.comm.Get_size())
+
+        ompi = OcgMpi(size=vm.size, ranks=vm.ranks)
+        # ompi = OcgMpi()
 
         # Convert metadata into a grouping consistent with the MPI dimensions.
         metadata = {None: self.metadata_source}
@@ -173,47 +166,25 @@ class AbstractDriver(AbstractOcgisObject):
             for dimension_name, dimension_meta in list(group_meta['dimensions'].items()):
                 target_dimension = find_dimension_in_sequence(dimension_name, dimensions)
                 target_dimension.dist = group_meta['dimensions'][dimension_name].get('dist', False)
-                dist.add_dimension(target_dimension, group=group_index)
+                ompi.add_dimension(target_dimension, group=group_index)
 
-            # Configure the default distribution.
-            # tdk: consider removing use_deafult_dist. not sure why it is here. default should be used if dist not passed.
-            if self.rd.use_default_dist:
-                dimension_map = get_group(self.rd.dimension_map, group_index, has_root=False)
-                distributed_dimension_name = self.get_distributed_dimension_name(dimension_map,
-                                                                                 group_meta['dimensions'])
-                # Allow no distributed dimensions to be returned.
-                if distributed_dimension_name is not None:
-                    for target_rank in range(dist.size):
-                        distributed_dimension = dist.get_dimension(distributed_dimension_name, group=group_index,
-                                                                   rank=target_rank)
-                        distributed_dimension.dist = True
+            dimension_map = get_group(self.rd.dimension_map, group_index, has_root=False)
+            distributed_dimension_name = self.get_distributed_dimension_name(dimension_map,
+                                                                             group_meta['dimensions'])
+            # Allow no distributed dimensions to be returned.
+            if distributed_dimension_name is not None:
+                for target_rank in range(ompi.size):
+                    distributed_dimension = ompi.get_dimension(distributed_dimension_name, group=group_index,
+                                                               rank=target_rank)
+                    distributed_dimension.dist = True
 
             # Add the variables to the distribution object.
             for variable_name, variable_meta in list(group_meta['variables'].items()):
-                # If the variable has any distributed dimensions, the variable is always distributed. Otherwise, allow
-                # the variable to determine if it is replicated or isolated. Default is replicated.
-                ranks = 'all'
-                variable_dist = variable_meta.get('dist')
-                if any([dim.dist for dim in dist.get_dimensions(variable_meta['dimensions'], group=group_index)]):
-                    if variable_dist is not None and variable_dist != MPIDistributionMode.DISTRIBUTED:
-                        msg = 'The replicated or isolated variable "{}" must not have distributed dimensions.'
-                        raise OcgMpiError(msg.format(variable_name))
-                    variable_dist = MPIDistributionMode.DISTRIBUTED
-                else:
-                    variable_dist = variable_dist or MPIDistributionMode.REPLICATED
-                    # Distributed variables require distributed dimensions.
-                    if variable_dist == MPIDistributionMode.DISTRIBUTED:
-                        msg = 'The distributed variable "{}" requires distributed dimensions.'
-                        raise OcgMpiError(msg.format(variable_name))
-                    # If the variable is isolated, identify the ranks it should be on.
-                    if variable_dist == MPIDistributionMode.ISOLATED:
-                        ranks = variable_meta.get('ranks', (0,))
-                dist.add_variable(variable_name, dimensions=variable_meta['dimensions'], group=group_index,
-                                  dist=variable_dist, ranks=ranks)
+                ompi.add_variable(variable_name, dimensions=variable_meta['dimensions'], group=group_index)
 
         # tdk: this will have to be moved to account for slicing
-        dist.update_dimension_bounds()
-        return dist
+        ompi.update_dimension_bounds()
+        return ompi
 
     def get_distributed_dimension_name(self, dimension_map, dimensions_metadata):
         """Return the preferred distributed dimension name."""
@@ -240,9 +211,9 @@ class AbstractDriver(AbstractOcgisObject):
 
     def get_field(self, *args, **kwargs):
         vc = kwargs.pop('vc', None)
-        format_time = kwargs.pop(KeywordArguments.FORMAT_TIME, True)
-        if KeywordArguments.GRID_ABSTRACTION in kwargs:
-            grid_abstraction = kwargs.pop(KeywordArguments.GRID_ABSTRACTION)
+        format_time = kwargs.pop(KeywordArgument.FORMAT_TIME, True)
+        if KeywordArgument.GRID_ABSTRACTION in kwargs:
+            grid_abstraction = kwargs.pop(KeywordArgument.GRID_ABSTRACTION)
         else:
             grid_abstraction = constants.UNINITIALIZED
 
@@ -281,9 +252,9 @@ class AbstractDriver(AbstractOcgisObject):
 
         # Convert the raw variable collection to a field.
         kwargs['dimension_map'] = dimension_map
-        kwargs[KeywordArguments.FORMAT_TIME] = format_time
+        kwargs[KeywordArgument.FORMAT_TIME] = format_time
         if grid_abstraction != constants.UNINITIALIZED:
-            kwargs[KeywordArguments.GRID_ABSTRACTION] = grid_abstraction
+            kwargs[KeywordArgument.GRID_ABSTRACTION] = grid_abstraction
         field = OcgField.from_variable_collection(vc, *args, **kwargs)
 
         # If this is a source grid for regridding, ensure the flag is updated.
@@ -310,7 +281,7 @@ class AbstractDriver(AbstractOcgisObject):
             data_variable_names = []
             pass
         for dvn in data_variable_names:
-            field.append_to_tags(TagNames.DATA_VARIABLES, dvn, create=True)
+            field.append_to_tags(TagName.DATA_VARIABLES, dvn, create=True)
 
         for child in list(field.children.values()):
             kwargs['vc'] = child
@@ -353,7 +324,7 @@ class AbstractDriver(AbstractOcgisObject):
         :rtype: :class:`ocgis.new_interface.variable.VariableCollection`
         """
 
-        dimension = list(self.dist.get_group()['dimensions'].values())[0]
+        dimension = list(self.dist.get_group(rank=vm.rank)['dimensions'].values())[0]
         ret = VariableCollection(**kwargs)
         for v in list(self.metadata_source['variables'].values()):
             nvar = SourcedVariable(name=v['name'], dimensions=dimension, dtype=v['dtype'], request_dataset=self.rd)
@@ -423,8 +394,17 @@ class AbstractDriver(AbstractOcgisObject):
             desired_dimensions = variable_metadata['dimensions']
             new_dimensions = []
             for d in desired_dimensions:
-                to_append = dist.get_dimension(d, group=variable.group)
-                new_dimensions.append(to_append)
+                try:
+                    to_append = dist.get_dimension(d, group=variable.group, rank=vm.rank)
+                except KeyError:
+                    # Rank may not be mapped due to scoped VM.
+                    if vm.is_live:
+                        raise
+                    else:
+                        variable.convert_to_empty()
+                        break
+                else:
+                    new_dimensions.append(to_append)
             super(SourcedVariable, variable).set_dimensions(new_dimensions)
 
         # Call the subclass variable initialization routine.
@@ -523,27 +503,24 @@ class AbstractDriver(AbstractOcgisObject):
 
     @classmethod
     def write_field(cls, field, opened_or_path, **kwargs):
-        vc_to_write = cls._get_variable_collection_write_target_(field)
+        vc_to_write = cls._get_field_write_target_(field)
         cls.write_variable_collection(vc_to_write, opened_or_path, **kwargs)
 
     @classmethod
     def write_variable_collection(cls, vc, opened_or_path, **kwargs):
-        comm = kwargs.pop(KeywordArguments.COMM, None)
-        comm, rank, size = get_standard_comm_state(comm=comm)
+        raise_if_empty(vc)
 
-        write_mode = kwargs.pop(KeywordArguments.WRITE_MODE, None)
-        ranks_to_write = kwargs.pop(KeywordArguments.RANKS_TO_WRITE, None)
+        if 'ranks_to_write' in kwargs:
+            raise TypeError("write_variable_collection() got an unexepcted keyword argument 'ranks_to_write'")
 
-        if ranks_to_write is None:
-            ranks_to_write = get_nonempty_ranks(vc, comm=comm, ranks=ranks_to_write)
-            ranks_to_write = comm.bcast(ranks_to_write)
+        write_mode = kwargs.pop(KeywordArgument.WRITE_MODE, None)
 
-        if len(ranks_to_write) > 1:
+        if vm.size > 1:
             if cls.inquire_opened_state(opened_or_path):
                 raise ValueError('Only paths allowed for parallel writes.')
 
         if write_mode is None:
-            if len(ranks_to_write) > 1:
+            if vm.size > 1:
                 write_modes = [MPIWriteMode.TEMPLATE, MPIWriteMode.FILL]
             else:
                 write_modes = [MPIWriteMode.NORMAL]
@@ -551,8 +528,7 @@ class AbstractDriver(AbstractOcgisObject):
             write_modes = [write_mode]
 
         for write_mode in write_modes:
-            cls._write_variable_collection_main_(vc, opened_or_path, comm, rank, size, write_mode, ranks_to_write,
-                                                 **kwargs)
+            cls._write_variable_collection_main_(vc, opened_or_path, write_mode, **kwargs)
 
     def _get_crs_main_(self, group_metadata):
         """Return the coordinate system variable or None if not found."""
@@ -579,7 +555,7 @@ class AbstractDriver(AbstractOcgisObject):
         """
 
     @classmethod
-    def _get_variable_collection_write_target_(cls, field):
+    def _get_field_write_target_(cls, field):
         return field
 
     @staticmethod
@@ -604,8 +580,7 @@ class AbstractDriver(AbstractOcgisObject):
 
     @classmethod
     @abc.abstractmethod
-    def _write_variable_collection_main_(cls, vc, opened_or_path, comm, rank, size, write_mode, ranks_to_write,
-                                         **kwargs):
+    def _write_variable_collection_main_(cls, vc, opened_or_path, write_mode, **kwargs):
         """
         :param vc: :class:`~ocgis.new_interface.variable.VariableCollection`
         :param opened_or_path: Opened file object or path to the file object to open.

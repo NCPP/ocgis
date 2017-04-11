@@ -39,7 +39,7 @@ DEFAULT_NAME_CORNERS_DIMENSION = 'corners'
 PROJ4_ROTATED_POLE_ELLPS = 'sphere'
 
 
-class HeaderNames(object):
+class HeaderName(object):
     ID_SELECTION_GEOMETRY = 'UGID'
     ID_GEOMETRY = 'GID'
 
@@ -64,44 +64,25 @@ class HeaderNames(object):
     DATASET_IDENTIFER = 'DID'
 
 
-# #: Standard headers for subset operations.
-# HEADERS_RAW = [HEADERS.ID_DATASET, HEADERS.ID_VARIABLE, HEADERS.ID_SELECTION_GEOMETRY, HEADERS.ID_TEMPORAL,
-#                HEADERS.ID_LEVEL, HEADERS.ID_GEOMETRY, HEADERS.VARIABLE, HEADERS.VARIABLE_ALIAS, HEADERS.TEMPORAL,
-#                HEADERS.TEMPORAL_YEAR, HEADERS.TEMPORAL_MONTH, HEADERS.TEMPORAL_DAY, HEADERS.LEVEL, HEADERS.VALUE]
-#
-# #: Standard headers for computation.
-# HEADERS_CALC = [HEADERS.ID_DATASET, HEADERS.ID_VARIABLE, HEADERS.ID_CALCULATION, HEADERS.ID_SELECTION_GEOMETRY,
-#                 HEADERS.ID_TEMPORAL, HEADERS.ID_LEVEL, HEADERS.ID_GEOMETRY, HEADERS.VARIABLE, HEADERS.VARIABLE_ALIAS,
-#                 HEADERS.CALCULATION_KEY, HEADERS.CALCULATION_ALIAS, HEADERS.TEMPORAL, HEADERS.TEMPORAL_YEAR,
-#                 HEADERS.TEMPORAL_MONTH, HEADERS.TEMPORAL_DAY, HEADERS.LEVEL, HEADERS.VALUE]
-#
-# #: Standard headers for multivariate calculation.
-# HEADERS_MULTI = [HEADERS.ID_DATASET, HEADERS.ID_CALCULATION, HEADERS.ID_SELECTION_GEOMETRY,
-#                  HEADERS.ID_TEMPORAL, HEADERS.ID_LEVEL, HEADERS.ID_GEOMETRY, HEADERS.CALCULATION_KEY,
-#                  HEADERS.CALCULATION_ALIAS, HEADERS.TEMPORAL, HEADERS.TEMPORAL_YEAR, HEADERS.TEMPORAL_MONTH,
-#                  HEADERS.TEMPORAL_DAY, HEADERS.LEVEL, HEADERS.VALUE]
-#
-# #: Required headers for every request.
-# HEADERS_REQUIRED = [HEADERS.ID_DATASET, HEADERS.ID_SELECTION_GEOMETRY, HEADERS.ID_GEOMETRY]
-#
-# #: Standard name for the unique identifier in GIS files.
-OCGIS_UNIQUE_GEOMETRY_IDENTIFIER = HeaderNames.ID_SELECTION_GEOMETRY.upper()
+#: Standard name for the unique identifier in GIS files.
+OCGIS_UNIQUE_GEOMETRY_IDENTIFIER = HeaderName.ID_SELECTION_GEOMETRY.upper()
 
-OUTPUT_FORMAT_CSV = 'csv'
-OUTPUT_FORMAT_CSV_SHAPEFILE = 'csv-shp'
-OUTPUT_FORMAT_CSV_SHAPEFILE_OLD = 'csv+'
-OUTPUT_FORMAT_ESMPY_GRID = 'esmpy'
-OUTPUT_FORMAT_GEOJSON = 'geojson'
-OUTPUT_FORMAT_METADATA_JSON = 'meta-json'
-OUTPUT_FORMAT_METADATA_OCGIS = 'meta-ocgis'
-OUTPUT_FORMAT_NETCDF = 'nc'
-OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH = 'nc-ugrid-2d-flexible-mesh'
-OUTPUT_FORMAT_NUMPY = 'numpy'
-OUTPUT_FORMAT_SHAPEFILE = 'shp'
+
+class OutputFormatName(object):
+    CSV = 'csv'
+    CSV_SHAPEFILE = 'csv-shp'
+    ESMPY_GRID = 'esmpy'
+    GEOJSON = 'geojson'
+    METADATA_JSON = 'meta-json'
+    METADATA_OCGIS = 'meta-ocgis'
+    NETCDF = 'nc'
+    SHAPEFILE = 'shp'
+    OCGIS = 'ocgis'
+
 
 #: These output formats are considered vector output formats affected by operations manipulation vector GIS data. For
 #: example, vector GIS outputs are always wrapped to -180 to 180 if there is a spherical coordinate system.
-VECTOR_OUTPUT_FORMATS = [OUTPUT_FORMAT_GEOJSON, OUTPUT_FORMAT_SHAPEFILE, OUTPUT_FORMAT_CSV_SHAPEFILE]
+VECTOR_OUTPUT_FORMATS = [OutputFormatName.GEOJSON, OutputFormatName.SHAPEFILE, OutputFormatName.CSV_SHAPEFILE]
 
 # Download URL for test datasets.
 TEST_DATA_DOWNLOAD_PREFIX = None
@@ -161,26 +142,26 @@ CALC_KEY_CLASS_REFERENCE = 'ref'
 DEFAULT_UID_START = 1
 
 
-class DataTypes(object):
+class DataType(object):
     DIMENSION_SRC_INDEX = np.int32
 
 
-class AttributeNames(object):
+class AttributeName(object):
     UNIQUE_GEOMETRY_IDENTIFIER = 'ocgis_geom_uid'
     ORIGINAL_SPATIAL_BOUNDS = '_ocgis_original_bounds_name'
 
 
-class DimensionNames(object):
+class DimensionName(object):
     UNIONED_GEOMETRY = 'ocgis_geom_union'
     GEOMETRY_DIMENSION = 'ocgis_geom'
     TEMPORAL = 'time'
 
 
-class MiscNames(object):
+class MiscName(object):
     DEFAULT_FIELD_NAME = 'ocgis_field'
 
 
-class VariableNames(object):
+class VariableName(object):
     SPATIAL_MASK = 'ocgis_spatial_mask'
     GEOMETRY_POINT = 'ocgis_point'
     GEOMETRY_POLYGON = 'ocgis_polygon'
@@ -208,7 +189,7 @@ class WrapAction(IntEnum):
 
 
 # Dimension map key names.
-class DimensionMapKeys(object):
+class DimensionMapKey(object):
     GROUPS = 'groups'
     X = 'x'
     Y = 'y'
@@ -223,16 +204,6 @@ class DimensionMapKeys(object):
     GEOM = 'geom'
 
 
-# MPI Distribution flags.
-class MPIDistributionMode(Enum):
-    # Object is distributed across communicator group procs.
-    DISTRIBUTED = 0
-    # Object is replicated across communicator group procs.
-    REPLICATED = 1
-    # Object exists on a single communicator proc.
-    ISOLATED = 2
-
-
 # MPI Writing flags.
 class MPIWriteMode(Enum):
     NORMAL = 0
@@ -242,11 +213,11 @@ class MPIWriteMode(Enum):
     APPEND = 2
 
 
-class TagNames(object):
+class TagName(object):
     DATA_VARIABLES = '_ocgis_data_variables'
 
 
-class KeywordArguments(object):
+class KeywordArgument(object):
     ADD_BOUNDS = 'add_bounds'
     ADD_GEOM_UID = 'add_geom_uid'
     ALLOW_MASKED = 'allow_masked'
@@ -315,7 +286,7 @@ class KeywordArguments(object):
         STANDARDIZE = True
 
 
-class DriverKeys(object):
+class DriverKey(object):
     BASE = 'base'
     CSV = 'csv'
     NETCDF = 'netcdf'
@@ -323,17 +294,37 @@ class DriverKeys(object):
     VECTOR = 'vector'
 
 
-class MPITags(IntEnum):
+class MPITag(IntEnum):
     BARRIER = 0
     SCATTER = 1
+    BCAST = 2
+    GATHER = 3
 
 
-class CFNames(object):
+class CFName(object):
     TIME = ('time',)
     X = ['x', 'xc', 'longitude', 'lon']
     Y = ['y', 'yc', 'latitude', 'lat']
     Z = ['z', 'zc', 'level', 'lvl', 'height']
+    UNITS = 'units'
+    STANDARD_NAME = 'standard_name'
+    GRID_MAPPING = 'grid_mapping'
 
     @classmethod
     def get_name_mapping(cls):
         return {'T': cls.TIME, 'X': cls.X, 'Y': cls.Y, 'Z': cls.Z}
+
+
+class SubcommName(Enum):
+    FIELD_GET = '__ocgis_field_get__'
+    FIELD_SUBSET = '__ocgis_field_subset__'
+    UGEOM_WRITE = '__ocgis_ugeom_write__'
+    NONSPATIAL_SUBSET = '__ocgis_nonspatial_subset__'
+    SPATIAL_AVERAGE = '__ocgis_spatial_average__'
+
+
+class BackTransform(Enum):
+    ROTATED_POLE = 'rotated pole'
+
+
+MPI_COMM_NULL_VALUE = 8675309

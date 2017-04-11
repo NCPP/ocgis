@@ -6,6 +6,7 @@ from copy import copy, deepcopy
 import six
 
 from ocgis import constants
+from ocgis.exc import EmptyObjectError
 from ocgis.util.helpers import get_iter
 
 
@@ -165,6 +166,12 @@ def orphaned(target, keep_dimensions=False):
             target.parent = original_parent
         if keep_dimensions:
             target._dimensions_cache = constants.UNINITIALIZED
+
+
+def raise_if_empty(target):
+    if target.is_empty:
+        msg = 'No empty {} objects allowed.'.format(target.__class__)
+        raise EmptyObjectError(msg)
 
 
 @contextmanager

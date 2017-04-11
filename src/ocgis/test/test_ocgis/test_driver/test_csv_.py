@@ -2,14 +2,14 @@ import csv
 
 import numpy as np
 
-from ocgis import RequestDataset
+from ocgis import RequestDataset, vm
 from ocgis.collection.field import OcgField
-from ocgis.constants import HeaderNames
+from ocgis.constants import HeaderName
 from ocgis.driver.csv_ import DriverCSV
 from ocgis.test.base import TestBase, attr
 from ocgis.variable.base import Variable, VariableCollection
 from ocgis.variable.temporal import TemporalVariable
-from ocgis.vm.mpi import MPI_RANK, MPI_COMM, OcgMpi, variable_collection_scatter
+from ocgis.vmachine.mpi import MPI_RANK, MPI_COMM, OcgMpi, variable_collection_scatter
 
 
 class TestDriverCSV(TestBase):
@@ -21,7 +21,7 @@ class TestDriverCSV(TestBase):
         self.assertEqual(lines1, lines2)
 
     def get_path_to_template_csv(self):
-        headers = [HeaderNames.DATASET_IDENTIFER, 'ONE', 'two', 'THREE', 'x', 'y']
+        headers = [HeaderName.DATASET_IDENTIFER, 'ONE', 'two', 'THREE', 'x', 'y']
         record1 = [None, 1, 'number', 4.5, 10.3, 12.4]
         record2 = [None, 2, 'letter', 5.5, 11.3, 13.4]
         path = self.get_temporary_file_path('foo.csv')
@@ -69,12 +69,13 @@ class TestDriverCSV(TestBase):
         rd = RequestDataset(in_path)
         list(rd.metadata['dimensions'].values())[0]['dist'] = True
         vc = rd.get_variable_collection()
-        vc.write(out_path, driver=DriverCSV)
+
+        with vm.scoped_by_emptyable('vc.write', vc):
+            if not vm.is_null:
+                vc.write(out_path, driver=DriverCSV)
 
         if MPI_RANK == 0:
             self.assertCSVFilesEqual(in_path, out_path)
-
-        MPI_COMM.Barrier()
 
     @attr('mpi')
     def test_system_parallel_write_ndvariable(self):
@@ -109,9 +110,12 @@ class TestDriverCSV(TestBase):
             path, vc = [None] * 2
 
         path = MPI_COMM.bcast(path)
-        vc, _ = variable_collection_scatter(vc, ompi)
+        vc = variable_collection_scatter(vc, ompi)
 
-        vc.write(path, iter_kwargs={'variable': 'data', 'followers': ['time', 'extra', 'y', 'x']}, driver=DriverCSV)
+        with vm.scoped_by_emptyable('write', vc):
+            if not vm.is_null:
+                vc.write(path, iter_kwargs={'variable': 'data', 'followers': ['time', 'extra', 'y', 'x']},
+                         driver=DriverCSV)
 
         if MPI_RANK == 0:
             desired = 169

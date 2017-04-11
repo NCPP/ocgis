@@ -10,7 +10,7 @@ import numpy as np
 import six
 
 from ocgis import constants, env
-from ocgis.constants import HeaderNames, KeywordArguments
+from ocgis.constants import HeaderName, KeywordArgument
 from ocgis.exc import EmptySubsetError, IncompleteSeasonError, CannotFormatTimeError, ResolutionError
 from ocgis.util.helpers import get_is_date_between, iter_array, get_none_or_slice
 from ocgis.variable.base import SourcedVariable, get_attribute_property, set_attribute_property
@@ -101,7 +101,7 @@ class TemporalVariable(SourcedVariable):
                 self._value_datetime = np.ma.array(self.get_datetime(self.get_value()), mask=self.get_mask(), ndmin=1,
                                                    fill_value=None)
             else:
-                self._value_datetime = self.masked_value
+                self._value_datetime = self.get_masked_value()
         return self._value_datetime
 
     @property
@@ -110,7 +110,7 @@ class TemporalVariable(SourcedVariable):
             if not get_datetime_conversion_state(self.get_value().flatten()[0]):
                 self._value_numtime = np.ma.array(self.get_numtime(self.get_value()), mask=self.get_mask(), ndmin=1)
             else:
-                self._value_numtime = self.masked_value
+                self._value_numtime = self.get_masked_value()
         return self._value_numtime
 
     @property
@@ -138,13 +138,13 @@ class TemporalVariable(SourcedVariable):
                 mask = mask.flatten()[0]
 
             if not mask:
-                ret[HeaderNames.TEMPORAL_YEAR] = value.year
-                ret[HeaderNames.TEMPORAL_MONTH] = value.month
-                ret[HeaderNames.TEMPORAL_DAY] = value.day
+                ret[HeaderName.TEMPORAL_YEAR] = value.year
+                ret[HeaderName.TEMPORAL_MONTH] = value.month
+                ret[HeaderName.TEMPORAL_DAY] = value.day
             else:
-                ret[HeaderNames.TEMPORAL_YEAR] = None
-                ret[HeaderNames.TEMPORAL_MONTH] = None
-                ret[HeaderNames.TEMPORAL_DAY] = None
+                ret[HeaderName.TEMPORAL_YEAR] = None
+                ret[HeaderName.TEMPORAL_MONTH] = None
+                ret[HeaderName.TEMPORAL_DAY] = None
         return ret
 
     @classmethod
@@ -162,8 +162,7 @@ class TemporalVariable(SourcedVariable):
         ret = cls(name=variable.name, value=variable._value, mask=variable._mask, dimensions=variable._dimensions,
                   dtype=variable._dtype, attrs=variable._attrs, fill_value=variable._fill_value,
                   parent=variable.parent, bounds=bounds, format_time=format_time, request_dataset=request_dataset,
-                  source_name=variable.source_name, dist=variable.dist, ranks=variable.ranks,
-                  should_init_from_source=False, uid=variable.uid)
+                  source_name=variable.source_name, should_init_from_source=False, uid=variable.uid)
         return ret
 
     def get_between(self, lower, upper, return_indices=False):
@@ -241,7 +240,7 @@ class TemporalVariable(SourcedVariable):
         return tgv
 
     def get_iter(self, **kwargs):
-        driver = kwargs.get(KeywordArguments.DRIVER)
+        driver = kwargs.get(KeywordArgument.DRIVER)
         ret = super(TemporalVariable, self).get_iter(**kwargs)
         if driver is not None:
             ret.formatter = driver.iterator_formatter_time_value
@@ -1004,7 +1003,7 @@ def get_time_regions(seasons, dates, raise_if_incomplete=True):
             time_regions.append([{'year': [year], 'month': season}])
 
     # ensure each time region is valid. if it is not, remove it from the returned list
-    td = TemporalVariable(value=dates, dimensions=constants.DimensionNames.TEMPORAL)
+    td = TemporalVariable(value=dates, dimensions=constants.DimensionName.TEMPORAL)
     remove = []
     for idx, time_region in enumerate(time_regions):
         try:

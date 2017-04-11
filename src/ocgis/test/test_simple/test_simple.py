@@ -19,13 +19,13 @@ from shapely.geometry.point import Point
 from shapely.geometry.polygon import Polygon
 
 import ocgis
-from ocgis import RequestDataset
+from ocgis import RequestDataset, vm
 from ocgis import exc, env, constants
 from ocgis import osr
 from ocgis.base import get_variable_names
 from ocgis.collection.field import OcgField
 from ocgis.collection.spatial import SpatialCollection
-from ocgis.constants import WrappedState, KeywordArguments, TagNames, HeaderNames
+from ocgis.constants import WrappedState, KeywordArgument, TagName, HeaderName
 from ocgis.exc import ExtentError, DefinitionValidationError
 from ocgis.ops.core import OcgOperations
 from ocgis.ops.interpreter import OcgInterpreter
@@ -45,7 +45,7 @@ from ocgis.variable.crs import CoordinateReferenceSystem, WGS84, CFWGS84
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.variable.temporal import TemporalVariable
-from ocgis.vm.mpi import MPI_SIZE, MPI_RANK, MPI_COMM, OcgMpi, get_standard_comm_state
+from ocgis.vmachine.mpi import MPI_SIZE, MPI_RANK, MPI_COMM, get_standard_comm_state
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -75,8 +75,8 @@ class TestSimpleBase(TestBase):
                  'time_region': time_region})
 
     def get_request_dataset(self, *args, **kwargs):
-        if KeywordArguments.URI not in kwargs:
-            kwargs[KeywordArguments.URI] = os.path.join(env.DIR_OUTPUT, self.fn)
+        if KeywordArgument.URI not in kwargs:
+            kwargs[KeywordArgument.URI] = os.path.join(env.DIR_OUTPUT, self.fn)
         return RequestDataset(*args, **kwargs)
 
     def get_ops(self, kwds=None, time_range=None, level_range=None, root=0):
@@ -86,16 +86,16 @@ class TestSimpleBase(TestBase):
             kwds = deepcopy(kwds)
 
         dataset = self.get_dataset(time_range, level_range)
-        if KeywordArguments.OUTPUT_FORMAT not in kwds:
-            kwds.update({KeywordArguments.OUTPUT_FORMAT: constants.OUTPUT_FORMAT_NUMPY})
-        kwds.update({KeywordArguments.DATASET: dataset})
-        if KeywordArguments.DIR_OUTPUT not in kwds:
+        if KeywordArgument.OUTPUT_FORMAT not in kwds:
+            kwds.update({KeywordArgument.OUTPUT_FORMAT: constants.OutputFormatName.OCGIS})
+        kwds.update({KeywordArgument.DATASET: dataset})
+        if KeywordArgument.DIR_OUTPUT not in kwds:
             if MPI_RANK == root:
                 dir_output = self.current_dir_output
             else:
                 dir_output = None
             dir_output = MPI_COMM.bcast(dir_output, root=root)
-            kwds[KeywordArguments.DIR_OUTPUT] = dir_output
+            kwds[KeywordArgument.DIR_OUTPUT] = dir_output
         ops = OcgOperations(**kwds)
 
         return ops
@@ -115,18 +115,19 @@ class TestSimpleBase(TestBase):
         if ops is None:
             ops = self.get_ops(kwds, time_range=time_range, level_range=level_range, root=root)
         self.ops = ops
+
         ret = OcgInterpreter(ops).execute()
 
         if shp or self.return_shp:
             kwds2 = kwds.copy()
-            kwds2.update({KeywordArguments.OUTPUT_FORMAT: constants.OUTPUT_FORMAT_SHAPEFILE})
+            kwds2.update({KeywordArgument.OUTPUT_FORMAT: constants.OutputFormatName.SHAPEFILE})
             ops2 = OcgOperations(**kwds2)
             OcgInterpreter(ops2).execute()
 
         return ret
 
     def make_shp(self):
-        ops = OcgOperations(dataset=self.dataset, output_format=constants.OUTPUT_FORMAT_SHAPEFILE)
+        ops = OcgOperations(dataset=self.dataset, output_format=constants.OutputFormatName.SHAPEFILE)
         OcgInterpreter(ops).execute()
 
 
@@ -206,7 +207,7 @@ class TestSimple(TestSimpleBase):
 
         to_test = ret.get_element()
         to_test = to_test.get_field_slice({'time': 0, 'level': 0}, strict=False)
-        to_test = to_test[self.var].masked_value
+        to_test = to_test[self.var].get_masked_value()
         actual = np.ma.array([[[[1.0, 2.0], [3.0, 4.0]]]], mask=[[[[False, False], [False, False]]]])
         self.assertNumpyAll(to_test, actual)
 
@@ -292,12 +293,12 @@ class TestSimple(TestSimpleBase):
     def test_to_csv_shp_and_shape_with_point_subset(self):
         rd = RequestDataset(**self.get_dataset())
         geom = [-103.5, 38.5]
-        for of in [constants.OUTPUT_FORMAT_CSV_SHAPEFILE, constants.OUTPUT_FORMAT_SHAPEFILE]:
+        for of in [constants.OutputFormatName.CSV_SHAPEFILE, constants.OutputFormatName.SHAPEFILE]:
             ops = ocgis.OcgOperations(dataset=rd, geom=geom, output_format=of, prefix=of, search_radius_mult=2.0)
             ops.execute()
 
     def test_overwrite_add_auxiliary_files(self):
-        output_formats = [constants.OUTPUT_FORMAT_NETCDF, constants.OUTPUT_FORMAT_CSV]
+        output_formats = [constants.OutputFormatName.NETCDF, constants.OutputFormatName.CSV]
         for of in output_formats:
             # If overwrite is true, we should be able to write the netCDF output multiple times.
             env.OVERWRITE = True
@@ -313,7 +314,7 @@ class TestSimple(TestSimpleBase):
         """Test units and calendar are copied to the time bounds."""
 
         rd = self.get_dataset()
-        ops = ocgis.OcgOperations(dataset=rd, output_format=constants.OUTPUT_FORMAT_NETCDF)
+        ops = ocgis.OcgOperations(dataset=rd, output_format=constants.OutputFormatName.NETCDF)
         ret = ops.execute()
         with nc_scope(ret) as ds:
             time_attrs = deepcopy(ds.variables['time'].__dict__)
@@ -337,7 +338,7 @@ class TestSimple(TestSimpleBase):
         rds = []
         for alias in aliases:
             rd = self.get_dataset()
-            rd[KeywordArguments.FIELD_NAME] = alias
+            rd[KeywordArgument.FIELD_NAME] = alias
             rds.append(rd)
 
         # Check all request datasets are accounted for in the output spatial collection.
@@ -488,7 +489,7 @@ class TestSimple(TestSimpleBase):
         ret = self.get_ret(kwds={'aggregate': True},
                            time_range=[datetime.datetime(2000, 3, 1), datetime.datetime(2000, 3, 31)],
                            level_range=[50, 50], )
-        ref = ret.get_element(variable_name=self.var).masked_value
+        ref = ret.get_element(variable_name=self.var).get_masked_value()
         self.assertTrue(np.all(ref.compressed() == np.ma.average(self.base_value)))
         ref = ret.get_element()
         self.assertEqual(ref.level.get_value().shape, (1,))
@@ -539,7 +540,7 @@ class TestSimple(TestSimpleBase):
 
     def test_spatial_aggregate_arbitrary(self):
         poly = Polygon(((-103.5, 39.5), (-102.5, 38.5), (-103.5, 37.5), (-104.5, 38.5)))
-        ret = self.get_ret(kwds={'output_format': 'numpy', 'geom': poly,
+        ret = self.get_ret(kwds={'output_format': constants.OutputFormatName.OCGIS, 'geom': poly,
                                  'prefix': 'subset', 'spatial_operation': 'clip', 'aggregate': True})
         actual = ret.get_element(variable_name=self.var).get_value().mean()
         self.assertEqual(actual, 2.5)
@@ -634,9 +635,9 @@ class TestSimple(TestSimpleBase):
 
     def test_calc_multivariate(self):
         rd1 = self.get_dataset()
-        rd1[KeywordArguments.RENAME_VARIABLE] = 'var1'
+        rd1[KeywordArgument.RENAME_VARIABLE] = 'var1'
         rd2 = self.get_dataset()
-        rd2[KeywordArguments.RENAME_VARIABLE] = 'var2'
+        rd2[KeywordArgument.RENAME_VARIABLE] = 'var2'
         calc = [{'name': 'divide', 'func': 'divide', 'kwds': {'arr1': 'var1', 'arr2': 'var2'}}]
 
         calc_grouping = [None, ['month']]
@@ -663,7 +664,7 @@ class TestSimple(TestSimpleBase):
     def test_calc_eval_multivariate(self):
         rd = self.get_dataset()
         rd2 = self.get_dataset()
-        rd2[KeywordArguments.RENAME_VARIABLE] = 'foo2'
+        rd2[KeywordArgument.RENAME_VARIABLE] = 'foo2'
         calc = 'foo3=foo+foo2+4'
         ocgis.env.OVERWRITE = True
         for of in OutputFormat.iter_possible():
@@ -672,10 +673,10 @@ class TestSimple(TestSimpleBase):
                                           slice=[None, [0, 10], None, None, None])
             except DefinitionValidationError:
                 # Only one dataset allowed for ESMPy and JSON metadata output.
-                self.assertIn(of, [constants.OUTPUT_FORMAT_ESMPY_GRID, constants.OUTPUT_FORMAT_METADATA_JSON])
+                self.assertIn(of, [constants.OutputFormatName.ESMPY_GRID, constants.OutputFormatName.METADATA_JSON])
                 continue
             ret = ops.execute()
-            if of == 'numpy':
+            if of == constants.OutputFormatName.OCGIS:
                 actual = ret.get_element(variable_name='foo3').get_value().mean()
                 self.assertAlmostEqual(actual, 9.0)
             if of == 'nc':
@@ -684,7 +685,7 @@ class TestSimple(TestSimpleBase):
 
     def test_metadata_output(self):
         rd = RequestDataset(**self.get_dataset())
-        of = constants.OUTPUT_FORMAT_METADATA_OCGIS
+        of = constants.OutputFormatName.METADATA_OCGIS
         ops = ocgis.OcgOperations(dataset=rd, snippet=True, output_format=of)
         ret = ops.execute()
         self.assertTrue(len(ret) > 100)
@@ -699,8 +700,8 @@ class TestSimple(TestSimpleBase):
                                                               rd['variable']: ['grid_mapping'],
                                                               'time': ['axis'],
                                                               'level': ['axis'],
-                                                              'latitude': ['axis'],
-                                                              'longitude': ['axis']},
+                                                              'latitude': ['axis', 'units', 'standard_name'],
+                                                              'longitude': ['axis', 'units', 'standard_name']},
                            ignore_variables=['latitude_longitude'])
 
         with self.nc_scope(ret) as ds:
@@ -735,9 +736,9 @@ class TestSimple(TestSimpleBase):
     def test_nc_conversion_multiple_request_datasets(self):
         rd1 = self.get_dataset()
         rd2 = self.get_dataset()
-        rd2[KeywordArguments.FIELD_NAME] = 'foo2'
+        rd2[KeywordArgument.FIELD_NAME] = 'foo2'
         with self.assertRaises(DefinitionValidationError):
-            OcgOperations(dataset=[rd1, rd2], output_format=constants.OUTPUT_FORMAT_NETCDF)
+            OcgOperations(dataset=[rd1, rd2], output_format=constants.OutputFormatName.NETCDF)
 
     def test_nc_conversion_level_subset(self):
         rd = self.get_dataset(level_range=[50, 50])
@@ -759,7 +760,7 @@ class TestSimple(TestSimpleBase):
     def test_nc_conversion_multivariate_calculation(self):
         rd1 = self.get_dataset()
         rd2 = self.get_dataset()
-        rd2[KeywordArguments.RENAME_VARIABLE] = 'foo2'
+        rd2[KeywordArgument.RENAME_VARIABLE] = 'foo2'
         calc = [{'func': 'divide', 'name': 'my_divide', 'kwds': {'arr1': 'foo', 'arr2': 'foo2'}}]
         calc_grouping = ['month']
         ops = OcgOperations(dataset=[rd1, rd2], calc=calc, calc_grouping=calc_grouping,
@@ -976,9 +977,9 @@ class TestSimple(TestSimpleBase):
         calc = [{'func': 'mean', 'name': 'my_mean'}, {'func': 'min', 'name': 'my_min'}]
         calc_grouping = ['month', 'year']
         d1 = self.get_dataset()
-        d1[KeywordArguments.RENAME_VARIABLE] = 'var1'
+        d1[KeywordArgument.RENAME_VARIABLE] = 'var1'
         d2 = self.get_dataset()
-        d2[KeywordArguments.RENAME_VARIABLE] = 'var2'
+        d2[KeywordArgument.RENAME_VARIABLE] = 'var2'
         ops = OcgOperations(dataset=[d1, d2], output_format='csv', calc=calc, calc_grouping=calc_grouping, melted=True)
         ret = ops.execute()
 
@@ -991,9 +992,9 @@ class TestSimple(TestSimpleBase):
 
     def test_calc_multivariate_conversion(self):
         rd1 = self.get_dataset()
-        rd1[KeywordArguments.RENAME_VARIABLE] = 'var1'
+        rd1[KeywordArgument.RENAME_VARIABLE] = 'var1'
         rd2 = self.get_dataset()
-        rd2[KeywordArguments.RENAME_VARIABLE] = 'var2'
+        rd2[KeywordArgument.RENAME_VARIABLE] = 'var2'
         calc = [{'name': 'divide', 'func': 'divide', 'kwds': {'arr1': 'var1', 'arr2': 'var2'}}]
 
         for o in OutputFormat.iter_possible():
@@ -1004,20 +1005,20 @@ class TestSimple(TestSimpleBase):
                                     prefix=o + 'yay')
             except DefinitionValidationError:
                 # Only one dataset allowed for some outputs.
-                self.assertIn(o, [constants.OUTPUT_FORMAT_ESMPY_GRID, constants.OUTPUT_FORMAT_METADATA_JSON,
-                                  constants.OUTPUT_FORMAT_GEOJSON])
+                self.assertIn(o, [constants.OutputFormatName.ESMPY_GRID, constants.OutputFormatName.METADATA_JSON,
+                                  constants.OutputFormatName.GEOJSON])
                 continue
 
             ret = ops.execute()
 
-            if o in [constants.OUTPUT_FORMAT_CSV, constants.OUTPUT_FORMAT_CSV_SHAPEFILE]:
+            if o in [constants.OutputFormatName.CSV, constants.OutputFormatName.CSV_SHAPEFILE]:
                 with open(ret, 'r') as f:
                     reader = csv.DictReader(f)
                     row = next(reader)
                     desired = {'LB_LEVEL': '0', 'LEVEL': '50', 'DID': '1', 'TIME': '2000-03-16 00:00:00', 'MONTH': '3',
                                'UB_LEVEL': '100', 'LB_TIME': '2000-03-01 00:00:00', 'YEAR': '2000',
                                'CALC_KEY': 'divide', 'UB_TIME': '2000-04-01 00:00:00', 'DAY': '16', 'divide': '1.0'}
-                    if o == constants.OUTPUT_FORMAT_CSV_SHAPEFILE:
+                    if o == constants.OutputFormatName.CSV_SHAPEFILE:
                         # This will have a unique geometry identifier to link with the shapefile.
                         desired = desired.copy()
                         desired['GID'] = "1"
@@ -1034,17 +1035,18 @@ class TestSimple(TestSimpleBase):
                     self.assertIn('divide', row['properties'])
 
     def test_meta_conversion(self):
-        ops = OcgOperations(dataset=self.get_dataset(), output_format=constants.OUTPUT_FORMAT_METADATA_OCGIS)
+        ops = OcgOperations(dataset=self.get_dataset(), output_format=constants.OutputFormatName.METADATA_OCGIS)
         self.get_ret(ops)
 
     def test_csv_shapefile_conversion(self):
         env.ENABLE_FILE_LOGGING = True
 
-        ops = OcgOperations(dataset=self.get_dataset(), output_format=constants.OUTPUT_FORMAT_CSV_SHAPEFILE)
+        ops = OcgOperations(dataset=self.get_dataset(), output_format=constants.OutputFormatName.CSV_SHAPEFILE)
         ops.execute()
 
         geom = make_poly((38, 39), (-104, -103))
-        ops = OcgOperations(dataset=self.get_dataset(), output_format=constants.OUTPUT_FORMAT_CSV_SHAPEFILE, geom=geom,
+        ops = OcgOperations(dataset=self.get_dataset(), output_format=constants.OutputFormatName.CSV_SHAPEFILE,
+                            geom=geom,
                             prefix='with_ugid')
         ops.execute()
 
@@ -1130,7 +1132,6 @@ class TestSimpleMask(TestSimpleBase):
         self.assertAlmostEqual(ref.get_value().mean(), 2.58333333333, 5)
 
 
-@attr('simple', 'mpi')
 class TestSimpleMPI(TestSimpleBase):
     base_value = np.array([[1.0, 1.0, 2.0, 2.0],
                            [1.0, 1.0, 2.0, 2.0],
@@ -1139,23 +1140,36 @@ class TestSimpleMPI(TestSimpleBase):
     nc_factory = SimpleNc
     fn = 'test_simple_spatial_01.nc'
 
+    @attr('simple', 'mpi')
     def test_basic_return(self):
         """Test returning a spatial collection with no operations."""
 
-        if MPI_SIZE > 2:
-            raise SkipTest('mpi-2 only')
+        rd = RequestDataset(**self.get_dataset())
+        desired_field_target = rd.get()
 
-        ret = self.get_ret()
-        self.assertIsInstance(ret, SpatialCollection)
+        for _ in range(3):
+            ret = self.get_ret()
 
-        # If in parallel, test one of the spatial dimensions is distributed.
-        field = ret.get_element()
-        x_size, y_size = field.x.shape[0], field.y.shape[0]
-        if MPI_SIZE > 1:
-            self.assertNotEqual(x_size, y_size)
-        else:
-            self.assertEqual(x_size, y_size)
+            self.assertIsInstance(ret, SpatialCollection)
 
+            # If in parallel, test one of the spatial dimensions is distributed.
+            field = ret.get_element()
+
+            for dv in field.data_variables:
+                self.assertFalse(dv.has_allocated_value)
+
+            if field.is_empty:
+                self.assertGreater(MPI_RANK, 1)
+                self.assertTrue(desired_field_target.is_empty)
+            else:
+                self.assertFalse(desired_field_target.is_empty)
+                x_size, y_size = field.x.shape[0], field.y.shape[0]
+                if MPI_SIZE > 1:
+                    self.assertNotEqual(x_size, y_size)
+                else:
+                    self.assertEqual(x_size, y_size)
+
+    @attr('simple', 'mpi')
     def test_calculation(self):
         """Test a calculation in parallel."""
 
@@ -1171,48 +1185,50 @@ class TestSimpleMPI(TestSimpleBase):
         else:
             self.assertGreater(MPI_RANK, 1)
 
-    @attr('mpi-3', 'simple', 'mpi')
+    @attr('simple', 'mpi')
     def test_dist(self):
         """Test parallel distribution metadata."""
 
         if MPI_SIZE != 3:
-            raise SkipTest('mpi-3 only')
+            raise SkipTest('MPI_SIZE != 3')
 
         dataset = self.get_dataset()
         rd = RequestDataset(**dataset)
-        dist = rd.dist
-        self.assertIsInstance(dist, OcgMpi)
 
         # Test at least one of the dimensions is distributed.
         distributed_dimension_name = 'lon'
         for rank in range(MPI_SIZE):
-            dim = dist.get_dimension(distributed_dimension_name, rank=rank)
+            dim = rd.driver.dist.get_dimension(distributed_dimension_name, rank=rank)
             if rank == 2:
                 self.assertTrue(dim.is_empty)
             else:
                 self.assertFalse(dim.is_empty)
             self.assertTrue(dim.dist)
 
+    @attr('mpi', 'simple')
     def test_snippet(self):
         """Test a snippet in parallel."""
 
-        keywords = {KeywordArguments.OUTPUT_FORMAT: [
-            constants.OUTPUT_FORMAT_NUMPY,
-            constants.OUTPUT_FORMAT_NETCDF,
-            constants.OUTPUT_FORMAT_SHAPEFILE,
-            constants.OUTPUT_FORMAT_CSV,
-            constants.OUTPUT_FORMAT_CSV_SHAPEFILE
+        keywords = {KeywordArgument.OUTPUT_FORMAT: [
+            constants.OutputFormatName.OCGIS,
+            constants.OutputFormatName.NETCDF,
+            constants.OutputFormatName.SHAPEFILE,
+            constants.OutputFormatName.CSV,
+            constants.OutputFormatName.CSV_SHAPEFILE
         ]}
 
         for ctr, k in enumerate(self.iter_product_keywords(keywords, as_namedtuple=False)):
-            # if ctr != 4: continue
-            # print ctr, k
-            output_format = k[KeywordArguments.OUTPUT_FORMAT]
-            ret = self.get_ret(kwds={KeywordArguments.SNIPPET: True,
-                                     KeywordArguments.OUTPUT_FORMAT: output_format,
-                                     KeywordArguments.PREFIX: output_format})
+            # if ctr != 1: continue
+            # barrier_print(ctr, k)
 
-            if output_format == constants.OUTPUT_FORMAT_NUMPY:
+            output_format = k[KeywordArgument.OUTPUT_FORMAT]
+            ret = self.get_ret(kwds={KeywordArgument.SNIPPET: True,
+                                     KeywordArgument.OUTPUT_FORMAT: output_format,
+                                     KeywordArgument.PREFIX: output_format})
+
+            # barrier_print(ret)
+
+            if output_format == constants.OutputFormatName.OCGIS:
                 # Only the first rank will be non-empty.
                 if MPI_RANK in [0, 1]:
                     desired = False
@@ -1225,56 +1241,60 @@ class TestSimpleMPI(TestSimpleBase):
                 if MPI_RANK == 0:
                     self.assertTrue(os.path.exists(ret))
 
+    @attr('mpi', 'simple')
     def test_spatial_subset(self):
         comm, rank, size = get_standard_comm_state()
 
-        if MPI_RANK == 0:
-            path = self.get_temporary_file_path('global.nc')
+        with vm.scoped('field.write', [0]):
+            if not vm.is_null:
+                path = self.get_temporary_file_path('global.nc')
 
-            x = Variable(name='lon', dimensions='lon', value=np.linspace(0.5, 359.5, 360))
-            x.set_extrapolated_bounds('lon_bounds', 'bounds')
+                x = Variable(name='lon', dimensions='lon', value=np.linspace(0.5, 359.5, 360))
+                x.set_extrapolated_bounds('lon_bounds', 'bounds')
 
-            y = Variable(name='lat', dimensions='lat', value=np.linspace(-89.5, 89.5, 180))
-            y.set_extrapolated_bounds('lat_bounds', 'bounds')
+                y = Variable(name='lat', dimensions='lat', value=np.linspace(-89.5, 89.5, 180))
+                y.set_extrapolated_bounds('lat_bounds', 'bounds')
 
-            dtime = Dimension(name='time')
-            time = TemporalVariable(name='time', dimensions=dtime, value=np.arange(31))
+                dtime = Dimension(name='time')
+                time = TemporalVariable(name='time', dimensions=dtime, value=np.arange(31))
 
-            extra = Variable(name='extra', dimensions='extra', value=[1.0, 2.0, 3.0])
+                extra = Variable(name='extra', dimensions='extra', value=[1.0, 2.0, 3.0])
 
-            untouched = Variable(name='untouched', dimensions='untouched', value=[7, 8])
+                untouched = Variable(name='untouched', dimensions='untouched', value=[7, 8])
 
-            field = OcgField(grid=GridXY(x, y), time=time, variables=[extra, untouched])
+                field = OcgField(grid=GridXY(x, y), time=time, variables=[extra, untouched])
 
-            data_dimensions = ['lat', 'time', 'extra', 'lon']
-            data = Variable(name='data', dimensions=data_dimensions, parent=field, dtype=np.float32)
-            data.get_value()[:] = 1.0
-            field.append_to_tags(TagNames.DATA_VARIABLES, data)
+                data_dimensions = ['lat', 'time', 'extra', 'lon']
+                data = Variable(name='data', dimensions=data_dimensions, parent=field, dtype=np.float32)
+                data.get_value()[:] = 1.0
+                field.append_to_tags(TagName.DATA_VARIABLES, data)
 
-            field.write(path, ranks_to_write=[0])
-        else:
-            path = None
+                field.write(path)
+            else:
+                path = None
 
         path = MPI_COMM.bcast(path)
 
+        # barrier_print(path)
+
         geom = [-30.25, -40.9, -20.3, 15.0]
 
-        keywords = {KeywordArguments.OUTPUT_FORMAT: [
-            constants.OUTPUT_FORMAT_NUMPY,
-            constants.OUTPUT_FORMAT_NETCDF,
-            constants.OUTPUT_FORMAT_SHAPEFILE,
-            constants.OUTPUT_FORMAT_CSV,
-            constants.OUTPUT_FORMAT_CSV_SHAPEFILE
+        keywords = {KeywordArgument.OUTPUT_FORMAT: [
+            constants.OutputFormatName.OCGIS,
+            constants.OutputFormatName.NETCDF,
+            constants.OutputFormatName.SHAPEFILE,
+            constants.OutputFormatName.CSV,
+            constants.OutputFormatName.CSV_SHAPEFILE
         ]}
 
         # ocgis.env.VERBOSE = True
         # ocgis.env.DEBUG = True
         for ctr, k in enumerate(self.iter_product_keywords(keywords)):
-            # if ctr != 2: continue
-            # print ctr, k
-            output_format = getattr(k, KeywordArguments.OUTPUT_FORMAT)
+            # if ctr != 4: continue
+            # barrier_print(ctr, k)
+            output_format = getattr(k, KeywordArgument.OUTPUT_FORMAT)
 
-            if output_format in [constants.OUTPUT_FORMAT_NUMPY, constants.OUTPUT_FORMAT_NETCDF]:
+            if output_format in [constants.OutputFormatName.OCGIS, constants.OutputFormatName.NETCDF]:
                 snippet = False
             else:
                 snippet = True
@@ -1289,11 +1309,13 @@ class TestSimpleMPI(TestSimpleBase):
 
             ret = ops.execute()
 
-            if output_format == constants.OUTPUT_FORMAT_NUMPY:
+            if output_format == constants.OutputFormatName.OCGIS:
                 actual_field = ret.get_element()
                 desired_extent = (329.0, -41.0, 340.0, 15.0)
-                actual_extent = actual_field.grid.extent_global
-                self.assertEqual(actual_extent, desired_extent)
+                with vm.scoped_by_emptyable('global_extent', actual_field):
+                    if not vm.is_null:
+                        actual_extent = actual_field.grid.extent_global
+                        self.assertEqual(actual_extent, desired_extent)
 
                 data_in = actual_field.data_variables[0]
                 self.assertFalse(data_in.has_allocated_value)
@@ -1302,8 +1324,6 @@ class TestSimpleMPI(TestSimpleBase):
                     self.assertIsNone(data_in.get_value())
                 else:
                     self.assertEqual(data_in.get_value().mean(), 1.0)
-
-        MPI_COMM.Barrier()
 
 
 @attr('simple')
@@ -1349,7 +1369,7 @@ class TestSimpleMultivariate(TestSimpleBase):
                 n = n or '_'.join(self.var)
             rd = self.get_request_dataset()
             rd._field_name = n
-            ops = OcgOperations(dataset=rd, output_format='numpy')
+            ops = OcgOperations(dataset=rd, output_format=constants.OutputFormatName.OCGIS)
             ret = ops.execute()
             actual = ret.get_element()
             self.assertEqual(actual.name, n)
@@ -1358,7 +1378,7 @@ class TestSimpleMultivariate(TestSimpleBase):
 
     def test_operations_convert_numpy_multiple_request_datasets(self):
         rds = self.get_multiple_request_datasets()
-        ops = OcgOperations(dataset=rds, output_format='numpy')
+        ops = OcgOperations(dataset=rds, output_format=constants.OutputFormatName.OCGIS)
         ret = ops.execute()
 
         actual = set(ret.children[None].children.keys())
@@ -1397,7 +1417,7 @@ class TestSimpleMultivariate(TestSimpleBase):
 
     def test_operations_convert_multiple_request_datasets(self):
         for o in OutputFormat.iter_possible():
-            if o in [constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH, constants.OUTPUT_FORMAT_NETCDF]:
+            if o in [constants.OutputFormatName.NETCDF]:
                 continue
             rds = self.get_multiple_request_datasets()
             try:
@@ -1405,13 +1425,13 @@ class TestSimpleMultivariate(TestSimpleBase):
                                     melted=True)
             except DefinitionValidationError:
                 # Only one dataset allowed for these outputs.
-                self.assertIn(o, [constants.OUTPUT_FORMAT_ESMPY_GRID, constants.OUTPUT_FORMAT_METADATA_JSON,
-                                  constants.OUTPUT_FORMAT_GEOJSON])
+                self.assertIn(o, [constants.OutputFormatName.ESMPY_GRID, constants.OutputFormatName.METADATA_JSON,
+                                  constants.OutputFormatName.GEOJSON])
                 continue
             ret = ops.execute()
             path_source_metadata = os.path.join(self.current_dir_output, ops.prefix,
                                                 '{0}_source_metadata.txt'.format(ops.prefix))
-            if o not in [constants.OUTPUT_FORMAT_NUMPY, constants.OUTPUT_FORMAT_METADATA_OCGIS]:
+            if o not in [constants.OutputFormatName.OCGIS, constants.OutputFormatName.METADATA_OCGIS]:
                 self.assertTrue(os.path.exists(ret))
                 with open(path_source_metadata, 'r') as f:
                     lines = f.readlines()
@@ -1424,7 +1444,7 @@ class TestSimpleMultivariate(TestSimpleBase):
         ops = OcgOperations(dataset=rds, calc=calc, calc_grouping=calc_grouping)
         ret = ops.execute()
         self.assertEqual(set(ret.children[None].children.keys()), set(['rd1', 'rd2']))
-        for row in ret.iter_melted(tag=TagNames.DATA_VARIABLES):
+        for row in ret.iter_melted(tag=TagName.DATA_VARIABLES):
             self.assertTrue(row['variable'].name.startswith('mean'))
             self.assertEqual(row['variable'].shape, (2, 2, 4, 4))
             if row['variable'].name in ['mean_f1', 'mean_ff1']:
@@ -1455,7 +1475,7 @@ class TestSimple360(TestSimpleBase):
             '37.197849,267.269355 37.769892,266.968280 38.959140,266.968280 38.959140,266.968280 38.959140,267.404839 '
             '39.629032))')
         keywords = dict(vector_wrap=[False, True],
-                        output_format=[constants.OUTPUT_FORMAT_NUMPY, constants.OUTPUT_FORMAT_SHAPEFILE])
+                        output_format=[constants.OutputFormatName.OCGIS, constants.OutputFormatName.SHAPEFILE])
 
         for ctr, k in enumerate(itr_products_keywords(keywords, as_namedtuple=True)):
             if ctr != 3: continue
@@ -1465,7 +1485,7 @@ class TestSimple360(TestSimpleBase):
             ops = OcgOperations(dataset=rd, vector_wrap=k.vector_wrap, output_format=k.output_format, geom=geom,
                                 prefix=str(ctr))
             ret = ops.execute()
-            if k.output_format == constants.OUTPUT_FORMAT_SHAPEFILE:
+            if k.output_format == constants.OutputFormatName.SHAPEFILE:
                 path_ugid = ret.replace('.', '_ugid.')
                 rows = list(GeomCabinetIterator(path=path_ugid))
                 bounds = rows[0]['geom'].bounds
@@ -1490,7 +1510,7 @@ class TestSimple360(TestSimpleBase):
 
         # If this is a vector output format, the data should be wrapped.
         for vector_wrap in [True, False]:
-            ops = OcgOperations(dataset=rd, vector_wrap=vector_wrap, output_format=constants.OUTPUT_FORMAT_GEOJSON,
+            ops = OcgOperations(dataset=rd, vector_wrap=vector_wrap, output_format=constants.OutputFormatName.GEOJSON,
                                 snippet=True, prefix=str(vector_wrap))
             ret = ops.execute()
             with fiona.open(ret, driver='GeoJSON') as source:
@@ -1573,13 +1593,13 @@ class TestSimpleProjected(TestSimpleBase):
         rd_normal = {'uri': uri, 'variable': 'foo'}
         dataset = [rd_projected, rd_normal]
 
-        output_format = [constants.OUTPUT_FORMAT_NUMPY, constants.OUTPUT_FORMAT_SHAPEFILE,
-                         constants.OUTPUT_FORMAT_NETCDF, constants.OUTPUT_FORMAT_CSV_SHAPEFILE]
+        output_format = [constants.OutputFormatName.OCGIS, constants.OutputFormatName.SHAPEFILE,
+                         constants.OutputFormatName.NETCDF, constants.OutputFormatName.CSV_SHAPEFILE]
         for o in output_format:
             try:
                 OcgOperations(dataset=dataset, output_format=o)
             except DefinitionValidationError:
-                if o != constants.OUTPUT_FORMAT_NUMPY:
+                if o != constants.OutputFormatName.OCGIS:
                     pass
 
     def test_differing_projection_with_output_crs(self):
@@ -1588,12 +1608,12 @@ class TestSimpleProjected(TestSimpleBase):
         uri = os.path.join(self.current_dir_output, nc_normal.filename)
 
         rd_projected = self.get_dataset()
-        rd_projected[KeywordArguments.RENAME_VARIABLE] = 'projected'
-        rd_normal = {'uri': uri, 'variable': 'foo', KeywordArguments.RENAME_VARIABLE: 'normal'}
+        rd_projected[KeywordArgument.RENAME_VARIABLE] = 'projected'
+        rd_normal = {'uri': uri, 'variable': 'foo', KeywordArgument.RENAME_VARIABLE: 'normal'}
         dataset = [rd_projected, rd_normal]
 
-        output_format = [constants.OUTPUT_FORMAT_NUMPY, constants.OUTPUT_FORMAT_SHAPEFILE,
-                         constants.OUTPUT_FORMAT_NETCDF, constants.OUTPUT_FORMAT_CSV_SHAPEFILE]
+        output_format = [constants.OutputFormatName.OCGIS, constants.OutputFormatName.SHAPEFILE,
+                         constants.OutputFormatName.NETCDF, constants.OutputFormatName.CSV_SHAPEFILE]
 
         for o in output_format:
             try:
@@ -1602,18 +1622,18 @@ class TestSimpleProjected(TestSimpleBase):
                 self.assertTrue(ops.melted)
                 ret = ops.execute()
 
-                if o == constants.OUTPUT_FORMAT_NUMPY:
+                if o == constants.OutputFormatName.OCGIS:
                     uids = []
                     for field in ret.iter_fields():
                         uids.append(field.uid)
                         self.assertIsInstance(field.crs, CFWGS84)
                     self.assertEqual(set(uids), {1, 2})
-                if o == constants.OUTPUT_FORMAT_SHAPEFILE:
+                if o == constants.OutputFormatName.SHAPEFILE:
                     with fiona.open(ret) as f:
                         self.assertEqual(CoordinateReferenceSystem(value=f.meta['crs']), CFWGS84())
-                        aliases = set([row['properties'][HeaderNames.VARIABLE] for row in f])
+                        aliases = set([row['properties'][HeaderName.VARIABLE] for row in f])
                     self.assertEqual({'projected', 'normal'}, aliases)
-                if o == constants.OUTPUT_FORMAT_CSV_SHAPEFILE:
+                if o == constants.OutputFormatName.CSV_SHAPEFILE:
                     with open(ret, 'r') as f:
                         reader = csv.DictReader(f)
                         collect = {'dids': [], 'variables': []}
@@ -1629,7 +1649,7 @@ class TestSimpleProjected(TestSimpleBase):
                         self.assertEqual(dids, {1, 2}, msg='did missing in overview file')
 
             except DefinitionValidationError:
-                if o == constants.OUTPUT_FORMAT_NETCDF:
+                if o == constants.OutputFormatName.NETCDF:
                     pass
                 else:
                     raise
@@ -1642,7 +1662,7 @@ class TestSimpleProjected(TestSimpleBase):
                                               'crs': ['units']})
 
     def test_nc_projection_to_shp(self):
-        ret = self.get_ret(kwds={'output_format': constants.OUTPUT_FORMAT_SHAPEFILE, KeywordArguments.SNIPPET: True})
+        ret = self.get_ret(kwds={'output_format': constants.OutputFormatName.SHAPEFILE, KeywordArgument.SNIPPET: True})
         with fiona.open(ret) as f:
             self.assertEqual(f.meta['crs']['proj'], 'lcc')
 
@@ -1672,7 +1692,7 @@ class TestSimpleProjected(TestSimpleBase):
 
         ocgis.env.DIR_GEOMCABINET = self.current_dir_output
 
-        ops = OcgOperations(dataset=self.get_dataset(), output_format=constants.OUTPUT_FORMAT_SHAPEFILE,
+        ops = OcgOperations(dataset=self.get_dataset(), output_format=constants.OutputFormatName.SHAPEFILE,
                             geom='ab_polygon')
         ret = ops.execute()
         ugid_shp = os.path.join(os.path.split(ret)[0], ops.prefix + '_ugid.shp')
@@ -1680,7 +1700,7 @@ class TestSimpleProjected(TestSimpleBase):
         with fiona.open(ugid_shp) as f:
             self.assertEqual(CoordinateReferenceSystem(value=f.meta['crs']), from_crs)
 
-        ops = OcgOperations(dataset=self.get_dataset(), output_format=constants.OUTPUT_FORMAT_SHAPEFILE,
+        ops = OcgOperations(dataset=self.get_dataset(), output_format=constants.OutputFormatName.SHAPEFILE,
                             geom='ab_polygon', output_crs=CFWGS84(), prefix='xx')
         ret = ops.execute()
         ugid_shp = os.path.join(os.path.split(ret)[0], ops.prefix + '_ugid.shp')

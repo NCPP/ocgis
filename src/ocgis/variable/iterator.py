@@ -5,7 +5,7 @@ import numpy as np
 
 from ocgis.base import AbstractOcgisObject
 from ocgis.base import get_dimension_names, get_variable_names
-from ocgis.constants import HeaderNames
+from ocgis.constants import HeaderName
 
 
 class Iterator(AbstractOcgisObject):
@@ -113,8 +113,8 @@ class Iterator(AbstractOcgisObject):
         is_lead = self._is_lead
         should_skip_flag = self._should_skip_flag
         melted = self.melted
-        header_value = HeaderNames.VALUE
-        header_variable = HeaderNames.VARIABLE
+        header_value = HeaderName.VALUE
+        header_variable = HeaderName.VARIABLE
         repeaters = self.repeaters
         clobber_masked = self.clobber_masked
         melted_repeaters = self.melted_repeaters

@@ -1,17 +1,15 @@
 import pickle
 from copy import deepcopy
-from unittest import SkipTest
 
 import fiona
 import numpy as np
 from shapely.geometry.geo import shape
 
-from ocgis import GeomCabinet
+from ocgis import GeomCabinet, vm
 from ocgis import RequestDataset
 from ocgis import env
 from ocgis.base import get_variable_names
 from ocgis.collection.field import OcgField
-from ocgis.constants import MPIDistributionMode
 from ocgis.driver.base import get_group
 from ocgis.driver.base import iter_all_group_keys
 from ocgis.driver.nc import DriverNetcdf, DriverNetcdfCF
@@ -24,7 +22,7 @@ from ocgis.variable.crs import WGS84, CFWGS84, CoordinateReferenceSystem, CFSphe
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.variable.temporal import TemporalVariable
-from ocgis.vm.mpi import MPI_RANK, MPI_COMM, OcgMpi, variable_scatter, MPI_SIZE
+from ocgis.vmachine.mpi import MPI_RANK, MPI_COMM, OcgMpi, variable_scatter
 
 
 # tdk: clean-up
@@ -107,14 +105,14 @@ class TestDriverNetcdf(TestBase):
                 desired = {None: {'variables': {}, 'dimensions': {}, 'groups': {
                     'nest1': {'variables': {}, 'dimensions': {}, 'groups': {
                         'nest2': {'variables': {}, 'dimensions': {}, 'groups': {'nest1': {'variables': {},
-                                                                                            'dimensions': {
-                                                                                                'outlier': Dimension(
-                                                                                                    name='outlier',
-                                                                                                    size=4,
-                                                                                                    size_current=4,
-                                                                                                    dist=False,
-                                                                                                    src_idx='auto')},
-                                                                                            'groups': {}}}}}}}}}
+                                                                                          'dimensions': {
+                                                                                              'outlier': Dimension(
+                                                                                                  name='outlier',
+                                                                                                  size=4,
+                                                                                                  size_current=4,
+                                                                                                  dist=False,
+                                                                                                  src_idx='auto')},
+                                                                                          'groups': {}}}}}}}}}
                 self.assertEqual(actual[MPI_RANK], desired)
 
             if k.dim_count == 2 and k.nested:
@@ -136,14 +134,15 @@ class TestDriverNetcdf(TestBase):
     def test_get_dist_default_distribution(self):
         """Test using default distributions defined by drivers."""
 
-        if MPI_RANK == 0:
-            path = self.get_temporary_file_path('foo.nc')
-            varx = Variable('x', np.arange(5), dimensions='five', attrs={'axis': 'X'})
-            vary = Variable('y', np.arange(7) + 10, dimensions='seven', attrs={'axis': 'Y'})
-            vc = VariableCollection(variables=[varx, vary])
-            vc.write(path, ranks_to_write=[0])
-        else:
-            path = None
+        with vm.scoped('write', [0]):
+            if not vm.is_null:
+                path = self.get_temporary_file_path('foo.nc')
+                varx = Variable('x', np.arange(5), dimensions='five', attrs={'axis': 'X'})
+                vary = Variable('y', np.arange(7) + 10, dimensions='seven', attrs={'axis': 'Y'})
+                vc = VariableCollection(variables=[varx, vary])
+                vc.write(path)
+            else:
+                path = None
         path = MPI_COMM.bcast(path)
 
         rd = RequestDataset(path)
@@ -151,9 +150,6 @@ class TestDriverNetcdf(TestBase):
 
         distributed_dimension = dist.get_dimension('seven')
         self.assertTrue(distributed_dimension.dist)
-        self.assertEqual(dist.get_variable('y')['dist'], MPIDistributionMode.DISTRIBUTED)
-
-        MPI_COMM.Barrier()
 
     def test_get_dump_report(self):
         # Test with nested groups.
@@ -229,53 +225,10 @@ class TestDriverNetcdf(TestBase):
         rd.metadata['dimensions']['seven']['dist'] = True
         driver = DriverNetcdf(rd)
         vc = driver.get_variable_collection()
-        vc.write(path_out)
+        with vm.scoped_by_emptyable('write', vc):
+            if not vm.is_null:
+                vc.write(path_out)
 
-        if MPI_RANK == 0:
-            self.assertNcEqual(path_in, path_out)
-
-        MPI_COMM.Barrier()
-
-    @attr('mpi')
-    def test_write_variable_collection_isolated_variables(self):
-        """Test writing a variable collection containing an isolated variable."""
-        # self.add_barrier = False
-        if MPI_SIZE < 4:
-            raise SkipTest('MPI procs < 4')
-
-        if MPI_RANK == 0:
-            path_in = self.get_temporary_file_path('foo.nc')
-            path_out = self.get_temporary_file_path('foo_out.nc')
-            with self.nc_scope(path_in, 'w') as ds:
-                ds.createDimension('seven', 7)
-                var = ds.createVariable('var_seven', float, dimensions=('seven',))
-                var[:] = np.arange(7, dtype=float) + 10
-                var.foo = 'bar'
-        else:
-            path_in, path_out = [None] * 2
-        path_in = MPI_COMM.bcast(path_in)
-        path_out = MPI_COMM.bcast(path_out)
-
-        rd = RequestDataset(path_in)
-        rd.metadata['variables']['var_seven']['dist'] = MPIDistributionMode.ISOLATED
-        ranks = (1, 3)
-        # dist_rank = (0,)
-        rd.metadata['variables']['var_seven']['ranks'] = ranks
-        vc = rd.get_variable_collection()
-        actual = vc['var_seven']
-
-        self.assertIsNotNone(actual.dist)
-        if MPI_RANK in ranks:
-            self.assertFalse(actual.is_empty)
-            self.assertIsNotNone(actual.get_value())
-        else:
-            self.assertTrue(actual.is_empty)
-            self.assertIsNone(actual._value)
-            self.assertIsNone(actual.get_value())
-
-        vc.write(path_out)
-
-        MPI_COMM.Barrier()
         if MPI_RANK == 0:
             self.assertNcEqual(path_in, path_out)
 
@@ -301,17 +254,18 @@ class TestDriverNetcdf(TestBase):
     def test_write_variable_collection_object_arrays(self):
         """Test writing variable length arrays in parallel."""
 
-        if MPI_RANK == 0:
-            path_actual = self.get_temporary_file_path('in.nc')
-            path_desired = self.get_temporary_file_path('out.nc')
+        with vm.scoped('write', [0]):
+            if not vm.is_null:
+                path_actual = self.get_temporary_file_path('in.nc')
+                path_desired = self.get_temporary_file_path('out.nc')
 
-            value = [[1, 3, 5],
-                     [7, 9],
-                     [11]]
-            v = Variable(name='objects', value=value, fill_value=4, dtype=ObjectType(int), dimensions='values')
-            v.write(path_desired, ranks_to_write=[0])
-        else:
-            v, path_actual, path_desired = [None] * 3
+                value = [[1, 3, 5],
+                         [7, 9],
+                         [11]]
+                v = Variable(name='objects', value=value, fill_value=4, dtype=ObjectType(int), dimensions='values')
+                v.write(path_desired)
+            else:
+                v, path_actual, path_desired = [None] * 3
         path_actual = MPI_COMM.bcast(path_actual)
         path_desired = MPI_COMM.bcast(path_desired)
 
@@ -319,14 +273,15 @@ class TestDriverNetcdf(TestBase):
         dest_mpi.create_dimension('values', 3, dist=True)
         dest_mpi.update_dimension_bounds()
 
-        scattered, _ = variable_scatter(v, dest_mpi)
+        scattered = variable_scatter(v, dest_mpi)
         outvc = VariableCollection(variables=[scattered])
-        outvc.write(path_actual)
+
+        with vm.scoped_by_emptyable('write', outvc):
+            if not vm.is_null:
+                outvc.write(path_actual)
 
         if MPI_RANK == 0:
             self.assertNcEqual(path_actual, path_desired)
-
-        MPI_COMM.Barrier()
 
 
 class TestDriverNetcdfCF(TestBase):
@@ -568,7 +523,7 @@ class TestDriverNetcdfCF(TestBase):
         self.assertEqual(driver.get_crs(driver.rd.metadata), env.DEFAULT_COORDSYS)
         self.assertEqual(driver.get_field().crs, env.DEFAULT_COORDSYS)
 
-    def test_get_variable_collection_write_target(self):
+    def test_get_field_write_target(self):
         # Test coordinate system names are added to attributes of dimensioned variables.
         x = Variable('x', dimensions='x', value=[1])
         y = Variable('y', dimensions='y', value=[2])
@@ -579,8 +534,9 @@ class TestDriverNetcdfCF(TestBase):
         field = OcgField(grid=grid, time=t, crs=crs)
         field.add_variable(d, is_data=True)
 
-        target = DriverNetcdfCF._get_variable_collection_write_target_(field)
+        target = DriverNetcdfCF._get_field_write_target_(field)
         self.assertEqual(target[d.name].attrs['grid_mapping'], crs.name)
+        self.assertEqual(field.x.units, 'degrees_east')
 
         # Test bounds units are removed when writing.
         x = Variable(name='x', value=[1, 2, 3], dtype=float, dimensions='x', units='hours')
@@ -590,7 +546,7 @@ class TestDriverNetcdfCF(TestBase):
         self.assertEqual(x.bounds.units, x.units)
         self.assertEqual(y.bounds.units, y.units)
         field = OcgField(grid=grid)
-        actual = DriverNetcdfCF._get_variable_collection_write_target_(field)
+        actual = DriverNetcdfCF._get_field_write_target_(field)
         self.assertEqual(x.bounds.units, x.units)
         self.assertNumpyMayShareMemory(actual[x.name].get_value(), field[x.name].get_value())
         self.assertIsNone(actual[x.name].bounds.units)

@@ -4,6 +4,7 @@
 
 import osgeo
 from osgeo import osr, ogr
+from ocgis.vmachine.core import vm, OcgVM
 from ocgis.environment import env
 from ocgis.variable.base import SourcedVariable, Variable, VariableCollection, Dimension
 from ocgis.driver.request.core import RequestDataset
@@ -14,7 +15,7 @@ from ocgis.spatial.grid import GridXY
 from ocgis.spatial.geom_cabinet import GeomCabinet, GeomCabinetIterator, ShpCabinet, ShpCabinetIterator
 from ocgis.util.zipper import format_return
 from ocgis.variable import crs
-from ocgis.variable.crs import CoordinateReferenceSystem
+from ocgis.variable.crs import CoordinateReferenceSystem, CRS
 from ocgis.collection.field import OcgField
 from ocgis.collection.spatial import SpatialCollection
 from ocgis.variable.temporal import TemporalVariable

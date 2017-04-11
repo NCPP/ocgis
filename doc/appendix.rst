@@ -4,15 +4,6 @@ Appendix
 Output Formats
 ~~~~~~~~~~~~~~
 
-.. _2d-flexible-mesh-label:
-
-2D Flexible Mesh
-++++++++++++++++
-
-The two-dimensional flexible mesh format is a NetCDF4-based format adhering to `UGRID (v0.9.0) <https://github.com/ugrid-conventions/ugrid-conventions/blob/v0.9.0/ugrid-conventions.md>`_ convention. It is used to represent a set of arbitrary boundaries (polygons). Documentation for the format is here: https://github.com/ugrid-conventions/ugrid-conventions/blob/v0.9.0/ugrid-conventions.md#2d-flexible-mesh-mixed-triangles-quadrilaterals-etc-topology.
-
-See :ref:`2d-flexible-mesh-example-label` for example code converting a shapefile to a UGRID NetCDF file.
-
 Spatial Operations
 ~~~~~~~~~~~~~~~~~~
 

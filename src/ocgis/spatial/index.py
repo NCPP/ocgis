@@ -1,5 +1,3 @@
-
-
 from rtree import index
 from shapely.prepared import prep
 

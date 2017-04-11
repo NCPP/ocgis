@@ -4,19 +4,20 @@ from unittest import SkipTest
 
 import numpy as np
 
-from ocgis.constants import MPIDistributionMode, DataTypes
+from ocgis import vm
+from ocgis.constants import DataType
 from ocgis.test.base import attr, AbstractTestInterface
 from ocgis.util.helpers import get_local_to_global_slices
 from ocgis.variable.base import Variable, VariableCollection
 from ocgis.variable.dimension import Dimension
-from ocgis.vm.mpi import MPI_SIZE, MPI_COMM, create_nd_slices, hgather, \
+from ocgis.vmachine.mpi import MPI_SIZE, MPI_COMM, create_nd_slices, hgather, \
     get_optimal_splits, get_rank_bounds, OcgMpi, get_global_to_local_slice, MPI_RANK, variable_scatter, \
     variable_collection_scatter, variable_gather, gather_ranks, get_standard_comm_state, \
-    get_nonempty_ranks, barrier_ranks, scatter_ranks
+    get_nonempty_ranks, barrier_ranks, bcast_ranks
 
 
 class Test(AbstractTestInterface):
-    @attr('mpi', 'mpi-3')
+    @attr('mpi')
     def test_barrier_ranks(self):
         if MPI_SIZE != 3 and MPI_SIZE != 1:
             raise SkipTest('serial or mpi-3 only')
@@ -27,7 +28,7 @@ class Test(AbstractTestInterface):
         if MPI_RANK != 1:
             barrier_ranks(ranks)
 
-    @attr('mpi', 'mpi-8', 'mpi-only')
+    @attr('mpi')
     def test_groups(self):
         from mpi4py.MPI import COMM_NULL
 
@@ -76,24 +77,20 @@ class Test(AbstractTestInterface):
         comm, rank, size = get_standard_comm_state()
 
         if size not in [1, 3]:
-            raise SkipTest('serial or mpi-3 only')
+            raise SkipTest('MPI_SIZE != 1 or 3')
 
         target = Dimension('a')
-        live_ranks = get_nonempty_ranks(target, comm=comm, root=0)
+        live_ranks = get_nonempty_ranks(target, vm)
         if MPI_RANK == 0:
             self.assertEqual(live_ranks, tuple(range(size)))
-        else:
-            self.assertIsNone(live_ranks)
 
         if MPI_SIZE == 3:
             targets = {0: Dimension('a', is_empty=True, dist=True),
                        1: Dimension('a'),
                        2: Dimension('a')}
-            live_ranks = get_nonempty_ranks(targets[MPI_RANK], root=1)
-            if MPI_RANK == 1:
-                self.assertEqual(live_ranks, (1, 2))
-            else:
-                self.assertIsNone(live_ranks)
+            with vm.scoped('ner', vm.ranks):
+                live_ranks = get_nonempty_ranks(targets[MPI_RANK], vm)
+            self.assertEqual(live_ranks, (1, 2))
 
     def test_get_optimal_splits(self):
         size = 11
@@ -233,27 +230,28 @@ class Test(AbstractTestInterface):
             _ = get_global_to_local_slice(start_stop, bounds_local)
 
     @attr('mpi')
-    def test_scatter_ranks(self):
+    def test_bcast_ranks(self):
         if MPI_SIZE != 3 and MPI_SIZE != 1:
             raise SkipTest('serial or mpi-3 only')
 
-        actual = scatter_ranks([0], 50)
+        actual = bcast_ranks([0], 50)
 
         if MPI_RANK == 0:
             self.assertEqual(actual, 50)
         else:
             self.assertIsNone(actual)
 
-        actual = scatter_ranks([0, 2], 50)
+        actual = bcast_ranks([0, 2], 50)
         if MPI_RANK == 1:
             self.assertEqual(actual, None)
         else:
             self.assertEqual(actual, 50)
 
         if MPI_RANK != 1:
-            actual = scatter_ranks([0, 2], 50)
+            actual = bcast_ranks([0, 2], 50)
             self.assertEqual(actual, 50)
 
+    # tdk: wtf
     @attr('mpi')
     def test_variable_collection_scatter(self):
         dest_mpi = OcgMpi()
@@ -272,13 +270,12 @@ class Test(AbstractTestInterface):
         else:
             vc = None
 
-        svc, dest_mpi = variable_collection_scatter(vc, dest_mpi)
+        svc = variable_collection_scatter(vc, dest_mpi)
 
         self.assertEqual(svc['i_could_be_a_coordinate_system'].attrs['reality'], 'im_not')
 
         if MPI_RANK < 2:
             self.assertFalse(svc['all_in'].is_empty)
-            self.assertEqual(svc['all_in'].dist, MPIDistributionMode.REPLICATED)
             self.assertNumpyAll(svc['all_in'].get_value(), np.arange(10) + 10)
             self.assertFalse(svc.is_empty)
             self.assertFalse(svc['i_could_be_a_coordinate_system'].is_empty)
@@ -301,9 +298,8 @@ class Test(AbstractTestInterface):
         else:
             self.assertFalse(actual)
 
-    @attr('mpi')
+    @attr('mpi', 'wtf')
     def test_variable_gather(self):
-
         dist = OcgMpi()
         three = dist.create_dimension('three', 3, src_idx=np.arange(3) * 10)
         four = dist.create_dimension('four', 4, src_idx='auto', dist=True)
@@ -317,43 +313,42 @@ class Test(AbstractTestInterface):
         else:
             mask = None
 
-        mask, dist = variable_scatter(mask, dist)
-        mask_gather = variable_gather(mask)
+        mask = variable_scatter(mask, dist)
+        with vm.scoped('mask gather', dist.get_empty_ranks(inverse=True)):
+            if not vm.is_null:
+                mask_gather = variable_gather(mask)
+            else:
+                mask_gather = None
 
         if MPI_RANK == 0:
             self.assertNumpyAll(mask_gather.get_value(), mask_value)
             self.assertNumpyAll(mask_gather.dimensions[0]._src_idx, np.arange(3) * 10)
-            self.assertNumpyAll(mask_gather.dimensions[1]._src_idx, np.arange(4, dtype=DataTypes.DIMENSION_SRC_INDEX))
+            self.assertNumpyAll(mask_gather.dimensions[1]._src_idx, np.arange(4, dtype=DataType.DIMENSION_SRC_INDEX))
             for dim in mask_gather.dimensions:
                 self.assertFalse(dim.dist)
-            self.assertIsNone(mask_gather.dist)
-            self.assertIsNone(mask_gather.ranks)
         else:
             self.assertIsNone(mask_gather)
 
     @attr('mpi')
     def test_variable_scatter(self):
-
         var_value = np.arange(5, dtype=float) + 50
         var_mask = np.array([True, True, False, True, False])
 
-        if MPI_RANK == 0:
-            src_mpi = OcgMpi()
+        dest_dist = OcgMpi()
+        five = dest_dist.create_dimension('five', 5, src_idx='auto', dist=True)
+        dest_dist.update_dimension_bounds()
 
-            dim = src_mpi.create_dimension('five', 5, src_idx='auto')
-            dim_src_idx = dim._src_idx.copy()
-            var = Variable('the_five', value=var_value, mask=var_mask, dimensions=dim)
+        if MPI_RANK == 0:
+            local_dim = Dimension('local', 5, src_idx='auto')
+            dim_src_idx = local_dim._src_idx.copy()
+
+            var = Variable('the_five', value=var_value, mask=var_mask, dimensions=five.name)
             var.set_extrapolated_bounds('the_five_bounds', 'bounds')
             var_bounds_value = var.bounds.get_value()
-
-            dest_mpi = deepcopy(src_mpi)
-            for drank in range(MPI_SIZE):
-                dest_mpi.get_dimension('five', rank=drank).dist = True
-            dest_mpi.update_dimension_bounds()
         else:
-            var, src_mpi, dest_mpi, var_bounds_value, dim_src_idx = [None] * 5
+            var, var_bounds_value, dim_src_idx = [None] * 3
 
-        svar, dest_mpi = variable_scatter(var, dest_mpi)
+        svar = variable_scatter(var, dest_dist)
 
         var_bounds_value = MPI_COMM.bcast(var_bounds_value)
         dim_src_idx = MPI_COMM.bcast(dim_src_idx)
@@ -362,7 +357,7 @@ class Test(AbstractTestInterface):
             self.assertIsNone(svar.get_value())
             self.assertTrue(svar.is_empty)
         else:
-            dest_dim = dest_mpi.get_dimension('five')
+            dest_dim = dest_dist.get_dimension('five')
             self.assertNumpyAll(var_value[slice(*dest_dim.bounds_local)], svar.get_value())
             self.assertNumpyAll(var_mask[slice(*dest_dim.bounds_local)], svar.get_mask())
             self.assertNumpyAll(var_bounds_value[slice(*dest_dim.bounds_local)], svar.bounds.get_value())
@@ -371,25 +366,35 @@ class Test(AbstractTestInterface):
 
     @attr('mpi')
     def test_variable_scatter_ndimensions(self):
+
+        r = Dimension('realization', 3)
+        t = Dimension('time', 365)
+        l = Dimension('level', 10)
+        y = Dimension('y', 90, dist=True)
+        x = Dimension('x', 360, dist=True)
+
+        dimensions = [r, t, l, y, x]
+
+        dest_mpi = OcgMpi()
+        for d in dimensions:
+            dest_mpi.add_dimension(d)
+        dest_mpi.update_dimension_bounds()
+
         if MPI_RANK == 0:
-            r = Dimension('realization', 3)
-            t = Dimension('time', 365)
-            l = Dimension('level', 10)
-            y = Dimension('y', 90, dist=True)
-            x = Dimension('x', 360, dist=True)
-
-            var = Variable('tas', dimensions=[r, t, l, y, x])
-
-            dest_mpi = OcgMpi()
-            for d in var.dimensions:
-                dest_mpi.add_dimension(d)
-            dest_mpi.update_dimension_bounds()
+            local_dimensions = deepcopy(dimensions)
+            for l in local_dimensions:
+                l.dist = False
+            var = Variable('tas', dimensions=local_dimensions)
         else:
-            var, dest_mpi = [None] * 2
+            var = None
 
-        svar, dest_mpi = variable_scatter(var, dest_mpi)
+        svar = variable_scatter(var, dest_mpi)
 
+        self.assertTrue(svar.dist)
         self.assertIsNotNone(svar)
+
+        if MPI_SIZE == 2:
+            self.assertEqual(svar.shape, (3, 365, 10, 90, 180))
 
 
 class TestOcgMpi(AbstractTestInterface):
@@ -425,18 +430,10 @@ class TestOcgMpi(AbstractTestInterface):
         ompi.add_dimensions([dim_x, dim_y])
         ompi.add_dimension(dim_six, group=hidden.group)
         ompi.add_variables([var_tas, thing])
-        ompi.add_variable(hidden, dist=MPIDistributionMode.ISOLATED, ranks=1)
+        ompi.add_variable(hidden)
 
-        hidden_actual = ompi.get_variable(hidden, rank=1)
-        self.assertEqual(hidden_actual['dist'], MPIDistributionMode.ISOLATED)
-        variable_ranks_actual = ompi.get_variable_ranks(hidden)
-        self.assertEqual(variable_ranks_actual, (1,))
-
-        variable_ranks_actual = ompi.get_variable_ranks(thing)
-        self.assertEqual(variable_ranks_actual, (0, 1))
-
-        # self.pprint(ompi.mapping)
-        # import ipdb;ipdb.set_trace()
+        var = ompi.get_variable(hidden)
+        self.assertIsInstance(var, dict)
 
     @attr('mpi')
     def test(self):
@@ -522,6 +519,7 @@ class TestOcgMpi(AbstractTestInterface):
                                                                               size=None,
                                                                               size_current=None)},
                                                                       'groups': {}}}}}}}}
+
         self.assertDictEqual(ocmpi.mapping, desired)
 
     def test_get_empty_ranks(self):
@@ -536,7 +534,12 @@ class TestOcgMpi(AbstractTestInterface):
         ompi = OcgMpi()
         dim1 = ompi.create_dimension('five', 5, dist=True)
         ompi.update_dimension_bounds()
-        self.assertEqual(dim1.bounds_global, (0, 5))
+
+        if dim1.is_empty:
+            desired = (0, 0)
+        else:
+            desired = (0, 5)
+        self.assertEqual(dim1.bounds_global, desired)
         if MPI_SIZE > 1:
             if MPI_SIZE == 2:
                 if MPI_RANK == 0:

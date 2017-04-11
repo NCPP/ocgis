@@ -11,7 +11,7 @@ from six.moves import zip_longest
 from ocgis import constants
 from ocgis import env
 from ocgis.base import get_variables, get_dimension_names, AbstractOcgisObject
-from ocgis.constants import TagNames, DimensionMapKeys, HeaderNames
+from ocgis.constants import TagName, DimensionMapKey, HeaderName
 from ocgis.exc import SampleSizeNotImplemented, DefinitionValidationError, UnitsValidationError
 from ocgis.util.conformer import conform_array_by_dimension_names
 from ocgis.util.helpers import get_default_or_apply, get_iter
@@ -20,8 +20,8 @@ from ocgis.util.units import get_are_units_equal_by_string_or_cfunits
 from ocgis.variable.base import Variable, VariableCollection
 
 # Standard dimension order for data arrays.
-STANDARD_DIMENSIONS = (DimensionMapKeys.REALIZATION, DimensionMapKeys.TIME, DimensionMapKeys.LEVEL,
-                       DimensionMapKeys.Y, DimensionMapKeys.X)
+STANDARD_DIMENSIONS = (DimensionMapKey.REALIZATION, DimensionMapKey.TIME, DimensionMapKey.LEVEL,
+                       DimensionMapKey.Y, DimensionMapKey.X)
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -90,7 +90,7 @@ class AbstractFunction(AbstractOcgisObject):
     _empty_fill = {'fill': None, 'sample_size': None}
 
     def __init__(self, alias=None, dtype=None, field=None, file_only=False, vc=None, parms=None, tgd=None,
-                 calc_sample_size=False, fill_value=None, meta_attrs=None, tag=TagNames.DATA_VARIABLES,
+                 calc_sample_size=False, fill_value=None, meta_attrs=None, tag=TagName.DATA_VARIABLES,
                  spatial_aggregation=False):
 
         self._curr_variable = None
@@ -217,9 +217,9 @@ class AbstractFunction(AbstractOcgisObject):
         units = self.get_output_units(archetype)
 
         if add_repeat_record:
-            repeat_record = [(HeaderNames.CALCULATION_KEY, self.key)]
+            repeat_record = [(HeaderName.CALCULATION_KEY, self.key)]
             if add_repeat_record_archetype_name:
-                repeat_record.append((HeaderNames.CALCULATION_SOURCE_VARIABLE, archetype.name))
+                repeat_record.append((HeaderName.CALCULATION_SOURCE_VARIABLE, archetype.name))
         else:
             repeat_record = None
 
@@ -291,7 +291,7 @@ class AbstractFunction(AbstractOcgisObject):
         :rtype: :class:`numpy.ma.core.MaskedArray`
         """
 
-        return variable.masked_value
+        return variable.get_masked_value()
 
     def iter_calculation_targets(self, variable_names=None, yield_calculation_name=True, validate_units=True):
         if variable_names is None:
@@ -408,8 +408,8 @@ class AbstractFunction(AbstractOcgisObject):
         for dim in variable.dimensions:
             found = False
             for k, v in list(self.field.dimension_map.items()):
-                names = v.get(DimensionMapKeys.NAMES, [])
-                if v.get(DimensionMapKeys.VARIABLE) is not None and dim.name in names:
+                names = v.get(DimensionMapKey.NAMES, [])
+                if v.get(DimensionMapKey.VARIABLE) is not None and dim.name in names:
                     crosswalk.append(k)
                     found = True
                     break
@@ -448,7 +448,7 @@ class AbstractFunction(AbstractOcgisObject):
         crosswalk = self._get_dimension_crosswalk_(variable)
 
         # Create the fill variable.
-        time_axis = crosswalk.index(DimensionMapKeys.TIME)
+        time_axis = crosswalk.index(DimensionMapKey.TIME)
         fill_dimensions = list(variable.dimensions)
         fill_dimensions[time_axis] = self.tgd.dimensions[0]
         fill = self.get_fill_variable(variable, name, fill_dimensions, file_only,

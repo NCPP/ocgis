@@ -46,7 +46,7 @@ class TestOcgInterpreter(TestBase):
         self.assertIsInstance(ret, NumpyConverter)
 
         # Test melted is registered by the converter.
-        ops = OcgOperations(dataset=rd, melted=True, output_format=constants.OUTPUT_FORMAT_SHAPEFILE)
+        ops = OcgOperations(dataset=rd, melted=True, output_format=constants.OutputFormatName.SHAPEFILE)
         interp = OcgInterpreter(ops)
         ret = interp._get_converter_(ShpConverter, outdir, prefix, so)
         self.assertIsInstance(ret, ShpConverter)

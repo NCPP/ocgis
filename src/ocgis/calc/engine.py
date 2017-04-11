@@ -5,7 +5,7 @@ import numpy as np
 from ocgis.base import get_variable_names, orphaned
 from ocgis.calc.base import AbstractMultivariateFunction
 from ocgis.calc.eval_function import EvalFunction, MultivariateEvalFunction
-from ocgis.constants import DimensionMapKeys
+from ocgis.constants import DimensionMapKey
 from ocgis.util.logging_ocgis import ocgis_lh
 
 
@@ -172,9 +172,9 @@ def format_return_field(function_tag, out_field, new_temporal=None):
         out_field.add_variable(new_temporal, force=True)
 
         # Update the dimension map to handle the new temporal variable.
-        out_field.dimension_map[DimensionMapKeys.TIME][DimensionMapKeys.VARIABLE] = new_temporal.name
+        out_field.dimension_map[DimensionMapKey.TIME][DimensionMapKey.VARIABLE] = new_temporal.name
         if new_temporal.has_bounds:
-            out_field.dimension_map[DimensionMapKeys.TIME][
-                DimensionMapKeys.BOUNDS] = new_temporal.bounds.name
+            out_field.dimension_map[DimensionMapKey.TIME][
+                DimensionMapKey.BOUNDS] = new_temporal.bounds.name
         else:
-            out_field.dimension_map[DimensionMapKeys.TIME][DimensionMapKeys.BOUNDS] = None
+            out_field.dimension_map[DimensionMapKey.TIME][DimensionMapKey.BOUNDS] = None

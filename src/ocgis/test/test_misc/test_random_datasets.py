@@ -10,7 +10,7 @@ import ocgis
 from ocgis import RequestDataset
 from ocgis import constants
 from ocgis.base import get_variable_names
-from ocgis.constants import DimensionMapKeys
+from ocgis.constants import DimensionMapKey
 from ocgis.exc import ExtentError, RequestValidationError
 from ocgis.ops.core import OcgOperations
 from ocgis.test.base import TestBase, nc_scope, attr
@@ -26,8 +26,8 @@ class TestCnrmCerfacs(TestBase):
     def test_system_subset(self):
         """Test data may be subsetted and that coordinate transformations return the same value arrays."""
 
-        ops = OcgOperations(dataset=self.rd, output_format='numpy', snippet=True, geom='world_countries',
-                            select_ugid=[69])
+        ops = OcgOperations(dataset=self.rd, output_format=constants.OutputFormatName.OCGIS, snippet=True,
+                            geom='world_countries', select_ugid=[69])
         ret = ops.execute()
 
         # Assert some of the geometry values are masked
@@ -36,8 +36,8 @@ class TestCnrmCerfacs(TestBase):
 
         # Perform the operations but change the output coordinate system. The value arrays should be equivalent
         # regardless of coordinate transformation.
-        ops2 = OcgOperations(dataset=self.rd, output_format='numpy', snippet=True, geom='world_countries',
-                             select_ugid=[69], output_crs=Spherical())
+        ops2 = OcgOperations(dataset=self.rd, output_format=constants.OutputFormatName.OCGIS, snippet=True,
+                             geom='world_countries', select_ugid=[69], output_crs=Spherical())
         ret2 = ops2.execute()
 
         # Value arrays should be the same
@@ -56,8 +56,7 @@ class TestCnrmCerfacs(TestBase):
         """Test conversion to shapefile."""
 
         for ii, output_crs in enumerate([None, Spherical()]):
-            # output_format = constants.OUTPUT_FORMAT_NUMPY
-            output_format = constants.OUTPUT_FORMAT_SHAPEFILE
+            output_format = constants.OutputFormatName.SHAPEFILE
             ops = OcgOperations(dataset=self.rd, output_format=output_format, snippet=True,
                                 geom='world_countries', select_ugid=[69], output_crs=output_crs, prefix=str(ii))
             ret = ops.execute()
@@ -226,14 +225,14 @@ class Test(TestBase):
         rd = self.test_data.get_rd('cancm4_tas', kwds={'time_region': {'year': [2003]}})
         ops = OcgOperations(dataset=rd, geom='state_boundaries', select_ugid=[14, 16],
                             aggregate=False, spatial_operation='clip',
-                            output_format=constants.OUTPUT_FORMAT_CSV_SHAPEFILE)
+                            output_format=constants.OutputFormatName.CSV_SHAPEFILE)
         ops.execute()
 
     @attr('data')
     def test_narccap_point_subset_small(self):
-        dmap = {DimensionMapKeys.X: {DimensionMapKeys.VARIABLE: 'xc'},
-                DimensionMapKeys.Y: {DimensionMapKeys.VARIABLE: 'yc'},
-                DimensionMapKeys.TIME: {DimensionMapKeys.VARIABLE: 'time'}}
+        dmap = {DimensionMapKey.X: {DimensionMapKey.VARIABLE: 'xc'},
+                DimensionMapKey.Y: {DimensionMapKey.VARIABLE: 'yc'},
+                DimensionMapKey.TIME: {DimensionMapKey.VARIABLE: 'time'}}
         rd = self.test_data.get_rd('narccap_pr_wrfg_ncep', kwds={'dimension_map': dmap})
 
         field = rd.get()
@@ -248,7 +247,7 @@ class Test(TestBase):
                 {'func': 'min', 'name': 'min'}]
         calc_grouping = ['month', 'year']
         ops = ocgis.OcgOperations(dataset=rd, calc=calc, calc_grouping=calc_grouping,
-                                  output_format='numpy', geom=geom, abstraction='point',
+                                  output_format=constants.OutputFormatName.OCGIS, geom=geom, abstraction='point',
                                   snippet=False, allow_empty=False, output_crs=CFWGS84(),
                                   search_radius_mult=2.0)
         ret = ops.execute()
@@ -260,14 +259,14 @@ class Test(TestBase):
     def test_bad_time_dimension(self):
         """Test not formatting the time dimension."""
 
-        for output_format in [constants.OUTPUT_FORMAT_NUMPY, constants.OUTPUT_FORMAT_CSV,
-                              constants.OUTPUT_FORMAT_CSV_SHAPEFILE, constants.OUTPUT_FORMAT_SHAPEFILE,
-                              constants.OUTPUT_FORMAT_NETCDF]:
+        for output_format in [constants.OutputFormatName.OCGIS, constants.OutputFormatName.CSV,
+                              constants.OutputFormatName.CSV_SHAPEFILE, constants.OutputFormatName.SHAPEFILE,
+                              constants.OutputFormatName.NETCDF]:
             dataset = self.test_data.get_rd('snippet_seasonalbias')
             ops = OcgOperations(dataset=dataset, output_format=output_format, format_time=False, prefix=output_format)
             ret = ops.execute()
 
-            if output_format == constants.OUTPUT_FORMAT_NUMPY:
+            if output_format == constants.OutputFormatName.OCGIS:
                 actual = ret.get_element()
                 self.assertFalse(actual.temporal.format_time)
                 self.assertNumpyAll(actual.temporal.value_numtime.data,
@@ -276,17 +275,19 @@ class Test(TestBase):
                                     np.array([[-712254., -712163.], [-712163., -712071.], [-712071., -711979.],
                                               [-711979., -711888.]]))
 
-            if output_format == constants.OUTPUT_FORMAT_CSV:
+            if output_format == constants.OutputFormatName.CSV:
                 with open(ret) as f:
                     reader = DictReader(f)
                     for row in reader:
                         self.assertTrue(all([row[k] == '' for k in ['YEAR', 'MONTH', 'DAY']]))
                         self.assertTrue(float(row['TIME']) < -50000)
 
-            if output_format == constants.OUTPUT_FORMAT_NETCDF:
+            if output_format == constants.OutputFormatName.NETCDF:
                 self.assertNcEqual(ret, dataset.uri, check_types=False,
                                    ignore_attributes={'global': ['history'], 'bounds_time': ['calendar', 'units'],
-                                                      'bias': ['_FillValue', 'grid_mapping', 'units']},
+                                                      'bias': ['_FillValue', 'grid_mapping', 'units'],
+                                                      'latitude': ['standard_name', 'units'],
+                                                      'longitude': ['standard_name', 'units']},
                                    ignore_variables=['latitude_longitude'])
 
     @attr('data')

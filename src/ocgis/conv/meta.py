@@ -52,12 +52,12 @@ class MetaJSONConverter(AbstractMetaConverter):
         from ocgis.ops.parms.definition import OutputFormat
 
         if len(list(ops.dataset)) > 1:
-            msg = 'Only one request dataset allowed for "{0}".'.format(constants.OUTPUT_FORMAT_METADATA_JSON)
+            msg = 'Only one request dataset allowed for "{0}".'.format(constants.OutputFormatName.METADATA_JSON)
             raise DefinitionValidationError(OutputFormat, msg)
         else:
             for element in ops.dataset:
                 if isinstance(element, OcgField):
-                    msg = 'Fields may not be converted to "{0}".'.format(constants.OUTPUT_FORMAT_METADATA_JSON)
+                    msg = 'Fields may not be converted to "{0}".'.format(constants.OutputFormatName.METADATA_JSON)
                     raise DefinitionValidationError(OutputFormat, msg)
 
     def write(self):

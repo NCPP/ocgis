@@ -8,9 +8,9 @@ from numpy.core.multiarray import ndarray
 from numpy.testing.utils import assert_equal
 from shapely.geometry import Point
 
-from ocgis import RequestDataset
+from ocgis import RequestDataset, vm
 from ocgis.collection.field import OcgField
-from ocgis.constants import DimensionNames, HeaderNames
+from ocgis.constants import HeaderName
 from ocgis.driver.vector import DriverVector
 from ocgis.exc import VariableInCollectionError, EmptySubsetError, NoUnitsError, PayloadProtectedError, \
     DimensionsRequiredError
@@ -19,7 +19,7 @@ from ocgis.util.units import get_units_object, get_are_units_equal
 from ocgis.variable.base import Variable, SourcedVariable, VariableCollection, ObjectType, init_from_source
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
-from ocgis.vm.mpi import MPI_SIZE, MPI_RANK, OcgMpi, MPI_COMM, hgather, get_nonempty_ranks
+from ocgis.vmachine.mpi import MPI_SIZE, MPI_RANK, OcgMpi, MPI_COMM, hgather
 
 
 class TestVariable(AbstractTestInterface):
@@ -188,7 +188,7 @@ class TestVariable(AbstractTestInterface):
             self.assertNumpyAll(np.array(v.get_value()[idx]), desired[idx])
         v_actual = SourcedVariable(request_dataset=RequestDataset(uri=path, variable='foo'), name='foo')
 
-        actual = v[1].masked_value[0]
+        actual = v[1].get_masked_value()[0]
         desired = np.array(value[1], dtype=np.float32)
         self.assertNumpyAll(desired, actual)
 
@@ -255,64 +255,47 @@ class TestVariable(AbstractTestInterface):
     def test_system_with_distributed_dimensions_from_file_netcdf(self):
         """Test a distributed read from file."""
 
-        if MPI_RANK == 0:
-            path = self.get_temporary_file_path('dist.nc')
-            value = np.arange(5 * 3) * 10 + 1
-            desired_sum = value.sum()
-            value = value.reshape(5, 3)
-            var = Variable('has_dist_dim', value=value, dimensions=['major', 'minor'])
-            var.write(path, ranks_to_write=[0])
-        else:
-            path = None
+        with vm.scoped('desired data write', [0]):
+            if not vm.is_null:
+                path = self.get_temporary_file_path('dist.nc')
+                value = np.arange(5 * 3) * 10 + 1
+                desired_sum = value.sum()
+                value = value.reshape(5, 3)
+                var = Variable('has_dist_dim', value=value, dimensions=['major', 'minor'])
+                var.write(path)
+            else:
+                path = None
 
         path = MPI_COMM.bcast(path, root=0)
         self.assertTrue(os.path.exists(path))
 
-        # Assert the request dataset distribution is used.
-        rd_a = RequestDataset(path, dist='placeholder')
-        try:
-            rd_a.driver.get_dist()
-        except AttributeError as e:
-            self.assertEqual(str(e), "'str' object has no attribute 'has_updated_dimensions'")
+        rd = RequestDataset(uri=path)
 
-        use_overloaded_dist = [False, True]
-        for u in use_overloaded_dist:
-            if u:
-                rd_b = RequestDataset(path)
-                rd_b.metadata['dimensions']['major']['dist'] = True
-                dist = rd_b.driver.get_dist()
-            else:
-                dist = None
+        ompi = OcgMpi()
+        major = ompi.create_dimension('major', size=5, dist=True, src_idx='auto')
+        minor = ompi.create_dimension('minor', size=3, dist=False, src_idx='auto')
+        fvar = SourcedVariable(name='has_dist_dim', request_dataset=rd, dimensions=[major, minor])
+        ompi.update_dimension_bounds()
 
-            rd = RequestDataset(uri=path, dist=dist)
-            if u:
-                fvar = SourcedVariable(name='has_dist_dim', request_dataset=rd)
-            else:
-                ompi = OcgMpi()
-                major = ompi.create_dimension('major', size=5, dist=True, src_idx='auto')
-                minor = ompi.create_dimension('minor', size=3, dist=False, src_idx='auto')
-                fvar = SourcedVariable(name='has_dist_dim', request_dataset=rd, dimensions=[major, minor])
-                ompi.update_dimension_bounds()
+        self.assertTrue(fvar.dimensions[0].dist)
+        self.assertFalse(fvar.dimensions[1].dist)
+        if MPI_RANK <= 1:
+            self.assertFalse(fvar.is_empty)
+            self.assertIsNotNone(fvar.get_value())
+            self.assertEqual(fvar.shape[1], 3)
+            if MPI_SIZE == 2:
+                self.assertLessEqual(fvar.shape[0], 3)
+        else:
+            self.assertTrue(fvar.is_empty)
 
-            self.assertTrue(fvar.dimensions[0].dist)
-            self.assertFalse(fvar.dimensions[1].dist)
-            if MPI_RANK <= 1:
-                self.assertFalse(fvar.is_empty)
-                self.assertIsNotNone(fvar.get_value())
-                self.assertEqual(fvar.shape[1], 3)
-                if MPI_SIZE == 2:
-                    self.assertLessEqual(fvar.shape[0], 3)
-            else:
-                self.assertTrue(fvar.is_empty)
-
-            values = MPI_COMM.gather(fvar.get_value(), root=0)
-            if MPI_RANK == 0:
-                values = [v for v in values if v is not None]
-                values = [v.flatten() for v in values]
-                values = hgather(values)
-                self.assertEqual(values.sum(), desired_sum)
-            else:
-                self.assertIsNone(values)
+        values = MPI_COMM.gather(fvar.get_value(), root=0)
+        if MPI_RANK == 0:
+            values = [v for v in values if v is not None]
+            values = [v.flatten() for v in values]
+            values = hgather(values)
+            self.assertEqual(values.sum(), desired_sum)
+        else:
+            self.assertIsNone(values)
 
         MPI_COMM.Barrier()
 
@@ -323,16 +306,14 @@ class TestVariable(AbstractTestInterface):
         path = self.path_state_boundaries
 
         # These are the desired values.
-        rd_desired = RequestDataset(uri=path, driver=DriverVector, use_default_dist=False)
-        metadata = rd_desired.metadata
-        geometry_dimension_name = DimensionNames.GEOMETRY_DIMENSION
-        metadata['dimensions'][geometry_dimension_name]['dist'] = False
-        var_desired = SourcedVariable(name='STATE_NAME', request_dataset=rd_desired)
-        value_desired = var_desired.get_value().tolist()
+        with vm.scoped('desired data write', [0]):
+            if not vm.is_null:
+                rd_desired = RequestDataset(uri=path, driver=DriverVector)
+                var_desired = SourcedVariable(name='STATE_NAME', request_dataset=rd_desired)
+                value_desired = var_desired.get_value().tolist()
+                self.assertEqual(len(value_desired), 51)
 
         rd = RequestDataset(uri=path, driver=DriverVector)
-        metadata = rd.metadata
-        metadata['dimensions'][geometry_dimension_name]['dist'] = True
         fvar = SourcedVariable(name='STATE_NAME', request_dataset=rd)
         self.assertEqual(len(rd.driver.dist.get_group()['dimensions']), 1)
 
@@ -347,8 +328,6 @@ class TestVariable(AbstractTestInterface):
             self.assertEqual(values.tolist(), value_desired)
         else:
             self.assertIsNone(values)
-
-        MPI_COMM.Barrier()
 
     @attr('mpi')
     def test_system_with_distributed_dimensions_ndvariable(self):
@@ -414,7 +393,7 @@ class TestVariable(AbstractTestInterface):
         var = Variable(name='tas', units='celsius', value=original_value, dimensions='three')
         self.assertEqual(len(var.attrs), 1)
         var.cfunits_conform(units_kelvin)
-        self.assertNumpyAll(var.masked_value, np.ma.array([278.15] * 3, fill_value=var.fill_value))
+        self.assertNumpyAll(var.get_masked_value(), np.ma.array([278.15] * 3, fill_value=var.fill_value))
         self.assertEqual(var.cfunits, units_kelvin)
         self.assertEqual(var.units, 'kelvin')
         self.assertEqual(len(var.attrs), 1)
@@ -445,12 +424,13 @@ class TestVariable(AbstractTestInterface):
         self.assertEqual(bv.bounds.units, 'celsius')
         bv.cfunits_conform(get_units_object('kelvin'))
         self.assertEqual(bv.bounds.units, 'kelvin')
-        self.assertNumpyAll(bv.bounds.masked_value, np.ma.array([[275.65, 280.65], [280.65, 285.65], [285.65, 290.65]]))
+        self.assertNumpyAll(bv.bounds.get_masked_value(),
+                            np.ma.array([[275.65, 280.65], [280.65, 285.65], [285.65, 290.65]]))
 
         # Test conforming without bounds.
         bv = Variable(value=[5., 10., 15.], units='celsius', name='tas', dimensions='three')
         bv.cfunits_conform('kelvin')
-        self.assertNumpyAll(bv.masked_value, np.ma.array([278.15, 283.15, 288.15]))
+        self.assertNumpyAll(bv.get_masked_value(), np.ma.array([278.15, 283.15, 288.15]))
 
     @attr('cfunits')
     def test_cfunits_conform_masked_array(self):
@@ -459,15 +439,22 @@ class TestVariable(AbstractTestInterface):
         var = Variable(name='tas', units=get_units_object('celsius'), value=value, dimensions='three')
         var.cfunits_conform(get_units_object('kelvin'))
         desired = np.ma.array([278.15, 278.15, 278.15], mask=[False, True, False], fill_value=var.fill_value)
-        self.assertNumpyAll(var.masked_value, desired)
+        self.assertNumpyAll(var.get_masked_value(), desired)
 
     def test_convert_to_empty(self):
         var = Variable(value=[1, 2, 3], mask=[True, False, True], dimensions='alpha', name='to_convert')
+        self.assertEqual(var.ndim, 1)
         var.convert_to_empty()
         self.assertTrue(var.is_empty)
         self.assertIsNone(var.get_value())
         self.assertIsNone(var.get_mask())
         self.assertIsNotNone(var.dimensions)
+        self.assertEqual(var.ndim, 1)
+
+        var.dimensions[0].dist = True
+        var.dimensions[0].convert_to_empty()
+        self.assertEqual(var.shape, (0,))
+        self.assertEqual(var.ndim, 1)
 
     def test_copy(self):
         var = Variable(value=[5], mask=[True], name='copycat', dimensions='uni')
@@ -524,9 +511,6 @@ class TestVariable(AbstractTestInterface):
         var = Variable(name='a', value=[1, 2, 3, 4, 5], dimensions='b')
         self.assertEqual(var.extent, (1, 5))
 
-        var = Variable('b', is_empty=True)
-        self.assertIsNone(var.extent)
-
     def test_extract(self):
         ancillary = Variable('ancillary')
         src = Variable('src', parent=ancillary.parent)
@@ -570,7 +554,7 @@ class TestVariable(AbstractTestInterface):
         sub = var[dslc]
         self.assertEqual(sub.shape, (3, 2, 10, 1))
         sub_value = value[2:5, np.array([False, True, False, True], dtype=bool), slice(None), slice(0, 1)]
-        self.assertNumpyAll(sub.masked_value, sub_value)
+        self.assertNumpyAll(sub.get_masked_value(), sub_value)
 
         # Test with a parent.
         var = Variable(name='a', value=[1, 2, 3], dimensions=['one'])
@@ -646,7 +630,7 @@ class TestVariable(AbstractTestInterface):
             # lower or upper cell.
             vdim_between = vdim.get_between(2.5, 2.5)
             self.assertEqual(len(vdim_between), 1)
-            actual = vdim_between.bounds.masked_value
+            actual = vdim_between.bounds.get_masked_value()
             if key == 'original':
                 self.assertNumpyAll(actual, np.ma.array([[2.5, 7.5]]))
             else:
@@ -681,8 +665,8 @@ class TestVariable(AbstractTestInterface):
         bounds = Variable('bounds', bounds, dimensions=['a', 'b'])
         vdim = Variable('foo', value=value, bounds=bounds, dimensions=['a'])
         ret = vdim.get_between(3, 4.5, use_bounds=False)
-        self.assertNumpyAll(ret.masked_value, np.ma.array([3.]))
-        self.assertNumpyAll(ret.bounds.masked_value, np.ma.array([[2., 4.]]))
+        self.assertNumpyAll(ret.get_masked_value(), np.ma.array([3.]))
+        self.assertNumpyAll(ret.bounds.get_masked_value(), np.ma.array([[2., 4.]]))
 
     @attr('mpi')
     def test_get_distributed_slice(self):
@@ -702,35 +686,35 @@ class TestVariable(AbstractTestInterface):
         if not var.is_empty:
             var.get_value()[:] = MPI_RANK
 
-        sub = var.get_distributed_slice([slice(None), slice(2, 4), slice(3, 4)])
+        with vm.scoped_by_emptyable('var slice', var):
+            if not vm.is_null:
+                sub = var.get_distributed_slice([slice(None), slice(2, 4), slice(3, 4)])
+                vc = VariableCollection(variables=[sub])
+                vc.write(path)
 
-        vc = VariableCollection(variables=[sub])
-        vc.write(path)
-
-        if MPI_RANK == 0:
-            rd = RequestDataset(path)
-            svar = SourcedVariable('var', request_dataset=rd)
-            self.assertEqual(svar.shape, (10, 2, 1))
-
-        MPI_COMM.Barrier()
+                rd = RequestDataset(path)
+                svar = SourcedVariable('var', request_dataset=rd)
+                self.assertEqual(svar.shape, (10, 2, 1))
 
     @attr('mpi')
     def test_get_distributed_slice_parent_variables(self):
         """Test distributed slicing on a variable with sibling variables."""
-
         dist = OcgMpi()
         dim = dist.create_dimension('dim', 9, dist=True)
         dim_nondist = dist.create_dimension('dim_nondist', 3, dist=False)
         dist.update_dimension_bounds()
 
-        if dim.is_empty:
-            value1, value2, value4 = [None] * 3
-        else:
-            value1 = np.arange(*dim.bounds_local)
-            value2 = value1 + 100
-            value4 = np.zeros((dim_nondist.size, dim.bounds_local[1] - dim.bounds_local[0]), dtype=int)
-            for ii in range(dim_nondist.size):
-                value4[ii, :] = value1
+        live_ranks = vm.get_live_ranks_from_object(dim)
+        vm.create_subcomm('parent slicing', live_ranks, is_current=True)
+        if vm.is_null:
+            self.assertTrue(dim.is_empty)
+            return
+
+        value1 = np.arange(*dim.bounds_local)
+        value2 = value1 + 100
+        value4 = np.zeros((dim_nondist.size, dim.bounds_local[1] - dim.bounds_local[0]), dtype=int)
+        for ii in range(dim_nondist.size):
+            value4[ii, :] = value1
 
         var1 = Variable(name='var1', value=value1, dimensions=dim)
         var2 = Variable(name='var2', value=value2, dimensions=dim)
@@ -743,13 +727,8 @@ class TestVariable(AbstractTestInterface):
             sub = var1.get_distributed_slice(7)
 
             non_empty = {1: 0, 2: 1, 3: 2, 5: 3}
-            ner = get_nonempty_ranks(sub)
-            ner = MPI_COMM.bcast(ner)
-            desired_nonempty = non_empty.get(MPI_SIZE, 3)
-            self.assertEqual(ner[0], desired_nonempty)
-
             desired = {'var1': [7], 'var2': [107], 'var3': var3.get_value().tolist(), 'var4': [[7], [7], [7]]}
-            if MPI_RANK == ner[0]:
+            if MPI_RANK == non_empty.get(MPI_SIZE, 3):
                 actual = {var.name: var.get_value().tolist() for var in list(sub.parent.values())}
                 self.assertEqual(actual, desired)
             else:
@@ -771,7 +750,13 @@ class TestVariable(AbstractTestInterface):
         if not var.is_empty:
             var.get_value()[:] = (MPI_RANK + 1) ** 3 * (np.arange(var.shape[0]) + 1)
 
-        sub = var.get_distributed_slice(slice(2, 4))
+        live_ranks = vm.get_live_ranks_from_object(var)
+        vm.create_subcomm('simple slice test', live_ranks, is_current=True)
+
+        if not vm.is_null:
+            sub = var.get_distributed_slice(slice(2, 4))
+        else:
+            sub = Variable(is_empty=True)
 
         if MPI_SIZE == 3:
             if MPI_RANK != 1:
@@ -779,22 +764,31 @@ class TestVariable(AbstractTestInterface):
             else:
                 self.assertFalse(sub.is_empty)
 
-        vc = VariableCollection(variables=[sub])
-        vc.write(path)
+        if not vm.is_null:
+            live_ranks = vm.get_live_ranks_from_object(sub)
+            vm.create_subcomm('sub write', live_ranks, is_current=True)
+            if not vm.is_null:
+                vc = VariableCollection(variables=[sub])
+                vc.write(path)
+
         MPI_COMM.Barrier()
 
-        if MPI_RANK == 0:
-            rd = RequestDataset(path)
-            svar = SourcedVariable('var', request_dataset=rd)
-            self.assertEqual(svar.shape, (2,))
-            if MPI_SIZE == 1:
-                self.assertEqual(svar.get_value().tolist(), [3., 4.])
-            elif MPI_SIZE == 2:
-                self.assertEqual(svar.get_value().tolist(), [3., 8.])
-            elif MPI_SIZE == 3:
-                self.assertEqual(svar.get_value().tolist(), [8., 16.])
-            elif MPI_SIZE == 8:
-                self.assertEqual(svar.get_value().tolist(), [27., 64.])
+        vm.finalize()
+        vm.__init__()
+
+        with vm.scoped('read data from file', [0]):
+            if not vm.is_null and vm.rank == 0:
+                rd = RequestDataset(path)
+                svar = SourcedVariable('var', request_dataset=rd)
+                self.assertEqual(svar.shape, (2,))
+                if MPI_SIZE == 1:
+                    self.assertEqual(svar.get_value().tolist(), [3., 4.])
+                elif MPI_SIZE == 2:
+                    self.assertEqual(svar.get_value().tolist(), [3., 8.])
+                elif MPI_SIZE == 3:
+                    self.assertEqual(svar.get_value().tolist(), [8., 16.])
+                elif MPI_SIZE == 8:
+                    self.assertEqual(svar.get_value().tolist(), [27., 64.])
 
     def test_get_iter(self):
         # Test two repeat records.
@@ -883,7 +877,7 @@ class TestVariable(AbstractTestInterface):
         bv.set_bounds(None)
         self.assertIsNone(bv.bounds)
         bv.set_extrapolated_bounds('two_dee_bounds', 'bounds_dimension')
-        bounds_value = bv.bounds.masked_value
+        bounds_value = bv.bounds.get_masked_value()
         actual = [[[2.25, 2.75, 1.75, 1.25], [2.75, 3.25, 2.25, 1.75]],
                   [[1.25, 1.75, 0.75, 0.25], [1.75, 2.25, 1.25, 0.75]],
                   [[0.25, 0.75, -0.25, -0.75], [0.75, 1.25, 0.25, -0.25]]]
@@ -1036,7 +1030,7 @@ class TestSourcedVariable(AbstractTestInterface):
         # Test initializing with a value.
         sv = SourcedVariable(value=[1, 2, 3], name='foo', dimensions='three')
         self.assertEqual(sv.dtype, np.int)
-        self.assertEqual(sv.masked_value.fill_value, 999999)
+        self.assertEqual(sv.get_masked_value().fill_value, 999999)
         self.assertEqual(sv.shape, (3,))
         self.assertEqual(len(sv.dimensions), 1)
 
@@ -1145,7 +1139,7 @@ class TestSourcedVariable(AbstractTestInterface):
         sv._request_dataset.uid = 5
         itr = sv.get_iter()
         for row in itr:
-            self.assertEqual(row[HeaderNames.DATASET_IDENTIFER], sv._request_dataset.uid)
+            self.assertEqual(row[HeaderName.DATASET_IDENTIFER], sv._request_dataset.uid)
 
     def test_get_value(self):
         sv = self.get_sourcedvariable()
@@ -1193,7 +1187,7 @@ class TestSourcedVariable(AbstractTestInterface):
         var2_mask = np.zeros(var1.shape, dtype=bool)
         var2_mask[0] = True
         var2 = Variable('data2', value=var1.get_value() + 10, dimensions='dim_data', parent=vc, mask=var2_mask)
-        vc.write(path, ranks_to_write=[0])
+        vc.write(path)
 
         rd = RequestDataset(path)
         vc_ff = rd.get_variable_collection()

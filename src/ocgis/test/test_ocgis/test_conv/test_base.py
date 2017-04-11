@@ -9,6 +9,7 @@ import numpy as np
 import ocgis
 from ocgis import SpatialCollection
 from ocgis import constants
+from ocgis.constants import OutputFormatName
 from ocgis.conv.base import AbstractTabularConverter, get_converter_map, AbstractCollectionConverter, \
     AbstractFileConverter
 from ocgis.conv.csv_ import CsvConverter, CsvShapefileConverter
@@ -33,7 +34,7 @@ class AbstractTestConverter(TestBase):
 class Test(TestBase):
     def test_get_converter_map(self):
         cmap = get_converter_map()
-        self.assertEqual(cmap[constants.OUTPUT_FORMAT_METADATA_JSON], MetaJSONConverter)
+        self.assertEqual(cmap[constants.OutputFormatName.METADATA_JSON], MetaJSONConverter)
 
 
 class FakeAbstractCollectionConverter(AbstractCollectionConverter):
@@ -55,7 +56,8 @@ class TestAbstractCollectionConverter(AbstractTestConverter):
     def run_auxiliary_file_tst(self, Converter, file_list, auxiliary_file_list=None):
         auxiliary_file_list = auxiliary_file_list or self._auxiliary_file_list
         rd = self.test_data.get_rd('cancm4_tas')
-        ops = ocgis.OcgOperations(dataset=rd, output_format='numpy', slice=[None, 0, None, [0, 10], [0, 10]])
+        ops = ocgis.OcgOperations(dataset=rd, output_format=OutputFormatName.OCGIS,
+                                  slice=[None, 0, None, [0, 10], [0, 10]])
         coll = ops.execute()
 
         _ops = [None, ops]
@@ -84,7 +86,8 @@ class TestAbstractCollectionConverter(AbstractTestConverter):
 
     def run_overwrite_true_tst(self, Converter, include_ops=False):
         rd = self.test_data.get_rd('cancm4_tas')
-        _ops = ocgis.OcgOperations(dataset=rd, output_format='numpy', slice=[None, 0, None, [0, 10], [0, 10]])
+        _ops = ocgis.OcgOperations(dataset=rd, output_format=OutputFormatName.OCGIS,
+                                   slice=[None, 0, None, [0, 10], [0, 10]])
         coll = _ops.execute()
 
         ops = _ops if include_ops else None
@@ -129,7 +132,8 @@ class TestAbstractCollectionConverter(AbstractTestConverter):
     @attr('data')
     def test_overwrite_false_csv(self):
         rd = self.test_data.get_rd('cancm4_tas')
-        ops = ocgis.OcgOperations(dataset=rd, output_format='numpy', slice=[None, 0, None, [0, 10], [0, 10]])
+        ops = ocgis.OcgOperations(dataset=rd, output_format=OutputFormatName.OCGIS,
+                                  slice=[None, 0, None, [0, 10], [0, 10]])
         coll = ops.execute()
 
         outdir = tempfile.mkdtemp(dir=self.current_dir_output)

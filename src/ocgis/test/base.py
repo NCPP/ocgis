@@ -33,7 +33,7 @@ from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.crs import CoordinateReferenceSystem
 from ocgis.variable.geom import GeometryVariable
 from ocgis.variable.temporal import TemporalVariable
-from ocgis.vm.mpi import get_standard_comm_state, OcgMpi, MPI_RANK, variable_scatter, variable_collection_scatter
+from ocgis.vmachine.mpi import get_standard_comm_state, OcgMpi, MPI_RANK, variable_scatter, variable_collection_scatter
 
 """
 Definitions for various "attrs":
@@ -408,7 +408,8 @@ class TestBase(unittest.TestCase):
     def get_exact_field_value(longitude, latitude):
         return create_exact_field_value(longitude, latitude)
 
-    def get_field(self, nlevel=None, nrlz=None, crs=None, ntime=2, with_bounds=False, variable_name='foo'):
+    def get_field(self, nlevel=None, nrlz=None, crs=None, ntime=2, with_bounds=False, variable_name='foo', nrow=None,
+                  ncol=None):
         """
         :param int nlevel: The number of level elements.
         :param int nrlz: The number of realization elements.
@@ -424,8 +425,19 @@ class TestBase(unittest.TestCase):
         """
 
         np.random.seed(1)
-        row = Variable(value=[4., 5.], name='row', dimensions='row')
-        col = Variable(value=[40., 50.], name='col', dimensions='col')
+        if nrow is None:
+            nrow = 2
+            row_value = [4., 5.]
+        else:
+            row_value = range(4, 4 + nrow)
+        if ncol is None:
+            ncol = 2
+            col_value = [40., 50.]
+        else:
+            col_value = range(4, 4 + ncol)
+            col_value = [c * 10 for c in col_value]
+        row = Variable(value=row_value, name='row', dimensions='row', dtype=float)
+        col = Variable(value=col_value, name='col', dimensions='col', dtype=float)
 
         if with_bounds:
             row.set_extrapolated_bounds()
@@ -473,7 +485,7 @@ class TestBase(unittest.TestCase):
         else:
             level = None
 
-        variable_shape += [2, 2]
+        variable_shape += [nrow, ncol]
         variable_dimensions += ['row', 'col']
 
         variable = Variable(name=variable_name, value=np.random.rand(*variable_shape), dimensions=variable_dimensions)
@@ -692,13 +704,10 @@ class TestBase(unittest.TestCase):
     def nc_scope(self, *args, **kwargs):
         return nc_scope(*args, **kwargs)
 
-    def panoply(self, *args):
-        paths = args[0]
-        if isinstance(paths, six.string_types):
-            paths = [paths]
-        paths = list(paths)
-        cmd = ['/home/benkoziol/sandbox/PanoplyJ/panoply.sh'] + paths
-        subprocess.check_call(cmd)
+    @property
+    def path_state_boundaries(self):
+        path_shp = os.path.join(self.path_bin, 'shp', 'state_boundaries', 'state_boundaries.shp')
+        return path_shp
 
     def pprint(self, *args, **kwargs):
         print('')
@@ -711,6 +720,9 @@ class TestBase(unittest.TestCase):
         return print_scope()
 
     def setUp(self):
+        from ocgis import vm
+        vm.__init__()
+
         comm, rank, size = get_standard_comm_state()
 
         self.current_dir_output = None
@@ -725,6 +737,9 @@ class TestBase(unittest.TestCase):
 
             self.current_dir_output = temporary_output_directory
             env.DIR_OUTPUT = self.current_dir_output
+
+        if self.add_barrier:
+            comm.Barrier()
 
     def shortDescription(self):
         """
@@ -747,6 +762,9 @@ class TestBase(unittest.TestCase):
                 env.reset()
             if self.shutdown_logging:
                 ocgis_lh.shutdown()
+
+        from ocgis import vm
+        vm.finalize()
 
         if self.add_barrier:
             comm.Barrier()
@@ -928,11 +946,6 @@ def print_scope():
 
 @six.add_metaclass(abc.ABCMeta)
 class AbstractTestInterface(TestBase):
-    @property
-    def path_state_boundaries(self):
-        path_shp = os.path.join(self.path_bin, 'shp', 'state_boundaries', 'state_boundaries.shp')
-        return path_shp
-
     def assertGeometriesAlmostEquals(self, a, b):
 
         def _almost_equals_(a, b):
@@ -1004,43 +1017,19 @@ class AbstractTestInterface(TestBase):
         else:
             vx, vy, parent = [None] * 3
 
-        svx, _ = variable_scatter(vx, dest_mpi)
-        svy, _ = variable_scatter(vy, dest_mpi)
+        svx = variable_scatter(vx, dest_mpi)
+        svy = variable_scatter(vy, dest_mpi)
 
         if with_parent:
-            parent, _ = variable_collection_scatter(parent, dest_mpi)
+            parent = variable_collection_scatter(parent, dest_mpi)
             kwds['parent'] = parent
 
         grid = GridXY(svx, svy, **kwds)
 
         return grid
 
-    def get_gridxy_global(self, resolution=1.0, with_bounds=True, wrapped=True, crs=None):
-        half_resolution = 0.5 * resolution
-        y = np.arange(-90.0 + half_resolution, 90.0, resolution)
-        if wrapped:
-            x = np.arange(-180.0 + half_resolution, 180.0, resolution)
-        else:
-            x = np.arange(0.0 + half_resolution, 360.0, resolution)
-
-        ompi = OcgMpi()
-        ompi.create_dimension('x', x.shape[0], dist=True)
-        ompi.create_dimension('y', y.shape[0], dist=True)
-        ompi.update_dimension_bounds()
-
-        if MPI_RANK == 0:
-            x = Variable(name='x', value=x, dimensions='x')
-            y = Variable(name='y', value=y, dimensions='y')
-        else:
-            x, y = [None] * 2
-        x, _ = variable_scatter(x, ompi)
-        y, _ = variable_scatter(y, ompi)
-
-        grid = GridXY(x, y, crs=crs)
-        if with_bounds:
-            grid.set_extrapolated_bounds('xbounds', 'ybounds', 'bounds')
-
-        return grid
+    def get_gridxy_global(self, *args, **kwargs):
+        return create_gridxy_global(*args, **kwargs)
 
     def get_geometryvariable(self, **kwargs):
         value_point_array = np.array([None, None])
@@ -1223,3 +1212,53 @@ class AbstractTestField(TestBase):
                          name=field_name, is_data=name)
 
         return field
+
+
+def create_exact_field(grid, data_varname, ntime=1, fill_data_var=True):
+    tdim = Dimension(name='time', size=None, size_current=ntime)
+    tvar = TemporalVariable(name='time', value=range(1, ntime + 1), dimensions=tdim, dtype=np.float32)
+    dvar_dims = [tdim] + list(grid.dimensions)
+    dvar = Variable(name=data_varname, dimensions=dvar_dims, dtype=np.float32)
+    if fill_data_var:
+        longitude, latitude = np.meshgrid(grid.x.get_value(), grid.y.get_value())
+        exact = create_exact_field_value(longitude, latitude)
+        to_fill = dvar.get_value()
+        to_fill[:, :, :] = exact
+        for tidx in range(ntime):
+            to_fill[tidx, :, :] = to_fill[tidx, :, :] + ((tidx + 1) * 10)
+
+    field = OcgField(grid=grid, time=tvar, is_data=dvar)
+
+    return field
+
+
+def create_gridxy_global(resolution=1.0, with_bounds=True, wrapped=True, crs=None, dtype=None, dist=True):
+    half_resolution = 0.5 * resolution
+    y = np.arange(-90.0 + half_resolution, 90.0, resolution)
+    if wrapped:
+        x = np.arange(-180.0 + half_resolution, 180.0, resolution)
+    else:
+        x = np.arange(0.0 + half_resolution, 360.0, resolution)
+
+    if dist:
+        ompi = OcgMpi()
+        ompi.create_dimension('x', x.shape[0], dist=False)
+        ompi.create_dimension('y', y.shape[0], dist=True)
+        ompi.update_dimension_bounds()
+
+    if MPI_RANK == 0:
+        x = Variable(name='x', value=x, dimensions='x', dtype=dtype)
+        y = Variable(name='y', value=y, dimensions='y', dtype=dtype)
+    else:
+        x, y = [None] * 2
+
+    if dist:
+        x = variable_scatter(x, ompi)
+        y = variable_scatter(y, ompi)
+
+    grid = GridXY(x, y, crs=crs)
+
+    if with_bounds:
+        grid.set_extrapolated_bounds('xbounds', 'ybounds', 'bounds')
+
+    return grid

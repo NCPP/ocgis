@@ -3,6 +3,7 @@ import numpy as np
 import ocgis
 from ocgis.calc.library.statistics import Mean, FrequencyPercentile, MovingWindow, DailyPercentile
 from ocgis.collection.field import OcgField
+from ocgis.constants import OutputFormatName
 from ocgis.exc import DefinitionValidationError
 from ocgis.ops.parms.definition import Calc
 from ocgis.test.base import attr, AbstractTestField
@@ -13,6 +14,7 @@ from ocgis.util.units import get_units_object
 from ocgis.variable.base import Variable
 
 
+@attr('release')
 class TestDailyPercentile(AbstractTestField):
     @attr('data', 'slow')
     def test_system_compute(self):
@@ -31,12 +33,12 @@ class TestDailyPercentile(AbstractTestField):
         rd = self.test_data.get_rd('cancm4_tas')
         kwds = {'percentile': 90, 'window_width': 5}
         calc = [{'func': 'daily_perc', 'name': 'dp', 'kwds': kwds}]
-        for output_format in ['numpy', 'nc']:
+        for output_format in [OutputFormatName.OCGIS, 'nc']:
             ops = ocgis.OcgOperations(dataset=rd, geom='state_boundaries', select_ugid=[23], calc=calc,
                                       output_format=output_format, time_region={'year': [2002, 2003]})
             self.assertIsNone(ops.calc_grouping)
             ret = ops.execute()
-            if output_format == 'numpy':
+            if output_format == OutputFormatName.OCGIS:
                 actual = ret.get_element(container_ugid=23, variable_name='dp').get_mask().sum()
                 self.assertEqual(actual, 730)
 
@@ -196,7 +198,7 @@ class TestFrequencyPercentile(AbstractTestField):
         tgd = field.temporal.get_grouping(grouping)
         fp = FrequencyPercentile(field=field, tgd=tgd, parms={'percentile': 99})
         ret = fp.execute()
-        self.assertNumpyAllClose(ret['freq_perc'].masked_value[0, 1, 1, 0, :],
+        self.assertNumpyAllClose(ret['freq_perc'].get_masked_value()[0, 1, 1, 0, :],
                                  np.ma.array(data=[0.92864656, 0.98615474, 0.95269281, 0.98542988],
                                              mask=False, fill_value=1e+20))
 
@@ -268,7 +270,7 @@ class TestMean(AbstractTestField):
                             dv.get_value()[1, 1, 0, :, :])
 
         ret = dvc['n_my_mean']
-        self.assertNumpyAll(ret.masked_value[0, 0, 0],
+        self.assertNumpyAll(ret.get_masked_value()[0, 0, 0],
                             np.ma.array(data=[[31, 31, 31, 31], [31, 31, 31, 31], [31, 31, 31, 31]],
                                         mask=[[False, False, False, False], [False, False, False, False],
                                               [False, False, False, False]],

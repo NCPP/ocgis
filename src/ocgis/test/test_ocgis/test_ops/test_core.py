@@ -6,26 +6,29 @@ from datetime import datetime as dt
 
 import numpy as np
 from shapely.geometry import Point, LineString
+from zmq.tests import SkipTest
 
 import ocgis
-from ocgis import RequestDataset
+from ocgis import RequestDataset, vm
 from ocgis import constants
 from ocgis import env
 from ocgis.collection.field import OcgField
-from ocgis.constants import WrappedState, HeaderNames
+from ocgis.constants import WrappedState, HeaderName, OutputFormatName
 from ocgis.exc import DefinitionValidationError
 from ocgis.ops.core import OcgOperations
 from ocgis.ops.parms import definition
 from ocgis.ops.parms.definition import RegridOptions, OutputFormat, SpatialWrapping
 from ocgis.spatial.geom_cabinet import GeomCabinetIterator, GeomCabinet
 from ocgis.spatial.grid import GridXY
-from ocgis.test.base import TestBase, attr
+from ocgis.test.base import TestBase, attr, create_gridxy_global, create_exact_field
 from ocgis.test.test_simple.test_dependencies import create_mftime_nc_files
-from ocgis.util.helpers import make_poly
+from ocgis.util.addict import Dict
+from ocgis.util.helpers import make_poly, create_exact_field_value
 from ocgis.variable.base import Variable
 from ocgis.variable.crs import CFWGS84, Spherical, CoordinateReferenceSystem
 from ocgis.variable.temporal import TemporalVariable
-from ocgis.vm.mpi import OcgMpi, MPI_RANK, variable_collection_scatter
+from ocgis.vmachine.mpi import OcgMpi, MPI_RANK, variable_collection_scatter, MPI_COMM, dgather, \
+    hgather, MPI_SIZE
 
 
 class TestOcgOperations(TestBase):
@@ -188,12 +191,12 @@ class TestOcgOperations(TestBase):
         manual_mean = ovalue[4, :, :].mean()
 
         slc = [None, [0, 10], None, [0, 10], [0, 10]]
-        for output_format in ['numpy', 'csv']:
+        for output_format in [OutputFormatName.OCGIS, OutputFormatName.CSV]:
             ops = OcgOperations(dataset=rd, output_format=output_format, aggregate=True, slice=slc, melted=True)
             # Spatial operations on rotated pole require the output be spherical.
             self.assertEqual(ops.output_crs, Spherical())
             ret = ops.execute()
-            if output_format == constants.OUTPUT_FORMAT_NUMPY:
+            if output_format == constants.OutputFormatName.OCGIS:
                 field = ret.get_element()
                 self.assertEqual(field['pr'].shape, (10, 1))
                 self.assertAlmostEqual(float(manual_mean), float(field['pr'].get_value()[4]))
@@ -337,14 +340,14 @@ class TestOcgOperations(TestBase):
         output_format = OutputFormat.iter_possible()
         for kk in output_format:
             # Geojson may only be written with a spherical coordinate system.
-            if kk == constants.OUTPUT_FORMAT_GEOJSON:
+            if kk == constants.OutputFormatName.GEOJSON:
                 output_crs = CFWGS84()
             else:
                 output_crs = None
             try:
                 ops = OcgOperations(dataset=efield, output_format=kk, prefix=kk, output_crs=output_crs)
             except DefinitionValidationError:
-                self.assertEqual(kk, constants.OUTPUT_FORMAT_METADATA_JSON)
+                self.assertEqual(kk, constants.OutputFormatName.METADATA_JSON)
                 continue
             ret = ops.execute()
             self.assertIsNotNone(ret)
@@ -408,7 +411,7 @@ class TestOcgOperations(TestBase):
     def test_keyword_prefix(self):
         # the meta output format should not create an output directory
         rd = self.test_data.get_rd('cancm4_tas')
-        ops = OcgOperations(dataset=rd, output_format=constants.OUTPUT_FORMAT_METADATA_OCGIS)
+        ops = OcgOperations(dataset=rd, output_format=constants.OutputFormatName.METADATA_OCGIS)
         ops.execute()
         self.assertEqual(len(os.listdir(self.current_dir_output)), 0)
 
@@ -442,7 +445,7 @@ class TestOcgOperations(TestBase):
         rd = self.test_data.get_rd('cancm4_tas')
         rd2 = self.test_data.get_rd('rotated_pole_ichec', kwds={'rename_variable': 'tas2'})
         try:
-            ocgis.OcgOperations(dataset=[rd, rd2], output_format=constants.OUTPUT_FORMAT_NETCDF)
+            ocgis.OcgOperations(dataset=[rd, rd2], output_format=constants.OutputFormatName.NETCDF)
         except DefinitionValidationError as e:
             self.assertIn('Data packages (i.e. more than one RequestDataset) may not be written to netCDF.',
                           e.message)
@@ -455,7 +458,7 @@ class TestOcgOperations(TestBase):
         self.assertTrue(field.temporal.dimensions[0].is_unlimited)
         for b in [False, True]:
             output_format_options = {'unlimited_to_fixedsize': b}
-            ops = OcgOperations(dataset=rd, snippet=True, output_format=constants.OUTPUT_FORMAT_NETCDF,
+            ops = OcgOperations(dataset=rd, snippet=True, output_format=constants.OutputFormatName.NETCDF,
                                 output_format_options=output_format_options, prefix=str(b))
             self.assertDictEqual(output_format_options, ops.output_format_options)
             ret = ops.execute()
@@ -614,7 +617,7 @@ class TestOcgOperations(TestBase):
 
         rd = self.test_data.get_rd('cancm4_tas')
         ops = OcgOperations(dataset=rd, time_subset_func=_func_, geom='state_boundaries', geom_select_uid=[20],
-                            output_format=constants.OUTPUT_FORMAT_NETCDF)
+                            output_format=constants.OutputFormatName.NETCDF)
         ret = ops.execute()
         rd_out = RequestDataset(ret)
         for v in rd_out.get().temporal.value_datetime:
@@ -659,7 +662,7 @@ class TestOcgOperationsNoData(TestBase):
             field = OcgField(grid=grid, is_data=var, crs=crs, time=time)
         else:
             field = None
-        field, ompi = variable_collection_scatter(field, ompi)
+        field = variable_collection_scatter(field, ompi)
 
         return field
 
@@ -694,15 +697,15 @@ class TestOcgOperationsNoData(TestBase):
                     continue
                 self.assertIsNotNone(variable._request_dataset.uid)
                 for row in variable.get_iter():
-                    self.assertIsNotNone(row[HeaderNames.DATASET_IDENTIFER])
+                    self.assertIsNotNone(row[HeaderName.DATASET_IDENTIFER])
 
     def test_system_field_is_untouched(self):
         """Test field is untouched if passed through operations with nothing happening."""
 
         field = self.get_field()
-        gid_name = HeaderNames.ID_GEOMETRY
+        gid_name = HeaderName.ID_GEOMETRY
         self.assertNotIn(gid_name, field)
-        ops = OcgOperations(dataset=field, output_format=constants.OUTPUT_FORMAT_NUMPY)
+        ops = OcgOperations(dataset=field, output_format=constants.OutputFormatName.OCGIS)
         ret = ops.execute()
         actual = ret.get_element()
         self.assertEqual(list(field.keys()), list(actual.keys()))
@@ -734,9 +737,9 @@ class TestOcgOperationsNoData(TestBase):
         """Test geometry identifier is added for linked dataset geometry formats."""
 
         field = self.get_field()
-        gid_name = HeaderNames.ID_GEOMETRY
+        gid_name = HeaderName.ID_GEOMETRY
         self.assertNotIn(gid_name, field)
-        ops = OcgOperations(dataset=field, output_format=constants.OUTPUT_FORMAT_CSV_SHAPEFILE)
+        ops = OcgOperations(dataset=field, output_format=constants.OutputFormatName.CSV_SHAPEFILE)
         ret = ops.execute()
 
         csv_field = RequestDataset(ret).get()
@@ -744,6 +747,48 @@ class TestOcgOperationsNoData(TestBase):
         shp_path = os.path.join(ops.dir_output, ops.prefix, 'shp', ops.prefix + '_gid.shp')
         shp_field = RequestDataset(shp_path).get()
         self.assertIn(gid_name, list(shp_field.keys()))
+
+    def test_system_line_subsetting(self):
+        """Test subsetting with a line."""
+
+        line = LineString([(-0.4, 0.2), (1.35, 0.3), (1.38, -0.716)])
+        geom = [{'geom': line, 'crs': None}]
+
+        x = Variable('x', [-1, -0.5, 0.5, 1.5, 2], 'x')
+        y = Variable('y', [-0.5, 0.5, 1.5], 'y')
+        grid = GridXY(x, y)
+        grid.set_extrapolated_bounds('x_bounds', 'y_bounds', 'bounds')
+        field = OcgField(grid=grid)
+
+        ops = OcgOperations(dataset=field, geom=geom)
+        ret = ops.execute()
+        field = ret.get_element()
+
+        desired = [[[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]], [[-0.5, 0.5, 1.5], [-0.5, 0.5, 1.5]]]
+        actual = field.grid.get_value_stacked().tolist()
+        self.assertEqual(actual, desired)
+
+        desired = [[True, True, False], [False, False, False]]
+        actual = field.grid.get_mask().tolist()
+        self.assertEqual(actual, desired)
+
+    def test_system_mftime(self):
+        """Test a multi-file dataset with varying units on the time variables."""
+
+        paths = create_mftime_nc_files(self, with_all_cf=True)
+        rd = RequestDataset(paths)
+        field = rd.get()
+        self.assertIsNone(field.temporal._value)
+
+        desired = [0., 1., 2., 366., 367., 368.]
+        actual = field.temporal.get_value().tolist()
+        self.assertEqual(actual, desired)
+
+        ops = OcgOperations(dataset=rd, output_format=constants.OutputFormatName.NETCDF)
+        ret = ops.execute()
+
+        out_rd = RequestDataset(uri=ret)
+        self.assertEqual(out_rd.get().temporal.get_value().tolist(), desired)
 
     @attr('cfunits')
     def test_system_request_dataset_modifiers(self):
@@ -784,39 +829,15 @@ class TestOcgOperationsNoData(TestBase):
         self.assertAlmostEqual(actual.data_variables[0].get_value().mean(), -17.511663542109229)
         self.assertEqual(actual.data_variables[0].units, 'celsius')
 
-    def test_system_line_subsetting(self):
-        """Test subsetting with a line."""
-
-        line = LineString([(-0.4, 0.2), (1.35, 0.3), (1.38, -0.716)])
-        geom = [{'geom': line, 'crs': None}]
-
-        x = Variable('x', [-1, -0.5, 0.5, 1.5, 2], 'x')
-        y = Variable('y', [-0.5, 0.5, 1.5], 'y')
-        grid = GridXY(x, y)
-        grid.set_extrapolated_bounds('x_bounds', 'y_bounds', 'bounds')
-        field = OcgField(grid=grid)
-
-        ops = OcgOperations(dataset=field, geom=geom)
-        ret = ops.execute()
-        field = ret.get_element()
-
-        desired = [[[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]], [[-0.5, 0.5, 1.5], [-0.5, 0.5, 1.5]]]
-        actual = field.grid.get_value_stacked().tolist()
-        self.assertEqual(actual, desired)
-
-        desired = [[True, True, False], [False, False, False]]
-        actual = field.grid.get_mask().tolist()
-        self.assertEqual(actual, desired)
-
     def test_system_user_geometry_identifer_added(self):
         """Test geometry identifier is added for linked dataset geometry formats."""
 
         field = self.get_field(crs=CFWGS84())
         subset_geom = Point(field.grid.x.get_value()[0], field.grid.y.get_value()[0]).buffer(0.1)
-        ops = OcgOperations(dataset=field, geom=subset_geom, output_format=constants.OUTPUT_FORMAT_CSV_SHAPEFILE)
+        ops = OcgOperations(dataset=field, geom=subset_geom, output_format=constants.OutputFormatName.CSV_SHAPEFILE)
         ret = ops.execute()
 
-        ugid_name = HeaderNames.ID_SELECTION_GEOMETRY
+        ugid_name = HeaderName.ID_SELECTION_GEOMETRY
         csv_field = RequestDataset(ret).get()
 
         self.assertIn(ugid_name, list(csv_field.keys()))
@@ -828,23 +849,170 @@ class TestOcgOperationsNoData(TestBase):
         shp_field = RequestDataset(shp_path).get()
         self.assertIn(ugid_name, list(shp_field.keys()))
 
-    def test_system_mftime(self):
-        """Test a multi-file dataset with varying units on the time variables."""
+    @attr('mpi')
+    def test_system_spatial_averaging_through_operations(self):
+        data_name = 'data'
 
-        paths = create_mftime_nc_files(self, with_all_cf=True)
-        rd = RequestDataset(paths)
-        field = rd.get()
-        self.assertIsNone(field.temporal._value)
+        with vm.scoped('write', [0]):
+            if not vm.is_null:
+                x = Variable('x', range(5), 'x', float)
+                y = Variable('y', range(7), 'y', float)
+                grid = GridXY(x, y)
 
-        desired = [0., 1., 2., 366., 367., 368.]
-        actual = field.temporal.get_value().tolist()
-        self.assertEqual(actual, desired)
+                data_value = np.arange(x.size * y.size).reshape(grid.shape)
+                data = Variable(data_name, data_value, grid.dimensions, float)
+                data_value = data.get_value()
 
-        ops = OcgOperations(dataset=rd, output_format=constants.OUTPUT_FORMAT_NETCDF)
+                field = OcgField(grid=grid, is_data=data)
+
+                path = self.get_temporary_file_path('data.nc')
+                field.write(path)
+            else:
+                data_value, path = None, None
+        data_value = MPI_COMM.bcast(data_value)
+        path = MPI_COMM.bcast(path)
+
+        rd = RequestDataset(path, variable=data_name)
+
+        ops = OcgOperations(dataset=rd, aggregate=True)
         ret = ops.execute()
+        if ret is None:
+            self.assertNotEqual(vm.rank, vm.root)
+        else:
+            out_field = ret.get_element()
 
-        out_rd = RequestDataset(uri=ret)
-        self.assertEqual(out_rd.get().temporal.get_value().tolist(), desired)
+            if MPI_RANK == 0:
+                desired = data_value.mean()
+                actual = out_field.data_variables[0].get_value()[0]
+                self.assertEqual(actual, desired)
+
+    @attr('release')
+    def test_system_spatial_averaging_through_operations_state_boundaries(self):
+        if MPI_SIZE != 8:
+            raise SkipTest('MPI_SIZE != 8')
+
+        ntime = 3
+        # Get the exact field value for the state's representative center.
+        with vm.scoped([0]):
+            if MPI_RANK == 0:
+                states = RequestDataset(self.path_state_boundaries, driver='vector').get()
+                states.update_crs(env.DEFAULT_COORDSYS)
+                fill = np.zeros((states.geom.shape[0], 2))
+                for idx, geom in enumerate(states.geom.get_value().flat):
+                    centroid = geom.centroid
+                    fill[idx, :] = centroid.x, centroid.y
+                exact_states = create_exact_field_value(fill[:, 0], fill[:, 1])
+                state_ugid = states['UGID'].get_value()
+                area = states.geom.area
+
+        keywords = {
+            'spatial_operation': [
+                'clip',
+                'intersects'
+            ],
+            'aggregate': [
+                True,
+                False
+            ],
+            'wrapped': [True, False],
+            'output_format': [
+                OUTPUT_FORMAT_OCGIS,
+                'csv',
+                'csv-shp',
+                'shp'
+            ],
+        }
+
+        # total_iterations = len(list(self.iter_product_keywords(keywords)))
+
+        for ctr, k in enumerate(self.iter_product_keywords(keywords)):
+            # barrier_print(k)
+            # if ctr % 1 == 0:
+            #     if vm.is_root:
+            #         print('Iteration {} of {}...'.format(ctr + 1, total_iterations))
+
+            with vm.scoped([0]):
+                if vm.is_root:
+                    grid = create_gridxy_global(resolution=1.0, dist=False, wrapped=k.wrapped)
+                    field = create_exact_field(grid, 'foo', ntime=ntime)
+                    path = self.get_temporary_file_path('foo.nc')
+                    field.write(path)
+                else:
+                    path = None
+            path = MPI_COMM.bcast(path)
+
+            rd = RequestDataset(path)
+
+            ops = OcgOperations(dataset=rd, geom='state_boundaries', spatial_operation=k.spatial_operation,
+                                aggregate=k.aggregate, output_format=k.output_format, prefix=str(ctr),
+                                # geom_select_uid=[8]
+                                )
+            ret = ops.execute()
+
+            # Test area is preserved for a problem element during union. The union's geometry was not fully represented
+            # in the output.
+            if k.output_format == 'shp' and k.aggregate and k.spatial_operation == 'clip':
+                with vm.scoped([0]):
+                    if vm.is_root:
+                        inn = RequestDataset(ret).get()
+                        inn_ugid_idx = np.where(inn['UGID'].get_value() == 8)[0][0]
+                        ugid_idx = np.where(state_ugid == 8)[0][0]
+                        self.assertAlmostEqual(inn.geom.get_value()[inn_ugid_idx].area, area[ugid_idx], places=2)
+
+            # Test the overview geometry shapefile is written.
+            if k.output_format == 'shp':
+                directory = os.path.split(ret)[0]
+                contents = os.listdir(directory)
+                actual = ['_ugid.shp' in c for c in contents]
+                self.assertTrue(any(actual))
+            elif k.output_format == 'csv-shp':
+                directory = os.path.split(ret)[0]
+                directory = os.path.join(directory, 'shp')
+                contents = os.listdir(directory)
+                actual = ['_ugid.shp' in c for c in contents]
+                self.assertTrue(any(actual))
+                if not k.aggregate:
+                    actual = ['_gid.shp' in c for c in contents]
+                    self.assertTrue(any(actual))
+
+            if k.output_format == OUTPUT_FORMAT_OCGIS:
+                geom_keys = ret.children.keys()
+                all_geom_keys = vm.gather(np.array(geom_keys))
+                if vm.is_root:
+                    all_geom_keys = hgather(all_geom_keys)
+                    self.assertEqual(len(np.unique(all_geom_keys)), 51)
+
+                if k.aggregate:
+                    actual = Dict()
+                    for field, container in ret.iter_fields(yield_container=True):
+                        if not field.is_empty:
+                            ugid = container.geom.ugid.get_value()[0]
+                            actual[ugid]['actual'] = field.data_variables[0].get_value()
+                            actual[ugid]['area'] = container.geom.area[0]
+
+                    actual = vm.gather(actual)
+
+                    if vm.is_root:
+                        actual = dgather(actual)
+
+                        ares = []
+                        actual_areas = []
+                        for ugid_key, v in actual.items():
+                            ugid_idx = np.where(state_ugid == ugid_key)[0][0]
+                            desired = exact_states[ugid_idx]
+                            actual_areas.append(v['area'])
+                            for tidx in range(ntime):
+                                are = np.abs((desired + ((tidx + 1) * 10)) - v['actual'][tidx, 0])
+                                ares.append(are)
+
+                        if k.spatial_operation == 'clip':
+                            diff = np.abs(np.array(area) - np.array(actual_areas))
+                            self.assertLess(np.max(diff), 1e-6)
+                            self.assertLess(np.mean(diff), 1e-6)
+
+                        # Test relative errors.
+                        self.assertLess(np.max(ares), 0.031)
+                        self.assertLess(np.mean(ares), 0.009)
 
     @attr('mpi')
     def test_system_spatial_wrapping_and_reorder(self):
@@ -859,7 +1027,12 @@ class TestOcgOperationsNoData(TestBase):
             ret = ops.execute()
 
             actual_field = ret.get_element()
-            actual = actual_field.wrapped_state
+
+            with vm.scoped_by_emptyable('wrapped state', actual_field):
+                if not vm.is_null:
+                    actual = actual_field.wrapped_state
+                else:
+                    actual = None
             actual_x = actual_field.grid.x.get_value()
 
             if not actual_field.is_empty:
@@ -876,7 +1049,7 @@ class TestOcgOperationsNoData(TestBase):
                 if k.spatial_reorder and not k.unwrapped and not k.spatial_wrapping:
                     self.assertTrue(actual_x[0] < actual_x[-1])
 
-            if k.crs != Spherical():
+            if actual is None or k.crs != Spherical():
                 desired = None
             else:
                 p = k.spatial_wrapping

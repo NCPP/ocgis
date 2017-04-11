@@ -1,4 +1,4 @@
-from ocgis.constants import TagNames
+from ocgis.constants import TagName
 from ocgis.conv.base import AbstractCollectionConverter
 from ocgis.exc import DefinitionValidationError
 
@@ -48,7 +48,7 @@ class ESMPyConverter(AbstractCollectionConverter):
         from ocgis.regrid.base import get_esmf_field_from_ocgis_field
 
         for coll in self.colls:
-            for row in coll.iter_melted(tag=TagNames.DATA_VARIABLES):
+            for row in coll.iter_melted(tag=TagName.DATA_VARIABLES):
                 field = row['field']
 
                 efield = get_esmf_field_from_ocgis_field(field,

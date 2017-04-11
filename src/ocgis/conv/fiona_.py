@@ -1,12 +1,14 @@
 import abc
+import logging
 from abc import abstractproperty
 
 import six
 
-from ocgis.constants import KeywordArguments, HeaderNames
+from ocgis.constants import KeywordArgument, HeaderName
 from ocgis.conv.base import AbstractTabularConverter
 from ocgis.driver.vector import DriverVector
 from ocgis.exc import DefinitionValidationError
+from ocgis.util.logging_ocgis import ocgis_lh
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -27,8 +29,11 @@ class AbstractFionaConverter(AbstractTabularConverter):
         :param coll: The spatial collection to write.
         :type coll: :class:`~ocgis.new_interface.collection.SpatialCollection`
         """
-        write_mode = f[KeywordArguments.WRITE_MODE]
-        path = f[KeywordArguments.PATH]
+
+        ocgis_lh(msg='entering _write_coll_ in {}'.format(self.__class__), level=logging.DEBUG)
+
+        write_mode = f[KeywordArgument.WRITE_MODE]
+        path = f[KeywordArgument.PATH]
 
         iter_kwargs = {'melted': self.melted}
 
@@ -37,16 +42,21 @@ class AbstractFionaConverter(AbstractTabularConverter):
             set_ugid_as_data = False
             if len(field.data_variables) == 0:
                 set_ugid_as_data = True
+
             field.set_abstraction_geom(create_ugid=True, set_ugid_as_data=set_ugid_as_data)
 
+            ocgis_lh(msg='after field.set_abstraction_geom in {}'.format(self.__class__), level=logging.DEBUG)
+
             if add_geom_uid and field.geom is not None and field.geom.ugid is None:
-                field.geom.create_ugid_global(HeaderNames.ID_GEOMETRY)
+                field.geom.create_ugid_global(HeaderName.ID_GEOMETRY)
 
             if container.geom is not None:
                 repeater = [(self.geom_uid, container.geom.ugid.get_value().tolist()[0])]
             else:
                 repeater = None
-            iter_kwargs[KeywordArguments.REPEATERS] = repeater
+            iter_kwargs[KeywordArgument.REPEATERS] = repeater
+
+            ocgis_lh(msg='before field.write in {}'.format(self.__class__), level=logging.DEBUG)
             field.write(path, write_mode=write_mode, driver=DriverVector, fiona_driver=self._driver,
                         iter_kwargs=iter_kwargs)
 

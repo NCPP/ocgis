@@ -5,15 +5,16 @@ import os
 import numpy as np
 from shapely.geometry import box
 
-from ocgis import Dimension
+from ocgis import Dimension, vm
 from ocgis import Variable
 from ocgis.base import AbstractOcgisObject
 from ocgis.collection.field import OcgField
 from ocgis.driver.request.core import RequestDataset
+from ocgis.spatial.grid import GridXY
 from ocgis.test.base import nc_scope
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import VariableCollection
-from ocgis.vm.mpi import OcgMpi, MPI_RANK
+from ocgis.vmachine.mpi import OcgMpi
 
 
 class GridSplitterConstants(object):
@@ -112,12 +113,10 @@ class GridSplitter(AbstractOcgisObject):
         ydim_name = self.dst_grid.dimensions[0].name
         xdim_name = self.dst_grid.dimensions[1].name
         dst_grid_shape_global = self.dst_grid.shape_global
-        # barrier_print('dst grid shape global', dst_grid_shape_global)
         for idx in range(self.dst_grid.ndim):
             splits = self.nsplits_dst[idx]
             size = dst_grid_shape_global[idx]
             slices = create_slices_for_dimension(size, splits)
-            # barrier_print('size splits slices', size, splits, slices)
             slice_store.append(slices)
         for slice_y, slice_x in itertools.product(*slice_store):
             yield {ydim_name: create_slice_from_tuple(slice_y),
@@ -157,32 +156,62 @@ class GridSplitter(AbstractOcgisObject):
         dst_grid_resolution = self.dst_grid.resolution
         src_grid_resolution = self.src_grid.resolution
 
-        if dst_grid_resolution >= src_grid_resolution:
+        if dst_grid_resolution <= src_grid_resolution:
             target_resolution = dst_grid_resolution
         else:
             target_resolution = src_grid_resolution
         buffer_value = 2 * target_resolution
 
-        # barrier_print('before self.iter_dst_grid_subsets')
         for yld in self.iter_dst_grid_subsets(yield_slice=yield_slice):
             if yield_slice:
                 dst_grid_subset, dst_slice = yld
             else:
                 dst_grid_subset = yld
 
-            # Use the envelope! A buffer returns "fancy" borders. We just want to expand the bounding box.
-            sub_box = box(*dst_grid_subset.extent_global).buffer(buffer_value).envelope
-            ocgis_lh(msg=str(sub_box.bounds), level=logging.DEBUG)
-            src_grid_subset = self.src_grid.get_intersects(sub_box, keep_touches=True)
+            dst_box = None
+            with vm.scoped_by_emptyable('extent_global', dst_grid_subset):
+                if not vm.is_null:
+                    if self.check_contains:
+                        dst_box = box(*dst_grid_subset.extent_global)
 
-            if not src_grid_subset.is_empty:
-                assert not src_grid_subset.get_mask().any()
+                    gmask = self.src_grid.get_mask()
+                    assert gmask is None
+
+                    gmask = dst_grid_subset.get_mask()
+                    assert gmask is None
+
+                    # Use the envelope! A buffer returns "fancy" borders. We just want to expand the bounding box.
+                    sub_box = box(*dst_grid_subset.extent_global).buffer(buffer_value).envelope
+
+                    ocgis_lh(msg=str(sub_box.bounds), level=logging.DEBUG)
+
+                    gmask = self.src_grid.get_mask()
+                    assert gmask is None
+                else:
+                    sub_box, dst_box = [None, None]
+
+            live_ranks = vm.get_live_ranks_from_object(dst_grid_subset)
+            sub_box = vm.bcast(sub_box, root=live_ranks[0])
 
             if self.check_contains:
-                src_box = box(*src_grid_subset.extent_global)
-                dst_box = box(*dst_grid_subset.extent_global)
-                if not does_contain(src_box, dst_box):
-                    raise ValueError('Contains check failed.')
+                dst_box = vm.bcast(dst_box, root=live_ranks[0])
+
+            src_grid_subset = self.src_grid.get_intersects(sub_box, keep_touches=False)
+
+            gmask = self.src_grid.get_mask()
+            assert gmask is None
+
+            with vm.scoped_by_emptyable('src_grid_subset', src_grid_subset):
+                if not vm.is_null:
+                    gmask = src_grid_subset.get_mask()
+                    assert gmask is None or not gmask.any()
+
+                    if self.check_contains:
+                        src_box = box(*src_grid_subset.extent_global)
+                        if not does_contain(src_box, dst_box):
+                            raise ValueError('Contains check failed.')
+                else:
+                    src_grid_subset = GridXY(Variable('x', is_empty=True), Variable('y', is_empty=True))
 
             if yield_dst:
                 yld = (src_grid_subset, dst_grid_subset, dst_slice)
@@ -234,51 +263,56 @@ class GridSplitter(AbstractOcgisObject):
                     is_empty = False
                 field = OcgField(grid=target, is_empty=is_empty)
                 ocgis_lh(msg='writing: {}'.format(path), level=logging.DEBUG)
-                field.write(path)
+                with vm.scoped_by_emptyable('field.write', field):
+                    if not vm.is_null:
+                        field.write(path)
                 ocgis_lh(msg='finished writing: {}'.format(path), level=logging.DEBUG)
 
-        if MPI_RANK == 0:
-            dim = Dimension('nfiles', len(src_filenames))
-            vname = ['source_filename', 'destination_filename', 'weights_filename']
-            values = [src_filenames, dst_filenames, wgt_filenames]
-            grid_splitter_destination = GridSplitterConstants.IndexFile.NAME_DESTINATION_VARIABLE
-            attrs = [{'esmf_role': 'grid_splitter_source'},
-                     {'esmf_role': grid_splitter_destination},
-                     {'esmf_role': 'grid_splitter_weights'}]
+        with vm.scoped('index write', [0]):
+            if not vm.is_null:
+                dim = Dimension('nfiles', len(src_filenames))
+                vname = ['source_filename', 'destination_filename', 'weights_filename']
+                values = [src_filenames, dst_filenames, wgt_filenames]
+                grid_splitter_destination = GridSplitterConstants.IndexFile.NAME_DESTINATION_VARIABLE
+                attrs = [{'esmf_role': 'grid_splitter_source'},
+                         {'esmf_role': grid_splitter_destination},
+                         {'esmf_role': 'grid_splitter_weights'}]
 
-            vc = VariableCollection()
+                vc = VariableCollection()
 
-            grid_splitter_index = GridSplitterConstants.IndexFile.NAME_INDEX_VARIABLE
-            vidx = Variable(name=grid_splitter_index)
-            vidx.attrs['esmf_role'] = grid_splitter_index
-            vidx.attrs['grid_splitter_source'] = 'source_filename'
-            vidx.attrs[GridSplitterConstants.IndexFile.NAME_DESTINATION_VARIABLE] = 'destination_filename'
-            vidx.attrs['grid_splitter_weights'] = 'weights_filename'
-            x_bounds = GridSplitterConstants.IndexFile.NAME_X_BOUNDS_VARIABLE
-            vidx.attrs[x_bounds] = x_bounds
-            y_bounds = GridSplitterConstants.IndexFile.NAME_Y_BOUNDS_VARIABLE
-            vidx.attrs[y_bounds] = y_bounds
-            vc.add_variable(vidx)
+                grid_splitter_index = GridSplitterConstants.IndexFile.NAME_INDEX_VARIABLE
+                vidx = Variable(name=grid_splitter_index)
+                vidx.attrs['esmf_role'] = grid_splitter_index
+                vidx.attrs['grid_splitter_source'] = 'source_filename'
+                vidx.attrs[GridSplitterConstants.IndexFile.NAME_DESTINATION_VARIABLE] = 'destination_filename'
+                vidx.attrs['grid_splitter_weights'] = 'weights_filename'
+                x_bounds = GridSplitterConstants.IndexFile.NAME_X_BOUNDS_VARIABLE
+                vidx.attrs[x_bounds] = x_bounds
+                y_bounds = GridSplitterConstants.IndexFile.NAME_Y_BOUNDS_VARIABLE
+                vidx.attrs[y_bounds] = y_bounds
+                vc.add_variable(vidx)
 
-            for idx in range(len(vname)):
-                v = Variable(name=vname[idx], dimensions=dim, dtype=str, value=values[idx], attrs=attrs[idx])
-                vc.add_variable(v)
+                for idx in range(len(vname)):
+                    v = Variable(name=vname[idx], dimensions=dim, dtype=str, value=values[idx], attrs=attrs[idx])
+                    vc.add_variable(v)
 
-            bounds_dimension = Dimension(name='bounds', size=2)
-            xb = Variable(name=x_bounds, dimensions=[dim, bounds_dimension], attrs={'esmf_role': 'x_split_bounds'},
-                          dtype=int)
-            yb = Variable(name=y_bounds, dimensions=[dim, bounds_dimension], attrs={'esmf_role': 'y_split_bounds'},
-                          dtype=int)
+                bounds_dimension = Dimension(name='bounds', size=2)
+                xb = Variable(name=x_bounds, dimensions=[dim, bounds_dimension], attrs={'esmf_role': 'x_split_bounds'},
+                              dtype=int)
+                yb = Variable(name=y_bounds, dimensions=[dim, bounds_dimension], attrs={'esmf_role': 'y_split_bounds'},
+                              dtype=int)
 
-            x_name = self.dst_grid.x.dimensions[0].name
-            y_name = self.dst_grid.y.dimensions[0].name
-            for idx, slc in enumerate(dst_slices):
-                xb.get_value()[idx, :] = slc[x_name].start, slc[x_name].stop
-                yb.get_value()[idx, :] = slc[y_name].start, slc[y_name].stop
-            vc.add_variable(xb)
-            vc.add_variable(yb)
+                x_name = self.dst_grid.x.dimensions[0].name
+                y_name = self.dst_grid.y.dimensions[0].name
+                for idx, slc in enumerate(dst_slices):
+                    xb.get_value()[idx, :] = slc[x_name].start, slc[x_name].stop
+                    yb.get_value()[idx, :] = slc[y_name].start, slc[y_name].stop
+                vc.add_variable(xb)
+                vc.add_variable(yb)
 
-            vc.write(index_path, ranks_to_write=[0])
+                vc.write(index_path)
+
+        vm.barrier()
 
 
 def create_slice_from_tuple(tup):

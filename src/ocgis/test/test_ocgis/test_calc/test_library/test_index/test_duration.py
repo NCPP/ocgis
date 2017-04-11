@@ -68,6 +68,7 @@ class TestDuration(AbstractCalcBase):
                 raise cap
 
 
+@attr('release')
 class TestFrequencyDuration(AbstractCalcBase):
     def test_init(self):
         FrequencyDuration()
@@ -101,7 +102,7 @@ class TestFrequencyDuration(AbstractCalcBase):
         rd_tasmin = self.test_data.get_rd('maurer_2010_concatenated_tasmin', kwds=kwds)
 
         ops = OcgOperations(dataset=[rd_tasmax, rd_tasmin],
-                            output_format=constants.OUTPUT_FORMAT_CSV_SHAPEFILE,
+                            output_format=constants.OutputFormatName.CSV_SHAPEFILE,
                             calc=[{'name': 'Frequency Duration', 'func': 'freq_duration',
                                    'kwds': {'threshold': 25.0, 'operation': 'gte'}}],
                             calc_grouping=['month', 'year'],
@@ -120,8 +121,8 @@ class TestFrequencyDuration(AbstractCalcBase):
 
         rd = self.test_data.get_rd('maurer_2010_concatenated_tasmax', kwds={'time_region': {'year': [1991],
                                                                                             'month': [7]}})
-        for output_format in [constants.OUTPUT_FORMAT_NUMPY, constants.OUTPUT_FORMAT_CSV_SHAPEFILE,
-                              constants.OUTPUT_FORMAT_SHAPEFILE, constants.OUTPUT_FORMAT_CSV]:
+        for output_format in [constants.OutputFormatName.OCGIS, constants.OutputFormatName.CSV_SHAPEFILE,
+                              constants.OutputFormatName.SHAPEFILE, constants.OutputFormatName.CSV]:
             ops = OcgOperations(dataset=rd,
                                 output_format=output_format, prefix=output_format,
                                 calc=[{'name': 'Frequency Duration',
@@ -135,11 +136,11 @@ class TestFrequencyDuration(AbstractCalcBase):
                                 melted=True)
             ret = ops.execute()
 
-            if output_format == 'numpy':
+            if output_format == OUTPUT_FORMAT_OCGIS:
                 ref = ret[2778]['tasmax'].variables['Frequency Duration'].get_value()
                 self.assertEqual(ref.compressed()[0].shape, (2,))
 
-            if output_format == constants.OUTPUT_FORMAT_CSV_SHAPEFILE:
+            if output_format == constants.OutputFormatName.CSV_SHAPEFILE:
                 real = [{'COUNT': '1', 'UGID': '2778', 'DID': '1', 'CALC_KEY': 'freq_duration', 'MONTH': '7',
                          'DURATION': '7', 'GID': '2778', 'YEAR': '1991', 'VARIABLE': 'tasmax', 'DAY': '16'},
                         {'COUNT': '1', 'UGID': '2778', 'DID': '1', 'CALC_KEY': 'freq_duration', 'MONTH': '7',

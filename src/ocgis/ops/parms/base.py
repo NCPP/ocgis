@@ -215,7 +215,7 @@ class BooleanParameter(AbstractParameter):
 @six.add_metaclass(abc.ABCMeta)
 class StringParameter(AbstractParameter):
     return_type = str
-    input_types = [str]
+    input_types = list(six.string_types)
 
     def __str__(self):
         ret = '{0}="{1}"'.format(self.name, self.value)
@@ -228,7 +228,11 @@ class StringOptionParameter(StringParameter):
 
     @abstractproperty
     def valid(self):
-        [str]
+        """
+        Sequence of valid string names.
+        
+        >>> valid = ('name1', 'name2')
+        """
 
     def _validate_(self, value):
         if value not in self.valid:

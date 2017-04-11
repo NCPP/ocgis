@@ -83,7 +83,7 @@ class TestDivide(AbstractTestField):
         dv = Divide(field=field, parms={'arr1': 'tmax', 'arr2': 'tmin'}, tgd=tgd)
         ret = dv.execute()
         self.assertEqual(ret['divide'].get_value().shape, (2, 2, 2, 3, 4))
-        self.assertNumpyAllClose(ret['divide'].masked_value[0, 1, 1, :, 2],
+        self.assertNumpyAllClose(ret['divide'].get_masked_value()[0, 1, 1, :, 2],
                                  np.ma.array([0.0833001563436, 0.0940192653632, 0.0916398919876],
                                              mask=False, fill_value=1e20))
 
@@ -96,7 +96,7 @@ class TestThreshold(AbstractTestField):
         dv = Threshold(field=field, parms={'threshold': 0.5, 'operation': 'gte'}, tgd=tgd)
         ret = dv.execute()
         self.assertEqual(ret['threshold'].get_value().shape, (2, 2, 2, 3, 4))
-        self.assertNumpyAllClose(ret['threshold'].masked_value[1, 1, 1, 0, :],
+        self.assertNumpyAllClose(ret['threshold'].get_masked_value()[1, 1, 1, 0, :],
                                  np.ma.array([13, 16, 15, 12], mask=False))
 
 
@@ -162,7 +162,7 @@ class TestConvolve1D(AbstractTestField):
         self.assertDictEqual(cd._format_parms_(parms), parms)
         vc = cd.execute()
         self.assertNumpyAll(vc['convolve_1d'].get_mask(), field['tmax'].get_mask())
-        self.assertEqual(vc['convolve_1d'].masked_value.fill_value, field['tmax'].masked_value.fill_value)
+        self.assertEqual(vc['convolve_1d'].get_masked_value().fill_value, field['tmax'].get_masked_value().fill_value)
         actual = np.ma.array([[[[[2.0, 2.0, 2.0, 2.0], [2.0, 0.0, 2.0, 2.0], [2.0, 2.0, 2.0, 2.0]],
                                 [[2.0, 2.0, 2.0, 2.0], [2.0, 0.0, 2.0, 2.0], [2.0, 2.0, 2.0, 2.0]]],
                                [[[3.0, 3.0, 3.0, 3.0], [3.0, 0.0, 3.0, 3.0], [3.0, 3.0, 3.0, 3.0]],

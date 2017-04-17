@@ -12,7 +12,6 @@ from ocgis.constants import KeywordArgument
 from ocgis.conv.base import AbstractCollectionConverter
 from ocgis.driver.nc import DriverNetcdf, DriverNetcdfCF
 from ocgis.exc import DefinitionValidationError
-from ocgis.variable.crs import CFWGS84
 
 
 class NcConverter(AbstractCollectionConverter):
@@ -87,10 +86,6 @@ class NcConverter(AbstractCollectionConverter):
         # Data may not be aggregated either.
         if ops.aggregate:
             msg = 'Data may not be aggregated for netCDF output. The aggregate parameter must be False.'
-            _raise_(msg, OutputFormat)
-        # Either the input data CRS or WGS84 is required for data output.
-        if ops.output_crs is not None and not isinstance(ops.output_crs, CFWGS84):
-            msg = 'CFWGS84 is the only acceptable overloaded output CRS at this time for netCDF output.'
             _raise_(msg, OutputFormat)
         # Calculations on raw values are not relevant as not aggregation can occur anyway.
         if ops.calc is not None:

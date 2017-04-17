@@ -318,17 +318,17 @@ output_crs
 By default, the coordinate reference system (CRS) is the CRS of the input :class:`ocgis.RequestDataset` object. If multiple :class:`ocgis.RequestDataset` objects are part of an :class:`ocgis.OcgOperations` call, then ``output_crs`` must be provided if the input CRS values of the :class:`ocgis.RequestDataset` objects differ. The value for ``output_crs`` is an instance of :class:`ocgis.crs.CoordinateReferenceSystem`.
 
 >>> import ocgis
->>> output_crs = ocgis.variable.crs.CFWGS84()
+>>> output_crs = ocgis.variable.crs.WGS84()
 
 
 
 >>> import ocgis
->>> output_crs = ocgis.variable.crs.CFWGS84()
+>>> output_crs = ocgis.variable.crs.WGS84()
 
 
 
 >>> import ocgis
->>> output_crs = ocgis.crs.CFWGS84()
+>>> output_crs = ocgis.crs.WGS84()
 
 .. _output_format_headline:
 

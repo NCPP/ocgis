@@ -6,7 +6,7 @@ from ocgis.driver.nc import DriverNetcdf
 from ocgis.exc import DefinitionValidationError
 from ocgis.test.base import TestBase
 from ocgis.test.base import attr
-from ocgis.variable.crs import CFWGS84
+from ocgis.variable.crs import WGS84
 
 
 class FakeAbstractDriver(AbstractDriver):
@@ -54,7 +54,7 @@ class TestAbstractDriver(TestBase):
         field = driver.get_field()
         self.assertFalse(field._has_assigned_coordinate_system)
 
-        rd = self.test_data.get_rd('cancm4_tas', kwds={'crs': CFWGS84()})
+        rd = self.test_data.get_rd('cancm4_tas', kwds={'crs': WGS84()})
         self.assertTrue(rd._has_assigned_coordinate_system)
         driver = DriverNetcdf(rd)
         field = driver.get_field()

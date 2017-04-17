@@ -190,6 +190,7 @@ class WrapAction(IntEnum):
 
 # Dimension map key names.
 class DimensionMapKey(object):
+    ATTRS = 'attrs'
     GROUPS = 'groups'
     X = 'x'
     Y = 'y'
@@ -238,18 +239,21 @@ class KeywordArgument(object):
     FOLLOWERS = 'followers'
     FORMAT_TIME = 'format_time'
     GEOM = 'geom'
+    GEOM_TYPE = 'geom_type'
     GRID = 'grid'
     GRID_ABSTRACTION = 'grid_abstraction'
     HEADER_MAP = 'header_map'
     INIT_VALUE = 'init_value'
     INPLACE = 'inplace'
     INTERSECTS_CHECK = 'intersects_check'
+    INVERSE = 'inverse'
     IS_DATA = 'is_data'
     IS_EMPTY = 'is_empty'
     ITER_KWARGS = 'iter_kwargs'
     KEEP_TOUCHES = 'keep_touches'
     MASK = 'mask'
     MELTED = 'melted'
+    NAME = 'name'
     OPTIMIZED_BBOX_SUBSET = 'optimized_bbox_subset'
     ORIGINAL_MASK = 'original_mask'
     OUTPUT_FORMAT = 'output_format'
@@ -309,6 +313,7 @@ class CFName(object):
     UNITS = 'units'
     STANDARD_NAME = 'standard_name'
     GRID_MAPPING = 'grid_mapping'
+    AXIS = 'axis'
 
     @classmethod
     def get_name_mapping(cls):
@@ -325,6 +330,16 @@ class SubcommName(Enum):
 
 class BackTransform(Enum):
     ROTATED_POLE = 'rotated pole'
+
+
+class OcgisUnits(Enum):
+    DEGREES = 'degrees'
+    RADIANS = 'radians'
+
+
+class ConversionFactor(object):
+    DEG_TO_RAD = np.pi / 180.
+    RAD_TO_DEG = 180. / np.pi
 
 
 MPI_COMM_NULL_VALUE = 8675309

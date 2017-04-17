@@ -2,6 +2,7 @@ import itertools
 from collections import OrderedDict
 
 import numpy as np
+from copy import deepcopy
 from nose.plugins.skip import SkipTest
 from numpy.ma import MaskedArray
 from shapely import wkt
@@ -14,7 +15,7 @@ from ocgis.exc import EmptySubsetError
 from ocgis.spatial.grid import GridXY, get_geometry_variable
 from ocgis.test.base import attr, AbstractTestInterface
 from ocgis.variable.base import Variable, VariableCollection
-from ocgis.variable.crs import WGS84, Spherical
+from ocgis.variable.crs import WGS84, Spherical, Cartesian
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable, GeometryProcessor
 from ocgis.vmachine.mpi import OcgMpi, MPI_RANK, variable_scatter, MPI_SIZE, variable_gather, MPI_COMM
@@ -537,6 +538,33 @@ class TestGeometryVariable(AbstractTestInterface):
         v1 = [2358072.3857447207, -239270.87548993886]
         np.testing.assert_almost_equal(pa.get_value()[0], v0, decimal=3)
         np.testing.assert_almost_equal(pa.get_value()[1], v1, decimal=3)
+
+    def test_update_crs_to_cartesian(self):
+        """Test a spherical to cartesian CRS update."""
+
+        bbox = box(-170., 40., 150., 80.)
+        original_bounds = deepcopy(bbox.bounds)
+        geom = GeometryVariable(name='geom', value=[bbox], dimensions='geom', crs=Spherical())
+
+        other_crs = Cartesian()
+        geom.update_crs(other_crs)
+        actual = geom.get_value()[0].bounds
+        desired = (-0.7544065067354889, -0.13302222155948895, -0.15038373318043535, 0.38302222155948895)
+        self.assertNumpyAllClose(np.array(actual), np.array(desired))
+        self.assertIsInstance(geom.crs, Cartesian)
+
+        other_crs = Spherical()
+        geom.update_crs(other_crs)
+        self.assertEqual(geom.crs, Spherical())
+        actual = geom.get_value()[0].bounds
+        self.assertNumpyAllClose(np.array(original_bounds), np.array(actual))
+
+        # Test data may not be wrapped.
+        bbox = box(0, 40, 270, 80)
+        geom = GeometryVariable(name='geom', value=[bbox], dimensions='geom', crs=Spherical())
+        other_crs = Cartesian()
+        with self.assertRaises(ValueError):
+            geom.update_crs(other_crs)
 
     def test_weights(self):
         value = [Point(2, 3), Point(4, 5), Point(5, 6)]

@@ -361,7 +361,7 @@ class OcgOperations(AbstractOcgisObject):
                         obj=OutputCRS)
 
         # clip and/or aggregation operations may not be written back to CFRotatedPole at this time. hence, the output
-        # crs must be set to CFWGS84.
+        # crs must be set to spherical.
         if CFRotatedPole in list(map(type, projections)):
             if self.output_crs is not None and self.output_crs != Spherical():
                 msg = '{0} data may only be written to the same coordinate system (i.e. "output_crs=None") or spherical.'

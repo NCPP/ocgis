@@ -14,7 +14,7 @@ from ocgis.test.strings import GERMANY_WKT, NEBRASKA_WKT
 from ocgis.test.test_ocgis.test_ops.test_parms.test_definition import TestGeom
 from ocgis.util.helpers import make_poly
 from ocgis.util.itester import itr_products_keywords
-from ocgis.variable.crs import CFWGS84, CFRotatedPole, WGS84, CFSpherical
+from ocgis.variable.crs import WGS84, CFRotatedPole, WGS84, CFSpherical
 from ocgis.variable.geom import GeometryVariable
 from ocgis.vmachine.mpi import MPI_COMM, MPI_RANK
 
@@ -63,7 +63,7 @@ class TestSpatialSubsetOperation(TestBase):
         return ret
 
     def get_output_crs(self):
-        crs_wgs84 = CFWGS84()
+        crs_wgs84 = WGS84()
         ret = ['input', crs_wgs84]
         return ret
 
@@ -113,9 +113,8 @@ class TestSpatialSubsetOperation(TestBase):
         poly = make_poly((36, 44), (-104, -95))
 
         for buffer_crs in buffer_crs_list:
-            # subset_sdim = SpatialDimension.from_records([{'geom': poly, 'properties': {'UGID': 1}}], crs=CFWGS84())
-            gvar = GeometryVariable(value=poly, name='geoms', dimensions='dim', crs=CFWGS84())
-            self.assertEqual(gvar.crs, CFWGS84())
+            gvar = GeometryVariable(value=poly, name='geoms', dimensions='dim', crs=WGS84())
+            self.assertEqual(gvar.crs, WGS84())
             if buffer_crs is None:
                 buffer_value = 1
             else:

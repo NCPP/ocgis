@@ -32,21 +32,21 @@ Currently, only spherical coordinate systems are supported. The default input/ou
 All input data will be projected to the standard sphere used by PROJ.4 with a semi-major axis of 6,370,997 meters (6371 kilometers). However, it is assumed data _not_ assigned a coordinate system in the file metadata _or_ when initializing a :class:`~ocgis.RequestDataset` has a spherical coordinate system equal to the standard sphere used by PROJ.4. If the data is known to have a WGS84 datum, it may be directly assigned via:
 
 >>> import ocgis
->>> rd = ocgis.RequestDataset(uri=..., crs=ocgis.variable.crs.CFWGS84())
+>>> rd = ocgis.RequestDataset(uri=..., crs=ocgis.variable.crs.WGS84())
 
 This will cause the software to attempt a coordinate system remap to the standard sphere. Future releases will handle more coordinate systems (i.e. planar).
 
 
 
 >>> import ocgis
->>> rd = ocgis.RequestDataset(uri=..., crs=ocgis.variable.crs.CFWGS84())
+>>> rd = ocgis.RequestDataset(uri=..., crs=ocgis.variable.crs.WGS84())
 
 This will cause the software to attempt a coordinate system remap to the standard sphere. Future releases will handle more coordinate systems (i.e. planar).
 
 
 
 >>> import ocgis
->>> rd = ocgis.RequestDataset(uri=..., crs=ocgis.crs.CFWGS84())
+>>> rd = ocgis.RequestDataset(uri=..., crs=ocgis.crs.WGS84())
 
 This will cause the software to attempt a coordinate system remap to the standard sphere. Future releases will handle more coordinate systems (i.e. planar).
 

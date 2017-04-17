@@ -9,15 +9,16 @@ from shapely.geometry.multipolygon import MultiPolygon
 import ocgis
 from ocgis import constants, vm
 from ocgis.collection.field import OcgField
-from ocgis.constants import WrapAction, WrappedState
+from ocgis.constants import WrapAction, WrappedState, ConversionFactor, OcgisUnits
+from ocgis.exc import CRSNotEquivalenError
 from ocgis.spatial.grid import GridXY
-from ocgis.test.base import TestBase, nc_scope
+from ocgis.test.base import TestBase, nc_scope, create_exact_field, create_gridxy_global
 from ocgis.test.base import attr
 from ocgis.util.helpers import make_poly
 from ocgis.util.itester import itr_products_keywords
 from ocgis.variable.base import Variable
 from ocgis.variable.crs import CoordinateReferenceSystem, WGS84, CFAlbersEqualArea, CFLambertConformal, \
-    CFRotatedPole, CFWGS84, Spherical, CFCoordinateReferenceSystem, CFSpherical
+    CFRotatedPole, WGS84, Spherical, CFCoordinateReferenceSystem, CFSpherical, Tripole, Cartesian
 from ocgis.vmachine.mpi import OcgMpi, MPI_RANK, variable_scatter
 
 
@@ -254,14 +255,6 @@ class TestWGS84(TestBase):
         self.assertIn('towgs84', WGS84().value)
 
 
-class TestCFWGS84(TestBase):
-    def test_init(self):
-        crs = CFWGS84()
-        self.assertEqual(crs.map_parameters_values, {})
-        self.assertIsInstance(crs, WGS84)
-        self.assertIsInstance(crs, CFCoordinateReferenceSystem)
-
-
 class TestCFAlbersEqualArea(TestBase):
     def test_init(self):
         crs = CFAlbersEqualArea(standard_parallel=[29.5, 45.5], longitude_of_central_meridian=-96,
@@ -419,3 +412,67 @@ class TestCFRotatedPole(TestBase):
             self.assertIsInstance(variable, nc.Variable)
             self.assertEqual(variable.proj4, '')
             self.assertEqual(variable.proj4_transform, rd.crs._trans_proj)
+
+
+class TestTripole(TestBase):
+
+    def test_init(self):
+        Tripole()
+
+    def test_transform_coordinates(self):
+        desired_min_maxes = [[-0.9330127018922193, 0.93301270189221941], [-0.93301270189221941, 0.93301270189221941],
+                             [-0.96592582628906831, 0.96592582628906831]]
+
+        keywords = {'wrapped': [
+                                False,
+                                True
+                               ],
+                    'angular_units': [
+                              OcgisUnits.DEGREES,
+                              OcgisUnits.RADIANS
+                             ],
+                    'other_crs': [
+                                  Cartesian(),
+                                  WGS84()
+                                 ]
+                    }
+
+        for k in self.iter_product_keywords(keywords):
+            spherical = Spherical(angular_units=k.angular_units)
+            tp = Tripole(spherical=spherical)
+
+            grid = create_gridxy_global(resolution=30.0, wrapped=k.wrapped)
+
+            if not k.wrapped:
+                x_value = grid.x.get_value()
+                select = x_value > 180.
+                x_value[select] -= 360.
+
+            grid.expand()
+
+            x = grid.x.get_value()
+            y = grid.y.get_value()
+
+            if k.angular_units == OcgisUnits.RADIANS:
+                x *= ConversionFactor.DEG_TO_RAD
+                y *= ConversionFactor.DEG_TO_RAD
+
+            z = np.ones(x.shape, dtype=x.dtype)
+
+            desired = (x, y, z)
+            try:
+                as_cart = tp.transform_coordinates(k.other_crs, x, y, z)
+            except CRSNotEquivalenError:
+                self.assertNotEqual(k.other_crs, Cartesian())
+                continue
+            x_cart, y_cart, z_cart = as_cart
+
+            for idx, ii in enumerate(as_cart):
+                actual_min_max = [ii.min(), ii.max()]
+                self.assertNumpyAllClose(np.array(actual_min_max), np.array(desired_min_maxes[idx]))
+
+            actual = tp.transform_coordinates(k.other_crs, x_cart, y_cart, z_cart, inverse=True)
+
+            for a, d in zip(actual, desired):
+                are = np.abs(a - d)
+                self.assertLessEqual(are.max(), 1e-6)

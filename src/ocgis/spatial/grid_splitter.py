@@ -46,10 +46,11 @@ class GridSplitter(AbstractOcgisObject):
 
     :param bool check_contains: If ``True``, check that the source subset bounding box fully contains the destination
      subset bounding box.
+    :param bool allow_masked: If ``True``, allow masked values following a subset.
     :raises: ValueError
     """
 
-    def __init__(self, src_grid, dst_grid, nsplits_dst, check_contains=True):
+    def __init__(self, src_grid, dst_grid, nsplits_dst, check_contains=True, allow_masked=False):
         if len(nsplits_dst) != dst_grid.ndim:
             raise ValueError('The number of splits must match the grid dimension count.')
 
@@ -57,6 +58,7 @@ class GridSplitter(AbstractOcgisObject):
         self.dst_grid = dst_grid
         self.nsplits_dst = nsplits_dst
         self.check_contains = check_contains
+        self.allow_masked = allow_masked
 
     @staticmethod
     def insert_weighted(index_path, dst_wd, dst_master_path):
@@ -174,12 +176,6 @@ class GridSplitter(AbstractOcgisObject):
                     if self.check_contains:
                         dst_box = box(*dst_grid_subset.extent_global)
 
-                    gmask = self.src_grid.get_mask()
-                    assert gmask is None
-
-                    gmask = dst_grid_subset.get_mask()
-                    assert gmask is None
-
                     # Use the envelope! A buffer returns "fancy" borders. We just want to expand the bounding box.
                     sub_box = box(*dst_grid_subset.extent_global).buffer(buffer_value).envelope
 
@@ -198,14 +194,14 @@ class GridSplitter(AbstractOcgisObject):
 
             src_grid_subset = self.src_grid.get_intersects(sub_box, keep_touches=False)
 
-            gmask = self.src_grid.get_mask()
-            assert gmask is None
+            if not self.allow_masked:
+                gmask = self.src_grid.get_mask()
+                if not self.allow_masked:
+                    if gmask is not None and gmask.any():
+                        raise ValueError('Masked values in source grid subset.')
 
             with vm.scoped_by_emptyable('src_grid_subset', src_grid_subset):
                 if not vm.is_null:
-                    gmask = src_grid_subset.get_mask()
-                    assert gmask is None or not gmask.any()
-
                     if self.check_contains:
                         src_box = box(*src_grid_subset.extent_global)
                         if not does_contain(src_box, dst_box):

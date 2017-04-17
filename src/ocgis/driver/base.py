@@ -249,6 +249,9 @@ class AbstractDriver(AbstractOcgisObject):
             vc.pop(to_remove, None)
         if to_add is not None:
             vc.add_variable(to_add, force=True)
+        # Overload the dimension map with the CRS.
+        if to_add is not None:
+            dimension_map[DimensionMapKey.CRS][DimensionMapKey.VARIABLE] = to_add.name
 
         # Convert the raw variable collection to a field.
         kwargs['dimension_map'] = dimension_map

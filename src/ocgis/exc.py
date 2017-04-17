@@ -406,3 +406,11 @@ class SubcommAlreadyCreatedError(OcgMpiError):
     def __init__(self, name):
         message = "Subcommunicator '{}' already created.".format(name)
         super(SubcommAlreadyCreatedError, self).__init__(message=message)
+
+
+class CRSNotEquivalenError(OcgException):
+    """Raised when coordinate systems are not equivalent (not compatible for transform)."""
+
+    def __init__(self, lhs, rhs):
+        msg = '{} is not equivalent to {}.'.format(lhs, rhs)
+        super(CRSNotEquivalenError, self).__init__(message=msg)

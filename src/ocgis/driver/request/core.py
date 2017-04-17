@@ -74,8 +74,8 @@ class RequestDataset(AbstractRequestObject):
     :param crs: Overload the autodiscovered coordinate system.
     :type crs: :class:`ocgis.crs.CoordinateReferenceSystem`
 
-    >>> from ocgis.variable.crs import CFWGS84
-    >>> crs = CFWGS84()
+    >>> from ocgis.variable.crs import WGS84
+    >>> crs = WGS84()
 
     :param t_units: Overload the autodiscover `time units`_.
     :type t_units: str

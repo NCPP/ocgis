@@ -14,7 +14,7 @@ from ocgis.spatial.grid import GridXY
 from ocgis.util.helpers import get_iter
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import VariableCollection, Variable, get_bounds_names_1d
-from ocgis.variable.crs import CoordinateReferenceSystem
+from ocgis.variable.crs import CoordinateReferenceSystem, AbstractOcgisCoordinateReferenceSystem
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.variable.iterator import Iterator
@@ -126,7 +126,7 @@ class OcgField(VariableCollection):
             l = 0
         else:
             l = self.level.shape[0]
-        ret['L'] = l
+        ret['Z'] = l
         if self.y is None:
             y = 0
         else:
@@ -196,7 +196,7 @@ class OcgField(VariableCollection):
         if x is None or y is None:
             ret = None
         else:
-            ret = GridXY(self.x, self.y, parent=self, crs=self.crs, abstraction=self.grid_abstraction)
+            ret = GridXY(self.x, self.y, parent=self, crs=self.crs, abstraction=self.grid_abstraction, z=self.level)
         return ret
 
     @property
@@ -675,8 +675,8 @@ def get_field_property(field, name, strict=False):
                 raise
             else:
                 ret = None
-        if not isinstance(ret, CoordinateReferenceSystem) and ret is not None:
-            ret.attrs.update(field.dimension_map[name]['attrs'])
+        if not isinstance(ret, AbstractOcgisCoordinateReferenceSystem) and ret is not None:
+            ret.attrs.update(field.dimension_map[name].get(DimensionMapKey.ATTRS, {}))
             if bounds is not None:
                 ret.set_bounds(field.get(bounds), force=True)
     return ret

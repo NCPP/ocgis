@@ -23,6 +23,7 @@ from ocgis.environment import ogr
 from ocgis.exc import EmptySubsetError
 from ocgis.util.helpers import iter_array, get_none_or_slice, get_trimmed_array_by_mask, get_swap_chain
 from ocgis.variable.base import AbstractContainer, get_dimension_lengths
+from ocgis.variable.crs import Cartesian
 from ocgis.variable.iterator import Iterator
 
 CreateGeometryFromWkb, Geometry, wkbGeometryCollection, wkbPoint = ogr.CreateGeometryFromWkb, ogr.Geometry, \
@@ -226,16 +227,16 @@ class GeometryProcessor(AbstractOcgisObject):
 
 
 class GeometryVariable(AbstractSpatialVariable):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, **kwargs):
         self._name_ugid = None
-        self._geom_type = kwargs.pop('geom_type', 'auto')
+        self._geom_type = kwargs.pop(KeywordArgument.GEOM_TYPE, 'auto')
 
-        if kwargs.get('name') is None:
-            kwargs['name'] = 'geom'
+        if kwargs.get(KeywordArgument.NAME) is None:
+            kwargs[KeywordArgument.NAME] = 'geom'
 
         ugid = kwargs.pop(KeywordArgument.UGID, None)
 
-        super(GeometryVariable, self).__init__(*args, **kwargs)
+        super(GeometryVariable, self).__init__(**kwargs)
 
         if ugid is not None:
             ugid_var = Variable(name=HeaderName.ID_SELECTION_GEOMETRY, value=[ugid], dimensions=self.dimensions)
@@ -722,7 +723,16 @@ class GeometryVariable(AbstractSpatialVariable):
     def update_crs(self, to_crs):
         super(GeometryVariable, self).update_crs(to_crs)
 
-        if self.crs != to_crs:
+        members = [self.crs, to_crs]
+        contains_cartesian = any([isinstance(ii, Cartesian) for ii in members])
+
+        if contains_cartesian:
+            if isinstance(to_crs, Cartesian):
+                inverse = False
+            else:
+                inverse = True
+            self.crs.transform_geometry(to_crs, self, inverse=inverse)
+        elif self.crs != to_crs:
             # Be sure and project masked geometries to maintain underlying geometries.
             r_value = self.get_value().reshape(-1)
             r_loads = wkb.loads
@@ -734,7 +744,7 @@ class GeometryVariable(AbstractSpatialVariable):
                 ogr_geom.AssignSpatialReference(from_sr)
                 ogr_geom.TransformTo(to_sr)
                 r_value[idx] = r_loads(ogr_geom.ExportToWkb())
-        # Even if coordinate systems are measured equivalent, for consistency the new crs is the destination crs.
+        # Even if coordinate systems are measured equivalent, for consistency the new crs is the destination CRS.
         self.crs = to_crs
 
     def iter_records(self, use_mask=True):
@@ -785,7 +795,14 @@ class GeometryVariable(AbstractSpatialVariable):
 
 
 def get_masking_slice(intersects_mask_value, target, apply_slice=True):
-    """Collective!"""
+    """
+    Collective!
+    
+    :param intersects_mask_value: The mask to use for creating the slice indices.
+    :type intersects_mask_value: :class:`numpy.ndarray`, dtype=bool
+    :param target: The target slicable object to slice.
+    :param bool apply_slice: If ``True``, apply the slice.
+    """
     raise_if_empty(target)
 
     if intersects_mask_value is None:
@@ -828,13 +845,8 @@ def get_masking_slice(intersects_mask_value, target, apply_slice=True):
     global_slice = vm.bcast(global_slice)
     global_slice = tuple([slice(g[0], g[1]) for g in global_slice])
 
-    # if local_slice is None:
-    #     intersects_mask_is_empty = True
-    # else:
-    #     intersects_mask_is_empty = False
-
     intersects_mask = Variable(name='mask_gather', value=intersects_mask_value, dimensions=target.dimensions,
-                               dtype=bool)  # , is_empty=intersects_mask_is_empty)
+                               dtype=bool)
 
     if apply_slice:
         if vm.size_global > 1:

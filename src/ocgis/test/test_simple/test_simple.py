@@ -41,7 +41,7 @@ from ocgis.util.helpers import make_poly, project_shapely_geometry
 from ocgis.util.itester import itr_products_keywords
 from ocgis.variable import crs
 from ocgis.variable.base import Variable
-from ocgis.variable.crs import CoordinateReferenceSystem, WGS84, CFWGS84
+from ocgis.variable.crs import CoordinateReferenceSystem, WGS84
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.variable.temporal import TemporalVariable
@@ -1617,7 +1617,7 @@ class TestSimpleProjected(TestSimpleBase):
 
         for o in output_format:
             try:
-                ops = OcgOperations(dataset=dataset, output_format=o, output_crs=CFWGS84(), prefix=o, melted=True,
+                ops = OcgOperations(dataset=dataset, output_format=o, output_crs=WGS84(), prefix=o, melted=True,
                                     snippet=True)
                 self.assertTrue(ops.melted)
                 ret = ops.execute()
@@ -1626,11 +1626,11 @@ class TestSimpleProjected(TestSimpleBase):
                     uids = []
                     for field in ret.iter_fields():
                         uids.append(field.uid)
-                        self.assertIsInstance(field.crs, CFWGS84)
+                        self.assertIsInstance(field.crs, WGS84)
                     self.assertEqual(set(uids), {1, 2})
                 if o == constants.OutputFormatName.SHAPEFILE:
                     with fiona.open(ret) as f:
-                        self.assertEqual(CoordinateReferenceSystem(value=f.meta['crs']), CFWGS84())
+                        self.assertEqual(CoordinateReferenceSystem(value=f.meta['crs']), WGS84())
                         aliases = set([row['properties'][HeaderName.VARIABLE] for row in f])
                     self.assertEqual({'projected', 'normal'}, aliases)
                 if o == constants.OutputFormatName.CSV_SHAPEFILE:
@@ -1701,7 +1701,7 @@ class TestSimpleProjected(TestSimpleBase):
             self.assertEqual(CoordinateReferenceSystem(value=f.meta['crs']), from_crs)
 
         ops = OcgOperations(dataset=self.get_dataset(), output_format=constants.OutputFormatName.SHAPEFILE,
-                            geom='ab_polygon', output_crs=CFWGS84(), prefix='xx')
+                            geom='ab_polygon', output_crs=WGS84(), prefix='xx')
         ret = ops.execute()
         ugid_shp = os.path.join(os.path.split(ret)[0], ops.prefix + '_ugid.shp')
 

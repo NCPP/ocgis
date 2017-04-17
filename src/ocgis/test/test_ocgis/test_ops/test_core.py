@@ -25,7 +25,7 @@ from ocgis.test.test_simple.test_dependencies import create_mftime_nc_files
 from ocgis.util.addict import Dict
 from ocgis.util.helpers import make_poly, create_exact_field_value
 from ocgis.variable.base import Variable
-from ocgis.variable.crs import CFWGS84, Spherical, CoordinateReferenceSystem
+from ocgis.variable.crs import Spherical, CoordinateReferenceSystem, WGS84
 from ocgis.variable.temporal import TemporalVariable
 from ocgis.vmachine.mpi import OcgMpi, MPI_RANK, variable_collection_scatter, MPI_COMM, dgather, \
     hgather, MPI_SIZE
@@ -341,7 +341,7 @@ class TestOcgOperations(TestBase):
         for kk in output_format:
             # Geojson may only be written with a spherical coordinate system.
             if kk == constants.OutputFormatName.GEOJSON:
-                output_crs = CFWGS84()
+                output_crs = WGS84()
             else:
                 output_crs = None
             try:
@@ -832,7 +832,7 @@ class TestOcgOperationsNoData(TestBase):
     def test_system_user_geometry_identifer_added(self):
         """Test geometry identifier is added for linked dataset geometry formats."""
 
-        field = self.get_field(crs=CFWGS84())
+        field = self.get_field(crs=WGS84())
         subset_geom = Point(field.grid.x.get_value()[0], field.grid.y.get_value()[0]).buffer(0.1)
         ops = OcgOperations(dataset=field, geom=subset_geom, output_format=constants.OutputFormatName.CSV_SHAPEFILE)
         ret = ops.execute()
@@ -916,7 +916,7 @@ class TestOcgOperationsNoData(TestBase):
             ],
             'wrapped': [True, False],
             'output_format': [
-                OUTPUT_FORMAT_OCGIS,
+                OutputFormatName.OCGIS,
                 'csv',
                 'csv-shp',
                 'shp'
@@ -975,7 +975,7 @@ class TestOcgOperationsNoData(TestBase):
                     actual = ['_gid.shp' in c for c in contents]
                     self.assertTrue(any(actual))
 
-            if k.output_format == OUTPUT_FORMAT_OCGIS:
+            if k.output_format == OutputFormatName.OCGIS:
                 geom_keys = ret.children.keys()
                 all_geom_keys = vm.gather(np.array(geom_keys))
                 if vm.is_root:

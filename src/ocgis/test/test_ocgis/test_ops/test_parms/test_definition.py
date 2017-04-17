@@ -13,7 +13,7 @@ from ocgis.test.base import TestBase, attr
 from ocgis.util.helpers import make_poly
 from ocgis.util.itester import itr_products_keywords
 from ocgis.util.units import get_units_object, get_are_units_equal
-from ocgis.variable.crs import CFWGS84
+from ocgis.variable.crs import WGS84
 
 
 class Test(TestBase):
@@ -580,7 +580,7 @@ class TestGeom(TestBase):
     def test_geometry_dictionaries(self):
         """Test geometry dictionaries as input."""
 
-        for crs in [None, CFWGS84(), CoordinateReferenceSystem(epsg=2136)]:
+        for crs in [None, WGS84(), CoordinateReferenceSystem(epsg=2136)]:
             geom = self.get_geometry_dictionaries()
             if crs is not None:
                 for g in geom:

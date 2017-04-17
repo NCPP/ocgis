@@ -9,118 +9,47 @@ from shapely.geometry import Point, Polygon
 from shapely.geometry.base import BaseMultipartGeometry
 
 from ocgis import constants
-from ocgis.base import AbstractInterfaceObject, raise_if_empty
-from ocgis.constants import MPIWriteMode, WrappedState, WrapAction, KeywordArgument, CFName
+from ocgis.base import AbstractInterfaceObject, raise_if_empty, AbstractOcgisObject
+from ocgis.constants import MPIWriteMode, WrappedState, WrapAction, KeywordArgument, CFName, OcgisUnits, \
+    ConversionFactor, DimensionMapKey
 from ocgis.environment import osr
-from ocgis.exc import ProjectionCoordinateNotFound, ProjectionDoesNotMatch
+from ocgis.exc import ProjectionCoordinateNotFound, ProjectionDoesNotMatch, CRSNotEquivalenError
 from ocgis.spatial.wrap import GeometryWrapper, CoordinateArrayWrapper
 from ocgis.util.helpers import iter_array, get_iter
-
-# from ocgis.vm.mpi import get_standard_comm_state
+from copy import copy, deepcopy
 
 SpatialReference = osr.SpatialReference
 
 
-class CoordinateReferenceSystem(AbstractInterfaceObject):
+@six.add_metaclass(abc.ABCMeta)
+class AbstractOcgisCoordinateReferenceSystem(AbstractOcgisObject):
     """
-    Defines a coordinate system objects. One of ``value``, ``proj4``, or ``epsg`` is required.
-
-    :param value: (``=None``) A dictionary representation of the coordinate system with PROJ.4 paramters as keys.
-    :type value: dict
-    :param proj4: (``=None``) A PROJ.4 string.
-    :type proj4: str
-    :param epsg: (``=None``) An EPSG code.
-    :type epsg: int
-    :param name: (``=:attr:`ocgis.constants.DEFAULT_COORDINATE_SYSTEM_NAME```) A custom name for the coordinate system.
-    :type name: str
+    Base class for all OCGIS coordinate systems. Intended to allow differentiation between standard PROJ.4 coordinate
+    systems and specialized OCGIS-supported coordinate systems.
     """
+    _cf_attributes = None
 
-    # tdk: implement reading proj4 attribute from coordinate systems if present
-    def __init__(self, value=None, proj4=None, epsg=None, name=constants.DEFAULT_COORDINATE_SYSTEM_NAME):
-        self.name = name
-        # Allows operations on data variables to look through an empty dimension list. Alleviates instance checking.
-        self.dimensions = tuple()
-        self.dimension_names = tuple()
-        self.ndim = 0
-        self.has_bounds = False
-        self.dist = None
-        self.ranks = None
-        self._is_empty = False
-        self._epsg = epsg
+    def __init__(self, angular_units=OcgisUnits.DEGREES, linear_units=None):
+        self._angular_units = angular_units
+        self._linear_units = linear_units
 
-        # Some basic overloaded for WGS84.
-        if epsg == 4326:
-            value = WGS84().value
+    @property
+    def angular_units(self):
+        return self._angular_units
 
-        # Add a special check for init keys in value dictionary.
-        if value is not None:
-            if 'init' in value and list(value.values())[0].startswith('epsg'):
-                epsg = int(list(value.values())[0].split(':')[1])
-                value = None
-
-        if value is None:
-            if proj4 is not None:
-                value = from_string(proj4)
-            elif epsg is not None:
-                sr = SpatialReference()
-                sr.ImportFromEPSG(epsg)
-                value = from_string(sr.ExportToProj4())
-            else:
-                msg = 'A value dictionary, PROJ.4 string, or EPSG code is required.'
-                raise ValueError(msg)
-        else:
-            # Remove unicode to avoid strange issues with proj and fiona.
-            for k, v in value.items():
-                if isinstance(v, six.string_types):
-                    value[k] = str(v)
-                else:
-                    try:
-                        value[k] = v.tolist()
-                    # this may be a numpy arr that needs conversion
-                    except AttributeError:
-                        continue
-
-        sr = SpatialReference()
-        sr.ImportFromProj4(to_string(value))
-        self.value = from_string(sr.ExportToProj4())
-
-        try:
-            assert self.value != {}
-        except AssertionError:
-            msg = 'Empty CRS: The conversion to PROJ.4 may have failed. The CRS value is: {0}'.format(value)
-            raise ValueError(msg)
-
-    def __eq__(self, other):
-        try:
-            if self.sr.IsSame(other.sr) == 1:
-                ret = True
-            else:
-                ret = False
-        except AttributeError:
-            # likely a nonetype of other object type
-            if other is None or not isinstance(other, self.__class__):
-                ret = False
-            else:
-                raise
-        return ret
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def __str__(self):
-        return str(self.value)
+    @property
+    def linear_units(self):
+        return self._linear_units
 
     @property
     def attrs(self):
         return {}
 
-    @property
-    def dtype(self):
-        return None
+    def copy(self):
+        return copy(self)
 
-    @property
-    def has_allocated_value(self):
-        return False
+    def deecopy(self):
+        return deepcopy(self)
 
     @property
     def has_initialized_parent(self):
@@ -128,50 +57,42 @@ class CoordinateReferenceSystem(AbstractInterfaceObject):
 
     @property
     def is_empty(self):
-        return self._is_empty
+        return False
 
-    @property
+    @abc.abstractproperty
     def is_geographic(self):
-        return bool(self.sr.IsGeographic())
+        """
+        :return: ``True`` if the coordinate system is considered geographic.
+        :rtype: bool
+        """
+
+    @abc.abstractproperty
+    def is_wrappable(self):
+        """        
+        :return: ``True`` if the coordinate system may be globally wrapped or unwrapped. A wrappable CRS will use degree
+         units on ranges 0 to 360 and -180 to 180.
+        :rtype: bool
+        """
 
     @property
     def is_orphaned(self):
         return True
 
     @property
-    def proj4(self):
-        if self._epsg == 4326:
-            ret = WGS84().proj4
-        else:
-            ret = self.sr.ExportToProj4()
-        return ret
-
-    @property
-    def sr(self):
-        sr = SpatialReference()
-        sr.ImportFromProj4(to_string(self.value))
-        return sr
-
-    @property
-    def shape(self):
-        return tuple([0])
-
-    @property
-    def size(self):
+    def ndim(self):
         return 0
 
-    def as_variable(self, with_proj4=True):
+    @property
+    def units(self):
+        raise NotImplementedError
+
+    def as_variable(self):
         from ocgis.variable.base import Variable
         var = Variable(name=self.name)
-        if with_proj4:
-            var.attrs['proj4'] = self.proj4
         return var
 
     def convert_to_empty(self):
-        self._is_empty = True
-
-    def extract(self):
-        return self
+        pass
 
     def format_field(self, field):
         """
@@ -181,36 +102,20 @@ class CoordinateReferenceSystem(AbstractInterfaceObject):
         for data_variable in field.data_variables:
             field[data_variable.name].attrs[CFName.GRID_MAPPING] = field.crs.name
 
-    def get_mask(self):
-        return None
+        # Add CF attributes to coordinate variables.
+        if self._cf_attributes is not None:
 
-    def load(self, *args, **kwargs):
-        """Compatibility with variable."""
-        pass
+            def _update_attr_(target, name, value, clobber=False):
+                attrs = target.attrs
+                if name not in attrs or (name in attrs and clobber):
+                    attrs[name] = value
 
-    def write_to_rootgrp(self, rootgrp, with_proj4=False):
-        """
-        Write the coordinate system to an open netCDF file.
+            updates = {field.x: self._cf_attributes[DimensionMapKey.X],
+                       field.y: self._cf_attributes[DimensionMapKey.Y]}
 
-        :param rootgrp: An open netCDF dataset object for writing.
-        :type rootgrp: :class:`netCDF4.Dataset`
-        :param bool with_proj4: If ``True``, write the PROJ.4 string to the coordinate system variable in an attribute
-         called "proj4".
-        :returns: The netCDF variable object created to hold the coordinate system metadata.
-        :rtype: :class:`netCDF4.Variable`
-        """
-        variable = rootgrp.createVariable(self.name, 'S1')
-        if with_proj4:
-            variable.proj4 = self.proj4
-        return variable
-
-    def write(self, *args, **kwargs):
-        write_mode = kwargs.pop('write_mode', MPIWriteMode.NORMAL)
-        with_proj4 = kwargs.pop('with_proj4', False)
-        # Fill operations set values on variables. Coordinate system variables have no inherent values constructed only
-        # from attributes.
-        if write_mode != MPIWriteMode.FILL:
-            return self.write_to_rootgrp(*args, with_proj4=with_proj4)
+            for target, name_values in updates.items():
+                for k, v in name_values.items():
+                    _update_attr_(target, k, v)
 
     @classmethod
     def get_wrap_action(cls, state_src, state_dst):
@@ -263,9 +168,8 @@ class CoordinateReferenceSystem(AbstractInterfaceObject):
 
         raise_if_empty(self)
 
-        ret = None
-        # If this is not a geographic coordinate system, wrapped state is undefined.
-        if not self.is_geographic:
+        # If this is not a wrappable coordinate system, wrapped state is undefined.
+        if not self.is_wrappable:
             ret = None
         else:
             if isinstance(target, OcgField):
@@ -404,57 +308,401 @@ class CoordinateReferenceSystem(AbstractInterfaceObject):
         return select
 
 
+@six.add_metaclass(abc.ABCMeta)
+class AbstractProj4CoordinateReferenceSystem(AbstractOcgisCoordinateReferenceSystem):
+    """
+    Base class for coordinate systems that may be transformed using PROJ.4.
+    """
+
+
+class CoordinateReferenceSystem(AbstractProj4CoordinateReferenceSystem, AbstractInterfaceObject):
+    """
+    Defines a coordinate system objects. One of ``value``, ``proj4``, or ``epsg`` is required.
+
+    :param value: (``=None``) A dictionary representation of the coordinate system with PROJ.4 paramters as keys.
+    :type value: dict
+    :param proj4: (``=None``) A PROJ.4 string.
+    :type proj4: str
+    :param epsg: (``=None``) An EPSG code.
+    :type epsg: int
+    :param name: (``=:attr:`ocgis.constants.DEFAULT_COORDINATE_SYSTEM_NAME```) A custom name for the coordinate system.
+    :type name: str
+    """
+
+    # tdk: implement reading proj4 attribute from coordinate systems if present
+    def __init__(self, value=None, proj4=None, epsg=None, name=constants.DEFAULT_COORDINATE_SYSTEM_NAME):
+        self.name = name
+        # Allows operations on data variables to look through an empty dimension list. Alleviates instance checking.
+        self.dimensions = tuple()
+        self.dimension_names = tuple()
+        self.has_bounds = False
+        self._epsg = epsg
+
+        # Some basic overloaded for WGS84.
+        if epsg == 4326:
+            value = WGS84().value
+
+        # Add a special check for init keys in value dictionary.
+        if value is not None:
+            if 'init' in value and list(value.values())[0].startswith('epsg'):
+                epsg = int(list(value.values())[0].split(':')[1])
+                value = None
+
+        if value is None:
+            if proj4 is not None:
+                value = from_string(proj4)
+            elif epsg is not None:
+                sr = SpatialReference()
+                sr.ImportFromEPSG(epsg)
+                value = from_string(sr.ExportToProj4())
+            else:
+                msg = 'A value dictionary, PROJ.4 string, or EPSG code is required.'
+                raise ValueError(msg)
+        else:
+            # Remove unicode to avoid strange issues with proj and fiona.
+            for k, v in value.items():
+                if isinstance(v, six.string_types):
+                    value[k] = str(v)
+                else:
+                    try:
+                        value[k] = v.tolist()
+                    # this may be a numpy arr that needs conversion
+                    except AttributeError:
+                        continue
+
+        sr = SpatialReference()
+        sr.ImportFromProj4(to_string(value))
+        self.value = from_string(sr.ExportToProj4())
+
+        try:
+            assert self.value != {}
+        except AssertionError:
+            msg = 'Empty CRS: The conversion to PROJ.4 may have failed. The CRS value is: {0}'.format(value)
+            raise ValueError(msg)
+
+    def __eq__(self, other):
+        try:
+            if self.sr.IsSame(other.sr) == 1:
+                ret = True
+            else:
+                ret = False
+        except AttributeError:
+            # likely a nonetype of other object type
+            if other is None or not isinstance(other, self.__class__):
+                ret = False
+            else:
+                raise
+        return ret
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __str__(self):
+        return str(self.value)
+
+    @property
+    def dtype(self):
+        return None
+
+    @property
+    def has_allocated_value(self):
+        return False
+
+    @property
+    def is_geographic(self):
+        return bool(self.sr.IsGeographic())
+
+    @property
+    def is_wrappable(self):
+        return self.is_geographic
+
+    @property
+    def linear_units(self):
+        return self.sr.GetLinearUnitsName()
+
+    @property
+    def proj4(self):
+        if self._epsg == 4326:
+            ret = WGS84().proj4
+        else:
+            ret = self.sr.ExportToProj4()
+        return ret
+
+    @property
+    def sr(self):
+        sr = SpatialReference()
+        sr.ImportFromProj4(to_string(self.value))
+        return sr
+
+    @property
+    def shape(self):
+        return tuple([0])
+
+    @property
+    def size(self):
+        return 0
+
+    def as_variable(self, with_proj4=True):
+        ret = super(CoordinateReferenceSystem, self).as_variable()
+        if with_proj4:
+            ret.attrs['proj4'] = self.proj4
+        return ret
+
+    def convert_to_empty(self):
+        pass
+
+    def extract(self):
+        return self
+
+    def get_mask(self):
+        return None
+
+    def load(self, *args, **kwargs):
+        """Compatibility with variable."""
+        pass
+
+    def write_to_rootgrp(self, rootgrp, with_proj4=False):
+        """
+        Write the coordinate system to an open netCDF file.
+
+        :param rootgrp: An open netCDF dataset object for writing.
+        :type rootgrp: :class:`netCDF4.Dataset`
+        :param bool with_proj4: If ``True``, write the PROJ.4 string to the coordinate system variable in an attribute
+         called "proj4".
+        :returns: The netCDF variable object created to hold the coordinate system metadata.
+        :rtype: :class:`netCDF4.Variable`
+        """
+        variable = rootgrp.createVariable(self.name, 'S1')
+        if with_proj4:
+            variable.proj4 = self.proj4
+        return variable
+
+    def write(self, *args, **kwargs):
+        write_mode = kwargs.pop('write_mode', MPIWriteMode.NORMAL)
+        with_proj4 = kwargs.pop('with_proj4', False)
+        # Fill operations set values on variables. Coordinate system variables have no inherent values constructed only
+        # from attributes.
+        if write_mode != MPIWriteMode.FILL:
+            return self.write_to_rootgrp(*args, with_proj4=with_proj4)
+
+
 class CRS(CoordinateReferenceSystem):
     """Here for convenience."""
 
 
 @six.add_metaclass(abc.ABCMeta)
-class AbstractSphericalCoordinateReferenceSystem(CoordinateReferenceSystem):
+class AbstractSphericalCoordinateReferenceSystem(AbstractOcgisObject):
+    _cf_attributes = {DimensionMapKey.X: {CFName.UNITS: 'degrees_east',
+                                          CFName.STANDARD_NAME: 'longitude'},
+                      DimensionMapKey.Y: {CFName.UNITS: 'degrees_north',
+                                          CFName.STANDARD_NAME: 'latitude'}}
+    is_wrappable = True
+    is_geographic = True
+
     def format_field(self, field):
+        if self.angular_units == OcgisUnits.RADIANS:
+            msg = '{} are not acceptable units for field formatting. Must be {}.'
+            msg = msg.format(OcgisUnits.RADIANS, OcgisUnits.DEGREES)
+            raise ValueError(msg)
+
         super(AbstractSphericalCoordinateReferenceSystem, self).format_field(field)
 
-        def _update_attr_(target, name, value, clobber=False):
-            attrs = target.attrs
-            if name not in attrs or (name in attrs and clobber):
-                attrs[name] = value
+    def transform_coordinates(self, other_crs, x, y, z, inverse=False):
+        """
+        Transform coordinate arrays to match ``other_crs``. If ``inverse`` is ``True``, then ``other_crs`` is
+        considered the defining coordinate system for the input vectors. Coordinate arrays must have matching 
+        dimensions.
 
-        updates = {field.x: {CFName.UNITS: 'degrees_east',
-                             CFName.STANDARD_NAME: 'longitude'},
-                   field.y: {CFName.UNITS: 'degrees_north',
-                             CFName.STANDARD_NAME: 'latitude'}}
-        for target, name_values in updates.items():
-            for k, v in name_values.items():
-                _update_attr_(target, k, v)
+        .. note:: If ``z`` is a scalar, the transformed ``z`` value is not returned.
+
+        :param other_crs: :class:`ocgis.variable.crs.AbstractOcgisCoordinateReferenceSystem`
+        :param x: The x-coordinate array.
+        :type x: :class:`numpy.ndarray`
+        :param y: The y-coordinate array.
+        :type y: :class:`numpy.ndarray`
+        :param z: The z-coordinate array.
+        :type z: :class:`numpy.ndarray`
+        :param bool inverse: If ``True``, the coordinate system of the input variables is ``other_crs`` and the
+          transform CRS is the object.
+        """
+
+        if not isinstance(other_crs, Cartesian):
+            raise CRSNotEquivalenError(self, other_crs)
+
+        if inverse:
+            z_out = np.sqrt(x ** 2 + y ** 2 + z ** 2)
+            x_out = np.arctan2(y, x)
+            y_out = np.arcsin(z / z_out)
+
+            if self.angular_units == OcgisUnits.DEGREES:
+                x_out *= ConversionFactor.RAD_TO_DEG
+                y_out *= ConversionFactor.RAD_TO_DEG
+        else:
+            if self.angular_units == OcgisUnits.DEGREES:
+                x = x.copy()
+                y = y.copy()
+                select = x > 180.
+                if select.any():
+                    raise ValueError('x-coordinate must be wrapped if degrees.')
+                x *= ConversionFactor.DEG_TO_RAD
+                y *= ConversionFactor.DEG_TO_RAD
+
+            x_out = z * np.cos(y) * np.cos(x)
+            y_out = z * np.cos(y) * np.sin(x)
+            z_out = z * np.sin(y)
+
+        return x_out, y_out, z_out
+
+    def transform_geometry(self, other_crs, geom, inverse=False):
+        from ocgis import GeometryVariable
+        assert isinstance(geom, GeometryVariable)
+        assert geom.geom_type == 'Polygon'
+        assert geom.shape == (1,)
+
+        if not inverse:
+            if geom.wrapped_state == WrappedState.UNWRAPPED:
+                raise ValueError('Geometry coordinates may not be unwrapped.')
+
+        sgeom = geom.get_value()[0]
+        coords = np.array(sgeom.exterior)
+        if not sgeom.has_z:
+            new_coords = np.ones((coords.shape[0], 3), dtype=coords.dtype)
+            new_coords[:, 0:2] = coords
+        else:
+            new_coords = coords
+        x = new_coords[:, 0]
+        y = new_coords[:, 1]
+        z = new_coords[:, 2]
+
+        x_out, y_out, z_out = self.transform_coordinates(other_crs, x, y, z, inverse=inverse)
+
+        x[:] = x_out
+        y[:] = y_out
+        z[:] = z_out
+
+        new_geom = Polygon(new_coords)
+        geom.get_value()[0] = new_geom
+
+    def transform_grid(self, other_crs, grid, inverse=False):
+        """
+        Transform a grid's coordinate system.
+        
+        :param other_crs: See :meth:`ocgis.variable.crs.AbstractSphericalCoordinateReferenceSystem.transform_coordinates`
+        :param grid: The grid to transform in-place.
+        :type grid: :class:`ocgis.GridXY`
+        :param inverse: See :meth:`ocgis.variable.crs.AbstractSphericalCoordinateReferenceSystem.transform_coordinates` 
+        """
+
+        if not inverse:
+            wrapped_state = grid.wrapped_state
+            if wrapped_state == WrappedState.UNWRAPPED:
+                raise ValueError('x-coordinates may not be wrapped')
+        if not grid.has_z:
+            raise ValueError('A z-/level-coordinate is required')
+
+        grid.expand()
+        x = grid.x.get_value()
+        y = grid.y.get_value()
+        z = grid.z.get_value()
+
+        x_out, y_out, z_out = self.transform_coordinates(other_crs, x, y, z, inverse=inverse)
+
+        if grid.has_bounds:
+            xb = grid.x.bounds.get_value()
+            yb = grid.y.bounds.get_value()
+            zb = grid.z.bounds.get_value()
+
+            xb_out, yb_out, zb_out = self.transform_coordinates(other_crs, xb, yb, zb, inverse=inverse)
+
+        ################################################################################################################
+        # Set values
+
+        grid.x.set_value(x_out)
+        grid.y.set_value(y_out)
+        grid.z.set_value(z_out)
+        if grid.has_bounds:
+            grid.x.bounds.set_value(xb_out)
+            grid.y.bounds.set_value(yb_out)
+            grid.z.bounds.set_value(zb_out)
 
 
-class Spherical(AbstractSphericalCoordinateReferenceSystem):
+class Spherical(AbstractSphericalCoordinateReferenceSystem, CoordinateReferenceSystem):
     """
     A spherical model of the Earth's surface with equivalent semi-major and semi-minor axes.
 
     :param semi_major_axis: The radius of the spherical model. The default value is taken from the PROJ.4 (v4.8.0)
      source code (src/pj_ellps.c).
     :type semi_major_axis: float
+    :param units: Either degrees or radians.
+    :type units: :class:`ocgis.constants.OcgisUnits`
     """
 
-    def __init__(self, semi_major_axis=6370997.0):
+    def __init__(self, semi_major_axis=6370997.0, angular_units=OcgisUnits.DEGREES):
         value = {'proj': 'longlat', 'towgs84': '0,0,0,0,0,0,0', 'no_defs': '', 'a': semi_major_axis,
                  'b': semi_major_axis}
         CoordinateReferenceSystem.__init__(self, value=value, name='latitude_longitude')
-        self.major_axis = semi_major_axis
+        AbstractOcgisCoordinateReferenceSystem.__init__(self, angular_units=angular_units)
+        self.semi_major_axis = semi_major_axis
 
 
-class WGS84(AbstractSphericalCoordinateReferenceSystem):
+class Cartesian(AbstractOcgisCoordinateReferenceSystem):
+    """
+    A regular Cartesian coordinate system.
+    """
+    name = 'cartesian'
+    is_geographic = True
+    is_wrappable = False
+
+    def as_variable(self):
+        ret = super(Cartesian, self).as_variable()
+        if self.linear_units is not None:
+            ret[CFName.UNITS] = str(self.linear_units)
+        return ret
+
+    def transform_geometry(self, other_crs, geom, inverse=False):
+        if not isinstance(other_crs, (Spherical, Tripole)):
+            raise CRSNotEquivalenError(self, other_crs)
+        return other_crs.transform_geometry(self, geom, inverse=True)
+
+    def transform_grid(self, other_crs, grid, inverse=False):
+        if not isinstance(other_crs, (Spherical, Tripole)):
+            raise CRSNotEquivalenError(self, other_crs)
+        return other_crs.transform_grid(self, grid, inverse=True)
+
+
+class Tripole(AbstractSphericalCoordinateReferenceSystem, AbstractOcgisCoordinateReferenceSystem):
+    """
+    A spherical representation of the Earth's surface having three poles (singularities).
+    
+    :param spherical: The spherical basis for the tripole coordinate system.
+    :type spherical: :class:`ocgis.variable.crs.Spherical`
+    """
+    name = 'tripole'
+
+    def __init__(self, spherical=None):
+        if spherical is None:
+            spherical = Spherical()
+        self.spherical = spherical
+        AbstractOcgisCoordinateReferenceSystem.__init__(self, linear_units=spherical.linear_units,
+                                                        angular_units=spherical.angular_units)
+
+
+class WGS84(CoordinateReferenceSystem):
     """
     A representation of the Earth using the WGS84 datum (i.e. EPSG code 4326).
     """
+    _cf_attributes = {DimensionMapKey.X: {CFName.UNITS: 'degrees_east',
+                                          CFName.STANDARD_NAME: 'longitude'},
+                      DimensionMapKey.Y: {CFName.UNITS: 'degrees_north',
+                                          CFName.STANDARD_NAME: 'latitude'}}
 
     def __init__(self):
         value = {'no_defs': True, 'datum': 'WGS84', 'proj': 'longlat', 'towgs84': '0,0,0,0,0,0,0'}
         try:
-            CoordinateReferenceSystem.__init__(self, value=value, name='WGS84_EPSG_4326')
+            super(WGS84, self).__init__(value=value, name='WGS84_EPSG_4326')
         except:
             value['ellps'] = value['datum']
-            CoordinateReferenceSystem.__init__(self, value=value, name='WGS84_EPSG_4326')
+            super(WGS84, self).__init__(value=value, name='WGS84_EPSG_4326')
 
     def __eq__(self, other):
         ret = super(WGS84, self).__eq__(other)
@@ -633,12 +881,6 @@ class CFSpherical(Spherical, CFCoordinateReferenceSystem):
             return cls()
         else:
             raise ProjectionDoesNotMatch
-
-
-class CFWGS84(CFSpherical, WGS84):
-    def __init__(self, *args, **kwargs):
-        self.map_parameters_values = {}
-        WGS84.__init__(self, *args, **kwargs)
 
 
 class CFAlbersEqualArea(CFCoordinateReferenceSystem):

@@ -14,7 +14,7 @@ from ocgis.constants import DimensionMapKey
 from ocgis.exc import ExtentError, RequestValidationError
 from ocgis.ops.core import OcgOperations
 from ocgis.test.base import TestBase, nc_scope, attr
-from ocgis.variable.crs import CFWGS84, Spherical, CFLambertConformal
+from ocgis.variable.crs import Spherical, CFLambertConformal
 
 
 class TestCnrmCerfacs(TestBase):
@@ -248,7 +248,7 @@ class Test(TestBase):
         calc_grouping = ['month', 'year']
         ops = ocgis.OcgOperations(dataset=rd, calc=calc, calc_grouping=calc_grouping,
                                   output_format=constants.OutputFormatName.OCGIS, geom=geom, abstraction='point',
-                                  snippet=False, allow_empty=False, output_crs=CFWGS84(),
+                                  snippet=False, allow_empty=False, output_crs=Spherical(),
                                   search_radius_mult=2.0)
         ret = ops.execute()
         ref = ret.get_element()

@@ -4,7 +4,7 @@ import numpy as np
 
 from ocgis import RequestDataset
 from ocgis.collection.field import OcgField
-from ocgis.constants import TagName, MiscName
+from ocgis.constants import TagName, MiscName, DimensionMapKey
 from ocgis.driver.nc import DriverNetcdf, DriverNetcdfCF
 from ocgis.driver.request.core import get_autodiscovered_driver, get_is_none
 from ocgis.exc import RequestValidationError, \
@@ -12,7 +12,7 @@ from ocgis.exc import RequestValidationError, \
 from ocgis.test.base import TestBase, attr
 from ocgis.test.test_simple.make_test_data import SimpleNc
 from ocgis.test.test_simple.test_simple import TestSimpleBase
-from ocgis.variable.crs import CoordinateReferenceSystem
+from ocgis.variable.crs import CoordinateReferenceSystem, WGS84, Tripole
 
 
 # tdk: clean-up file
@@ -126,6 +126,19 @@ class TestRequestDataset(TestSimpleBase):
         crs = CoordinateReferenceSystem(epsg=2136)
         rd = self.get_request_dataset_netcdf(crs=crs)
         self.assertEqual(rd.crs, crs)
+
+    def test_crs_with_dimension_map(self):
+        """Test CRS overloading in the presence of a dimension map."""
+
+        field = self.get_field()
+        path = self.get_temporary_file_path('foo.nc')
+        field.write(path)
+
+        dmap = {DimensionMapKey.X: {DimensionMapKey.VARIABLE: 'col'},
+                DimensionMapKey.Y: {DimensionMapKey.VARIABLE: 'row'}}
+        rd = RequestDataset(path, dimension_map=dmap, crs=Tripole())
+        field = rd.get()
+        self.assertIsInstance(field.crs, Tripole)
 
     def test_dimension_map(self):
         # Test variable dimension names are automatically set if not provided by a dimension map.

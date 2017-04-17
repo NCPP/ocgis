@@ -19,6 +19,7 @@ from ocgis.variable.crs import CoordinateReferenceSystem, CRS
 from ocgis.collection.field import OcgField
 from ocgis.collection.spatial import SpatialCollection
 from ocgis.variable.temporal import TemporalVariable
+from ocgis.variable.geom import GeometryVariable
 
 __version__ = '2.0.0.dev1'
 __release__ = '2.0.0.dev1'

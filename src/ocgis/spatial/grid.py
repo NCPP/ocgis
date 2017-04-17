@@ -8,12 +8,12 @@ from shapely.geometry.base import BaseGeometry, BaseMultipartGeometry
 from ocgis import VariableCollection, Variable, vm
 from ocgis import constants
 from ocgis.base import get_dimension_names, raise_if_empty
-from ocgis.constants import WrappedState, KeywordArgument, VariableName
+from ocgis.constants import WrappedState, KeywordArgument, VariableName, CFName
 from ocgis.environment import ogr
 from ocgis.exc import GridDeficientError, EmptySubsetError, AllElementsMaskedError
 from ocgis.util.helpers import get_formatted_slice
 from ocgis.variable.base import get_dslice, get_dimension_lengths
-from ocgis.variable.crs import CFRotatedPole
+from ocgis.variable.crs import CFRotatedPole, AbstractSphericalCoordinateReferenceSystem, Cartesian
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable, AbstractSpatialContainer, get_masking_slice, GeometryProcessor
 from ocgis.vmachine.mpi import MPI_SIZE
@@ -99,8 +99,8 @@ class GridGeometryProcessor(GeometryProcessor):
 class GridXY(AbstractSpatialContainer):
     ndim = 2
 
-    def __init__(self, x, y, abstraction='auto', crs=None, parent=None, mask=None):
-        if x.dimensions is None or y.dimensions is None:
+    def __init__(self, x, y, z=None, abstraction='auto', crs=None, parent=None, mask=None):
+        if x.dimensions is None or y.dimensions is None or (z is not None and z.dimensions is None):
             raise ValueError('Grid variables must have dimensions.')
         if abstraction is None:
             raise ValueError('"abstraction" may not be None.')
@@ -109,11 +109,17 @@ class GridXY(AbstractSpatialContainer):
 
         self.abstraction = abstraction
 
-        x.attrs['axis'] = 'X'
-        y.attrs['axis'] = 'Y'
+        x.attrs[CFName.AXIS] = 'X'
+        y.attrs[CFName.AXIS] = 'Y'
+        if z is not None:
+            z.attrs[CFName.AXIS] = 'Z'
 
         self._x_name = x.name
         self._y_name = y.name
+        if z is None:
+            self._z_name = None
+        else:
+            self._z_name = z.name
 
         if mask is None:
             self._mask_name = VariableName.SPATIAL_MASK
@@ -125,6 +131,8 @@ class GridXY(AbstractSpatialContainer):
         self._polygon_name = VariableName.GEOMETRY_POLYGON
 
         new_variables = [x, y]
+        if z is not None:
+            new_variables.append(z)
         if parent is None:
             parent = VariableCollection(variables=new_variables)
         else:
@@ -171,6 +179,7 @@ class GridXY(AbstractSpatialContainer):
 
     def get_member_variables(self, include_bounds=True):
         targets = [self._x_name, self._y_name, self._point_name, self._polygon_name, self._mask_name]
+
         ret = []
         for target in targets:
             try:
@@ -215,6 +224,10 @@ class GridXY(AbstractSpatialContainer):
             raise NotImplementedError(self.abstraction)
 
     @property
+    def has_z(self):
+        return self._z_name is not None
+
+    @property
     def is_vectorized(self):
         ndim = self.archetype.ndim
         if ndim == 1:
@@ -228,7 +241,7 @@ class GridXY(AbstractSpatialContainer):
         ret = self.archetype.dimensions
         if len(ret) == 1:
             ret = (self.parent[self._y_name].dimensions[0], self.parent[self._x_name].dimensions[0])
-        return ret
+        return tuple(ret)
 
     # tdk: REMOVE
     @property
@@ -270,6 +283,21 @@ class GridXY(AbstractSpatialContainer):
     @y.setter
     def y(self, value):
         self.parent[self._y_name] = value
+
+    @property
+    def z(self):
+        if self._z_name is not None:
+            ret = self.parent[self._z_name]
+        else:
+            ret = None
+        return ret
+
+    @z.setter
+    def z(self, value):
+        assert value is not None
+        assert not self.has_z
+        self._z_name = value.name
+        self.parent[self._z_name] = value
 
     @property
     def resolution(self):
@@ -490,6 +518,7 @@ class GridXY(AbstractSpatialContainer):
                     fill_mask[idx] = not intersects_logical
                     if perform_intersection and intersects_logical:
                         geometry_fill[idx] = current_geometry.intersection(subset_geom)
+
             if perform_intersection:
                 if geometry_fill is None:
                     if use_bounds:
@@ -540,11 +569,13 @@ class GridXY(AbstractSpatialContainer):
         """
         super(GridXY, self).update_crs(to_crs)
 
-        # The superclass updates the coordinate system.
-        if self.is_empty:
-            return
-
-        if isinstance(self.crs, CFRotatedPole):
+        if isinstance(self.crs, Cartesian) or isinstance(to_crs, Cartesian):
+            if isinstance(to_crs, Cartesian):
+                inverse = False
+            else:
+                inverse = True
+            self.crs.transform_grid(to_crs, self, inverse=inverse)
+        elif isinstance(self.crs, CFRotatedPole):
             self.crs.update_with_rotated_pole_transformation(self, inverse=False)
         elif isinstance(to_crs, CFRotatedPole):
             to_crs.update_with_rotated_pole_transformation(self, inverse=True)
@@ -921,7 +952,6 @@ def get_hint_mask_from_geometry_bounds(grid, bbox, invert=True):
     grid_y = grid.y.get_value()
 
     minx, miny, maxx, maxy = bbox
-
     select_x = np.logical_and(grid_x >= minx, grid_x <= maxx)
     select_y = np.logical_and(grid_y >= miny, grid_y <= maxy)
 

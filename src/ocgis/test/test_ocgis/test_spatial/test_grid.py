@@ -16,10 +16,10 @@ from ocgis.constants import KeywordArgument
 from ocgis.driver.nc import DriverNetcdfCF
 from ocgis.exc import EmptySubsetError, BoundsAlreadyAvailableError
 from ocgis.spatial.grid import GridXY, expand_grid, GridGeometryProcessor
-from ocgis.test.base import attr, AbstractTestInterface
+from ocgis.test.base import attr, AbstractTestInterface, create_gridxy_global
 from ocgis.util.helpers import make_poly, iter_array
 from ocgis.variable.base import Variable, VariableCollection, SourcedVariable
-from ocgis.variable.crs import WGS84, CoordinateReferenceSystem, Spherical
+from ocgis.variable.crs import WGS84, CoordinateReferenceSystem, Spherical, Cartesian
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.vmachine.mpi import MPI_RANK, MPI_COMM, variable_gather, MPI_SIZE, OcgMpi, variable_scatter
@@ -985,3 +985,33 @@ class TestGridXY(AbstractTestInterface):
         for element in [grid.x, grid.y]:
             for target in [element.get_value(), element.bounds.get_value()]:
                 self.assertTrue(np.all(target > 10000))
+
+    def test_update_crs_to_cartesian(self):
+        """Test a spherical to cartesian CRS update."""
+
+        grid = create_gridxy_global(resolution=30.0, wrapped=True, crs=Spherical())
+        z_value = np.ones(grid.shape, dtype=grid.dtype)
+        zvar = Variable('ocgis_zc', value=z_value, dimensions=grid.dimensions)
+        grid.z = zvar
+
+        z_bounds_value = np.ones((list(zvar.shape) + [4]), dtype=grid.dtype)
+        zvar_bounds = Variable('ocgis_zc_bounds', z_bounds_value, list(grid.dimensions) + ['corners'])
+        grid.z.set_bounds(zvar_bounds)
+
+        original_grid = deepcopy(grid)
+        original_grid.expand()
+
+        grid.update_crs(Cartesian())
+        self.assertIsInstance(grid.crs, Cartesian)
+        self.assertNotAlmostEquals(original_grid.x.get_value().max(), grid.x.get_value().max())
+        self.assertNotAlmostEquals(original_grid.y.get_value().max(), grid.y.get_value().max())
+        self.assertNotAlmostEquals(original_grid.x.bounds.get_value().max(), grid.x.bounds.get_value().max())
+        self.assertNotAlmostEquals(original_grid.y.bounds.get_value().max(), grid.y.bounds.get_value().max())
+
+        grid.update_crs(Spherical())
+        self.assertEqual(grid.crs, Spherical())
+        self.assertNumpyAllClose(original_grid.x.get_value(), grid.x.get_value())
+        self.assertNumpyAllClose(original_grid.y.get_value(), grid.y.get_value())
+        self.assertNumpyAllClose(original_grid.x.bounds.get_value(), grid.x.bounds.get_value())
+        self.assertNumpyAllClose(original_grid.y.bounds.get_value(), grid.y.bounds.get_value())
+        self.assertEqual(grid.z.get_value().sum(), 72)

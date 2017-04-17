@@ -18,7 +18,7 @@ from ocgis.exc import OcgWarning, CannotFormatTimeError, \
 from ocgis.spatial.grid import GridXY
 from ocgis.test.base import TestBase, attr
 from ocgis.variable.base import Variable, ObjectType, VariableCollection, SourcedVariable
-from ocgis.variable.crs import WGS84, CFWGS84, CoordinateReferenceSystem, CFSpherical
+from ocgis.variable.crs import WGS84, CoordinateReferenceSystem, CFSpherical
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.variable.temporal import TemporalVariable
@@ -347,13 +347,6 @@ class TestDriverNetcdfCF(TestBase):
         geoms = np.atleast_2d(geoms)
         return geoms, fill
 
-    def get_2d_state_boundaries_sdim(self):
-        geoms, attrs = self.get_2d_state_boundaries()
-        poly = SpatialGeometryPolygonDimension(value=geoms)
-        geom = SpatialGeometryDimension(polygon=poly)
-        sdim = SpatialDimension(geom=geom, properties=attrs, crs=WGS84())
-        return sdim
-
     def test_init(self):
         d = self.get_drivernetcdf()
         self.assertIsInstance(d, DriverNetcdf)
@@ -528,7 +521,7 @@ class TestDriverNetcdfCF(TestBase):
         x = Variable('x', dimensions='x', value=[1])
         y = Variable('y', dimensions='y', value=[2])
         t = Variable('t', dimensions='t', value=[3])
-        crs = CFWGS84()
+        crs = WGS84()
         d = Variable('data', dimensions=['t', 'y', 'x'], value=[[[1]]])
         grid = GridXY(x, y)
         field = OcgField(grid=grid, time=t, crs=crs)

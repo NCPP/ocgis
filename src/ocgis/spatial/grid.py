@@ -224,6 +224,10 @@ class GridXY(AbstractSpatialContainer):
             raise NotImplementedError(self.abstraction)
 
     @property
+    def has_mask(self):
+        return self._mask_name in self.parent
+
+    @property
     def has_z(self):
         return self._z_name is not None
 

@@ -322,16 +322,32 @@ class DriverNetcdfCF(DriverNetcdf):
 
     @classmethod
     def _get_field_write_target_(cls, field):
-        if not field.is_empty:
-            # These changes to the field can be maintained following a write.
-            if field.crs is not None:
-                field.crs.format_field(field)
+        """Collective!"""
 
-            # Putting units on bounds for netCDF-CF can confuse some parsers.
-            if field.grid is not None and field.grid.has_bounds:
+        # These changes to the field can be maintained following a write.
+        if field.crs is not None:
+            field.crs.format_field(field)
+
+        # Putting units on bounds for netCDF-CF can confuse some parsers.
+        grid = field.grid
+        if grid is not None:
+            if grid.has_bounds:
                 field = field.copy()
                 field.x.bounds.attrs.pop('units', None)
                 field.y.bounds.attrs.pop('units', None)
+
+            # If any grid pieces are masked, ensure the mask is created across all grids.
+            has_mask = vm.gather(grid.has_mask)
+            if vm.rank == 0:
+                if any(has_mask):
+                    create_mask = True
+                else:
+                    create_mask = False
+            else:
+                create_mask = None
+            create_mask = vm.bcast(create_mask)
+            if create_mask and not grid.has_mask:
+                grid.get_mask(create=True)
 
         return field
 

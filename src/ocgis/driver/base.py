@@ -506,6 +506,8 @@ class AbstractDriver(AbstractOcgisObject):
 
     @classmethod
     def write_field(cls, field, opened_or_path, **kwargs):
+        raise_if_empty(field)
+
         vc_to_write = cls._get_field_write_target_(field)
         cls.write_variable_collection(vc_to_write, opened_or_path, **kwargs)
 

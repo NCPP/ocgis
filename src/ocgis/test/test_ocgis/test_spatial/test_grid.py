@@ -1,5 +1,6 @@
 import itertools
 from copy import deepcopy
+from unittest import SkipTest
 
 import fiona
 import numpy as np
@@ -23,6 +24,7 @@ from ocgis.variable.crs import WGS84, CoordinateReferenceSystem, Spherical, Cart
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.vmachine.mpi import MPI_RANK, MPI_COMM, variable_gather, MPI_SIZE, OcgMpi, variable_scatter
+import netCDF4 as nc
 
 
 class Test(AbstractTestInterface):
@@ -460,6 +462,45 @@ class TestGridXY(AbstractTestInterface):
         sub = grid.get_intersects(Point(1, 1))
         self.assertIsNone(grid.get_mask())
         self.assertIsNone(sub.get_mask())
+
+    @attr('mpi')
+    def test_get_intersects_one_rank_with_mask(self):
+        """Test mask is created if one rank has a spatial mask."""
+
+        if MPI_SIZE != 2:
+            raise SkipTest('MPI_SIZE != 2')
+
+        if MPI_RANK == 0:
+            value = [1, 2]
+        else:
+            value = [3, 4]
+
+        ompi = OcgMpi()
+        xdim = ompi.create_dimension('x', 4, dist=True)
+        ydim = ompi.create_dimension('y', 5, dist=False)
+        ompi.update_dimension_bounds()
+
+        x = Variable('x', value=value, dimensions=xdim)
+        y = Variable('y', value=[1, 2, 3, 4, 5], dimensions=ydim)
+        grid = GridXY(x, y)
+
+        wkt_geom = 'Polygon ((0.72993630573248502 5.22484076433120936, 0.70318471337579691 0.67707006369426814, 2.70063694267515952 0.69490445859872629, 2.59363057324840796 2.54076433121019107, 4.52866242038216527 2.51401273885350296, 4.40382165605095466 5.34968152866241908, 0.72993630573248502 5.22484076433120936))'
+        subset_geom = wkt.loads(wkt_geom)
+
+        sub = grid.get_intersects(subset_geom)
+
+        path = self.get_temporary_file_path('foo.nc')
+
+        field = OcgField(grid=sub)
+        field.write(path)
+
+        with vm.scoped('mask count', [0]):
+            if not vm.is_null:
+                rd = RequestDataset(path)
+                out_field = rd.get()
+                target = out_field[out_field.grid._mask_name].get_value()
+                select = target != 0
+                self.assertEqual(select.sum(), 4)
 
     @attr('mpi')
     def test_get_intersects_ordering(self):

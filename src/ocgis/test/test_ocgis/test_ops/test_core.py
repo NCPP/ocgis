@@ -3,10 +3,10 @@ import datetime
 import itertools
 import os
 from datetime import datetime as dt
+from unittest import SkipTest
 
 import numpy as np
 from shapely.geometry import Point, LineString
-from zmq.tests import SkipTest
 
 import ocgis
 from ocgis import RequestDataset, vm

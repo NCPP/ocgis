@@ -1216,11 +1216,15 @@ class AbstractTestField(TestBase):
 
 def create_exact_field(grid, data_varname, ntime=1, fill_data_var=True):
     tdim = Dimension(name='time', size=None, size_current=ntime)
-    tvar = TemporalVariable(name='time', value=range(1, ntime + 1), dimensions=tdim, dtype=np.float32)
+    tvar = TemporalVariable(name='time', value=range(1, ntime + 1), dimensions=tdim, dtype=np.float32,
+                            attrs={'axis': 'T'})
     dvar_dims = [tdim] + list(grid.dimensions)
     dvar = Variable(name=data_varname, dimensions=dvar_dims, dtype=np.float32)
     if fill_data_var:
-        longitude, latitude = np.meshgrid(grid.x.get_value(), grid.y.get_value())
+        if grid.is_vectorized:
+            longitude, latitude = np.meshgrid(grid.x.get_value(), grid.y.get_value())
+        else:
+            longitude, latitude = grid.x.get_value(), grid.y.get_value()
         exact = create_exact_field_value(longitude, latitude)
         to_fill = dvar.get_value()
         to_fill[:, :, :] = exact

@@ -76,7 +76,7 @@ class OcgCalculationEngine(object):
                 new_temporal = tgds_to_use.get(field_name)
                 if new_temporal is not None:
                     new_temporal = new_temporal.copy()
-                # if the engine has a grouping, ensure it is equivalent to the new temporal dimension.
+                # If the engine has a grouping, ensure it is equivalent to the new temporal dimension.
                 if self.grouping is not None:
                     try:
                         compare = set(new_temporal.grouping) == set(self.grouping)
@@ -98,6 +98,9 @@ class OcgCalculationEngine(object):
                                             parms=f['kwds'], tgd=new_temporal, calc_sample_size=self.calc_sample_size,
                                             meta_attrs=f.get('meta_attrs'),
                                             spatial_aggregation=self.spatial_aggregation)
+                        # Allow a calculation to create a temporal aggregation after initialization.
+                        if new_temporal is None and function.tgd is not None:
+                            new_temporal = function.tgd.extract()
                     except KeyError:
                         # Likely an eval function which does not have the name key.
                         function = EvalFunction(field=field, file_only=file_only, vc=out_vc,
@@ -132,7 +135,8 @@ class OcgCalculationEngine(object):
                 # Format the returned field. Doing things like removing original data variables and modifying the
                 # time dimension if necessary. Field functions handle all field modifications on their own, so bypass
                 # in that case.
-                # if not self._check_calculation_members_(self.funcs, AbstractFieldFunction):
+                if new_temporal is not None:
+                    new_temporal = new_temporal.extract()
                 format_return_field(function_tag, out_field, new_temporal=new_temporal)
 
                 # Add the calculation variables.

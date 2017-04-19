@@ -14,7 +14,6 @@ from ocgis.util.units import get_units_object
 from ocgis.variable.base import Variable
 
 
-@attr('release')
 class TestDailyPercentile(AbstractTestField):
     @attr('data', 'slow')
     def test_system_compute(self):
@@ -26,7 +25,8 @@ class TestDailyPercentile(AbstractTestField):
         ret = compute(ops, 2, verbose=False)
 
         rd = ocgis.RequestDataset(uri=ret)
-        self.assertEqual(rd.get().data_variables[0].shape, (365, 3, 3))
+        actual_field = rd.get()
+        self.assertEqual(actual_field.data_variables[0].shape, (365, 3, 3))
 
     @attr('data', 'slow')
     def test_system_operations(self):

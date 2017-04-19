@@ -68,14 +68,12 @@ class TestDuration(AbstractCalcBase):
                 raise cap
 
 
-@attr('release')
 class TestFrequencyDuration(AbstractCalcBase):
     def test_init(self):
         FrequencyDuration()
 
     @attr('data')
     def test_calculate(self):
-
         fduration = FrequencyDuration()
         values = np.array([1, 2, 3, 3, 3, 1, 1, 3, 3, 3, 4, 4, 1, 4, 4, 1, 10, 10], dtype=float)
         values = self.get_reshaped(values)
@@ -83,70 +81,3 @@ class TestFrequencyDuration(AbstractCalcBase):
         self.assertEqual(ret.flatten()[0].dtype.names, ('duration', 'count'))
         self.assertNumpyAll(np.array([2, 3, 5]), ret.flatten()[0]['duration'])
         self.assertNumpyAll(np.array([2, 1, 1]), ret.flatten()[0]['count'])
-
-        calc = [{'func': 'freq_duration', 'name': 'freq_duration', 'kwds': {'operation': 'gt', 'threshold': 280}}]
-        ret = self.run_standard_operations(calc, capture=True, output_format=None)
-        for dct in ret:
-            if isinstance(dct['exception'], NotImplementedError) and dct['parms']['aggregate']:
-                pass
-            elif isinstance(dct['exception'], DefinitionValidationError):
-                if dct['parms']['output_format'] == 'nc' or dct['parms']['calc_grouping'] == ['month']:
-                    pass
-            else:
-                raise dct['exception']
-
-    @attr('slow')
-    def test_real_data_multiple_datasets(self):
-        kwds = {'time_region': {'year': [1991], 'month': [7]}}
-        rd_tasmax = self.test_data.get_rd('maurer_2010_concatenated_tasmax', kwds=kwds)
-        rd_tasmin = self.test_data.get_rd('maurer_2010_concatenated_tasmin', kwds=kwds)
-
-        ops = OcgOperations(dataset=[rd_tasmax, rd_tasmin],
-                            output_format=constants.OutputFormatName.CSV_SHAPEFILE,
-                            calc=[{'name': 'Frequency Duration', 'func': 'freq_duration',
-                                   'kwds': {'threshold': 25.0, 'operation': 'gte'}}],
-                            calc_grouping=['month', 'year'],
-                            geom='us_counties', select_ugid=[2778], aggregate=True,
-                            calc_raw=False, spatial_operation='clip')
-        ret = ops.execute()
-
-        with open(ret, 'r') as f:
-            reader = csv.DictReader(f)
-            variables = [row['VARIABLE'] for row in reader]
-        self.assertEqual(set(variables), set(['tasmax', 'tasmin']))
-
-    @attr('slow')
-    def test_real_data(self):
-        """Test calculations on real data."""
-
-        rd = self.test_data.get_rd('maurer_2010_concatenated_tasmax', kwds={'time_region': {'year': [1991],
-                                                                                            'month': [7]}})
-        for output_format in [constants.OutputFormatName.OCGIS, constants.OutputFormatName.CSV_SHAPEFILE,
-                              constants.OutputFormatName.SHAPEFILE, constants.OutputFormatName.CSV]:
-            ops = OcgOperations(dataset=rd,
-                                output_format=output_format, prefix=output_format,
-                                calc=[{'name': 'Frequency Duration',
-                                       'func': 'freq_duration',
-                                       'kwds': {'threshold': 15.0, 'operation': 'gte'}}],
-                                calc_grouping=['month', 'year'],
-                                geom='us_counties', select_ugid=[2778], aggregate=True,
-                                calc_raw=False, spatial_operation='clip',
-                                headers=['did', 'ugid', 'gid', 'year', 'month', 'day', 'variable', 'calc_key',
-                                         'value'],
-                                melted=True)
-            ret = ops.execute()
-
-            if output_format == OUTPUT_FORMAT_OCGIS:
-                ref = ret[2778]['tasmax'].variables['Frequency Duration'].get_value()
-                self.assertEqual(ref.compressed()[0].shape, (2,))
-
-            if output_format == constants.OutputFormatName.CSV_SHAPEFILE:
-                real = [{'COUNT': '1', 'UGID': '2778', 'DID': '1', 'CALC_KEY': 'freq_duration', 'MONTH': '7',
-                         'DURATION': '7', 'GID': '2778', 'YEAR': '1991', 'VARIABLE': 'tasmax', 'DAY': '16'},
-                        {'COUNT': '1', 'UGID': '2778', 'DID': '1', 'CALC_KEY': 'freq_duration', 'MONTH': '7',
-                         'DURATION': '23', 'GID': '2778', 'YEAR': '1991', 'VARIABLE': 'tasmax', 'DAY': '16'}]
-                with open(ret, 'r') as f:
-                    reader = csv.DictReader(f)
-                    rows = list(reader)
-                for row, real_row in zip(rows, real):
-                    self.assertDictEqual(row, real_row)

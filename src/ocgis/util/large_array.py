@@ -181,6 +181,7 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
                 ops_slice.optimizations = optimizations
                 # return the object slice
                 ret = ops_slice.execute()
+
                 for field in ret.iter_fields():
                     for variable in field.data_variables:
                         vref = fds.variables[variable.name]

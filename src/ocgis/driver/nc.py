@@ -331,11 +331,6 @@ class DriverNetcdfCF(DriverNetcdf):
         # Putting units on bounds for netCDF-CF can confuse some parsers.
         grid = field.grid
         if grid is not None:
-            if grid.has_bounds:
-                field = field.copy()
-                field.x.bounds.attrs.pop('units', None)
-                field.y.bounds.attrs.pop('units', None)
-
             # If any grid pieces are masked, ensure the mask is created across all grids.
             has_mask = vm.gather(grid.has_mask)
             if vm.rank == 0:
@@ -348,6 +343,11 @@ class DriverNetcdfCF(DriverNetcdf):
             create_mask = vm.bcast(create_mask)
             if create_mask and not grid.has_mask:
                 grid.get_mask(create=True)
+
+            if grid.has_bounds:
+                field = field.copy()
+                field.x.bounds.attrs.pop('units', None)
+                field.y.bounds.attrs.pop('units', None)
 
         return field
 

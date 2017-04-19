@@ -10,6 +10,7 @@ from shapely.geometry import mapping
 from ocgis import constants, vm
 from ocgis.constants import MPIWriteMode, DimensionName, KeywordArgument, DriverKey
 from ocgis.driver.base import driver_scope, AbstractTabularDriver
+from ocgis.util.helpers import is_auto_dtype
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import SourcedVariable, VariableCollection
 from ocgis.variable.crs import CoordinateReferenceSystem
@@ -158,7 +159,7 @@ class DriverVector(AbstractTabularDriver):
         return m
 
     def _init_variable_from_source_main_(self, variable_object, variable_metadata):
-        if variable_object._dtype is None:
+        if is_auto_dtype(variable_object._dtype):
             variable_object.dtype = variable_metadata['dtype']
 
         variable_attrs = variable_object._attrs

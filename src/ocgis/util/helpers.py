@@ -746,6 +746,15 @@ def get_tuple(value):
     return ret
 
 
+def is_auto_dtype(dtype):
+    try:
+        is_auto = dtype == 'auto'
+    except TypeError:
+        # NumPy does interesting things with data type comparisons.
+        is_auto = False
+    return is_auto
+
+
 def itersubclasses(cls, _seen=None):
     """
     itersubclasses(cls)

@@ -12,12 +12,12 @@ from ocgis.constants import MPIWriteMode, DimensionName
 from ocgis.driver.base import AbstractDriver
 from ocgis.driver.vector import DriverVector, get_fiona_crs, get_fiona_schema
 from ocgis.test.base import TestBase, attr
-from ocgis.variable.base import Variable
+from ocgis.variable.base import Variable, SourcedVariable
 from ocgis.variable.crs import WGS84, CoordinateReferenceSystem, Spherical
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.variable.temporal import TemporalVariable
-from ocgis.vmachine.mpi import MPI_RANK, MPI_COMM, MPI_SIZE, OcgMpi, variable_collection_scatter
+from ocgis.vmachine.mpi import MPI_RANK, MPI_COMM, MPI_SIZE, OcgMpi, variable_collection_scatter, hgather
 
 
 class TestDriverVector(TestBase):
@@ -131,6 +131,36 @@ class TestDriverVector(TestBase):
         sizes = MPI_COMM.gather(rd.get().geom.shape[0])
         if MPI_RANK == 0:
             self.assertEqual(sum(sizes), desired)
+
+    @attr('mpi')
+    def test_system_with_distributed_dimensions_from_file_shapefile(self):
+        """Test a distributed read from file."""
+
+        path = self.path_state_boundaries
+
+        # These are the desired values.
+        with vm.scoped('desired data write', [0]):
+            if not vm.is_null:
+                rd_desired = RequestDataset(uri=path, driver=DriverVector)
+                var_desired = SourcedVariable(name='STATE_NAME', request_dataset=rd_desired)
+                value_desired = var_desired.get_value().tolist()
+                self.assertEqual(len(value_desired), 51)
+
+        rd = RequestDataset(uri=path, driver=DriverVector)
+        fvar = SourcedVariable(name='STATE_NAME', request_dataset=rd)
+        self.assertEqual(len(rd.driver.dist.get_group()['dimensions']), 1)
+
+        self.assertTrue(fvar.dimensions[0].dist)
+        self.assertIsNotNone(fvar.get_value())
+        if MPI_SIZE > 1:
+            self.assertLessEqual(fvar.shape[0], 26)
+
+        values = MPI_COMM.gather(fvar.get_value())
+        if MPI_RANK == 0:
+            values = hgather(values)
+            self.assertEqual(values.tolist(), value_desired)
+        else:
+            self.assertIsNone(values)
 
     def test_system_with_time_data(self):
         """Test writing data with a time dimension."""

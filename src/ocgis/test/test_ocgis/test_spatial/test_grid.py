@@ -215,7 +215,6 @@ class TestGridXY(AbstractTestInterface):
         with self.nc_scope(path) as ds:
             actual = ds.variables[grid.mask_variable.name]
             self.assertNumpyAll(grid.get_mask(), actual[:].mask)
-            # RequestDataset(uri=path).inspect()
 
         # Test mask is used when read from file.
         actual_field = RequestDataset(path).get()

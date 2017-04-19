@@ -14,7 +14,7 @@ from ocgis.base import orphaned, raise_if_empty
 from ocgis.constants import MPIWriteMode, DimensionMapKey, KeywordArgument, DriverKey, CFName
 from ocgis.driver.base import AbstractDriver, get_group, driver_scope
 from ocgis.exc import ProjectionDoesNotMatch, PayloadProtectedError, OcgWarning, NoDataVariablesFound
-from ocgis.util.helpers import itersubclasses, get_iter, get_formatted_slice, get_by_key_list
+from ocgis.util.helpers import itersubclasses, get_iter, get_formatted_slice, get_by_key_list, is_auto_dtype
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import SourcedVariable, ObjectType, VariableCollection, \
     get_slice_sequence_using_local_bounds
@@ -394,7 +394,7 @@ def init_variable_using_metadata_for_netcdf(variable, metadata):
         variable.convert_to_empty()
     else:
         # Update data type and fill value.
-        if variable._dtype is None:
+        if is_auto_dtype(variable._dtype):
             var_dtype = var['dtype']
             desired_dtype = deepcopy(var_dtype)
             if isinstance(var_dtype, VLType):
@@ -403,7 +403,7 @@ def init_variable_using_metadata_for_netcdf(variable, metadata):
                 desired_dtype = deepcopy(var['dtype_packed'])
             variable._dtype = desired_dtype
 
-        if variable._fill_value is None:
+        if variable._fill_value == 'auto':
             if var['fill_value_packed'] is not None:
                 desired_fill_value = var['fill_value_packed']
             else:
@@ -618,14 +618,17 @@ def update_group_metadata(rootgrp, fill):
             dtype_packed = None
             fill_value_packed = None
 
-        # make two attempts at missing value attributes otherwise assume the default from a numpy masked array
+        # Attempt to find the fill value.
         try:
-            fill_value = value.fill_value
-        except AttributeError:
+            fill_value = value.__dict__['_FillValue']
+        except KeyError:
             try:
-                fill_value = value.missing_value
+                fill_value = value.fill_value
             except AttributeError:
-                fill_value = np.ma.array([], dtype=value.dtype).fill_value
+                try:
+                    fill_value = value.missing_value
+                except AttributeError:
+                    fill_value = 'auto'
 
         variables.update({key: {'dimensions': value.dimensions,
                                 'attributes': subvar,

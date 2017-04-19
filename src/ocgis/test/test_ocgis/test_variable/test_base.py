@@ -95,7 +95,9 @@ class TestVariable(AbstractTestInterface):
 
         # Test with dimensions only.
         v = Variable(dimensions=[Dimension('a', 3), Dimension('b', 8)], dtype=np.int8, fill_value=2, name='only dims')
-        self.assertNumpyAll(v.get_value(), np.zeros((3, 8), dtype=np.int8))
+        desired = np.zeros((3, 8), dtype=np.int8)
+        desired.fill(2)
+        self.assertNumpyAll(v.get_value(), desired)
 
         # Test with an unlimited dimension.
         v = Variable(dimensions=Dimension('unlimited'), name='unhinged')
@@ -160,6 +162,32 @@ class TestVariable(AbstractTestInterface):
         # Test with a unique identifier.
         var = Variable('woot', uid=50)
         self.assertEqual(var.uid, 50)
+
+    def test_init_dtype(self):
+        """Test automatic data type detection."""
+
+        var = Variable(name='hello')
+        self.assertIsNone(var.dtype)
+
+        desired = np.int8
+        var = Variable(name='foo', value=np.array([1, 2, 3], dtype=desired), dimensions='one')
+        self.assertEqual(var.dtype, desired)
+        self.assertEqual(var._dtype, 'auto')
+
+    def test_init_fill_value(self):
+        """Test automatic fill value creation."""
+
+        var = Variable(name='hello')
+        self.assertIsNone(var.fill_value)
+
+        var = Variable(name='hello', fill_value=12)
+        self.assertEqual(var.fill_value, 12)
+
+        var = Variable(name='a', value=[1, 2, 3], dimensions='one')
+        self.assertEqual(var.fill_value, 999999)
+
+        var = Variable(name='b', value=np.array([1, 2, 3], dtype=object), dimensions='foo')
+        self.assertIsNone(var.fill_value)
 
     def test_init_object_array(self):
         value = [[1, 3, 5],
@@ -300,36 +328,6 @@ class TestVariable(AbstractTestInterface):
         MPI_COMM.Barrier()
 
     @attr('mpi')
-    def test_system_with_distributed_dimensions_from_file_shapefile(self):
-        """Test a distributed read from file."""
-
-        path = self.path_state_boundaries
-
-        # These are the desired values.
-        with vm.scoped('desired data write', [0]):
-            if not vm.is_null:
-                rd_desired = RequestDataset(uri=path, driver=DriverVector)
-                var_desired = SourcedVariable(name='STATE_NAME', request_dataset=rd_desired)
-                value_desired = var_desired.get_value().tolist()
-                self.assertEqual(len(value_desired), 51)
-
-        rd = RequestDataset(uri=path, driver=DriverVector)
-        fvar = SourcedVariable(name='STATE_NAME', request_dataset=rd)
-        self.assertEqual(len(rd.driver.dist.get_group()['dimensions']), 1)
-
-        self.assertTrue(fvar.dimensions[0].dist)
-        self.assertIsNotNone(fvar.get_value())
-        if MPI_SIZE > 1:
-            self.assertLessEqual(fvar.shape[0], 26)
-
-        values = MPI_COMM.gather(fvar.get_value())
-        if MPI_RANK == 0:
-            values = hgather(values)
-            self.assertEqual(values.tolist(), value_desired)
-        else:
-            self.assertIsNone(values)
-
-    @attr('mpi')
     def test_system_with_distributed_dimensions_ndvariable(self):
         """Test multi-dimensional variable behavior with distributed dimensions."""
 
@@ -360,6 +358,13 @@ class TestVariable(AbstractTestInterface):
         parent = VariableCollection(variables=extra2)
         var = Variable(name='host', value=[1.5, 3.5], dimensions='a', bounds=bounds, parent=parent)
         self.assertEqual(list(var.parent.keys()), ['remember', 'host', 'time_value', 'the_bounds'])
+
+    def test_allocate_value(self):
+        dim = Dimension('foo', 5)
+        var = Variable(name='tester', dimensions=dim, dtype=np.int8)
+        var.allocate_value()
+        actual = var.get_value()
+        self.assertTrue(np.all(actual == var.fill_value))
 
     def test_as_record(self):
         var = Variable(name='foo', value=[1], dimensions='one',
@@ -415,7 +420,7 @@ class TestVariable(AbstractTestInterface):
             av.cfunits_conform('K')
         av.units = 'celsius'
         av.cfunits_conform('K')
-        self.assertIsNone(av._dtype)
+        self.assertEqual(av._dtype, 'auto')
         self.assertEqual(av.dtype, av.get_value().dtype)
 
         # Test with bounds.
@@ -953,12 +958,12 @@ class TestVariable(AbstractTestInterface):
 
     def test_write_netcdf(self):
         var = self.get_variable(return_original_data=False)
-        self.assertIsNone(var.fill_value)
+        self.assertIsNotNone(var.fill_value)
         self.assertIsNone(var._mask)
         new_mask = var.get_mask(create=True)
         new_mask[1] = True
         var.set_mask(new_mask)
-        self.assertIsNone(var.fill_value)
+        self.assertIsNotNone(var.fill_value)
         var.attrs['axis'] = 'not_an_ally'
         path = self.get_temporary_file_path('out.nc')
         with self.nc_scope(path, 'w') as ds:
@@ -1093,6 +1098,15 @@ class TestSourcedVariable(AbstractTestInterface):
         self.assertNotIn('add_offset', sv.attrs)
         self.assertNotIn('scale_factor', sv.attrs)
 
+    @attr('data', 'cfunits')
+    def test_system_conform_units_to(self):
+        rd = self.get_request_dataset(conform_units_to='celsius')
+        sv = SourcedVariable('tas', request_dataset=rd)[5:9, 5, 9]
+        self.assertIsNone(sv._value)
+        self.assertEqual(sv.units, 'celsius')
+        self.assertLess(sv.get_value().sum(), 200)
+        self.assertEqual(sv.units, 'celsius')
+
     def test_system_using_source_name_from_netcdf(self):
         path = self.get_temporary_file_path('foo.nc')
         with nc_scope(path, mode='w') as ds:
@@ -1104,6 +1118,16 @@ class TestSourcedVariable(AbstractTestInterface):
         self.assertEqual(sv.name, 'not_in_file')
         sv.load()
 
+    def test_fill_value(self):
+
+        var = Variable(name='fill', value=[1, 5, 6], mask=[False, True, False], fill_value=100, dimensions='one')
+        path = self.get_temporary_file_path('foo.nc')
+        var.write(path)
+
+        rd = RequestDataset(path)
+        invar = SourcedVariable(name='fill', request_dataset=rd, protected=True)
+        self.assertEqual(invar.fill_value, 100)
+
     def test_get_scatter_slices(self):
         sv = self.get_sourcedvariable(protected=True)
         actual = sv.get_scatter_slices((1, 2, 2))
@@ -1112,15 +1136,6 @@ class TestSourcedVariable(AbstractTestInterface):
                    (slice(0, 3650, None), slice(32, 64, None), slice(0, 64, None)),
                    (slice(0, 3650, None), slice(32, 64, None), slice(64, 128, None)))
         self.assertEqual(actual, desired)
-
-    @attr('data', 'cfunits')
-    def test_system_conform_units_to(self):
-        rd = self.get_request_dataset(conform_units_to='celsius')
-        sv = SourcedVariable('tas', request_dataset=rd)[5:9, 5, 9]
-        self.assertIsNone(sv._value)
-        self.assertEqual(sv.units, 'celsius')
-        self.assertLess(sv.get_value().sum(), 200)
-        self.assertEqual(sv.units, 'celsius')
 
     def test_getitem(self):
         sv = self.get_sourcedvariable()

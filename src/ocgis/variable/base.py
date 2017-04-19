@@ -25,6 +25,7 @@ from ocgis.variable.crs import CoordinateReferenceSystem
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.iterator import Iterator
 from ocgis.vmachine.mpi import create_nd_slices, get_global_to_local_slice
+from ocgis.util.helpers import is_auto_dtype
 
 
 def handle_empty(func):
@@ -148,7 +149,7 @@ class ObjectType(object):
 class Variable(AbstractContainer, Attributes):
     _bounds_attribute_name = 'bounds'
 
-    def __init__(self, name=None, value=None, dimensions=None, dtype=None, mask=None, attrs=None, fill_value=None,
+    def __init__(self, name=None, value=None, dimensions=None, dtype='auto', mask=None, attrs=None, fill_value='auto',
                  units='auto', parent=None, bounds=None, is_empty=None,
                  source_name=constants.UNINITIALIZED, uid=None, repeat_record=None):
         if not is_empty:
@@ -267,7 +268,8 @@ class Variable(AbstractContainer, Attributes):
 
     @property
     def dtype(self):
-        if self._dtype is None:
+        is_auto = is_auto_dtype(self._dtype)
+        if is_auto:
             ret = self._get_dtype_()
         else:
             ret = self._dtype
@@ -357,10 +359,20 @@ class Variable(AbstractContainer, Attributes):
 
     @property
     def fill_value(self):
-        return self._get_fill_value_()
+        if self._fill_value == 'auto':
+            ret = self._get_fill_value_()
+        else:
+            ret = self._fill_value
+        return ret
 
     def _get_fill_value_(self):
-        return self._fill_value
+        dtype = self.dtype
+        if dtype is None or isinstance(dtype, ObjectType):
+            ret = None
+        else:
+            ret = np.ma.array([1], dtype=dtype).get_fill_value()
+            ret = np.array([ret], dtype=dtype)[0]
+        return ret
 
     @property
     def has_dimensions(self):
@@ -515,7 +527,7 @@ class Variable(AbstractContainer, Attributes):
                     msg = 'Value shapes for variables with unlimited and unsized dimensions are undetermined.'
                     raise ValueError(msg)
                 elif len(dimensions) > 0:
-                    ret = variable_get_zeros(dimensions, self.dtype)
+                    ret = variable_get_zeros(dimensions, self.dtype, fill=self.fill_value)
         return ret
 
     def set_value(self, value, update_mask=False):
@@ -538,7 +550,10 @@ class Variable(AbstractContainer, Attributes):
                 mask_to_set = mask
                 value = value.data
 
-            desired_dtype = self._dtype
+            if is_auto_dtype(self._dtype):
+                desired_dtype = None
+            else:
+                desired_dtype = self._dtype
 
             if not isinstance(value, ndarray):
                 array_type = desired_dtype
@@ -618,8 +633,8 @@ class Variable(AbstractContainer, Attributes):
         self._set_to_conform_value_(new_value)
 
         # Let the data type and fill value load from the value array.
-        self._dtype = None
-        self._fill_value = None
+        self._dtype = 'auto'
+        self._fill_value = 'auto'
 
         if self.has_bounds:
             self.bounds.cfunits_conform(to_units, from_units=from_units)
@@ -741,9 +756,11 @@ class Variable(AbstractContainer, Attributes):
             if self.has_bounds:
                 set_mask_by_variable(self, self.bounds)
 
-    def allocate_value(self):
-        if not self.is_empty:
-            self.set_value(variable_get_zeros(self.dimensions, self.dtype))
+    def allocate_value(self, fill=None):
+        if fill is None:
+            fill = self.fill_value
+        the_zeros = variable_get_zeros(self.dimensions, self.dtype, fill=fill)
+        self.set_value(the_zeros)
 
     def as_record(self, add_bounds=True, formatter=None, pytypes=False, allow_masked=True, pytype_primitives=False,
                   clobber_masked=True, bounds_names=None):
@@ -1636,7 +1653,9 @@ def update_unlimited_dimension_length(variable_value, dimensions):
                     d._size_current = variable_value.shape[idx]
 
 
-def variable_get_zeros(dimensions, dtype):
+def variable_get_zeros(dimensions, dtype, fill=None):
     new_shape = get_dimension_lengths(dimensions)
     ret = np.zeros(new_shape, dtype=dtype)
+    if fill is not None:
+        ret.fill(fill)
     return ret

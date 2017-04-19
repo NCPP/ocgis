@@ -777,10 +777,9 @@ class GridXY(AbstractSpatialContainer):
 
 def create_grid_mask_variable(name, mask_value, dimensions):
     mask_variable = Variable(name, mask=mask_value, dtype=np.dtype('i1'), dimensions=dimensions,
-                             fill_value=np.array([1], dtype=np.dtype('i1'))[0],
                              attrs={'ocgis_role': 'spatial_mask',
                                     'description': 'values matching fill value are spatially masked'})
-    mask_variable.allocate_value()
+    mask_variable.allocate_value(fill=0)
     return mask_variable
 
 

@@ -45,7 +45,7 @@ class GridSplitter(AbstractOcgisObject):
     >>> npslits_dst = (2, 3)
 
     :param bool check_contains: If ``True``, check that the source subset bounding box fully contains the destination
-     subset bounding box.
+     subset bounding box. Works when coordinate data is ordered and packed similarly between source and destination.
     :param bool allow_masked: If ``True``, allow masked values following a subset.
     :raises: ValueError
     """
@@ -180,9 +180,6 @@ class GridSplitter(AbstractOcgisObject):
                     sub_box = box(*dst_grid_subset.extent_global).buffer(buffer_value).envelope
 
                     ocgis_lh(msg=str(sub_box.bounds), level=logging.DEBUG)
-
-                    gmask = self.src_grid.get_mask()
-                    assert gmask is None
                 else:
                     sub_box, dst_box = [None, None]
 
@@ -192,7 +189,7 @@ class GridSplitter(AbstractOcgisObject):
             if self.check_contains:
                 dst_box = vm.bcast(dst_box, root=live_ranks[0])
 
-            src_grid_subset = self.src_grid.get_intersects(sub_box, keep_touches=False)
+            src_grid_subset = self.src_grid.get_intersects(sub_box, keep_touches=False, cascade=False)
 
             if not self.allow_masked:
                 gmask = self.src_grid.get_mask()

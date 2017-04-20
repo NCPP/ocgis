@@ -25,9 +25,6 @@ from ocgis.variable.temporal import TemporalVariable
 from ocgis.vmachine.mpi import MPI_RANK, MPI_COMM, OcgMpi, variable_scatter
 
 
-# tdk: clean-up
-
-
 class TestDriverNetcdf(TestBase):
     def test_init(self):
         path = self.get_temporary_file_path('foo.nc')
@@ -205,6 +202,16 @@ class TestDriverNetcdf(TestBase):
         rd = RequestDataset(path)
         varin = SourcedVariable(name='height', request_dataset=rd)
         self.assertEqual(varin.get_value(), var.get_value())
+
+        # Test mask persists after write.
+        v = Variable(name='the_mask', value=[1, 2, 3, 4], mask=[False, True, True, False], dimensions='ephemeral',
+                     fill_value=222)
+        path = self.get_temporary_file_path('foo.nc')
+        v.write(path)
+        rd = RequestDataset(path, driver=DriverNetcdf)
+        sv = SourcedVariable(name='the_mask', request_dataset=rd)
+        self.assertEqual(sv.get_value().tolist(), [1, 222, 222, 4])
+        self.assertNumpyAll(sv.get_mask(), v.get_mask())
 
     @attr('mpi')
     def test_write_variable_collection(self):
@@ -475,6 +482,11 @@ class TestDriverNetcdfCF(TestBase):
         dmap = d.get_dimension_map(metadata)
         self.assertEqual(dmap.get('time', {}).get('variable'), 'time')
 
+    def test_get_dump_report(self):
+        d = self.get_drivernetcdf()
+        r = d.get_dump_report()
+        self.assertGreaterEqual(len(r), 24)
+
     def test_get_field(self):
         driver = self.get_drivernetcdf()
         field = driver.get_field(format_time=False)
@@ -556,8 +568,3 @@ class TestDriverNetcdfCF(TestBase):
         pickled = pickle.dumps(metadata)
         unpickled = pickle.loads(pickled)
         self.assertEqual(unpickled, desired)
-
-    def test_get_dump_report(self):
-        d = self.get_drivernetcdf()
-        r = d.get_dump_report()
-        self.assertGreaterEqual(len(r), 24)

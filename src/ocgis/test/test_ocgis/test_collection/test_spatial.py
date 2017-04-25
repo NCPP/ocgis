@@ -1,8 +1,8 @@
 from shapely.geometry import Point
 
-from ocgis.collection.field import OcgField
+from ocgis.collection.field import Field
 from ocgis.collection.spatial import SpatialCollection
-from ocgis.constants import TagName
+from ocgis.constants import TagName, DimensionMapKey
 from ocgis.driver.vector import DriverVector
 from ocgis.test.base import AbstractTestInterface
 from ocgis.variable.base import Variable
@@ -57,7 +57,7 @@ class TestSpatialCollection(AbstractTestInterface):
         exact = self.get_exact_field_value(coords_stacked[1], coords_stacked[0])
         exact = Variable(name='exact1', value=exact, dimensions=gridxy.dimensions)
         dimension_map = {'x': {'variable': 'x', 'bounds': 'xbounds'}, 'y': {'variable': 'y', 'bounds': 'ybounds'}}
-        field1 = OcgField.from_variable_collection(gridxy.parent, dimension_map=dimension_map)
+        field1 = Field.from_variable_collection(gridxy.parent, dimension_map=dimension_map)
         field1.add_variable(exact)
         field1.set_name('exact1')
         field1.append_to_tags(TagName.DATA_VARIABLES, 'exact1')
@@ -69,9 +69,9 @@ class TestSpatialCollection(AbstractTestInterface):
 
         gridcode = Variable('gridcode', [110101, 12103], dimensions='ngeom')
         description = Variable('description', ['high point', 'low point'], dimensions='ngeom')
-        dimension_map = {'geom': {'variable': 'geoms', 'names': ['ngeom']}, 'crs': {'variable': crs.name}}
-        poi = OcgField(variables=[geoms, gridcode, description], dimension_map=dimension_map,
-                       is_data=[gridcode, description])
+        dimension_map = {'geom': {'variable': 'geoms', DimensionMapKey.DIMS: ['ngeom']}, 'crs': {'variable': crs.name}}
+        poi = Field(variables=[geoms, gridcode, description], dimension_map=dimension_map,
+                    is_data=[gridcode, description])
         geoms.set_ugid(gridcode)
         return poi
 

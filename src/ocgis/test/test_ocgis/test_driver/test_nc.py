@@ -9,20 +9,22 @@ from ocgis import GeomCabinet, vm
 from ocgis import RequestDataset
 from ocgis import env
 from ocgis.base import get_variable_names
-from ocgis.collection.field import OcgField
-from ocgis.driver.base import get_group
+from ocgis.collection.field import Field
+from ocgis.constants import DimensionMapKey
 from ocgis.driver.base import iter_all_group_keys
+from ocgis.driver.dimension_map import DimensionMap
 from ocgis.driver.nc import DriverNetcdf, DriverNetcdfCF
 from ocgis.exc import OcgWarning, CannotFormatTimeError, \
     NoDataVariablesFound
-from ocgis.spatial.grid import GridXY
-from ocgis.test.base import TestBase, attr
+from ocgis.spatial.grid import Grid
+from ocgis.test.base import TestBase, attr, create_gridxy_global
+from ocgis.util.helpers import get_group
 from ocgis.variable.base import Variable, ObjectType, VariableCollection, SourcedVariable
 from ocgis.variable.crs import WGS84, CoordinateReferenceSystem, CFSpherical
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.variable.temporal import TemporalVariable
-from ocgis.vmachine.mpi import MPI_RANK, MPI_COMM, OcgMpi, variable_scatter
+from ocgis.vmachine.mpi import MPI_RANK, MPI_COMM, OcgDist, variable_scatter
 
 
 class TestDriverNetcdf(TestBase):
@@ -276,7 +278,7 @@ class TestDriverNetcdf(TestBase):
         path_actual = MPI_COMM.bcast(path_actual)
         path_desired = MPI_COMM.bcast(path_desired)
 
-        dest_mpi = OcgMpi()
+        dest_mpi = OcgDist()
         dest_mpi.create_dimension('values', 3, dist=True)
         dest_mpi.update_dimension_bounds()
 
@@ -364,7 +366,7 @@ class TestDriverNetcdfCF(TestBase):
 
         rd = self.test_data.get_rd('cancm4_tas')
         field = rd.get()
-        self.assertIsInstance(field, OcgField)
+        self.assertIsInstance(field, Field)
         self.assertEqual(rd.variable, 'tas')
         self.assertEqual(field['tas'].units, 'K')
         self.assertEqual(len(field.dimensions), 4)
@@ -414,7 +416,7 @@ class TestDriverNetcdfCF(TestBase):
         data1 = Variable(name='data1', value=np.random.rand(3, 4, 2), dimensions=['time', 'y', 'x'])
         data2 = Variable(name='data2', value=np.random.rand(3, 4, 2), dimensions=['time', 'y', 'x'])
         data3 = Variable(name='data3', value=[11, 12, 13], dimensions=['time'])
-        field = OcgField(time=time, grid=GridXY(x, y), variables=[data1, data2, data3])
+        field = Field(time=time, grid=Grid(x, y), variables=[data1, data2, data3])
         field.write(path)
 
         # Test dimensioned variables are read from a file with appropriate metadata.
@@ -436,11 +438,12 @@ class TestDriverNetcdfCF(TestBase):
         self.assertEqual(len(dvars), 0)
 
         # Test a found variable.
-        dimension_map = {'time': {'variable': 'the_time', 'names': ['tt', 'ttt']},
-                         'x': {'variable': 'xx', 'names': ['xx', 'xxx']},
-                         'y': {'variable': 'yy', 'names': ['yy', 'yyy']}}
+        dimension_map = {'time': {'variable': 'the_time', DimensionMapKey.DIMS: ['tt', 'ttt']},
+                         'x': {'variable': 'xx', DimensionMapKey.DIMS: ['xx', 'xxx']},
+                         'y': {'variable': 'yy', DimensionMapKey.DIMS: ['yy', 'yyy']}}
         metadata = {'variables': {'tas': {'dimensions': ('xx', 'ttt', 'yyy')},
                                   'pr': {'dimensions': ('foo',)}}}
+        dimension_map = DimensionMap.from_dict(dimension_map)
         dvars = driver.get_data_variable_names(metadata, dimension_map)
         self.assertEqual(dvars, ('tas',))
 
@@ -453,13 +456,14 @@ class TestDriverNetcdfCF(TestBase):
         d = self.get_drivernetcdf()
         dmap = d.get_dimension_map(d.metadata_source, strict=True)
         desired = {'crs': {'variable': 'latitude_longitude'},
-                   'time': {'variable': 'time', 'bounds': 'time_bounds', 'names': ['time']}}
-        self.assertEqual(dmap, desired)
+                   'time': {'variable': 'time', 'bounds': 'time_bounds', DimensionMapKey.DIMS: ['time'],
+                            DimensionMapKey.ATTRS: {'axis': 'T'}}}
+        self.assertEqual(dmap.as_dict(), desired)
 
         def _run_():
             env.SUPPRESS_WARNINGS = False
             metadata = {'variables': {'x': {'name': 'x',
-                                            'attributes': {'axis': 'X', 'bounds': 'x_bounds'},
+                                            'attrs': {'axis': 'X', 'bounds': 'x_bounds'},
                                             'dimensions': ('xx',)}},
                         'dimensions': {'xx': {'name': 'xx', 'size': None}}}
             d.get_dimension_map(metadata)
@@ -467,20 +471,46 @@ class TestDriverNetcdfCF(TestBase):
         self.assertWarns(OcgWarning, _run_)
 
         # Test overloaded dimension map from request dataset is used.
-        dm = {'level': {'variable': 'does_not_exist', 'names': []}, 'crs': {}}
+        dm = {'level': {'variable': 'does_not_exist', DimensionMapKey.DIMS: []}}
         driver = self.get_drivernetcdf(dimension_map=dm)
-        self.assertDictEqual(driver.rd.dimension_map, dm)
+        actual = driver.rd.dimension_map
+        self.assertEqual(actual.get_variable(DimensionMapKey.LEVEL), 'does_not_exist')
         # The driver dimension map always loads from the data.
         self.assertNotEqual(dm, driver.get_dimension_map(driver.metadata_source))
-        field = driver.get_field()
-        self.assertIsNone(field.time)
+        with self.assertRaises(ValueError):
+            driver.get_field()
+
+        # Test a dimension name is converted to a list.
+        dmap = {DimensionMapKey.TIME: {DimensionMapKey.VARIABLE: 'time', DimensionMapKey.DIMS: 'time'}}
+        d = self.get_drivernetcdf(dimension_map=dmap)
+        f = d.get_field()
+        actual = f.dimension_map.get_dimensions(DimensionMapKey.TIME)
+        self.assertEqual(actual, ['time'])
 
     def test_get_dimension_map_no_time_axis(self):
-        metadata = {'variables': {'time': {'name': 'time', 'attributes': {}, 'dimensions': ['time']}},
+        metadata = {'variables': {'time': {'name': 'time', 'attrs': {}, 'dimensions': ['time']}},
                     'dimensions': {}}
         d = self.get_drivernetcdf()
+        self.pprint_dict(metadata)
         dmap = d.get_dimension_map(metadata)
-        self.assertEqual(dmap.get('time', {}).get('variable'), 'time')
+        self.assertEqual(dmap.get_variable(DimensionMapKey.TIME), 'time')
+
+    def test_get_dimension_map_2d_spatial_coordinates(self):
+        grid = create_gridxy_global()
+        grid.expand()
+        path = self.get_temporary_file_path('foo.nc')
+        f = Field(grid=grid)
+        f.write(path)
+        rd = RequestDataset(path)
+        field = rd.get()
+        sub = field.get_field_slice({'y': 10, 'x': 5})
+        self.assertEqual(sub.grid.x.shape, (1, 1))
+
+        actual = f.dimension_map.get_dimensions(DimensionMapKey.Y)
+        self.assertEqual(actual, ['y'])
+
+        actual = f.dimension_map.get_dimensions(DimensionMapKey.X)
+        self.assertEqual(actual, ['x'])
 
     def test_get_dump_report(self):
         d = self.get_drivernetcdf()
@@ -490,6 +520,7 @@ class TestDriverNetcdfCF(TestBase):
     def test_get_field(self):
         driver = self.get_drivernetcdf()
         field = driver.get_field(format_time=False)
+        self.assertEqual(field.driver.key, driver.key)
         self.assertIsInstance(field.time, TemporalVariable)
         with self.assertRaises(CannotFormatTimeError):
             assert field.time.value_datetime
@@ -535,8 +566,8 @@ class TestDriverNetcdfCF(TestBase):
         t = Variable('t', dimensions='t', value=[3])
         crs = WGS84()
         d = Variable('data', dimensions=['t', 'y', 'x'], value=[[[1]]])
-        grid = GridXY(x, y)
-        field = OcgField(grid=grid, time=t, crs=crs)
+        grid = Grid(x, y)
+        field = Field(grid=grid, time=t, crs=crs)
         field.add_variable(d, is_data=True)
 
         target = DriverNetcdfCF._get_field_write_target_(field)
@@ -546,11 +577,11 @@ class TestDriverNetcdfCF(TestBase):
         # Test bounds units are removed when writing.
         x = Variable(name='x', value=[1, 2, 3], dtype=float, dimensions='x', units='hours')
         y = Variable(name='y', value=[1, 2, 3], dtype=float, dimensions='x', units='hours')
-        grid = GridXY(x, y)
+        grid = Grid(x, y)
         grid.set_extrapolated_bounds('x_bounds', 'y_bounds', 'bounds')
         self.assertEqual(x.bounds.units, x.units)
         self.assertEqual(y.bounds.units, y.units)
-        field = OcgField(grid=grid)
+        field = Field(grid=grid)
         actual = DriverNetcdfCF._get_field_write_target_(field)
         self.assertEqual(x.bounds.units, x.units)
         self.assertNumpyMayShareMemory(actual[x.name].get_value(), field[x.name].get_value())

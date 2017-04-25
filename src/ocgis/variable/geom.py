@@ -1,7 +1,7 @@
 import abc
 from abc import abstractmethod
 from collections import deque
-from copy import copy, deepcopy
+from copy import deepcopy
 from itertools import product
 
 import numpy as np
@@ -21,7 +21,7 @@ from ocgis.base import AbstractOcgisObject
 from ocgis.constants import WrapAction, KeywordArgument, HeaderName
 from ocgis.environment import ogr
 from ocgis.exc import EmptySubsetError
-from ocgis.util.helpers import iter_array, get_none_or_slice, get_trimmed_array_by_mask, get_swap_chain
+from ocgis.util.helpers import iter_array, get_trimmed_array_by_mask, get_swap_chain
 from ocgis.variable.base import AbstractContainer, get_dimension_lengths
 from ocgis.variable.crs import Cartesian
 from ocgis.variable.iterator import Iterator
@@ -33,6 +33,11 @@ GEOM_TYPE_MAPPING = {'Polygon': Polygon, 'Point': Point, 'MultiPoint': MultiPoin
 
 
 class AbstractSpatialObject(AbstractInterfaceObject):
+    """
+    :keyword crs: (``=None``) Coordinate reference system for the spatial object.
+    :type crs: :class:`ocgis.variable.crs.AbstractCoordinateReferenceSystem`
+    """
+
     def __init__(self, *args, **kwargs):
         self._crs_name = None
         self.crs = kwargs.pop('crs', None)
@@ -59,6 +64,7 @@ class AbstractSpatialObject(AbstractInterfaceObject):
                 self.parent.pop(self._crs_name)
             self.parent.add_variable(value, force=True)
             self._crs_name = value.name
+            value.format_field(self)
 
     @property
     def wrapped_state(self):
@@ -227,6 +233,23 @@ class GeometryProcessor(AbstractOcgisObject):
 
 
 class GeometryVariable(AbstractSpatialVariable):
+    """
+    A variable containing Shapely geometry object arrays.
+    
+    .. note:: Accepts all parameters to :class:`ocgis.Variable`.
+
+    Additional keyword arguments are:
+
+    :param crs: (``=None``) The coordinate reference system for the geometries.
+    :type crs: :class:`ocgis.variable.crs.AbstractCoordinateReferenceSystem`
+    :param str geom_type: (``='auto'``) See http://toblerity.org/shapely/manual.html#object.geom_type. If ``'auto'``,
+     the geometry type will be automatically determined from the object array. Providing a default prevents iterating
+     over the obejct array to identify the geometry type.
+    :param ugid: (``=None``) An integer array with same shape as the geometry variable. This array will be converted to
+     a :class:`ocgis.Variable`.
+    :type ugid: :class:`numpy.ndarray```(..., dtype=int)``
+    """
+
     def __init__(self, **kwargs):
         self._name_ugid = None
         self._geom_type = kwargs.pop(KeywordArgument.GEOM_TYPE, 'auto')
@@ -313,9 +336,7 @@ class GeometryVariable(AbstractSpatialVariable):
 
     def create_ugid_global(self, name, start=1):
         """Collective!"""
-
-        if self.is_empty:
-            raise ValueError('Geometry variable must not be empty.')
+        raise_if_empty(self)
 
         sizes = vm.gather(self.size)
         if vm.rank == 0:
@@ -336,9 +357,7 @@ class GeometryVariable(AbstractSpatialVariable):
         Return a shallow copy of the geometry variable with geometries buffered.
         """
 
-        # Handle empty objects.
-        if self.is_empty:
-            return self
+        raise_if_empty(self)
 
         # New geometry type for the buffered object.
         geom_type = kwargs.pop('geom_type', 'auto')
@@ -367,13 +386,10 @@ class GeometryVariable(AbstractSpatialVariable):
         :raises: EmptySubsetError
         """
 
-        if self.is_empty:
-            raise ValueError('Operation not valid on empty geometry variables.')
+        raise_if_empty(self)
 
         return_slice = kwargs.pop(KeywordArgument.RETURN_SLICE, False)
         cascade = kwargs.pop(KeywordArgument.CASCADE, True)
-        # comm = kwargs.pop(KeywordArgument.COMM, None)
-        # comm, rank, size = get_standard_comm_state(comm=comm)
 
         ret = self.copy()
         intersects_mask_value = ret.get_mask_from_intersects(*args, **kwargs)
@@ -784,9 +800,9 @@ class GeometryVariable(AbstractSpatialVariable):
         super(GeometryVariable, self).set_value(value, **kwargs)
 
     def write_vector(self, *args, **kwargs):
-        from ocgis.collection.field import OcgField
+        from ocgis.collection.field import Field
         from ocgis.driver.vector import DriverVector
-        field = OcgField(geom=self, crs=self.crs)
+        field = Field(geom=self, crs=self.crs)
         kwargs[KeywordArgument.DRIVER] = DriverVector
         field.write(*args, **kwargs)
 
@@ -882,45 +898,6 @@ def get_grid_or_geom_attr(sc, attr):
         ret = getattr(sc.geom, attr)
     else:
         ret = getattr(sc.grid, attr)
-    return ret
-
-
-def get_spatial_operation(sc, name, args, kwargs):
-    """
-    :param sc: A spatial containter.
-    :type sc: :class:`ocgis.new_interface.geom.SpatialContainer'
-    :param str name: Name of the spatial operation.
-    :param tuple args: Arguments to the spatial operation.
-    :param dict kwargs: Keyword arguments to the spatial operation.
-    :returns: Performs the spatial operation on the input spatial container.
-    :rtype: :class:`ocgis.new_interface.geom.SpatialContainer'
-    """
-    ret = copy(sc)
-
-    # Always return indices so the other geometry can be sliced if needed.
-    kwargs = kwargs.copy()
-    original_return_indices = kwargs.get('return_indices', False)
-    kwargs['return_indices'] = True
-
-    # Subset the optimal geometry.
-    geom = ret.geom
-    operation = getattr(geom, name)
-    geom_subset, slc = operation(*args, **kwargs)
-    # Synchronize the underlying grid.
-    ret.grid = geom_subset.grid
-    # Update the other geometry by slicing given the underlying subset. Only slice if it is loaded.
-    if isinstance(geom, PolygonArray):
-        ret.polygon = geom_subset
-        ret.point = get_none_or_slice(ret._point, slc)
-    else:
-        ret.point = geom_subset
-        ret.polygon = get_none_or_slice(ret._polygon, slc)
-
-    if original_return_indices:
-        ret = (ret, slc)
-    else:
-        ret = ret
-
     return ret
 
 

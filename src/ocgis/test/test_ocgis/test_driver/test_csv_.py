@@ -3,13 +3,13 @@ import csv
 import numpy as np
 
 from ocgis import RequestDataset, vm
-from ocgis.collection.field import OcgField
+from ocgis.collection.field import Field
 from ocgis.constants import HeaderName
 from ocgis.driver.csv_ import DriverCSV
 from ocgis.test.base import TestBase, attr
 from ocgis.variable.base import Variable, VariableCollection
 from ocgis.variable.temporal import TemporalVariable
-from ocgis.vmachine.mpi import MPI_RANK, MPI_COMM, OcgMpi, variable_collection_scatter
+from ocgis.vmachine.mpi import MPI_RANK, MPI_COMM, OcgDist, variable_collection_scatter
 
 
 class TestDriverCSV(TestBase):
@@ -42,7 +42,7 @@ class TestDriverCSV(TestBase):
             self.assertIsNotNone(v.get_value())
 
         field = rd.get()
-        self.assertIsInstance(field, OcgField)
+        self.assertIsInstance(field, Field)
 
         vc.write(path_out, driver=DriverCSV)
 
@@ -81,7 +81,7 @@ class TestDriverCSV(TestBase):
     def test_system_parallel_write_ndvariable(self):
         """Test a parallel CSV write with a n-dimensional variable."""
 
-        ompi = OcgMpi()
+        ompi = OcgDist()
         ompi.create_dimension('time', 3)
         ompi.create_dimension('extra', 2)
         ompi.create_dimension('x', 4)

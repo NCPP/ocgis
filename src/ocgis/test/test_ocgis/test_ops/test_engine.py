@@ -7,12 +7,12 @@ from shapely import wkt
 import ocgis
 from ocgis import SpatialCollection, Variable
 from ocgis import env
-from ocgis.collection.field import OcgField
+from ocgis.collection.field import Field
 from ocgis.constants import TagName, DimensionMapKey
 from ocgis.conv.numpy_ import NumpyConverter
 from ocgis.ops.core import OcgOperations
 from ocgis.ops.engine import OperationsEngine
-from ocgis.spatial.grid import GridXY
+from ocgis.spatial.grid import Grid
 from ocgis.test.base import attr, AbstractTestInterface
 from ocgis.test.test_ocgis.test_ops.test_parms.test_definition import TestGeom
 from ocgis.util.itester import itr_products_keywords
@@ -100,8 +100,8 @@ class TestOperationsEngine(AbstractTestInterface):
 
         x = Variable('x', grid_value[1], dimensions=['lat', 'lon'])
         y = Variable('y', grid_value[0], dimensions=['lat', 'lon'])
-        grid = GridXY(x, y)
-        field = OcgField(grid=grid, crs=Spherical())
+        grid = Grid(x, y)
+        field = Field(grid=grid, crs=Spherical())
 
         ops = OcgOperations(dataset=field, geom=geom, output_crs=output_crs)
         ret = ops.execute()
@@ -249,7 +249,7 @@ class TestOperationsEngine(AbstractTestInterface):
         data_value = self.get_exact_field_value(coords[1], coords[0])
         desired = data_value.copy()
         data_var = Variable(name='data_src', value=data_value, dimensions=grid_spherical.dimensions)
-        source = OcgField(grid=grid_spherical, is_data=data_var, crs=grid_spherical.crs)
+        source = Field(grid=grid_spherical, is_data=data_var, crs=grid_spherical.crs)
         self.assertEqual(source.crs, Spherical())
 
         destination = deepcopy(source)

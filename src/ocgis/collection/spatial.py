@@ -2,10 +2,22 @@ from collections import OrderedDict
 from pprint import pformat
 
 from ocgis import VariableCollection
-from ocgis.collection.field import OcgField
+from ocgis.collection.field import Field
 
 
 class SpatialCollection(VariableCollection):
+    """
+    Spatial collections use a group hierarchy to nest fields in their representative geometries. First-level groups on
+    a spatial collection are the container fields with a single geometry. The second-level groups or grandchildren
+    (nested under the container geometries) are field associated with the parent container. These associations are
+    typically defined using a spatial subset.
+    
+    Spatial collections are the `ocgis` output object type. It is possible to not provide a subset geometry when a
+    spatial collection is created. In this case, the container geometry is ``None``, but the data is still nested.
+    
+    .. note:: Accepts all parameters to :class:`ocgis.VariableCollection`.
+    """
+
     def __getitem__(self, item_or_slc):
         if isinstance(item_or_slc, int) or item_or_slc is None:
             ret = self.children[item_or_slc]
@@ -63,7 +75,7 @@ class SpatialCollection(VariableCollection):
             container.add_child(field, force=force)
         else:
             if None not in self.children:
-                self.children[None] = OcgField()
+                self.children[None] = Field()
             container = self.children[None]
             container.add_child(field, force=force)
 

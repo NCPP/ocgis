@@ -13,9 +13,9 @@ class Test(TestBase):
         # development laptop: 8 procs: 139 seconds
         ocgis.env.VERBOSE = True
         uri = '/home/benkoziol/l/data/bekozi-work/lisa-rensi-nwm/nwm.t00z.analysis_assim.terrain_rt.tm00.conus.nc_georeferenced.nc'
-        # dimension_map = {'time': {'variable': 'time', 'names': ['time']},
-        #                  'x': {'variable': 'x', 'names': ['x']},
-        #                  'y': {'variable': 'y', 'names': ['y']},
+        # dimension_map = {'time': {'variable': 'time', DimensionMapKey.DIMS: ['time']},
+        #                  'x': {'variable': 'x', DimensionMapKey.DIMS: ['x']},
+        #                  'y': {'variable': 'y', DimensionMapKey.DIMS: ['y']},
         #                  'crs': {'variable': 'ProjectionCoordinateSystem'}}
         dimension_map = {'time': {'variable': 'time'},
                          'x': {'variable': 'x'},

@@ -24,16 +24,16 @@ from ocgis import RequestDataset
 from ocgis import SourcedVariable
 from ocgis import Variable, Dimension, VariableCollection
 from ocgis import env
-from ocgis.collection.field import OcgField
+from ocgis.collection.field import Field
 from ocgis.spatial.geom_cabinet import GeomCabinet
-from ocgis.spatial.grid import GridXY, get_geometry_variable
+from ocgis.spatial.grid import Grid, get_geometry_variable
 from ocgis.util.helpers import get_iter, pprint_dict, get_bounds_from_1d, get_date_list, create_exact_field_value
 from ocgis.util.itester import itr_products_keywords
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.crs import CoordinateReferenceSystem
 from ocgis.variable.geom import GeometryVariable
 from ocgis.variable.temporal import TemporalVariable
-from ocgis.vmachine.mpi import get_standard_comm_state, OcgMpi, MPI_RANK, variable_scatter, variable_collection_scatter
+from ocgis.vmachine.mpi import get_standard_comm_state, OcgDist, MPI_RANK, variable_scatter, variable_collection_scatter
 
 """
 Definitions for various "attrs":
@@ -440,10 +440,10 @@ class TestBase(unittest.TestCase):
         col = Variable(value=col_value, name='col', dimensions='col', dtype=float)
 
         if with_bounds:
-            row.set_extrapolated_bounds()
-            col.set_extrapolated_bounds()
+            row.set_extrapolated_bounds('row_bounds', 'bounds')
+            col.set_extrapolated_bounds('col_bounds', 'bounds')
 
-        grid = GridXY(col, row)
+        grid = Grid(col, row)
 
         variable_dimensions = []
         variable_shape = []
@@ -489,7 +489,7 @@ class TestBase(unittest.TestCase):
         variable_dimensions += ['row', 'col']
 
         variable = Variable(name=variable_name, value=np.random.rand(*variable_shape), dimensions=variable_dimensions)
-        field = OcgField(grid=grid, time=temporal, is_data=variable, level=level, realization=realization, crs=crs)
+        field = Field(grid=grid, time=temporal, is_data=variable, level=level, realization=realization, crs=crs)
 
         return field
 
@@ -968,7 +968,7 @@ class AbstractTestInterface(TestBase):
     def get_gridxy(self, with_2d_variables=False, crs=None, with_xy_bounds=False, with_value_mask=False,
                    with_parent=False):
 
-        dest_mpi = OcgMpi()
+        dest_mpi = OcgDist()
         dest_mpi.create_dimension('xdim', 3)
         dest_mpi.create_dimension('ydim', 4, dist=True)
         dest_mpi.create_dimension('time', 10)
@@ -1024,7 +1024,7 @@ class AbstractTestInterface(TestBase):
             parent = variable_collection_scatter(parent, dest_mpi)
             kwds['parent'] = parent
 
-        grid = GridXY(svx, svy, **kwds)
+        grid = Grid(svx, svy, **kwds)
 
         return grid
 
@@ -1095,7 +1095,7 @@ class AbstractTestInterface(TestBase):
             xb, yb = [None, None]
         x = Variable(value=[-100.0, -99.0, -98.0, -97.0], bounds=xb, name='x', dimensions='x')
         y = Variable(value=[40.0, 39.0, 38.0], name='y', bounds=yb, dimensions='y')
-        grid = GridXY(x, y)
+        grid = Grid(x, y)
         return grid
 
     def get_shapely_from_wkt_array(self, wkts):
@@ -1187,7 +1187,7 @@ class AbstractTestField(TestBase):
         with_name = True if with_dimension_names else False
         row = self.get_row(bounds=with_bounds, with_name=with_name)
         col = self.get_col(bounds=with_bounds, with_name=with_name)
-        grid = GridXY(col, row, crs=crs)
+        grid = Grid(col, row, crs=crs)
         row_shape = row.shape[0]
         col_shape = col.shape[0]
 
@@ -1208,13 +1208,13 @@ class AbstractTestField(TestBase):
 
         var = SourcedVariable(name, units=units, request_dataset=data, value=value,
                               dimensions=['realization', 'time', 'level', 'lat', 'lon'])
-        field = OcgField(variables=var, time=temporal, level=level, realization=realization, grid=grid,
-                         name=field_name, is_data=name)
+        field = Field(variables=var, time=temporal, level=level, realization=realization, grid=grid,
+                      name=field_name, is_data=name)
 
         return field
 
 
-def create_exact_field(grid, data_varname, ntime=1, fill_data_var=True):
+def create_exact_field(grid, data_varname, ntime=1, fill_data_var=True, crs='auto'):
     tdim = Dimension(name='time', size=None, size_current=ntime)
     tvar = TemporalVariable(name='time', value=range(1, ntime + 1), dimensions=tdim, dtype=np.float32,
                             attrs={'axis': 'T'})
@@ -1231,7 +1231,7 @@ def create_exact_field(grid, data_varname, ntime=1, fill_data_var=True):
         for tidx in range(ntime):
             to_fill[tidx, :, :] = to_fill[tidx, :, :] + ((tidx + 1) * 10)
 
-    field = OcgField(grid=grid, time=tvar, is_data=dvar)
+    field = Field(grid=grid, time=tvar, is_data=dvar, crs=crs)
 
     return field
 
@@ -1245,7 +1245,7 @@ def create_gridxy_global(resolution=1.0, with_bounds=True, wrapped=True, crs=Non
         x = np.arange(0.0 + half_resolution, 360.0, resolution)
 
     if dist:
-        ompi = OcgMpi()
+        ompi = OcgDist()
         ompi.create_dimension('x', x.shape[0], dist=False)
         ompi.create_dimension('y', y.shape[0], dist=True)
         ompi.update_dimension_bounds()
@@ -1260,7 +1260,7 @@ def create_gridxy_global(resolution=1.0, with_bounds=True, wrapped=True, crs=Non
         x = variable_scatter(x, ompi)
         y = variable_scatter(y, ompi)
 
-    grid = GridXY(x, y, crs=crs)
+    grid = Grid(x, y, crs=crs)
 
     if with_bounds:
         grid.set_extrapolated_bounds('xbounds', 'ybounds', 'bounds')

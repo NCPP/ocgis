@@ -9,7 +9,7 @@ from ocgis import constants
 from ocgis.base import AbstractOcgisObject, raise_if_empty
 from ocgis.constants import DataType, MPITag
 from ocgis.exc import DimensionNotFound
-from ocgis.util.helpers import get_optimal_slice_from_array, get_iter
+from ocgis.util.helpers import get_optimal_slice_from_array, get_iter, get_group
 
 try:
     from mpi4py import MPI
@@ -70,15 +70,11 @@ MPI_SIZE = MPI_COMM.Get_size()
 MPI_RANK = MPI_COMM.Get_rank()
 
 
-class OcgMpi(AbstractOcgisObject):
+class OcgDist(AbstractOcgisObject):
     def __init__(self, size=None, ranks=None):
         if size is None:
             size = MPI_SIZE
-            # size = vm.size
         if ranks is None:
-            # if size is None:
-            #     ranks = vm.live_ranks
-            # else:
             ranks = tuple(range(size))
 
         self.ranks = ranks
@@ -217,7 +213,7 @@ class OcgMpi(AbstractOcgisObject):
         return self._create_or_get_group_(group, rank=rank)
 
     def iter_groups(self, rank=MPI_RANK):
-        from ocgis.driver.base import iter_all_group_keys, get_group
+        from ocgis.driver.base import iter_all_group_keys
         mapping = self.mapping[rank]
         for group_key in iter_all_group_keys(mapping):
             group_data = get_group(mapping, group_key)

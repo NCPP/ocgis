@@ -12,9 +12,10 @@ from ocgis import constants, vm
 from ocgis import env
 from ocgis.base import orphaned, raise_if_empty
 from ocgis.constants import MPIWriteMode, DimensionMapKey, KeywordArgument, DriverKey, CFName
-from ocgis.driver.base import AbstractDriver, get_group, driver_scope
+from ocgis.driver.base import AbstractDriver, driver_scope
+from ocgis.driver.dimension_map import DimensionMap
 from ocgis.exc import ProjectionDoesNotMatch, PayloadProtectedError, OcgWarning, NoDataVariablesFound
-from ocgis.util.helpers import itersubclasses, get_iter, get_formatted_slice, get_by_key_list, is_auto_dtype
+from ocgis.util.helpers import itersubclasses, get_iter, get_formatted_slice, get_by_key_list, is_auto_dtype, get_group
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import SourcedVariable, ObjectType, VariableCollection, \
     get_slice_sequence_using_local_bounds
@@ -260,7 +261,7 @@ class DriverNetcdfCF(DriverNetcdf):
                 keys = ['bounds']
                 if k == 'time':
                     keys += ['climatology']
-                bounds_var = get_by_key_list(variables[axes[k]['variable']]['attributes'], keys)
+                bounds_var = get_by_key_list(variables[axes[k]['variable']]['attrs'], keys)
                 if bounds_var is not None:
                     if bounds_var not in variables:
                         msg = 'Bounds listed for variable "{0}" but the destination bounds variable "{1}" does not exist.'. \
@@ -277,6 +278,7 @@ class DriverNetcdfCF(DriverNetcdf):
         if crs_name is not None:
             ret[DimensionMapKey.CRS] = {DimensionMapKey.VARIABLE: crs_name}
 
+        ret = DimensionMap.from_dict(ret)
         return ret
 
     @staticmethod
@@ -286,12 +288,13 @@ class DriverNetcdfCF(DriverNetcdf):
 
         dimension_names_needed = []
         for axis in axes_needed:
-            try:
-                dimension_names_needed += group_dimension_map[axis].get(DimensionMapKey.NAMES, [])
-            except KeyError:
+            axis_variable = group_dimension_map.get_variable(axis)
+            if axis_variable is None:
                 # A required axis is missing in the dimension map. Hence, there are no dimensioned variables in the
-                # group
+                # group.
                 return tuple()
+            else:
+                dimension_names_needed += group_dimension_map.get_dimensions(axis)
         dimension_names_needed = set(dimension_names_needed)
 
         for vk, vv in list(group_metadata['variables'].items()):
@@ -303,11 +306,15 @@ class DriverNetcdfCF(DriverNetcdf):
         return tuple(dvars)
 
     def get_distributed_dimension_name(self, dimension_map, dimensions_metadata):
-        if DimensionMapKey.X in dimension_map and DimensionMapKey.Y in dimension_map:
+        x_variable = dimension_map.get_variable(DimensionMapKey.X)
+        y_variable = dimension_map.get_variable(DimensionMapKey.Y)
+        if x_variable and y_variable:
             sizes = np.zeros(2, dtype={'names': ['dim', 'size'], 'formats': [object, int]})
 
-            dimension_name_x = dimension_map[DimensionMapKey.X]['names'][0]
-            dimension_name_y = dimension_map[DimensionMapKey.Y]['names'][0]
+            dimension_name_x = dimension_map.get_dimensions(DimensionMapKey.X)[0]
+            # dimension_name_x = dimension_map[DimensionMapKey.X][DimensionMapKey.DIMS][0]
+            dimension_name_y = dimension_map.get_dimensions(DimensionMapKey.Y)[0]
+            # dimension_name_y = dimension_map[DimensionMapKey.Y][DimensionMapKey.DIMS][0]
 
             sizes[0] = (dimension_name_x, dimensions_metadata[dimension_name_x]['size'])
             sizes[1] = (dimension_name_y, dimensions_metadata[dimension_name_y]['size'])
@@ -414,7 +421,7 @@ def init_variable_using_metadata_for_netcdf(variable, metadata):
         # Offset and scale factors are not supported by OCGIS. The data is unpacked when written to a new output file.
         # tdk: consider supporting offset and scale factors
         exclude = ['add_offset', 'scale_factor']
-        for k, v in list(var['attributes'].items()):
+        for k, v in list(var['attrs'].items()):
             if k in exclude:
                 continue
             if k not in variable_attrs:
@@ -554,11 +561,9 @@ def get_crs_variable(metadata, to_search=None):
 def get_dimension_map_entry(axis, variables, dimensions, strict=False):
     axis_vars = []
     for variable in list(variables.values()):
-        vattrs = variable['attributes']
+        vattrs = variable['attrs']
         if vattrs.get('axis') == axis:
             if len(variable['dimensions']) == 0:
-                # msg = 'Scalar axes ignored. Found for axis "{}" on variable "{}".'.format(axis, variable['name'])
-                # warn(OcgWarning(msg))
                 pass
             else:
                 axis_vars.append(variable['name'])
@@ -572,7 +577,17 @@ def get_dimension_map_entry(axis, variables, dimensions, strict=False):
 
     if len(axis_vars) == 1:
         var_name = axis_vars[0]
-        ret = {'variable': var_name, 'names': list(variables[var_name]['dimensions'])}
+        dims = list(variables[var_name]['dimensions'])
+
+        if not strict:
+            # Use default index positions for X/Y dimensions.
+            if axis in ('X', 'Y') and len(dims) > 1:
+                if axis == 'Y':
+                    dims = [dims[0]]
+                elif axis == 'X':
+                    dims = [dims[1]]
+
+        ret = {'variable': var_name, DimensionMapKey.DIMS: dims}
     elif len(axis_vars) > 1:
         msg = 'Multiple axis (axis="{}") possibilities found using variable(s) "{}". Use a dimension map to specify ' \
               'the appropriate coordinate dimensions.'
@@ -631,7 +646,7 @@ def update_group_metadata(rootgrp, fill):
                     fill_value = 'auto'
 
         variables.update({key: {'dimensions': value.dimensions,
-                                'attributes': subvar,
+                                'attrs': subvar,
                                 'dtype': value.dtype,
                                 'name': value._name,
                                 'fill_value': fill_value,

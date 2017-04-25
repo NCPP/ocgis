@@ -5,25 +5,16 @@ from copy import copy
 import six
 
 from ocgis.base import AbstractOcgisObject
+from ocgis.util.helpers import pprint_dict
 
 
 @six.add_metaclass(abc.ABCMeta)
 class AbstractCollection(AbstractOcgisObject):
-    def __init__(self):
-        self._storage = OrderedDict()
-        self._storage_id = []
-
-    @property
-    def _storage_id_next(self):
-        try:
-            ret = max(self._storage_id) + 1
-        # max of an empty list
-        except ValueError:
-            if len(self._storage_id) == 0:
-                ret = 1
-            else:
-                raise
-        return ret
+    def __init__(self, initial_data=None):
+        if initial_data is None:
+            self._storage = OrderedDict()
+        else:
+            self._storage = initial_data
 
     def __contains__(self, item):
         return item in self._storage
@@ -58,7 +49,6 @@ class AbstractCollection(AbstractOcgisObject):
     def copy(self):
         ret = copy(self)
         ret._storage = ret._storage.copy()
-        ret._storage_id = copy(ret._storage_id)
         return ret
 
     def first(self):
@@ -84,13 +74,16 @@ class AbstractCollection(AbstractOcgisObject):
             yield v
 
     def keys(self):
-        return list(self._storage.keys())
+        return self.iterkeys()
 
     def pop(self, *args, **kwargs):
         return self._storage.pop(*args, **kwargs)
+
+    def pprint(self):
+        pprint_dict(self._storage)
 
     def update(self, dictionary):
         self._storage.update(dictionary)
 
     def values(self):
-        return list(self._storage.values())
+        return self.itervalues()

@@ -384,7 +384,7 @@ class DimensionsRequiredError(OcgException):
         super(DimensionsRequiredError, self).__init__(message=message)
 
 
-class OcgMpiError(OcgException):
+class OcgDistError(OcgException):
     """Raised for MPI-related exceptions."""
 
 
@@ -392,7 +392,7 @@ class EmptyObjectError(OcgException):
     """Raised when an empty object is not allowed."""
 
 
-class SubcommNotFoundError(OcgMpiError):
+class SubcommNotFoundError(OcgDistError):
     """Raised when a subcommunicator is not found."""
 
     def __init__(self, name):
@@ -400,7 +400,7 @@ class SubcommNotFoundError(OcgMpiError):
         super(SubcommNotFoundError, self).__init__(message=message)
 
 
-class SubcommAlreadyCreatedError(OcgMpiError):
+class SubcommAlreadyCreatedError(OcgDistError):
     """Raised when a subcommunicator name already exists."""
 
     def __init__(self, name):
@@ -414,3 +414,11 @@ class CRSNotEquivalenError(OcgException):
     def __init__(self, lhs, rhs):
         msg = '{} is not equivalent to {}.'.format(lhs, rhs)
         super(CRSNotEquivalenError, self).__init__(message=msg)
+
+
+class DimensionMapError(OcgException):
+    """Raised when there is an issue with a dimension map entry."""
+
+    def __init__(self, entry_key, message):
+        msg = "Error with entry key '{}': {}".format(entry_key, message)
+        super(DimensionMapError, self).__init__(message=msg)

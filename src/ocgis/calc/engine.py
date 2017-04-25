@@ -5,7 +5,6 @@ import numpy as np
 from ocgis.base import get_variable_names, orphaned
 from ocgis.calc.base import AbstractMultivariateFunction
 from ocgis.calc.eval_function import EvalFunction, MultivariateEvalFunction
-from ocgis.constants import DimensionMapKey
 from ocgis.util.logging_ocgis import ocgis_lh
 
 
@@ -164,21 +163,5 @@ def format_return_field(function_tag, out_field, new_temporal=None):
     # Remove the original time variable and replace with the new one if there is a new time dimension. New
     # time dimensions may not be present for calculations that do not compute one.
     if new_temporal is not None:
-        original_time = out_field.time
-        vars_to_remove = [original_time.name]
-        dims_to_remove = [original_time.dimensions[0].name]
-        if original_time.has_bounds:
-            vars_to_remove.append(original_time.bounds.name)
-        for v in vars_to_remove:
-            out_field.pop(v)
-        for d in dims_to_remove:
-            out_field.dimensions.pop(d)
-        out_field.add_variable(new_temporal, force=True)
-
-        # Update the dimension map to handle the new temporal variable.
-        out_field.dimension_map[DimensionMapKey.TIME][DimensionMapKey.VARIABLE] = new_temporal.name
-        if new_temporal.has_bounds:
-            out_field.dimension_map[DimensionMapKey.TIME][
-                DimensionMapKey.BOUNDS] = new_temporal.bounds.name
-        else:
-            out_field.dimension_map[DimensionMapKey.TIME][DimensionMapKey.BOUNDS] = None
+        out_field.remove_variable(out_field.time)
+        out_field.set_time(new_temporal, force=True)

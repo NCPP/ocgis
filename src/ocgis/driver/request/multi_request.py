@@ -25,6 +25,10 @@ class MultiRequestDataset(AbstractRequestObject):
         return get_request_dataset_attribute(self, 'dimension_map')
 
     @property
+    def driver(self):
+        return get_request_dataset_attribute(self, 'driver')
+
+    @property
     def field_name(self):
         return get_request_dataset_attribute(self, 'field_name')
 

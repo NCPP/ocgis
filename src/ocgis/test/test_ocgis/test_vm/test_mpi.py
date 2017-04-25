@@ -11,7 +11,7 @@ from ocgis.util.helpers import get_local_to_global_slices
 from ocgis.variable.base import Variable, VariableCollection
 from ocgis.variable.dimension import Dimension
 from ocgis.vmachine.mpi import MPI_SIZE, MPI_COMM, create_nd_slices, hgather, \
-    get_optimal_splits, get_rank_bounds, OcgMpi, get_global_to_local_slice, MPI_RANK, variable_scatter, \
+    get_optimal_splits, get_rank_bounds, OcgDist, get_global_to_local_slice, MPI_RANK, variable_scatter, \
     variable_collection_scatter, variable_gather, gather_ranks, get_standard_comm_state, \
     get_nonempty_ranks, barrier_ranks, bcast_ranks
 
@@ -254,7 +254,7 @@ class Test(AbstractTestInterface):
     # tdk: wtf
     @attr('mpi')
     def test_variable_collection_scatter(self):
-        dest_mpi = OcgMpi()
+        dest_mpi = OcgDist()
         five = dest_mpi.create_dimension('five', 5, dist=True)
         ten = dest_mpi.create_dimension('ten', 10)
         dest_mpi.create_variable(name='five', dimensions=five)
@@ -300,7 +300,7 @@ class Test(AbstractTestInterface):
 
     @attr('mpi', 'wtf')
     def test_variable_gather(self):
-        dist = OcgMpi()
+        dist = OcgDist()
         three = dist.create_dimension('three', 3, src_idx=np.arange(3) * 10)
         four = dist.create_dimension('four', 4, src_idx='auto', dist=True)
         dist.create_variable('four', dimensions=[three, four])
@@ -334,7 +334,7 @@ class Test(AbstractTestInterface):
         var_value = np.arange(5, dtype=float) + 50
         var_mask = np.array([True, True, False, True, False])
 
-        dest_dist = OcgMpi()
+        dest_dist = OcgDist()
         five = dest_dist.create_dimension('five', 5, src_idx='auto', dist=True)
         dest_dist.update_dimension_bounds()
 
@@ -375,7 +375,7 @@ class Test(AbstractTestInterface):
 
         dimensions = [r, t, l, y, x]
 
-        dest_mpi = OcgMpi()
+        dest_mpi = OcgDist()
         for d in dimensions:
             dest_mpi.add_dimension(d)
         dest_mpi.update_dimension_bounds()
@@ -397,10 +397,10 @@ class Test(AbstractTestInterface):
             self.assertEqual(svar.shape, (3, 365, 10, 90, 180))
 
 
-class TestOcgMpi(AbstractTestInterface):
-    def get_ocgmpi_01(self):
+class TestOcgDist(AbstractTestInterface):
+    def get_OcgDist_01(self):
         s = Dimension('first_dist', size=5, dist=True, src_idx='auto')
-        ompi = OcgMpi()
+        ompi = OcgDist()
         ompi.add_dimension(s)
         ompi.create_dimension('not_dist', size=8, dist=False)
         ompi.create_dimension('another_dist', size=6, dist=True)
@@ -410,7 +410,7 @@ class TestOcgMpi(AbstractTestInterface):
         return ompi
 
     def test_init(self):
-        ompi = OcgMpi(size=2)
+        ompi = OcgDist(size=2)
         self.assertEqual(len(ompi.mapping), 2)
 
         dim_x = Dimension('x', 5, dist=False)
@@ -437,7 +437,7 @@ class TestOcgMpi(AbstractTestInterface):
 
     @attr('mpi')
     def test(self):
-        ompi = OcgMpi()
+        ompi = OcgDist()
         src_idx = [2, 3, 4, 5, 6]
         dim = ompi.create_dimension('foo', size=5, group='subroot', dist=True, src_idx=src_idx)
         self.assertEqual(dim, ompi.get_dimension(dim.name, group='subroot'))
@@ -465,7 +465,7 @@ class TestOcgMpi(AbstractTestInterface):
         d2 = Dimension('d2', size=10, dist=False)
         d3 = Dimension('d3', size=3, dist=True)
         dimensions = [d1, d2, d3]
-        ompi = OcgMpi()
+        ompi = OcgDist()
         for dim in dimensions:
             ompi.add_dimension(dim)
         ompi.update_dimension_bounds()
@@ -488,13 +488,13 @@ class TestOcgMpi(AbstractTestInterface):
                     self.assertFalse(dim.is_empty)
 
         # Test adding an existing dimension.
-        ompi = OcgMpi()
+        ompi = OcgDist()
         ompi.create_dimension('one')
         with self.assertRaises(ValueError):
             ompi.create_dimension('one')
 
     def test_create_or_get_group(self):
-        ocmpi = OcgMpi()
+        ocmpi = OcgDist()
         _ = ocmpi._create_or_get_group_(['moon', 'base'])
         _ = ocmpi._create_or_get_group_(None)
         _ = ocmpi._create_or_get_group_('flower')
@@ -523,7 +523,7 @@ class TestOcgMpi(AbstractTestInterface):
         self.assertDictEqual(ocmpi.mapping, desired)
 
     def test_get_empty_ranks(self):
-        ompi = OcgMpi(size=5)
+        ompi = OcgDist(size=5)
         ompi.create_dimension('four', 4, dist=True)
         ompi.update_dimension_bounds()
         self.assertEqual(ompi.get_empty_ranks(), (2, 3, 4))
@@ -531,7 +531,7 @@ class TestOcgMpi(AbstractTestInterface):
 
     @attr('mpi')
     def test_update_dimension_bounds(self):
-        ompi = OcgMpi()
+        ompi = OcgDist()
         dim1 = ompi.create_dimension('five', 5, dist=True)
         ompi.update_dimension_bounds()
 
@@ -549,7 +549,7 @@ class TestOcgMpi(AbstractTestInterface):
 
         # Test updating on single processor.
         if MPI_SIZE == 1:
-            ompi = OcgMpi(size=2)
+            ompi = OcgDist(size=2)
             ompi.create_dimension('five', 5, dist=True)
             ompi.update_dimension_bounds()
             dim = ompi.get_dimension('five')
@@ -563,7 +563,7 @@ class TestOcgMpi(AbstractTestInterface):
                     self.assertEqual(actual.bounds_local, (3, 5))
 
             # Test two dimensions.
-            ompi = OcgMpi(size=2)
+            ompi = OcgDist(size=2)
             ompi.create_dimension('lat', 64, dist=True)
             ompi.create_dimension('lon', 128, dist=True)
             ompi.update_dimension_bounds()
@@ -577,7 +577,7 @@ class TestOcgMpi(AbstractTestInterface):
                     self.assertEqual(lon.bounds_local, (64, 128))
 
     def test_update_dimension_bounds_single_simple_dimension(self):
-        ompi = OcgMpi(size=2)
+        ompi = OcgDist(size=2)
         ompi.create_dimension('d1', 2, dist=True)
         ompi.update_dimension_bounds(min_elements=2)
         d1 = ompi.get_dimension('d1')

@@ -18,11 +18,6 @@ class TestAbstractCollection(TestBase):
     def test_init(self):
         self.assertIsInstance(self.get_coll(), AbstractCollection)
 
-    def test_storage_uid_next(self):
-        coll = self.get_coll()
-        coll._storage_id.append(5)
-        self.assertEqual(coll._storage_id_next, 6)
-
     def test_contains(self):
         coll = self.get_coll()
         self.assertTrue(1 in coll)

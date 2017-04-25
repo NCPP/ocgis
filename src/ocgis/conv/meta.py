@@ -5,7 +5,7 @@ import six
 
 import ocgis
 from ocgis import constants
-from ocgis.collection.field import OcgField
+from ocgis.collection.field import Field
 from ocgis.conv.base import AbstractConverter
 from ocgis.exc import DefinitionValidationError
 from ocgis.ops.parms.base import AbstractParameter
@@ -56,7 +56,7 @@ class MetaJSONConverter(AbstractMetaConverter):
             raise DefinitionValidationError(OutputFormat, msg)
         else:
             for element in ops.dataset:
-                if isinstance(element, OcgField):
+                if isinstance(element, Field):
                     msg = 'Fields may not be converted to "{0}".'.format(constants.OutputFormatName.METADATA_JSON)
                     raise DefinitionValidationError(OutputFormat, msg)
 

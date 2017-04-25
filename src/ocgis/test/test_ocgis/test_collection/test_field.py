@@ -12,12 +12,12 @@ from shapely.geometry.base import BaseGeometry
 
 from ocgis import RequestDataset, vm
 from ocgis import constants
-from ocgis.collection.field import OcgField
-from ocgis.constants import HeaderName, KeywordArgument, DriverKey
+from ocgis.collection.field import Field
+from ocgis.constants import HeaderName, KeywordArgument, DriverKey, DimensionMapKey
 from ocgis.driver.csv_ import DriverCSV
 from ocgis.driver.nc import DriverNetcdf
 from ocgis.driver.vector import DriverVector
-from ocgis.spatial.grid import GridXY
+from ocgis.spatial.grid import Grid
 from ocgis.test.base import attr, AbstractTestInterface
 from ocgis.util.helpers import reduce_multiply
 from ocgis.variable.base import Variable
@@ -28,9 +28,9 @@ from ocgis.variable.temporal import TemporalVariable
 from ocgis.vmachine.mpi import MPI_SIZE, MPI_RANK, MPI_COMM
 
 
-class TestOcgField(AbstractTestInterface):
+class TestField(AbstractTestInterface):
     def get_ocgfield(self, *args, **kwargs):
-        return OcgField(*args, **kwargs)
+        return Field(*args, **kwargs)
 
     def get_ocgfield_example(self):
         dtime = Dimension(name='time')
@@ -44,42 +44,42 @@ class TestOcgField(AbstractTestInterface):
         time_related = Variable(value=[7, 8, 9, 10], name='time_related', dimensions=dtime)
         garbage1 = Variable(value=[66, 67, 68], dimensions='three', name='garbage1')
         dmap = {'time': {'variable': t.name},
-                'x': {'variable': lon.name, 'names': [lon.dimensions[0].name]},
-                'y': {'variable': lat.name, 'names': [lat.dimensions[0].name]}}
-        field = OcgField(variables=[t, lon, lat, tas, garbage1, time_related], dimension_map=dmap, is_data=tas.name)
+                'x': {'variable': lon.name, DimensionMapKey.DIMS: [lon.dimensions[0].name]},
+                'y': {'variable': lat.name, DimensionMapKey.DIMS: [lat.dimensions[0].name]}}
+        field = Field(variables=[t, lon, lat, tas, garbage1, time_related], dimension_map=dmap, is_data=tas.name)
         return field
 
     def test_init(self):
         field = self.get_ocgfield()
-        self.assertIsInstance(field, OcgField)
+        self.assertIsInstance(field, Field)
 
         # Test unique identifier.
-        field = OcgField(uid=4)
+        field = Field(uid=4)
         self.assertEqual(field.uid, 4)
 
         # Test with a coordinate system and geometry.
         desired_crs = WGS84()
         geom = GeometryVariable(name='geom', value=[Point(1, 2)], dimensions='geom')
-        field = OcgField(crs=desired_crs, geom=geom)
+        field = Field(crs=desired_crs, geom=geom)
         self.assertEqual(field.crs, desired_crs)
 
-        # Test geometry coordinate system is not used. This must be set explicitly on the field.
-        crs = CoordinateReferenceSystem(epsg=2136)
-        g = GeometryVariable(name='foo', value=[Point(1, 2)], dimensions='geom', crs=crs)
-        f = OcgField(geom=g)
-        self.assertIsNone(f.crs)
+        # Test dimension names are automatically added to dimension map.
+        g = GeometryVariable(name='geom', value=[Point(1, 2)], dimensions='the_geom_dim')
+        f = Field(geom=g)
+        actual = f.dimension_map.get_dimensions(DimensionMapKey.GEOM)
+        self.assertEqual(actual, ['the_geom_dim'])
 
     def test_system_crs_and_grid_abstraction(self):
-        f = OcgField(grid_abstraction='point')
+        f = Field(grid_abstraction='point')
         grid = self.get_gridxy(with_xy_bounds=True)
         f.add_variable(grid.x)
 
         crs = CoordinateReferenceSystem(epsg=2136, name='location')
         f.add_variable(crs)
         self.assertIsNone(f.crs)
-        f.dimension_map['crs']['variable'] = crs.name
-        f.dimension_map['x']['variable'] = grid.x.name
-        f.dimension_map['y']['variable'] = grid.y.name
+        f.dimension_map.set_crs(crs)
+        f.dimension_map.set_variable('x', grid.x)
+        f.dimension_map.set_variable('y', grid.y)
         self.assertEqual(f.grid.crs, crs)
 
         f.set_geom(f.grid.get_abstraction_geometry())
@@ -91,8 +91,9 @@ class TestOcgField(AbstractTestInterface):
 
         dmap = {'time': {'variable': 'time'}}
         time = TemporalVariable(name='time', value=[1, 2, 3], dimensions='the_time')
-        field = OcgField(time=time, dimension_map=dmap)
-        self.assertEqual(field.dimension_map['time']['names'], ['the_time'])
+        field = Field(time=time, dimension_map=dmap)
+        actual = field.dimension_map.get_dimensions('time')
+        self.assertEqual(actual, ['the_time'])
 
     def test_system_properties(self):
         """Test field properties."""
@@ -110,21 +111,22 @@ class TestOcgField(AbstractTestInterface):
 
         self.assertIsNone(f.realization)
         self.assertIsNone(f.time)
-        f.dimension_map['time']['variable'] = time.name
+        f.dimension_map.set_variable('time', time.name)
         self.assertNumpyAll(f.time.get_value(), time.get_value())
         self.assertEqual(f.time.attrs['axis'], 'T')
         self.assertIsNone(f.time.bounds)
-        f.dimension_map['time']['bounds'] = time_bounds.name
+        f.dimension_map.set_variable('time', 'time', bounds=time_bounds.name)
         self.assertNumpyAll(f.time.bounds.get_value(), time_bounds.get_value())
         self.assertIn('other', f.time.parent)
 
-        f.dimension_map['time']['names'] += ['times', 'times_again', 'the_time']
+        dims = f.dimension_map.get_dimensions('time')
+        dims += ['times', 'times_again', 'the_time']
         sub = f.get_field_slice({'time': slice(1, 2)})
         desired = OrderedDict([('time', (1,)), ('time_bounds', (1, 2)), ('other', (1,)), ('xc', (3,)), ('yc', (4,))])
         self.assertEqual(sub.shapes, desired)
         self.assertIsNone(sub.grid)
-        sub.dimension_map['x']['variable'] = 'xc'
-        sub.dimension_map['y']['variable'] = 'yc'
+        sub.dimension_map.set_variable('x', 'xc')
+        sub.dimension_map.set_variable('y', 'yc')
 
         # Test writing to netCDF will load attributes.
         path = self.get_temporary_file_path('foo.nc')
@@ -135,7 +137,7 @@ class TestOcgField(AbstractTestInterface):
 
         self.assertEqual(sub.x.attrs['axis'], 'X')
         self.assertEqual(sub.y.attrs['axis'], 'Y')
-        self.assertIsInstance(sub.grid, GridXY)
+        self.assertIsInstance(sub.grid, Grid)
         desired = OrderedDict([('time', (1,)), ('time_bounds', (1, 2)), ('other', (1,)), ('xc', (3,)), ('yc', (4,))])
         self.assertEqual(sub.shapes, desired)
 
@@ -143,8 +145,8 @@ class TestOcgField(AbstractTestInterface):
         bbox = [1.5, 15, 2.5, 35]
         data = Variable(name='data', value=np.random.rand(3, 4), dimensions=['x', 'y'])
         f2.add_variable(data)
-        f2.dimension_map['x']['variable'] = 'xc'
-        f2.dimension_map['y']['variable'] = 'yc'
+        f2.dimension_map.set_variable('x', 'xc')
+        f2.dimension_map.set_variable('y', 'yc')
         bbox = box(*bbox)
         spatial_sub = f2.grid.get_intersects(bbox).parent
         desired = OrderedDict([('time', (3,)), ('time_bounds', (3, 2)), ('other', (3,)), ('xc', (1,)), ('yc', (2,)),
@@ -161,9 +163,44 @@ class TestOcgField(AbstractTestInterface):
         sub = sub.grid.get_intersects(box(*[35, -45, 55, -15])).parent
         self.assertTrue(sub.grid.is_vectorized)
 
+    def test_crs(self):
+        """Test overloading by geometry and grid."""
+
+        field = Field()
+        self.assertIsNone(field.crs)
+
+        geom = GeometryVariable(name='geom', value=[Point(1, 2)], dimensions='g', crs=Spherical())
+        field = Field(geom=geom)
+        self.assertEqual(field.crs, geom.crs)
+
+        grid = self.get_gridxy_global(crs=Spherical())
+        field = Field(grid=grid)
+        self.assertEqual(field.crs, grid.crs)
+
+        grid = self.get_gridxy_global(crs=Spherical())
+        # Grid and field coordinate systems do not match.
+        with self.assertRaises(ValueError):
+            Field(grid=grid, crs=WGS84())
+
+        geom = GeometryVariable(name='geom', value=[Point(1, 2)], dimensions='g', crs=Spherical())
+        with self.assertRaises(ValueError):
+            Field(geom=geom, crs=WGS84())
+
+        geom = GeometryVariable(name='geom', value=[Point(1, 2)], dimensions='g')
+        grid = self.get_gridxy_global()
+        field = Field(geom=geom, grid=grid, crs=WGS84())
+        self.assertEqual(field.crs, WGS84())
+        self.assertEqual(field.geom.crs, WGS84())
+        self.assertEqual(field.grid.crs, WGS84())
+
+        g = self.get_gridxy_global()
+        f = Field(grid=g, crs=Spherical())
+        self.assertIn('standard_name', f.grid.x.attrs)
+        self.assertIn('standard_name', f.grid.y.attrs)
+
     def test_dimensions(self):
         crs = CoordinateReferenceSystem(epsg=2136)
-        field = OcgField(variables=[crs])
+        field = Field(variables=[crs])
         self.assertEqual(len(field.dimensions), 0)
 
     def test_get_by_tag(self):
@@ -171,7 +208,7 @@ class TestOcgField(AbstractTestInterface):
         v2 = Variable(name='tasmax')
         v3 = Variable(name='tasmin')
         tags = {'avg': ['tas'], 'other': ['tasmax', 'tasmin']}
-        field = OcgField(variables=[v1, v2, v3], tags=tags)
+        field = Field(variables=[v1, v2, v3], tags=tags)
         t = field.get_by_tag('other')
         self.assertAsSetEqual([ii.name for ii in t], tags['other'])
 
@@ -231,7 +268,7 @@ class TestOcgField(AbstractTestInterface):
 
         time = TemporalVariable(value=[3, 4, 5], dimensions='time')
         data = Variable(value=[7, 8, 9], name='data', mask=[False, True, False], dimensions='time')
-        field = OcgField(time=time, is_data=data, variables=data)
+        field = Field(time=time, is_data=data, variables=data)
 
         itr = field.iter(allow_masked=True)
         actual = list(itr)
@@ -265,8 +302,8 @@ class TestOcgField(AbstractTestInterface):
             dimension_map = {'time': {'variable': 'time', 'bounds': 'time_bnds', 'attrs': attrs}}
             var = k.variable_type(name='time', value=value, attrs=attrs, dimensions=['one'])
             bounds_var = k.bounds_variable_type(name='time_bnds', value=bounds, dimensions=['one', 'two'])
-            f = OcgField(variables=[var, bounds_var], dimension_map=dimension_map)
-            self.assertTrue(len(f.dimension_map) > 1)
+            f = Field(variables=[var, bounds_var], dimension_map=dimension_map)
+            self.assertTrue(len(f.dimension_map._storage) > 1)
             self.assertTrue(f.time.has_bounds)
             self.assertIsInstance(f.time, TemporalVariable)
             self.assertIsInstance(f.time.bounds, TemporalVariable)
@@ -288,8 +325,9 @@ class TestOcgField(AbstractTestInterface):
         # Test copying allows the CRS to be updated on the copy w/out changing the source CRS.
         desired = Spherical()
         gvar = GeometryVariable(value=[Point(1, 2)], name='geom', dimensions='geom')
-        field = OcgField(crs=desired, geom=gvar)
+        field = Field(crs=desired, geom=gvar)
         cfield = field.copy()
+
         self.assertEqual(cfield.crs, desired)
         new_crs = CoordinateReferenceSystem(name='i_am_new', epsg=4326)
         cfield.update_crs(new_crs)
@@ -301,7 +339,7 @@ class TestOcgField(AbstractTestInterface):
         x = Variable(name='x', value=[1, 2], dimensions='x')
         y = Variable(name='y', value=[3, 4, 5, 6, 7], dimensions='y')
         dmap = {'x': {'variable': 'x'}, 'y': {'variable': 'y'}}
-        field = OcgField(variables=[x, y], dimension_map=dmap)
+        field = Field(variables=[x, y], dimension_map=dmap)
         desired_value_stacked = field.grid.get_value_stacked()
 
         self.assertEqual(field.grid.parent['x'].get_value().shape, (2,))
@@ -316,7 +354,7 @@ class TestOcgField(AbstractTestInterface):
         # Test another grid.
         grid = self.get_gridxy(crs=WGS84())
         self.assertTrue(grid.is_vectorized)
-        field = OcgField(grid=grid)
+        field = Field(grid=grid)
         self.assertTrue(field.grid.is_vectorized)
         path = self.get_temporary_file_path('out.nc')
         with self.nc_scope(path, 'w') as ds:
@@ -331,7 +369,7 @@ class TestOcgField(AbstractTestInterface):
 
         # Test with 2-d x and y arrays.
         grid = self.get_gridxy(with_2d_variables=True)
-        field = OcgField(grid=grid)
+        field = Field(grid=grid)
         path = self.get_temporary_file_path('out.nc')
         field.grid.set_extrapolated_bounds('xbounds', 'ybounds', 'bounds')
         with self.nc_scope(path, 'w') as ds:
@@ -343,7 +381,7 @@ class TestOcgField(AbstractTestInterface):
 
         # Test writing a vectorized grid with corners.
         grid = self.get_gridxy()
-        field = OcgField(grid=grid)
+        field = Field(grid=grid)
         self.assertIsNotNone(field.grid.dimensions)
         self.assertFalse(field.grid.has_bounds)
         field.grid.set_extrapolated_bounds('xbnds', 'ybnds', 'corners')
@@ -371,7 +409,6 @@ class TestOcgField(AbstractTestInterface):
                 DriverVector,
                 DriverNetcdf
             ]:
-
                 if MPI_RANK == 0:
                     path = self.get_temporary_file_path('{}-{}.{}'.format(driver.key, base_rank,
                                                                           driver.common_extension))
@@ -383,7 +420,7 @@ class TestOcgField(AbstractTestInterface):
                     if not vm.is_null:
                         geom = GeometryVariable(value=[Point(1, 2), Point(3, 4)], name='geom', dimensions='geom')
                         data = Variable(name='data', value=[10, 20], dimensions='geom')
-                        field = OcgField(geom=geom)
+                        field = Field(geom=geom)
                         field.add_variable(data, is_data=data)
                         self.assertFalse(os.path.isdir(path))
                         field.write(path, driver=driver)

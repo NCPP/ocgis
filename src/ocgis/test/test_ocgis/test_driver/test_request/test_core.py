@@ -3,7 +3,7 @@ import datetime
 import numpy as np
 
 from ocgis import RequestDataset
-from ocgis.collection.field import OcgField
+from ocgis.collection.field import Field
 from ocgis.constants import TagName, MiscName, DimensionMapKey
 from ocgis.driver.nc import DriverNetcdf, DriverNetcdfCF
 from ocgis.driver.request.core import get_autodiscovered_driver, get_is_none
@@ -12,7 +12,7 @@ from ocgis.exc import RequestValidationError, \
 from ocgis.test.base import TestBase, attr
 from ocgis.test.test_simple.make_test_data import SimpleNc
 from ocgis.test.test_simple.test_simple import TestSimpleBase
-from ocgis.variable.crs import CoordinateReferenceSystem, WGS84, Tripole
+from ocgis.variable.crs import CoordinateReferenceSystem, Tripole
 
 
 # tdk: clean-up file
@@ -77,7 +77,7 @@ class TestRequestDataset(TestSimpleBase):
             for _ in range(1):
                 rd2 = RequestDataset(opened=ds, driver=DriverNetcdf)
                 field = rd2.get()
-                self.assertIsInstance(field, OcgField)
+                self.assertIsInstance(field, Field)
 
         # Test unique identifier.
         rd = self.get_request_dataset_netcdf(uid=43)
@@ -150,7 +150,7 @@ class TestRequestDataset(TestSimpleBase):
             tvar[0:3] = [1, 2, 3]
         dmap = {'time': {'variable': 'time'}}
         rd = RequestDataset(path, dimension_map=dmap)
-        self.assertEqual(rd.dimension_map['time']['names'], ['the_time'])
+        self.assertEqual(rd.dimension_map.get_dimensions(DimensionMapKey.TIME), ['the_time'])
 
     def test_field_name(self):
         for name in [None, 'morning']:
@@ -179,16 +179,16 @@ class TestRequestDataset(TestSimpleBase):
         field = rd.get()
 
         self.assertEqual(len(field.dimensions['lvl']), 3)
-        self.assertIsInstance(field, OcgField)
+        self.assertIsInstance(field, Field)
 
     def test_metadata(self):
         # Test overloaded metadata is held on the request dataset but the original remains the same.
         rd = self.get_request_dataset_netcdf()
-        rd.metadata['variables']['a']['attributes']['units'] = 'overloaded_units'
+        rd.metadata['variables']['a']['attrs']['units'] = 'overloaded_units'
         rd.metadata['variables']['a']['dtype'] = float
         rd.metadata['variables']['a']['fill_value'] = 1000.
         rd.metadata['variables']['a']['fill_value'] = 1000.
-        rd.metadata['variables']['tt']['attributes']['calendar'] = 'blah'
+        rd.metadata['variables']['tt']['attrs']['calendar'] = 'blah'
 
         self.assertNotEqual(rd.metadata, rd.driver.metadata_raw)
         field = rd.get()
@@ -224,7 +224,7 @@ class TestRequestDataset(TestSimpleBase):
         field = rd.get()
 
         self.assertEqual(len(field.dimensions['a']), 3)
-        self.assertIsInstance(field, OcgField)
+        self.assertIsInstance(field, Field)
         self.assertIsNone(field['a']._value)
 
     def test_time_region(self):
@@ -235,7 +235,7 @@ class TestRequestDataset(TestSimpleBase):
         field = rd.get()
 
         self.assertEqual(len(field.dimensions['a']), 2)
-        self.assertIsInstance(field, OcgField)
+        self.assertIsInstance(field, Field)
         self.assertIsNone(field['a']._value)
 
     def test_time_subset_func(self):
@@ -253,7 +253,7 @@ class TestRequestDataset(TestSimpleBase):
         field = rd.get()
 
         self.assertEqual(len(field.dimensions['a']), 2)
-        self.assertIsInstance(field, OcgField)
+        self.assertIsInstance(field, Field)
         self.assertIsNone(field['a']._value)
 
     def test_units(self):

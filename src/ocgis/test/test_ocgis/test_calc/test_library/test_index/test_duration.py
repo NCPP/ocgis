@@ -1,11 +1,7 @@
-import csv
-
 import numpy as np
 
-from ocgis import constants
 from ocgis.calc.library.index.duration import Duration, FrequencyDuration
 from ocgis.exc import DefinitionValidationError
-from ocgis.ops.core import OcgOperations
 from ocgis.test.base import attr
 from ocgis.test.test_ocgis.test_calc.test_calc_general import AbstractCalcBase
 

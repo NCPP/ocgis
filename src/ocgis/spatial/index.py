@@ -5,6 +5,8 @@ from shapely.prepared import prep
 class SpatialIndex(object):
     """
     Create and access spatial indexes using the :mod:`rtree` module.
+    
+    :param str path: If provided, this is the path to pre-computed spatial index file in the ``rtree`` format.
     """
 
     def __init__(self, path=None):

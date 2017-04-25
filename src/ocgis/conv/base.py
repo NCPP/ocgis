@@ -314,7 +314,7 @@ def _write_dataset_identifier_file_(path, ops):
                         uri = None
                         variable_name = variable.name
                     except AttributeError:
-                        attrs = element.metadata['variables'][variable]['attributes']
+                        attrs = element.metadata['variables'][variable]['attrs']
                         units = get_tuple(element.units)[idx]
                         group = None
                         uri = element.uri
@@ -342,14 +342,15 @@ def _write_source_meta_(path, operations):
         to_write.append(dimension_map)
         try:
             metadata = element.driver.get_dump_report()
+        except TypeError:
+            # TODO: Collections/fields should be able to generate metadata.
+            # Field objects cannot create dump reports.
+            pass
+        else:
             to_write.append('')
             to_write.append('== Metadata Dump ==========')
             to_write.append('')
             to_write.extend(metadata)
-        except AttributeError:
-            # TODO: Collections/fields should be able to generate metadata.
-            # Field objects cannot create dump reports.
-            pass
         to_write.append('')
     with open(path, 'w') as f:
         for line in to_write:

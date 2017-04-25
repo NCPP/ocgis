@@ -7,7 +7,7 @@ from shapely.geometry import Point
 
 from ocgis import RequestDataset, vm
 from ocgis import constants
-from ocgis.collection.field import OcgField
+from ocgis.collection.field import Field
 from ocgis.constants import MPIWriteMode, DimensionName
 from ocgis.driver.base import AbstractDriver
 from ocgis.driver.vector import DriverVector, get_fiona_crs, get_fiona_schema
@@ -17,7 +17,7 @@ from ocgis.variable.crs import WGS84, CoordinateReferenceSystem, Spherical
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.variable.temporal import TemporalVariable
-from ocgis.vmachine.mpi import MPI_RANK, MPI_COMM, MPI_SIZE, OcgMpi, variable_collection_scatter, hgather
+from ocgis.vmachine.mpi import MPI_RANK, MPI_COMM, MPI_SIZE, OcgDist, variable_collection_scatter, hgather
 
 
 class TestDriverVector(TestBase):
@@ -67,7 +67,7 @@ class TestDriverVector(TestBase):
         path = self.get_temporary_file_path('temps.shp')
         gvar = GeometryVariable(value=[Point(1, 2), Point(3, 4)], dimensions='g', name='geom')
         var = Variable(name='temp', value=[10., 20.], dimensions='g')
-        field = OcgField(variables=[gvar, var], geom=gvar, is_data=var)
+        field = Field(variables=[gvar, var], geom=gvar, is_data=var)
         field.write(path, driver=DriverVector)
 
         field = RequestDataset(path, units='celsius', variable='temp', conform_units_to='fahrenheit').get()
@@ -86,7 +86,7 @@ class TestDriverVector(TestBase):
     def test_system_parallel_write_ndvariable(self):
         """Test a parallel vector GIS write with a n-dimensional variable."""
 
-        ompi = OcgMpi()
+        ompi = OcgDist()
         ompi.create_dimension('time', 3)
         ompi.create_dimension('extra', 2)
         ompi.create_dimension('x', 4)
@@ -114,7 +114,7 @@ class TestDriverVector(TestBase):
                              'y': {'variable': 'y', 'bounds': 'y_bounds'},
                              'time': {'variable': 'time', 'bounds': 'the_time_bounds'}}
 
-            vc = OcgField(variables=[t, extra, x, y, data], dimension_map=dimension_map, is_data='data')
+            vc = Field(variables=[t, extra, x, y, data], dimension_map=dimension_map, is_data='data')
             vc.set_abstraction_geom()
         else:
             path, vc = [None] * 2
@@ -168,8 +168,8 @@ class TestDriverVector(TestBase):
         path = self.get_temporary_file_path('what.shp')
         t = TemporalVariable(value=[1.5, 2.5], name='time', dimensions='time')
         geom = GeometryVariable(value=[Point(1, 2), Point(3, 4)], name='geom', dimensions='time')
-        field = OcgField(variables=[t, geom], dimension_map={'time': {'variable': 'time'},
-                                                             'geom': {'variable': 'geom'}})
+        field = Field(variables=[t, geom], dimension_map={'time': {'variable': 'time'},
+                                                          'geom': {'variable': 'geom'}})
         field.write(path, iter_kwargs={'variable': 'time'}, driver=DriverVector)
 
         rd = RequestDataset(uri=path)
@@ -259,7 +259,7 @@ class TestDriverVector(TestBase):
     def test_write_variable_collection(self):
         # Attempt to write without a geometry variable.
         v = Variable('a', value=[1, 2], dimensions='bb')
-        field = OcgField(variables=v)
+        field = Field(variables=v)
         path = self.get_temporary_file_path('out.shp')
         with self.assertRaises(ValueError):
             field.write(path, driver=DriverVector)
@@ -272,7 +272,7 @@ class TestDriverVector(TestBase):
         var2 = Variable(name='some_lats', value=[41, 41], dimensions=['lat'])
         var3 = Variable(name='some_lons', value=[0, 90, 280], dimensions=['lon'])
         var4 = Variable(name='data', value=np.random.rand(4, 3, 2), dimensions=['time', 'lon', 'lat'])
-        field = OcgField(variables=[var1, var2, var3, var4], geom=gvar, is_data=['data'])
+        field = Field(variables=[var1, var2, var3, var4], geom=gvar, is_data=['data'])
         path = self.get_temporary_file_path('2d.shp')
         field.write(path, iter_kwargs={'followers': ['some_lats', 'some_lons']}, driver=DriverVector)
         read = RequestDataset(uri=path).get()
@@ -286,7 +286,7 @@ class TestDriverVector(TestBase):
         gvar = GeometryVariable(value=value, name='points', dimensions='points')
         var1 = Variable('keep', value=[1, 2, 3], dimensions='points')
         var2 = Variable('remove', value=[4, 5, 6], dimensions='points')
-        field = OcgField(variables=[var1, var2], geom=gvar, is_data=[var1])
+        field = Field(variables=[var1, var2], geom=gvar, is_data=[var1])
         field.write(path, variable_names=['keep'], driver=DriverVector)
         read = RequestDataset(uri=path).get()
         self.assertNotIn('remove', read)
@@ -297,7 +297,7 @@ class TestDriverVector(TestBase):
         gvar = GeometryVariable(value=value, name='points', dimensions='points')
         var1 = Variable('keep', value=[1, 2, 3], dimensions='points')
         var2 = Variable('remove', value=[4, 5, 6], dimensions='points')
-        field = OcgField(variables=[var1, var2], geom=gvar, is_data=[var1, var2])
+        field = Field(variables=[var1, var2], geom=gvar, is_data=[var1, var2])
         for idx in range(3):
             sub = field[{'points': idx}]
             if idx == 0:

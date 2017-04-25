@@ -5,7 +5,7 @@ from pyproj import Proj, transform
 from shapely.geometry import Polygon, Point, box
 from shapely.geometry.base import BaseGeometry, BaseMultipartGeometry
 
-from ocgis import VariableCollection, Variable, vm
+from ocgis import Variable, vm
 from ocgis import constants
 from ocgis.base import get_dimension_names, raise_if_empty
 from ocgis.constants import WrappedState, KeywordArgument, VariableName, CFName
@@ -13,7 +13,7 @@ from ocgis.environment import ogr
 from ocgis.exc import GridDeficientError, EmptySubsetError, AllElementsMaskedError
 from ocgis.util.helpers import get_formatted_slice
 from ocgis.variable.base import get_dslice, get_dimension_lengths
-from ocgis.variable.crs import CFRotatedPole, AbstractSphericalCoordinateReferenceSystem, Cartesian
+from ocgis.variable.crs import CFRotatedPole, Cartesian
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable, AbstractSpatialContainer, get_masking_slice, GeometryProcessor
 from ocgis.vmachine.mpi import MPI_SIZE
@@ -96,7 +96,36 @@ class GridGeometryProcessor(GeometryProcessor):
             raise NotImplementedError(abstraction)
 
 
-class GridXY(AbstractSpatialContainer):
+class Grid(AbstractSpatialContainer):
+    """
+    Grids are structured, rectilinear x/y-coordinate representations. x/y-coordinate variables may have bounds. The
+    z-coordinate is supported only to allow its access from the grid. All subsetting operations, slicing, etc.
+    occurs only on the x/y-coordinates.
+
+    :param x: The grid's x-coordinate.
+    :type x: :class:`ocgis.Variable`
+    :param y: The grid's y-coordinate.
+    :type y: :class:`ocgis.Variable`
+    :param z: The grid's z-coordinate. No grid operations manipulate the z-coordinate. It is present on the grid for
+     convenience.
+    :type z: :class:`ocgis.Variable`
+    :param abstraction: The grid's spatial abstraction.
+
+    ==== ====
+    Value Description
+    --- ---
+    ``'auto'`` Automatically choose spatial abstraction. `'polygon'` if x/y-coordinates have bounds and `'point'` if they do not.
+    ``'point'`` Use representative value from x/y-coordinate variables to construct point geometries. Typically this is considered the center value.
+    ``'polygon'`` Use bounds from x/y-coordinates to construct polygon geometries. 
+    === ===
+
+    :param crs: See :class:`ocgis.variable.geom.AbstractSpatialObject`
+    :param parent: The parent field for the grid.
+    :type parent: :class:`ocgis.Field`
+    :param mask: The mask variable for the grid. Coordinate variables should not be masked. The mask must be managed
+     independently. The mask variable should use the its mask to indicate masked values.
+    :type mask: :class:`ocgis.Variable`
+    """
     ndim = 2
 
     def __init__(self, x, y, z=None, abstraction='auto', crs=None, parent=None, mask=None):
@@ -134,12 +163,13 @@ class GridXY(AbstractSpatialContainer):
         if z is not None:
             new_variables.append(z)
         if parent is None:
-            parent = VariableCollection(variables=new_variables)
+            from ocgis import Field
+            parent = Field(variables=new_variables)
         else:
             for var in new_variables:
                 parent.add_variable(var, force=True)
 
-        super(GridXY, self).__init__(crs=crs, parent=parent)
+        super(Grid, self).__init__(crs=crs, parent=parent)
 
     def __getitem__(self, slc):
         """
@@ -150,7 +180,7 @@ class GridXY(AbstractSpatialContainer):
 
         :type slc: sequence of slice-compatible arguments
         :returns: Sliced grid.
-        :rtype: :class:`ocgis.new_interface.grid.GridXY`
+        :rtype: :class:`ocgis.new_interface.grid.Grid`
         """
 
         if not isinstance(slc, dict):
@@ -399,7 +429,7 @@ class GridXY(AbstractSpatialContainer):
             grid_set_mask_cascade(self)
 
     def copy(self):
-        ret = super(GridXY, self).copy()
+        ret = super(Grid, self).copy()
         ret.parent = ret.parent.copy()
         return ret
 
@@ -571,7 +601,7 @@ class GridXY(AbstractSpatialContainer):
         :param to_crs: The destination coordinate system.
         :type to_crs: :class:`ocgis.interface.base.crs.CoordinateReferenceSystem`
         """
-        super(GridXY, self).update_crs(to_crs)
+        super(Grid, self).update_crs(to_crs)
 
         if isinstance(self.crs, Cartesian) or isinstance(to_crs, Cartesian):
             if isinstance(to_crs, Cartesian):
@@ -613,9 +643,7 @@ class GridXY(AbstractSpatialContainer):
 
         self.crs = to_crs
 
-        # Regenerate geometries.
-        self.point = None
-        self.polygon = None
+        self.crs.format_field(self, is_transform=True)
 
     def _get_extent_(self):
         if self.is_empty:
@@ -768,10 +796,10 @@ class GridXY(AbstractSpatialContainer):
 
     def write(self, *args, **kwargs):
         from ocgis.driver.nc import DriverNetcdfCF
-        from ocgis.collection.field import OcgField
+        from ocgis.collection.field import Field
 
         kwargs['driver'] = kwargs.pop('driver', DriverNetcdfCF)
-        field_to_write = OcgField(grid=self)
+        field_to_write = Field(grid=self)
         field_to_write.write(*args, **kwargs)
 
 
@@ -879,8 +907,8 @@ def get_geometry_variable(grid, value=None, mask=None, use_bounds=True):
         name = grid._point_name
     else:
         name = grid._polygon_name
-    ret = GeometryVariable(name=name, value=value, mask=mask, attrs={'axis': 'geom'}, is_empty=is_empty,
-                           dimensions=grid.dimensions, crs=grid.crs)
+    ret = GeometryVariable(name=name, value=value, mask=mask, attrs={'axis': 'ocgis_geom'}, dimensions=grid.dimensions,
+                           crs=grid.crs)
     return ret
 
 
@@ -920,7 +948,7 @@ def remove_nones(target):
 
 def get_extent_global(grid):
     raise_if_empty(grid)
-    assert isinstance(grid, GridXY)
+    assert isinstance(grid, Grid)
 
     extent = grid.extent
     extents = vm.gather(extent)

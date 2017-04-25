@@ -18,14 +18,13 @@ from ocgis.constants import HeaderName, KeywordArgument, DriverKey
 from ocgis.exc import VariableInCollectionError, BoundsAlreadyAvailableError, EmptySubsetError, \
     ResolutionError, NoUnitsError, DimensionsRequiredError, DimensionMismatchError, MaskedDataFound
 from ocgis.util.helpers import get_iter, get_formatted_slice, get_bounds_from_1d, get_extrapolated_corners_esmf, \
-    get_ocgis_corners_from_esmf_corners
+    get_ocgis_corners_from_esmf_corners, is_crs_variable
+from ocgis.util.helpers import is_auto_dtype
 from ocgis.util.units import get_units_object, get_conformed_units
 from ocgis.variable.attributes import Attributes
-from ocgis.variable.crs import CoordinateReferenceSystem
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.iterator import Iterator
 from ocgis.vmachine.mpi import create_nd_slices, get_global_to_local_slice
-from ocgis.util.helpers import is_auto_dtype
 
 
 def handle_empty(func):
@@ -41,6 +40,18 @@ def handle_empty(func):
 
 @six.add_metaclass(abc.ABCMeta)
 class AbstractContainer(AbstractNamedObject):
+    """
+    Base class for objects with a parent.
+    
+    .. note:: Accepts all parameters to :class:`ocgis.base.AbstractNamedObject`.
+
+    Additional keyword arguments are:
+
+    :param parent: (``=None``) The parent collection for this container. A variable will always become a member of its
+     parent.
+    :type parent: :class:`ocgis.VariableCollection`
+    """
+
     def __init__(self, name, aliases=None, source_name=constants.UNINITIALIZED, parent=None, uid=None):
         self._parent = parent
 
@@ -150,14 +161,43 @@ class Variable(AbstractContainer, Attributes):
     _bounds_attribute_name = 'bounds'
 
     def __init__(self, name=None, value=None, dimensions=None, dtype='auto', mask=None, attrs=None, fill_value='auto',
-                 units='auto', parent=None, bounds=None, is_empty=None,
-                 source_name=constants.UNINITIALIZED, uid=None, repeat_record=None):
+                 units='auto', parent=None, bounds=None, is_empty=None, source_name=constants.UNINITIALIZED, uid=None,
+                 repeat_record=None):
+        """
+        A variable contains data values. It may be masked and have attributes.
+        
+        :param name: See :class:`ocgis.base.AbstractNamedObject`.
+        :param value: The variable's data.
+        :type value: :class:`numpy.ndarray` or :class:`numpy.ma.MaskedArray` or sequence
+        :param dimensions: Dimensions for ``value``. The number of dimensions must match the dimension count of 
+         ``value``.
+        :type dimensions: tuple(:class:`ocgis.Dimension`, ...) or tuple(str, ...)
+        :param dtype: The variable's data type. If ``'auto'``, the data type will match the data type of ``value``. If
+         the data type does not match ``values``'s data type, ``value`` will be converted to match.
+        :param mask: The variable's mask. If ``None`` and ``value`` is a :class:`numpy.ma.MaskedArray`, then the mask
+         is pulled from ``value``.
+        :type mask: (:class:`numpy.ndarray`, ``shape=value.shape``, ``dtype=bool``) or sequence
+        :param attrs: See :class:`ocgis.variable.attributes.Attributes`. 
+        :param int fill_value: The fill value to use when hardening the mask. If ``'auto'``, this will be determined
+         automatically from a masked array or the data type.
+        :param str units: Units for the variable's data. If ``'auto'``, attempt to pull units from the variable's 
+         ``attrs``. 
+        :param parent: See :class:`ocgis.variable.base.AbstractContainer`. 
+        :param bounds: Bounds for the variable's data value. Mostly applicable for coordinate-type variables.
+        :type bounds: :class:`ocgis.Variable`
+        :param is_empty: If ``True``, the variable is empty and has not value, mask, or meaning.
+        :param source_name: See :class:`ocgis.base.AbstractNamedObject`.
+        :param uid: See :class:`ocgis.base.AbstractNamedObject`.
+        :param repeat_record: A value to repeat when the variable's ``iter`` method is called.
+        :type repeat_record: [(<key>, <value>), ...]
+        """
+
         if not is_empty:
             if name is None:
                 raise ValueError('A variable name is required.')
             if value is not None and dimensions is None:
-                msg = 'Variables with a value require dimensions. If this is a scalar variable, provide an empty list or ' \
-                      'tuple.'
+                msg = 'Variables with a value require dimensions. If this is a scalar variable, provide an empty ' \
+                      'list or tuple.'
                 raise ValueError(msg)
 
         self._is_init = True
@@ -302,7 +342,11 @@ class Variable(AbstractContainer, Attributes):
 
     @property
     def dimension_names(self):
-        return self._dimensions
+        if self._dimensions is None:
+            ret = tuple()
+        else:
+            ret = self._dimensions
+        return ret
 
     def _get_dimensions_(self):
         if self._dimensions is None:
@@ -1069,6 +1113,24 @@ class Variable(AbstractContainer, Attributes):
 
 class SourcedVariable(Variable):
     def __init__(self, *args, **kwargs):
+        """
+        Like a variable but loads its value and metadata from a source request dataset. Full variable functionality is 
+        maintained for convenience. Generally, it is a good idea to only provide ``name` and ``request_dataset`` to 
+        avoid conflicts.
+        
+        .. note:: Accepts all parameters to :class:`ocgis.Variable`.
+
+        Additional arguments and/or keyword arguments are:
+        
+        :keyword request_dataset: (``=None``) The request dataset containg the variables source information.
+        :type request_dataset: :class`ocgis.RequestDataset`
+        :keyword bool protected: (``=False``) If ``True``, attempting to access the variable's value from source will
+         raise a :class:`ocgis.exc.PayloadProtectedError` exception. Set `<object>.payload = False` to disable this.
+         Useful to ensure the variables payload data is untouched through a series of operations.
+        :keyword bool should_init_from_source: (``=True``) Allows a sourced variable to ignore any from-file operations
+         and behave as a normal variable. This is used by some subclasses.
+        """
+
         # If True, initialize from source. If False, assume all source data is passed during initialization.
         should_init_from_source = kwargs.pop('should_init_from_source', True)
 
@@ -1154,14 +1216,44 @@ class SourcedVariable(Variable):
         return ret
 
 
-# tdk: variable collection should inherit from abstract container
+# TODO: Variable collection should inherit from abstract container.
 class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
-    def __init__(self, name=None, variables=None, attrs=None, parent=None, children=None, aliases=None,
-                 tags=None, source_name=constants.UNINITIALIZED, uid=None, is_empty=None):
+    """
+    Variable collections behave like Python dictionaries. The keys are variable names and values are variable  objects. 
+    A variable collection may have a parent and children (groups). Variable collections may be sliced using a 
+    dictionary.
+
+    :param name: See :class:`ocgis.base.AbstractNamedObject`. 
+    :param variables: Initial set of variables used to initialize the collection.
+    :type variables: sequence(:class:`ocgis.Variable`, ...)
+    :param attrs: See :class:`ocgis.variable.attributes.Attributes`.
+    :param parent: The parent collection.
+    :type parent: :class:`ocgis.VariableCollection`
+    :param children: A dictionary of child variable collections.
+    :type children: dict ``{<str:variable collection name>: <:class:`ocgis.VariableCollection`>, ...}``)
+    :param aliases: See :class:`ocgis.base.AbstractNamedObject`.
+    :param tags: Tags are used to group variables (data variables for example).
+    :type tags: dict ``{<str: tag name>, [<str:variable name>, ...], ...}``
+    :param source_name: See :class:`ocgis.base.AbstractNamedObject`.
+    :param uid: See :class:`ocgis.base.AbstractNamedObject`.
+    :param is_empty: If ``True``, this is an empty collection.
+    :param driver: A driver contains format-specific data transformations.
+    :type driver: :class:`ocgis.driver.base.AbstractDriver`
+    :param bool force: If ``True``, clobber any names that already exist in the collection.
+    :param groups: Alias for ``children``.
+    """
+
+    def __init__(self, name=None, variables=None, attrs=None, parent=None, children=None, aliases=None, tags=None,
+                 source_name=constants.UNINITIALIZED, uid=None, is_empty=None, driver=constants.DEFAULT_DRIVER,
+                 force=False, groups=None):
         self._is_empty = is_empty
         self._dimensions = OrderedDict()
         self.parent = parent
+
+        if children is None and groups is not None:
+            children = groups
         self.children = children or OrderedDict()
+        self._driver = driver
 
         if tags is None:
             tags = OrderedDict()
@@ -1173,7 +1265,7 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
 
         if variables is not None:
             for variable in get_iter(variables, dtype=Variable):
-                self.add_variable(variable)
+                self.add_variable(variable, force=force)
 
     def __getitem__(self, item_or_slc):
         if not isinstance(item_or_slc, dict):
@@ -1204,10 +1296,14 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
                 ret.add_variable(v_sub, force=True)
         return ret
 
-    # tdk: dimensions and group can be removed with inheritance from abstractcontainer
     @property
     def dimensions(self):
         return self._dimensions
+
+    @property
+    def driver(self):
+        from ocgis.driver.registry import get_driver_class
+        return get_driver_class(self._driver)
 
     @property
     def group(self):
@@ -1226,15 +1322,17 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
         return ret
 
     @property
+    def groups(self):
+        return self.children
+
+    @property
     def is_empty(self):
         return get_is_empty_recursive(self)
 
     @property
     def shapes(self):
-        return OrderedDict(
-            [[k, v.shape] for k, v in list(self.items()) if not isinstance(v, CoordinateReferenceSystem)])
+        return OrderedDict([[k, v.shape] for k, v in list(self.items()) if not is_crs_variable(v)])
 
-    # tdk: remove me
     @property
     def tags(self):
         raise NotImplementedError
@@ -1318,7 +1416,7 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
         :param create bool: If ``True``, create the tag if it does not exist.
         :param strict bool: If ``True``, raise exception if variable name is not found in collection.
         :return: Tuple of variable objects that have the ``tag``.
-        :rtype: tuple
+        :rtype: tuple(:class:`ocgis.Variable`, ...)
         """
         try:
             names = self._tags[tag]
@@ -1344,6 +1442,7 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
         for v in list(self.values()):
             v.load()
 
+    # tdk: move implementation to function (also for field)
     def iter(self, **kwargs):
         if self.is_empty:
             raise StopIteration
@@ -1429,12 +1528,33 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
         rd = RequestDataset(*args, **kwargs)
         return rd.driver.get_variable_collection()
 
-    def remove_variable(self, variable):
-        variable_name = get_variable_names(variable)[0]
+    def remove_variable(self, variable, remove_bounds=True):
+        variable = get_variables(variable, self)[0]
+
+        variable = variable.extract()
+        if remove_bounds and variable.has_bounds:
+            self.remove_variable(variable.bounds)
+
+        # Remove name from tags
+        variable_name = variable.name
         for v in list(self._tags.values()):
             if variable_name in v:
                 v.remove(variable_name)
         self.pop(variable_name)
+
+        # Check for orphaned dimensions.
+        dims_to_check = get_dimension_names(variable.dimensions)
+        dims_to_pop = []
+        for d in dims_to_check:
+            found = False
+            for var in self.values():
+                if d in var.dimension_names:
+                    found = True
+                    break
+            if not found:
+                dims_to_pop.append(d)
+        for d in dims_to_pop:
+            self.dimensions.pop(d)
 
     def set_mask(self, variable, **kwargs):
         exclude = kwargs.pop(KeywordArgument.EXCLUDE, None)

@@ -23,7 +23,7 @@ from ocgis import RequestDataset, vm
 from ocgis import exc, env, constants
 from ocgis import osr
 from ocgis.base import get_variable_names
-from ocgis.collection.field import OcgField
+from ocgis.collection.field import Field
 from ocgis.collection.spatial import SpatialCollection
 from ocgis.constants import WrappedState, KeywordArgument, TagName, HeaderName
 from ocgis.exc import ExtentError, DefinitionValidationError
@@ -32,7 +32,7 @@ from ocgis.ops.interpreter import OcgInterpreter
 from ocgis.ops.parms.definition import OutputFormat
 from ocgis.ops.parms.definition import SpatialOperation
 from ocgis.spatial.geom_cabinet import GeomCabinetIterator
-from ocgis.spatial.grid import GridXY
+from ocgis.spatial.grid import Grid
 from ocgis.test import strings
 from ocgis.test.base import TestBase, nc_scope, attr
 from ocgis.test.test_simple.make_test_data import SimpleNcNoLevel, SimpleNc, SimpleMaskNc, \
@@ -1262,7 +1262,7 @@ class TestSimpleMPI(TestSimpleBase):
 
                 untouched = Variable(name='untouched', dimensions='untouched', value=[7, 8])
 
-                field = OcgField(grid=GridXY(x, y), time=time, variables=[extra, untouched])
+                field = Field(grid=Grid(x, y), time=time, variables=[extra, untouched])
 
                 data_dimensions = ['lat', 'time', 'extra', 'lon']
                 data = Variable(name='data', dimensions=data_dimensions, parent=field, dtype=np.float32)
@@ -1687,7 +1687,7 @@ class TestSimpleProjected(TestSimpleBase):
         names = [f['NAME'] for f in features]
         g = GeometryVariable(name='geom', value=geoms, crs=WGS84(), dimensions='geom')
         names = Variable(name='NAME', value=names, dimensions='geom')
-        field = OcgField(is_data=names, geom=g, crs=WGS84())
+        field = Field(is_data=names, geom=g, crs=WGS84())
         field.write(path, driver='vector')
 
         ocgis.env.DIR_GEOMCABINET = self.current_dir_output

@@ -8,8 +8,9 @@ import numpy as np
 from shapely.geometry import mapping
 
 from ocgis import constants, vm
-from ocgis.constants import MPIWriteMode, DimensionName, KeywordArgument, DriverKey
+from ocgis.constants import MPIWriteMode, DimensionName, KeywordArgument, DriverKey, DMK
 from ocgis.driver.base import driver_scope, AbstractTabularDriver
+from ocgis.driver.dimension_map import DimensionMap
 from ocgis.util.helpers import is_auto_dtype
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import SourcedVariable, VariableCollection
@@ -59,10 +60,12 @@ class DriverVector(AbstractTabularDriver):
         return ret
 
     def get_dimension_map(self, group_metadata):
-        ret = {'geom': {'variable': DimensionName.GEOMETRY_DIMENSION}}
+        ret = {DMK.GEOM: {DMK.VARIABLE: DimensionName.GEOMETRY_DIMENSION,
+                          DMK.DIMS: DimensionName.GEOMETRY_DIMENSION}}
+        ret = DimensionMap.from_dict(ret)
         crs = self.get_crs(group_metadata)
         if crs is not None:
-            ret['crs'] = {'variable': crs.name}
+            ret.set_crs(crs)
         return ret
 
     def get_source_metadata_as_json(self):
@@ -150,12 +153,12 @@ class DriverVector(AbstractTabularDriver):
             for p, d in list(m['schema']['properties'].items()):
                 d = get_dtype_from_fiona_type(d)
                 m['variables'][p] = {'dimensions': (geom_dimension_name,), 'dtype': d, 'name': p,
-                                     'attributes': OrderedDict()}
+                                     'attrs': OrderedDict()}
 
             m[geom_dimension_name] = {'dimensions': (geom_dimension_name,),
                                       'dtype': object,
                                       'name': geom_dimension_name,
-                                      'attributes': OrderedDict()}
+                                      'attrs': OrderedDict()}
         return m
 
     def _init_variable_from_source_main_(self, variable_object, variable_metadata):
@@ -163,7 +166,7 @@ class DriverVector(AbstractTabularDriver):
             variable_object.dtype = variable_metadata['dtype']
 
         variable_attrs = variable_object._attrs
-        for k, v in list(variable_metadata['attributes'].items()):
+        for k, v in list(variable_metadata['attrs'].items()):
             if k not in variable_attrs:
                 variable_attrs[k] = deepcopy(v)
 
@@ -181,9 +184,9 @@ class DriverVector(AbstractTabularDriver):
     @classmethod
     def _write_variable_collection_main_(cls, vc, opened_or_path, write_mode, **kwargs):
 
-        from ocgis.collection.field import OcgField
+        from ocgis.collection.field import Field
 
-        if not isinstance(vc, OcgField):
+        if not isinstance(vc, Field):
             raise ValueError('Only fields may be written to vector GIS formats.')
 
         fiona_crs = kwargs.get('crs')

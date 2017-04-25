@@ -4,16 +4,15 @@ OUT_FILE=test-ocgis.out
 rm ${OUT_FILE}
 rm .noseids
 
-#nps=(1 2 5 8 12)
 nps=(2 3 4 5 6 7 8)
-#nps=(4 5 6 7 8)
-#nps=(2)
 
 #nps=(1)
 #nps=(2)
 #nps=(3)
+#nps=(4)
 #nps=(5)
 #nps=(6)
+#nps=(7)
 #nps=(8)
 
 tests=(
@@ -35,10 +34,10 @@ for jj in "${tests[@]}"; do
     echo ${jj}
     nosetests -x -a '!release' ${jj} 2>&1 | tee -a ${OUT_FILE}
 
-#    for ii in "${nps[@]}"; do
-#        echo ${ii} ${jj}
-#        mpirun -n ${ii} nosetests -vsx -a 'mpi' ${jj} 2>&1 | tee -a ${OUT_FILE}
-#    done
+    for ii in "${nps[@]}"; do
+        echo ${ii} ${jj}
+        mpirun -n ${ii} nosetests -vsx -a 'mpi' ${jj} 2>&1 | tee -a ${OUT_FILE}
+    done
 done
 
 grep FAIL ${OUT_FILE}

@@ -9,7 +9,7 @@ from ocgis import env
 from ocgis.base import get_variable_names
 from ocgis.calc.base import AbstractUnivariateFunction, AbstractUnivariateSetFunction, AbstractFunction, \
     AbstractMultivariateFunction, AbstractParameterizedFunction, AbstractFieldFunction
-from ocgis.collection.field import OcgField
+from ocgis.collection.field import Field
 from ocgis.driver.request.multi_request import MultiRequestDataset
 from ocgis.exc import UnitsValidationError, DefinitionValidationError
 from ocgis.ops.parms.definition_helpers import MetadataAttributes
@@ -115,7 +115,7 @@ class TestAbstractFieldFunction(TestBase):
     @property
     def field_for_test(self):
         data = Variable(name='data', value=[4, 5, 6], dimensions='three')
-        field = OcgField(variables=data)
+        field = Field(variables=data)
         return field
 
     def setUp(self):
@@ -132,7 +132,6 @@ class TestAbstractFieldFunction(TestBase):
         self.assertEqual(res[MockFieldFunction.key].get_value().tolist(), self.desired_value)
 
     def test_system_through_operations(self):
-        # tdk: test only one field function allowed
         ops = OcgOperations(dataset=self.field_for_test, calc=[{'func': 'mff', 'name': 'my_mff'}])
         ret = ops.execute()
 
@@ -181,13 +180,13 @@ class TestMockMultiParamFunction(TestBase):
 
     @property
     def field_for_test(self):
-        field = OcgField(variables=[self.variable_lhs_for_test, self.variable_rhs_for_test])
+        field = Field(variables=[self.variable_lhs_for_test, self.variable_rhs_for_test])
         return field
 
     @property
     def fields_for_ops_test(self):
-        field1 = OcgField(variables=self.variable_lhs_for_test)
-        field2 = OcgField(variables=self.variable_rhs_for_test)
+        field1 = Field(variables=self.variable_lhs_for_test)
+        field2 = Field(variables=self.variable_rhs_for_test)
         return [field1, field2]
 
     @property
@@ -234,7 +233,7 @@ class MockFieldParamFunction(AbstractFieldFunction, AbstractParameterizedFunctio
     long_name = 'field function test with parameters'
     standard_name = 'mock_field_param_function'
     description = 'Used for testing a field function taking parameters'
-    parms_definition = {'basis': OcgField, 'reference': tuple}
+    parms_definition = {'basis': Field, 'reference': tuple}
 
     def calculate(self, reference=None, basis=None):
         basis_var = basis['basis_var']

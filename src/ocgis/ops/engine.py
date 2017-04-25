@@ -5,7 +5,7 @@ from ocgis import Variable, vm
 from ocgis import env, constants
 from ocgis.base import raise_if_empty
 from ocgis.calc.engine import OcgCalculationEngine
-from ocgis.collection.field import OcgField
+from ocgis.collection.field import Field
 from ocgis.collection.spatial import SpatialCollection
 from ocgis.constants import WrappedState, HeaderName, WrapAction, SubcommName
 from ocgis.exc import ExtentError, EmptySubsetError, BoundsAlreadyAvailableError, SubcommNotFoundError
@@ -195,7 +195,7 @@ class OperationsEngine(object):
                         if not self.ops.format_time:
                             raise NotImplementedError
                         # Check that is indeed a field before a proceeding.
-                        if not isinstance(rds_element, OcgField):
+                        if not isinstance(rds_element, Field):
                             raise
                         field_object = rds_element
 
@@ -220,7 +220,7 @@ class OperationsEngine(object):
 
             # The first field in the list is always the target for other operations.
             field = field[0]
-            assert isinstance(field, OcgField)
+            assert isinstance(field, Field)
 
             # Break out of operations if the rank is empty.
             vm.create_subcomm_by_emptyable(SubcommName.FIELD_GET, field, is_current=True, clobber=True)
@@ -249,7 +249,7 @@ class OperationsEngine(object):
                          level=logging.WARN)
                 coll = self._get_initialized_collection_()
                 name = '_'.join([rd.field_name for rd in rds])
-                field = OcgField(name=name, is_empty=True)
+                field = Field(name=name, is_empty=True)
                 coll.add_field(field, None)
                 try:
                     yield coll
@@ -277,14 +277,14 @@ class OperationsEngine(object):
 
     def _process_geometries_(self, itr, field, alias):
         """
-        :param itr: An iterator yielding :class:`~ocgis.OcgField` objects for subsetting.
-        :type itr: [None] or [:class:`~ocgis.OcgField`, ...]
-        :param :class:`ocgis.OcgField` field: The target field for operations.
+        :param itr: An iterator yielding :class:`~ocgis.Field` objects for subsetting.
+        :type itr: [None] or [:class:`~ocgis.Field`, ...]
+        :param :class:`ocgis.Field` field: The target field for operations.
         :param str alias: The request data alias currently being processed.
         :rtype: :class:`~ocgis.SpatialCollection`
         """
 
-        assert isinstance(field, OcgField)
+        assert isinstance(field, Field)
 
         ocgis_lh('processing geometries', self._subset_log, level=logging.DEBUG)
         # Process each geometry.
@@ -379,7 +379,7 @@ class OperationsEngine(object):
         """
         
         :param field:
-        :type field: :class:`~ocgis.OcgField`
+        :type field: :class:`~ocgis.Field`
         :return: 
         :raises: EmptySubsetError
         """
@@ -407,9 +407,9 @@ class OperationsEngine(object):
         system.
 
         :param field:
-        :type field: :class:`ocgis.OcgField`
+        :type field: :class:`ocgis.Field`
         :param subset_field:
-        :type subset_field: :class:`ocgis.OcgField` or None
+        :type subset_field: :class:`ocgis.Field` or None
         :rtype: None or :class:`ocgis.variable.crs.CFRotatedPole`
         :raises: AssertionError
         """
@@ -432,7 +432,7 @@ class OperationsEngine(object):
         Assert the spatial abstraction may be loaded on the field object if one is provided in the operations.
 
         :param field: The field to check for a spatial abstraction.
-        :type field: :class:`ocgis.OcgField`
+        :type field: :class:`ocgis.Field`
         """
 
         if self.ops.abstraction != 'auto':
@@ -446,8 +446,8 @@ class OperationsEngine(object):
         Slice the incoming field if a slice or snippet argument is present.
 
         :param field: The field to slice.
-        :type field: :class:`ocgis.OcgField`
-        :rtype: :class:`ocgis.OcgField`
+        :type field: :class:`ocgis.Field`
+        :rtype: :class:`ocgis.Field`
         """
 
         # If there is a snippet, return the first realization, time, and level.
@@ -468,10 +468,10 @@ class OperationsEngine(object):
 
         :param str alias: The request data alias currently being processed.
         :param field: Target field to subset.
-        :type field: :class:`ocgis.OcgField`
+        :type field: :class:`ocgis.Field`
         :param subset_field: The field to use for subsetting.
-        :type subset_field: :class:`ocgis.OcgField`
-        :rtype: :class:`ocgis.OcgField`
+        :type subset_field: :class:`ocgis.Field`
+        :rtype: :class:`ocgis.Field`
         :raises: AssertionError, ExtentError
         """
 
@@ -489,7 +489,7 @@ class OperationsEngine(object):
             if self.ops.allow_empty:
                 ocgis_lh(alias=alias, ugid=subset_ugid, msg='Empty geometric operation but empty returns allowed.',
                          level=logging.WARN)
-                sfield = OcgField(name=field.name, is_empty=True)
+                sfield = Field(name=field.name, is_empty=True)
             else:
                 msg = ' This typically means the selection geometry falls outside the spatial domain of the target ' \
                       'dataset.'
@@ -509,9 +509,9 @@ class OperationsEngine(object):
         accordingly. If the subset geometry is a polygon, pass through.
 
         :param field:
-        :type field: :class:`ocgis.OcgField`
+        :type field: :class:`ocgis.Field`
         :param subset_field:
-        :type subset_field: :class:`ocgis.OcgField`
+        :type subset_field: :class:`ocgis.Field`
         """
 
         if subset_field.geom.geom_type in ['Point', 'MultiPoint'] and self.ops.search_radius_mult is not None:
@@ -526,10 +526,10 @@ class OperationsEngine(object):
         Regrid ``sfield`` subsetting the regrid destination in the process.
 
         :param sfield: The input field to regrid.
-        :type sfield: :class:`ocgis.OcgField`
+        :type sfield: :class:`ocgis.Field`
         :param subset_field_for_regridding: The original, unaltered spatial dimension to use for subsetting.
-        :type subset_field_for_regridding: :class:`ocgis.OcgField`
-        :rtype: :class:`~ocgis.OcgField`
+        :type subset_field_for_regridding: :class:`ocgis.Field`
+        :rtype: :class:`~ocgis.Field`
         """
 
         from ocgis.regrid.base import RegridOperation
@@ -589,7 +589,7 @@ def _update_aggregation_wrapping_crs_(obj, alias, sfield, subset_sdim, subset_ug
             if vm.size == 1:
                 raise ValueError('None should not be returned from get_unioned if running on a single processor.')
             else:
-                sfield = OcgField(is_empty=True)
+                sfield = Field(is_empty=True)
         else:
             sfield = sfield.parent
 

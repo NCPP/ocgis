@@ -10,13 +10,15 @@ from ocgis import constants
 from ocgis import vm
 from ocgis.base import AbstractOcgisObject, raise_if_empty
 from ocgis.base import get_variable_names
-from ocgis.collection.field import OcgField
-from ocgis.constants import MPIWriteMode, TagName, KeywordArgument, DimensionMapKey
-from ocgis.exc import DefinitionValidationError, NoDataVariablesFound, RequestValidationError
+from ocgis.collection.field import Field
+from ocgis.constants import MPIWriteMode, TagName, KeywordArgument
+from ocgis.driver.dimension_map import DimensionMap
+from ocgis.exc import DefinitionValidationError, NoDataVariablesFound, DimensionMapError
+from ocgis.util.helpers import get_group
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import SourcedVariable, VariableCollection
 from ocgis.variable.dimension import Dimension
-from ocgis.vmachine.mpi import find_dimension_in_sequence, OcgMpi
+from ocgis.vmachine.mpi import find_dimension_in_sequence, OcgDist
 
 
 # TODO: Make the driver accept no arguments at initialization. The request dataset should be passed around as a parameter.
@@ -101,32 +103,6 @@ class AbstractDriver(AbstractOcgisObject):
         else:
             cls._close_(obj)
 
-    def format_dimension_map(self, group_dimension_map, group_metadata):
-        """Any standardization of the dimension map to pass to the field."""
-
-        to_evaluate = [DimensionMapKey.X, DimensionMapKey.Y, DimensionMapKey.LEVEL, DimensionMapKey.REALIZATION,
-                       DimensionMapKey.TIME]
-        for te in to_evaluate:
-            if te in group_dimension_map:
-                if DimensionMapKey.NAMES not in group_dimension_map[te]:
-                    # Attempt to pull the dimension name from the variable. Fail if more than one dimension.
-                    vdims = group_metadata['variables'][group_dimension_map[te][DimensionMapKey.VARIABLE]][
-                        'dimensions']
-                    if len(vdims) > 1:
-                        msg = 'Dimension map entry "{}" has no dimension "{}" and the target variable "{}" has more ' \
-                              'than one dimension. "names" must be overloaded for the dimension map entry.)'
-                        msg = msg.format(te, DimensionMapKey.NAMES, group_dimension_map[te][DimensionMapKey.VARIABLE])
-                        raise RequestValidationError('dimension_map', msg)
-                    else:
-                        group_dimension_map[te][DimensionMapKey.NAMES] = list(vdims)
-        if DimensionMapKey.CRS not in group_dimension_map:
-            crs = self.get_crs(group_metadata)
-            if crs is not None:
-                group_dimension_map[DimensionMapKey.CRS] = {DimensionMapKey.VARIABLE: crs.name}
-        for group_key in iter_all_group_keys(group_dimension_map, has_root=False):
-            group_dimension_map = get_group(group_dimension_map, group_key, has_root=False)
-            group_metadata = get_group(group_metadata, group_key, has_root=False)
-
     def get_crs(self, group_metadata):
         """:rtype: ~ocgis.interface.base.crs.CoordinateReferenceSystem"""
 
@@ -138,8 +114,8 @@ class AbstractDriver(AbstractOcgisObject):
         return ret
 
     def get_dimension_map(self, group_metadata):
-        """:rtype: dict"""
-        return {}
+        """:rtype: :class:`ocgis.DimensionMap`"""
+        return DimensionMap()
 
     @staticmethod
     def get_data_variable_names(group_metadata, group_dimension_map):
@@ -153,8 +129,8 @@ class AbstractDriver(AbstractOcgisObject):
         :rtype: :class:`ocgis.OcgVM`
         """
 
-        ompi = OcgMpi(size=vm.size, ranks=vm.ranks)
-        # ompi = OcgMpi()
+        ompi = OcgDist(size=vm.size, ranks=vm.ranks)
+        # ompi = OcgDist()
 
         # Convert metadata into a grouping consistent with the MPI dimensions.
         metadata = {None: self.metadata_source}
@@ -168,7 +144,13 @@ class AbstractDriver(AbstractOcgisObject):
                 target_dimension.dist = group_meta['dimensions'][dimension_name].get('dist', False)
                 ompi.add_dimension(target_dimension, group=group_index)
 
-            dimension_map = get_group(self.rd.dimension_map, group_index, has_root=False)
+            try:
+                dimension_map = self.rd.dimension_map.get_group(group_index)
+            except DimensionMapError:
+                # Likely a user-provided dimension map.
+                continue
+
+            # dimension_map = get_group(self.rd.dimension_map, group_index, has_root=False)
             distributed_dimension_name = self.get_distributed_dimension_name(dimension_map,
                                                                              group_meta['dimensions'])
             # Allow no distributed dimensions to be returned.
@@ -251,14 +233,15 @@ class AbstractDriver(AbstractOcgisObject):
             vc.add_variable(to_add, force=True)
         # Overload the dimension map with the CRS.
         if to_add is not None:
-            dimension_map[DimensionMapKey.CRS][DimensionMapKey.VARIABLE] = to_add.name
+            # dimension_map[DimensionMapKey.CRS][DimensionMapKey.VARIABLE] = to_add.name
+            dimension_map.set_crs(to_add.name)
 
         # Convert the raw variable collection to a field.
         kwargs['dimension_map'] = dimension_map
         kwargs[KeywordArgument.FORMAT_TIME] = format_time
         if grid_abstraction != constants.UNINITIALIZED:
             kwargs[KeywordArgument.GRID_ABSTRACTION] = grid_abstraction
-        field = OcgField.from_variable_collection(vc, *args, **kwargs)
+        field = Field.from_variable_collection(vc, *args, **kwargs)
 
         # If this is a source grid for regridding, ensure the flag is updated.
         field.regrid_source = self.rd.regrid_source
@@ -327,6 +310,8 @@ class AbstractDriver(AbstractOcgisObject):
         :rtype: :class:`ocgis.new_interface.variable.VariableCollection`
         """
 
+        if KeywordArgument.DRIVER not in kwargs:
+            kwargs[KeywordArgument.DRIVER] = self
         dimension = list(self.dist.get_group(rank=vm.rank)['dimensions'].values())[0]
         ret = VariableCollection(**kwargs)
         for v in list(self.metadata_source['variables'].values()):
@@ -428,11 +413,11 @@ class AbstractDriver(AbstractOcgisObject):
         if conform_units_to is not None:
             # The initialized units for the variable are overloaded by the destination / conform to units.
             if isinstance(variable, TemporalVariable):
-                from_units = TemporalVariable(units=meta['attributes']['units'],
-                                              calendar=meta['attributes'].get('calendar'))
+                from_units = TemporalVariable(units=meta['attrs']['units'],
+                                              calendar=meta['attrs'].get('calendar'))
                 from_units = from_units.cfunits
             else:
-                from_units = meta['attributes']['units']
+                from_units = meta['attrs']['units']
             variable.cfunits_conform(conform_units_to, from_units=from_units)
 
     @staticmethod
@@ -664,7 +649,7 @@ def driver_scope(ocgis_driver, opened_or_path=None, mode='r', **kwargs):
 def find_variable_by_attribute(variables_metadata, attribute_name, attribute_value):
     ret = []
     for variable_name, variable_metadata in list(variables_metadata.items()):
-        for k, v in list(variable_metadata['attributes'].items()):
+        for k, v in list(variable_metadata['attrs'].items()):
             if k == attribute_name and v == attribute_value:
                 ret.append(variable_name)
     return ret
@@ -678,19 +663,9 @@ def format_attribute_for_dump_report(attr_value):
     return ret
 
 
-def get_dimension_map_raw(driver, group_metadata, group_name=None, update_target=None):
-    dimension_map = driver.get_dimension_map(group_metadata)
-    if update_target is None:
-        update_target = dimension_map
-    if 'groups' not in update_target:
-        update_target['groups'] = {}
-    if group_name is not None:
-        update_target['groups'][group_name] = dimension_map
-    if 'groups' in group_metadata:
-        for group_name, sub_group_metadata in list(group_metadata['groups'].items()):
-            get_dimension_map_raw(driver, sub_group_metadata, group_name=group_name,
-                                  update_target=update_target)
-    return update_target
+def get_dimension_map_raw(driver, group_metadata):
+    ret = DimensionMap.from_metadata(driver, group_metadata)
+    return ret
 
 
 def get_dump_report_for_group(group, global_attributes_name='global', indent=0):
@@ -716,7 +691,7 @@ def get_dump_report_for_group(group, global_attributes_name='global', indent=0):
             dims = [str(d) for d in value['dimensions']]
             dims = ', '.join(dims)
             lines.append(var_template.format(value['dtype'], key, dims))
-            for key2, value2 in value.get('attributes', {}).items():
+            for key2, value2 in value.get('attrs', {}).items():
                 lines.append(attr_template.format(key, key2, format_attribute_for_dump_report(value2)))
 
     global_attributes = group.get('global_attributes', {})
@@ -740,29 +715,6 @@ def get_dump_report_for_group(group, global_attributes_name='global', indent=0):
                 lines[idx] = indent_string + current
 
     return lines
-
-
-def get_group(ddict, keyseq, has_root=True):
-    keyseq = deepcopy(keyseq)
-
-    if keyseq is None:
-        keyseq = [None]
-    elif isinstance(keyseq, six.string_types):
-        keyseq = [keyseq]
-
-    if keyseq[0] is not None:
-        keyseq.insert(0, None)
-
-    curr = ddict
-    for key in keyseq:
-        if key is None:
-            if has_root:
-                curr = curr[None]
-        else:
-            # Allow dimension maps to not have groups. Return empty dictionaries for groups that do not exist in the
-            # dimension map.
-            curr = curr.get('groups', {}).get(key, {})
-    return curr
 
 
 def get_variable_metadata_from_request_dataset(driver, variable):

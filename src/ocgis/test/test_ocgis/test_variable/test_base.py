@@ -9,9 +9,8 @@ from numpy.testing.utils import assert_equal
 from shapely.geometry import Point
 
 from ocgis import RequestDataset, vm
-from ocgis.collection.field import OcgField
+from ocgis.collection.field import Field
 from ocgis.constants import HeaderName
-from ocgis.driver.vector import DriverVector
 from ocgis.exc import VariableInCollectionError, EmptySubsetError, NoUnitsError, PayloadProtectedError, \
     DimensionsRequiredError
 from ocgis.test.base import attr, nc_scope, AbstractTestInterface
@@ -19,7 +18,7 @@ from ocgis.util.units import get_units_object, get_are_units_equal
 from ocgis.variable.base import Variable, SourcedVariable, VariableCollection, ObjectType, init_from_source
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
-from ocgis.vmachine.mpi import MPI_SIZE, MPI_RANK, OcgMpi, MPI_COMM, hgather
+from ocgis.vmachine.mpi import MPI_SIZE, MPI_RANK, OcgDist, MPI_COMM, hgather
 
 
 class TestVariable(AbstractTestInterface):
@@ -240,6 +239,15 @@ class TestVariable(AbstractTestInterface):
         self.assertIsNone(var.get_mask())
         self.assertIsNone(var._mask)
 
+    @attr('data')
+    def test_system_remove_variable_from_field(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        field = rd.get()
+        time_bounds_name = field.time.bounds.name
+        field.remove_variable(field.time)
+        self.assertIsNone(field.time)
+        self.assertNotIn(time_bounds_name, field)
+
     @attr('mpi', 'mpi-2')
     def test_system_scatter_gather_variable(self):
         """Test a proof-of-concept scatter and gather operation on a simple variable."""
@@ -299,7 +307,7 @@ class TestVariable(AbstractTestInterface):
 
         rd = RequestDataset(uri=path)
 
-        ompi = OcgMpi()
+        ompi = OcgDist()
         major = ompi.create_dimension('major', size=5, dist=True, src_idx='auto')
         minor = ompi.create_dimension('minor', size=3, dist=False, src_idx='auto')
         fvar = SourcedVariable(name='has_dist_dim', request_dataset=rd, dimensions=[major, minor])
@@ -335,7 +343,7 @@ class TestVariable(AbstractTestInterface):
         d2 = Dimension('d2', size=10, dist=False)
         d3 = Dimension('d3', size=3, dist=True)
         dimensions = [d1, d2, d3]
-        ompi = OcgMpi()
+        ompi = OcgDist()
         for d in dimensions:
             ompi.add_dimension(d)
         ompi.update_dimension_bounds()
@@ -681,7 +689,7 @@ class TestVariable(AbstractTestInterface):
             path = None
         path = MPI_COMM.bcast(path)
 
-        dist = OcgMpi()
+        dist = OcgDist()
         dim1 = dist.create_dimension('time', 10, dist=False, src_idx='auto')
         dim2 = dist.create_dimension('x', 5, dist=True, src_idx='auto')
         dim3 = dist.create_dimension('y', 4, dist=False, src_idx='auto')
@@ -704,7 +712,7 @@ class TestVariable(AbstractTestInterface):
     @attr('mpi')
     def test_get_distributed_slice_parent_variables(self):
         """Test distributed slicing on a variable with sibling variables."""
-        dist = OcgMpi()
+        dist = OcgDist()
         dim = dist.create_dimension('dim', 9, dist=True)
         dim_nondist = dist.create_dimension('dim_nondist', 3, dist=False)
         dist.update_dimension_bounds()
@@ -747,7 +755,7 @@ class TestVariable(AbstractTestInterface):
             path = None
         path = MPI_COMM.bcast(path)
 
-        dist = OcgMpi()
+        dist = OcgDist()
         dim = dist.create_dimension('x', 5, dist=True, src_idx='auto')
         var = dist.create_variable('var', dimensions=[dim])
         dist.update_dimension_bounds(min_elements=1)
@@ -1292,13 +1300,13 @@ class TestVariableCollection(AbstractTestInterface):
 
         uid = Variable(name='the_uid', value=[4], dimensions='geom')
         geom = GeometryVariable(name='the_geom', value=[Point(1, 2)], dimensions='geom')
-        container = OcgField(name=uid.get_value()[0], variables=[uid, geom],
-                             dimension_map={'geom': {'variable': 'the_geom'}})
+        container = Field(name=uid.get_value()[0], variables=[uid, geom],
+                          dimension_map={'geom': {'variable': 'the_geom'}})
         geom.set_ugid(uid)
         coll = VariableCollection()
         coll.add_child(container)
         data = Variable(name='tas', value=[4, 5, 6], dimensions='time')
-        contained = OcgField(name='tas_data', variables=[data])
+        contained = Field(name='tas_data', variables=[data])
         coll.children[container.name].add_child(contained)
         self.assertEqual(data.group, [None, 4, 'tas_data'])
 
@@ -1345,6 +1353,45 @@ class TestVariableCollection(AbstractTestInterface):
             self.assertNumpyAll(sub_vc['lower'].get_value(), sub.get_value())
             self.assertIn('coordinate_system', sub_vc)
 
+    def test_system_write_netcdf_and_read_netcdf(self):
+        vc = self.get_variablecollection()
+        path = self.get_temporary_file_path('foo.nc')
+        vc.write(path)
+        nvc = VariableCollection.read(path)
+        path2 = self.get_temporary_file_path('foo2.nc')
+        nvc.write(path2)
+        self.assertNcEqual(path, path2)
+
+    @attr('data')
+    def test_system_write_netcdf_and_read_netcdf_data(self):
+        # Test against a real data file.
+        rd = self.get_request_dataset()
+        rvc = VariableCollection.read(rd.uri)
+        self.assertEqual(rvc.dimensions['time'].size_current, 3650)
+        for var in rvc.values():
+            self.assertIsNone(var._value)
+        path3 = self.get_temporary_file_path('foo3.nc')
+        rvc.write(path3, dataset_kwargs={'format': rd.metadata['file_format']})
+        self.assertNcEqual(path3, rd.uri)
+
+        # Test creating dimensions when writing to netCDF.
+        v = Variable(value=np.arange(2 * 4 * 3).reshape(2, 4, 3), name='hello', dimensions=['two', 'four', 'three'])
+        path4 = self.get_temporary_file_path('foo4.nc')
+        with self.nc_scope(path4, 'w') as ds:
+            v.write(ds)
+        dname = 'four'
+        with self.nc_scope(path4) as ds:
+            self.assertIn(dname, ds.dimensions)
+        desired = Dimension(dname, 4)
+        self.assertEqual(v.dimensions[1], desired)
+        vc = VariableCollection.read(path4)
+        actual = vc['hello'].dimensions[1]
+        actual = Dimension(actual.name, actual.size)
+        self.assertEqual(actual, desired)
+        path5 = self.get_temporary_file_path('foo5.nc')
+        with self.nc_scope(path5, 'w') as ds:
+            vc.write(ds)
+
     def test_add_variable(self):
         vc = VariableCollection()
         var = Variable(name='bounded', value=[2, 3, 4], dtype=float, dimensions='three')
@@ -1382,41 +1429,25 @@ class TestVariableCollection(AbstractTestInterface):
         self.assertNotEqual(id(vc['b']), id(vc_copy['b']))
         self.assertNotEqual(id(vc['b'].get_value()), id(vc_copy['b'].get_value()))
 
-    def test_write_netcdf_and_read_netcdf(self):
-        vc = self.get_variablecollection()
-        path = self.get_temporary_file_path('foo.nc')
-        vc.write(path)
-        nvc = VariableCollection.read(path)
-        path2 = self.get_temporary_file_path('foo2.nc')
-        nvc.write(path2)
-        self.assertNcEqual(path, path2)
+    def test_remove_variable(self):
+        v1 = Variable(name='vone', value=[1, 2, 3], dimensions='three')
+        v1.set_extrapolated_bounds('vone_bounds', 'bounds')
+        v2 = Variable(name='vtwo', value=np.arange(6).reshape(3, 2), dimensions=['three', 'two'])
+        v3 = Variable(name='vthree')
+        vc = VariableCollection(variables=[v1, v2, v3])
 
-    @attr('data')
-    def test_write_netcdf_and_read_netcdf_data(self):
-        # Test against a real data file.
-        rd = self.get_request_dataset()
-        rvc = VariableCollection.read(rd.uri)
-        self.assertEqual(rvc.dimensions['time'].size_current, 3650)
-        for var in rvc.values():
-            self.assertIsNone(var._value)
-        path3 = self.get_temporary_file_path('foo3.nc')
-        rvc.write(path3, dataset_kwargs={'format': rd.metadata['file_format']})
-        self.assertNcEqual(path3, rd.uri)
+        vc.remove_variable(v2)
+        self.assertNotIn(v2.name, vc)
+        self.assertNotIn('two', vc.dimensions)
 
-        # Test creating dimensions when writing to netCDF.
-        v = Variable(value=np.arange(2 * 4 * 3).reshape(2, 4, 3), name='hello', dimensions=['two', 'four', 'three'])
-        path4 = self.get_temporary_file_path('foo4.nc')
-        with self.nc_scope(path4, 'w') as ds:
-            v.write(ds)
-        dname = 'four'
-        with self.nc_scope(path4) as ds:
-            self.assertIn(dname, ds.dimensions)
-        desired = Dimension(dname, 4)
-        self.assertEqual(v.dimensions[1], desired)
-        vc = VariableCollection.read(path4)
-        actual = vc['hello'].dimensions[1]
-        actual = Dimension(actual.name, actual.size)
-        self.assertEqual(actual, desired)
-        path5 = self.get_temporary_file_path('foo5.nc')
-        with self.nc_scope(path5, 'w') as ds:
-            vc.write(ds)
+        vc.remove_variable(v1)
+        self.assertNotIn(v1.name, vc)
+        self.assertNotIn(v1.bounds.name, vc)
+        self.assertNotIn(v1.bounds.dimensions[1].name, vc.dimensions)
+
+        v4 = Variable(name='vfour')
+        # Test collections on removed variable are not connected.
+        v1.parent.add_variable(v4)
+        self.assertNotIn(v4.name, vc)
+
+        self.assertEqual(len(vc.dimensions), 0)

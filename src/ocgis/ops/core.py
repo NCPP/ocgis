@@ -1,4 +1,3 @@
-from ocgis import constants
 from ocgis import vm
 from ocgis.base import AbstractOcgisObject
 from ocgis.conv.meta import MetaOCGISConverter
@@ -15,8 +14,8 @@ class OcgOperations(AbstractOcgisObject):
     Entry point for all OCGIS operations.
 
     :param dataset: A ``dataset`` is the target file(s) or object(s) containing data to process.
-    :type dataset: :class:`~ocgis.RequestDatasetCollection`, :class:`~ocgis.RequestDataset`/:class:`~ocgis.Field`, or
-     sequence of :class:`~ocgis.RequestDataset`/:class:`~ocgis.Field` objects
+    :type dataset: :class:`ocgis.RequestDataset` | :class:`~ocgis.Field` | sequence(:class:`~ocgis.RequestDataset`, ...)
+     | sequence(:class:`~ocgis.Field`, ...)
     :param spatial_operation: The geometric operation to be performed.
     :type spatial_operation: str
     :param geom: The selection geometry(s) used for the spatial subset. If ``None``, selection defaults to entire
@@ -67,7 +66,7 @@ class OcgOperations(AbstractOcgisObject):
     :param calc_sample_size: If `True`, calculate statistical sample sizes for calculations.
     :type calc_sample_size: bool
     :param output_crs: If provided, all output geometries will be projected to match the provided CRS.
-    :type output_crs: :class:`ocgis.crs.CoordinateReferenceSystem`
+    :type output_crs: :class:`ocgis.variable.crs.AbstractCoordinateReferenceSystem`
     :param search_radius_mult: This value is multiplied by the target data's spatial resolution to determine the buffer
      radius for point selection geometries.
     :type search_radius_mult: float
@@ -98,9 +97,9 @@ class OcgOperations(AbstractOcgisObject):
      returned. This is useful when subsetting by a point, and it is preferred to not return all geometries within the
      selection radius.
     :param regrid_destination: If provided, regrid ``dataset`` objects using ESMPy to this destination grid. If a string
-     is provided, then the :class:`~ocgis.RequestDataset` with the corresponding name will be selected as the
+     is provided, then the :class:`ocgis.RequestDataset` with the corresponding name will be selected as the
      destination. Please see :ref:`esmpy-regridding` for an overview.
-    :type regrid_destination: str, :class:`~ocgis.interface.base.field.Field` or :class:`~ocgis.interface.base.dimension.spatial.SpatialDimension`
+    :type regrid_destination: str | :class:`ocgis.Field`
     :param dict regrid_options: Overload the default keywords for regridding. Dictionary elements must map to the names
      of keyword arguments for :meth:`~ocgis.regrid.base.iter_regridded_fields`. If this is left as ``None``, then the
      default keyword values are used. Please see :ref:`esmpy-regridding` for an overview.
@@ -122,8 +121,7 @@ class OcgOperations(AbstractOcgisObject):
                  geom_select_uid=None, geom_uid=None, aggregate=False, calc=None, calc_grouping=None,
                  calc_raw=False, abstraction='auto', snippet=False, backend='ocg', prefix=None,
                  output_format=constants.OutputFormatName.OCGIS, agg_selection=False, select_ugid=None,
-                 vector_wrap=True,
-                 allow_empty=False, dir_output=None, slice=None, file_only=False, format_time=True,
+                 vector_wrap=True, allow_empty=False, dir_output=None, slice=None, file_only=False, format_time=True,
                  calc_sample_size=False, search_radius_mult=None, output_crs=None, interpolate_spatial_bounds=False,
                  add_auxiliary_files=True, optimizations=None, callback=None, time_range=None, time_region=None,
                  time_subset_func=None, level_range=None, conform_units_to=None, select_nearest=False,

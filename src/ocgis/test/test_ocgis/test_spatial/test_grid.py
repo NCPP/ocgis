@@ -12,19 +12,18 @@ from shapely.geometry.base import BaseGeometry
 
 from ocgis import RequestDataset, vm
 from ocgis.base import get_variable_names
-from ocgis.collection.field import OcgField
+from ocgis.collection.field import Field
 from ocgis.constants import KeywordArgument
 from ocgis.driver.nc import DriverNetcdfCF
 from ocgis.exc import EmptySubsetError, BoundsAlreadyAvailableError
-from ocgis.spatial.grid import GridXY, expand_grid, GridGeometryProcessor
+from ocgis.spatial.grid import Grid, expand_grid, GridGeometryProcessor
 from ocgis.test.base import attr, AbstractTestInterface, create_gridxy_global
 from ocgis.util.helpers import make_poly, iter_array
 from ocgis.variable.base import Variable, VariableCollection, SourcedVariable
 from ocgis.variable.crs import WGS84, CoordinateReferenceSystem, Spherical, Cartesian
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
-from ocgis.vmachine.mpi import MPI_RANK, MPI_COMM, variable_gather, MPI_SIZE, OcgMpi, variable_scatter
-import netCDF4 as nc
+from ocgis.vmachine.mpi import MPI_RANK, MPI_COMM, variable_gather, MPI_SIZE, OcgDist, variable_scatter
 
 
 class Test(AbstractTestInterface):
@@ -36,7 +35,7 @@ class Test(AbstractTestInterface):
         vy = Variable('y', value=y, dtype=float, dimensions='ydim')
         vy.set_extrapolated_bounds('y_bnds', 'bounds')
 
-        grid = GridXY(vx, vy)
+        grid = Grid(vx, vy)
 
         for variable in [vx, vy]:
             self.assertEqual(grid.parent[variable.name].ndim, 1)
@@ -74,10 +73,10 @@ class TestGridGeometryProcessor(AbstractTestInterface):
                     self.assertIsNone(a[2])
 
 
-class TestGridXY(AbstractTestInterface):
+class TestGrid(AbstractTestInterface):
     def assertGridCorners(self, grid):
         """
-        :type grid: :class:`ocgis.new_interface.grid.GridXY`
+        :type grid: :class:`ocgis.new_interface.grid.Grid`
         """
 
         assert grid.corners is not None
@@ -134,7 +133,7 @@ class TestGridXY(AbstractTestInterface):
     def test_init(self):
         crs = WGS84()
         grid = self.get_gridxy(crs=crs)
-        self.assertIsInstance(grid, GridXY)
+        self.assertIsInstance(grid, Grid)
         self.assertIn('x', grid.parent)
         self.assertIn('y', grid.parent)
         self.assertEqual(grid.crs, crs)
@@ -147,7 +146,7 @@ class TestGridXY(AbstractTestInterface):
         # Test with different variable names.
         x = Variable(name='col', value=[1], dimensions='col')
         y = Variable(name='row', value=[2], dimensions='row')
-        grid = GridXY(x, y)
+        grid = Grid(x, y)
         assert_equal(grid.x.get_value(), [1])
         assert_equal(grid.y.get_value(), [2])
 
@@ -178,7 +177,7 @@ class TestGridXY(AbstractTestInterface):
         y = SourcedVariable(name=grid.y.name, request_dataset=rd, protected=True)
         self.assertIsNone(x._value)
         self.assertIsNone(y._value)
-        fgrid = GridXY(x, y)
+        fgrid = Grid(x, y)
         self.assertEqual(len(fgrid.dimensions), 2)
         for target in [fgrid._y_name, fgrid._x_name]:
             fgrid.parent[target].protected = False
@@ -190,7 +189,7 @@ class TestGridXY(AbstractTestInterface):
 
         x = Variable('xc', value=[1, 2, 3], dimensions='dimx')
         y = Variable('yc', value=[10, 20, 30, 40], dimensions='dimy')
-        grid = GridXY(x, y)
+        grid = Grid(x, y)
         data = Variable('data', value=np.zeros(grid.shape), dimensions=['dimy', 'dimx'])
         grid.parent.add_variable(data)
 
@@ -291,8 +290,8 @@ class TestGridXY(AbstractTestInterface):
             if MPI_RANK == 0:
                 x = Variable('x', list(range(768)), 'x', float)
                 y = Variable('y', list(range(768)), 'y', float)
-                grid = GridXY(x, y)
-                field = OcgField(grid=grid)
+                grid = Grid(x, y)
+                field = Field(grid=grid)
                 path = self.get_temporary_file_path('grid.nc')
                 field.write(path)
             else:
@@ -311,7 +310,7 @@ class TestGridXY(AbstractTestInterface):
     @attr('mpi')
     def test_get_gridxy(self):
         ret = self.get_gridxy()
-        self.assertIsInstance(ret, GridXY)
+        self.assertIsInstance(ret, Grid)
 
     def test_get_mask(self):
         grid = self.get_gridxy()
@@ -418,7 +417,7 @@ class TestGridXY(AbstractTestInterface):
 
             y = self.get_variable_y(bounds=k.bounds)
             x = self.get_variable_x(bounds=k.bounds)
-            grid = GridXY(x, y)
+            grid = Grid(x, y)
 
             bounds_sequence = box(-99, 39, -98, 39)
             bg = grid.get_intersects(bounds_sequence)
@@ -456,7 +455,7 @@ class TestGridXY(AbstractTestInterface):
 
         x = Variable('x', [1, 2], 'x')
         y = Variable('y', [1, 2], 'y')
-        grid = GridXY(x, y)
+        grid = Grid(x, y)
         self.assertIsNone(grid.get_mask())
         sub = grid.get_intersects(Point(1, 1))
         self.assertIsNone(grid.get_mask())
@@ -474,14 +473,14 @@ class TestGridXY(AbstractTestInterface):
         else:
             value = [3, 4]
 
-        ompi = OcgMpi()
+        ompi = OcgDist()
         xdim = ompi.create_dimension('x', 4, dist=True)
         ydim = ompi.create_dimension('y', 5, dist=False)
         ompi.update_dimension_bounds()
 
         x = Variable('x', value=value, dimensions=xdim)
         y = Variable('y', value=[1, 2, 3, 4, 5], dimensions=ydim)
-        grid = GridXY(x, y)
+        grid = Grid(x, y)
 
         wkt_geom = 'Polygon ((0.72993630573248502 5.22484076433120936, 0.70318471337579691 0.67707006369426814, 2.70063694267515952 0.69490445859872629, 2.59363057324840796 2.54076433121019107, 4.52866242038216527 2.51401273885350296, 4.40382165605095466 5.34968152866241908, 0.72993630573248502 5.22484076433120936))'
         subset_geom = wkt.loads(wkt_geom)
@@ -490,7 +489,7 @@ class TestGridXY(AbstractTestInterface):
 
         path = self.get_temporary_file_path('foo.nc')
 
-        field = OcgField(grid=sub)
+        field = Field(grid=sub)
         field.write(path)
 
         with vm.scoped('mask count', [0]):
@@ -521,7 +520,7 @@ class TestGridXY(AbstractTestInterface):
             should_expand = k.pop('should_expand')
             should_wrap = k.pop('should_wrap')
 
-            ompi = OcgMpi()
+            ompi = OcgDist()
             ompi.create_dimension('dx', len(x_value), dist=True)
             ompi.create_dimension('dy', len(y_value))
             ompi.update_dimension_bounds()
@@ -546,7 +545,7 @@ class TestGridXY(AbstractTestInterface):
 
             x = variable_scatter(x, ompi)
             y = variable_scatter(y, ompi)
-            grid = GridXY(x, y, crs=Spherical())
+            grid = Grid(x, y, crs=Spherical())
 
             with vm.scoped_by_emptyable('scattered', grid):
                 if not vm.is_null:
@@ -631,7 +630,7 @@ class TestGridXY(AbstractTestInterface):
                 for t in grid_sub.get_abstraction_geometry().get_value().flat:
                     self.assertIsInstance(t, BaseGeometry)
 
-            self.assertIsInstance(grid_sub, GridXY)
+            self.assertIsInstance(grid_sub, Grid)
             if k.keep_touches:
                 if k.has_bounds and k.use_bounds:
                     desired = (slice(0, 3, None), slice(0, 3, None))
@@ -662,7 +661,7 @@ class TestGridXY(AbstractTestInterface):
         grid_to_write = self.get_gridxy()
         with vm.scoped_by_emptyable('write', grid_to_write):
             if not vm.is_null:
-                field = OcgField(grid=grid_to_write)
+                field = Field(grid=grid_to_write)
                 field.write(path_grid, driver=DriverNetcdfCF)
         MPI_COMM.Barrier()
 
@@ -673,7 +672,7 @@ class TestGridXY(AbstractTestInterface):
         self.assertIsNone(x._value)
         self.assertIsNone(y._value)
 
-        grid = GridXY(x, y)
+        grid = Grid(x, y)
 
         for target in [grid._y_name, grid._x_name]:
             self.assertIsNone(grid.parent[target]._value)
@@ -684,7 +683,7 @@ class TestGridXY(AbstractTestInterface):
                 sub, slc = grid.get_intersects(subset_geom, return_slice=True)
 
                 self.assertEqual(slc, (slice(1, 3, None), slice(1, 2, None)))
-                self.assertIsInstance(sub, GridXY)
+                self.assertIsInstance(sub, Grid)
 
         # The file may be deleted before other ranks open.
         MPI_COMM.Barrier()
@@ -694,7 +693,7 @@ class TestGridXY(AbstractTestInterface):
 
         x = Variable(name='x', value=[1, 2, 3, 4, 5], dtype=float, dimensions='x')
         y = Variable(name='y', value=[1, 2, 3, 4, 5, 6, 7], dtype=float, dimensions='y')
-        grid = GridXY(x, y)
+        grid = Grid(x, y)
         subset_geom = Point(3, 4)
         sub, the_slice = grid.get_intersects(subset_geom, return_slice=True, apply_slice=False)
         self.assertEqual(np.sum(np.invert(sub.get_mask())), 1)
@@ -828,7 +827,7 @@ class TestGridXY(AbstractTestInterface):
                     else:
                         path = None
                     path = vm.bcast(path)
-                    field = OcgField(grid=grid_sub)
+                    field = Field(grid=grid_sub)
                     field.write(path)
 
             vm.finalize()
@@ -870,7 +869,7 @@ class TestGridXY(AbstractTestInterface):
 
         parent = VariableCollection(variables=[x, y, t, data])
 
-        grid = GridXY(parent['lon'], parent['lat'], crs=Spherical(), parent=parent)
+        grid = Grid(parent['lon'], parent['lat'], crs=Spherical(), parent=parent)
         desired_y = grid.y.get_value().copy()
 
         grid.wrap()
@@ -914,7 +913,7 @@ class TestGridXY(AbstractTestInterface):
             if should_extrapolate:
                 y.set_extrapolated_bounds('ybounds', 'bounds')
                 x.set_extrapolated_bounds('xbounds', 'bounds')
-            grid = GridXY(x, y)
+            grid = Grid(x, y)
             try:
                 grid.set_extrapolated_bounds('ybounds', 'xbounds', 'bounds')
             except BoundsAlreadyAvailableError:
@@ -926,7 +925,7 @@ class TestGridXY(AbstractTestInterface):
         # Test vectorized.
         y = Variable(name='y', value=[1., 2., 3.], dimensions='yy')
         x = Variable(name='x', value=[10., 20., 30.], dimensions='xx')
-        grid = GridXY(x, y)
+        grid = Grid(x, y)
         grid.set_extrapolated_bounds('ybounds', 'xbounds', 'bounds')
         self.assertEqual(grid.x.bounds.ndim, 2)
         self.assertTrue(grid.is_vectorized)
@@ -937,7 +936,7 @@ class TestGridXY(AbstractTestInterface):
         dimx = Dimension('x', 2, is_empty=True, dist=True)
         x = Variable('x', dimensions=dimx)
         y = Variable('3', dimensions=Dimension('y', 3))
-        grid = GridXY(x, y)
+        grid = Grid(x, y)
 
         self.assertTrue(dimx.is_empty)
         self.assertTrue(x.is_empty)
@@ -983,7 +982,7 @@ class TestGridXY(AbstractTestInterface):
         grid.write(path)
         # self.ncdump(path)
         nvc = VariableCollection.read(path)
-        ngrid = GridXY(nvc['x'], nvc['y'], parent=nvc)
+        ngrid = Grid(nvc['x'], nvc['y'], parent=nvc)
         # Mask is not written to coordinate variables.
         for mvar in ngrid.get_member_variables():
             if mvar.name == grid.mask_variable.name:
@@ -1015,12 +1014,24 @@ class TestGridXY(AbstractTestInterface):
             self.assertEqual(grid.ndim, 2)
 
     def test_update_crs(self):
-        grid = self.get_gridxy(crs=WGS84())
+        grid = self.get_gridxy(crs=Spherical())
+
+        targets = [grid.x, grid.y]
+        for target in targets:
+            self.assertIn('units', target.attrs)
+            self.assertIn('standard_name', target.attrs)
+
         grid.set_extrapolated_bounds('xbounds', 'ybounds', 'bounds')
         self.assertIsNotNone(grid.y.bounds)
         self.assertIsNotNone(grid.x.bounds)
         to_crs = CoordinateReferenceSystem(epsg=3395)
         grid.update_crs(to_crs)
+
+        targets = [grid.x, grid.y]
+        for target in targets:
+            self.assertNotIn('units', target.attrs)
+            self.assertNotIn('standard_name', target.attrs)
+
         self.assertEqual(grid.crs, to_crs)
         for element in [grid.x, grid.y]:
             for target in [element.get_value(), element.bounds.get_value()]:

@@ -16,6 +16,7 @@ from netCDF4 import netcdftime
 from numpy.core.multiarray import ndarray
 from numpy.ma import MaskedArray
 from shapely.geometry import Point
+from shapely.geometry.base import BaseGeometry
 from shapely.geometry.geo import mapping
 from shapely.geometry.polygon import Polygon
 from shapely.wkb import loads as wkb_loads
@@ -755,6 +756,15 @@ def is_auto_dtype(dtype):
     return is_auto
 
 
+def is_crs_variable(obj):
+    from ocgis.variable.crs import AbstractCoordinateReferenceSystem
+    return isinstance(obj, AbstractCoordinateReferenceSystem)
+
+
+def is_geometry(obj):
+    return isinstance(obj, BaseGeometry)
+
+
 def itersubclasses(cls, _seen=None):
     """
     itersubclasses(cls)
@@ -855,7 +865,7 @@ def pprint_dict(target):
         ret = input
         if isinstance(ret, dict):
             ret = dict(input)
-            for k, v in list(ret.items()):
+            for k, v in ret.items():
                 ret[k] = _convert_(v)
         return ret
 
@@ -1065,3 +1075,44 @@ def get_local_to_global_slices(slices_global, slices_local):
     lm = [get_optimal_slice_from_array(ga[idx][slices_local[idx]]) for idx in range(len(slices_local))]
     lm = tuple(lm)
     return lm
+
+
+def get_group(ddict, keyseq, has_root=True, create=False, last=None):
+    keyseq = deepcopy(keyseq)
+    if last is None:
+        last = {}
+
+    if keyseq is None:
+        keyseq = [None]
+    elif isinstance(keyseq, six.string_types):
+        keyseq = [keyseq]
+
+    if keyseq[0] is not None:
+        keyseq.insert(0, None)
+
+    curr = ddict
+    len_keyseq = len(keyseq)
+    for ctr, key in enumerate(keyseq, start=1):
+        if key is None:
+            if has_root:
+                curr = curr[None]
+        else:
+            # Allow dimension maps to not have groups. Return empty dictionaries for groups that do not exist in the
+            # dimension map.
+            # curr = curr.get('groups', {}).get(key, {})
+            if create:
+                curr = get_or_create_dict(curr, 'groups', {})
+                if ctr == len_keyseq:
+                    default = last
+                else:
+                    default = {}
+                curr = get_or_create_dict(curr, key, default)
+            else:
+                curr = curr['groups'][key]
+    return curr
+
+
+def get_or_create_dict(dct, key, default):
+    if key not in dct:
+        dct[key] = default
+    return dct[key]

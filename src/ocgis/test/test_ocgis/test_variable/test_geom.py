@@ -1,8 +1,8 @@
 import itertools
 from collections import OrderedDict
+from copy import deepcopy
 
 import numpy as np
-from copy import deepcopy
 from nose.plugins.skip import SkipTest
 from numpy.ma import MaskedArray
 from shapely import wkt
@@ -11,14 +11,15 @@ from shapely.geometry.multilinestring import MultiLineString
 
 from ocgis import RequestDataset, vm
 from ocgis import env, CoordinateReferenceSystem
+from ocgis.constants import DMK
 from ocgis.exc import EmptySubsetError
-from ocgis.spatial.grid import GridXY, get_geometry_variable
+from ocgis.spatial.grid import Grid, get_geometry_variable
 from ocgis.test.base import attr, AbstractTestInterface
 from ocgis.variable.base import Variable, VariableCollection
 from ocgis.variable.crs import WGS84, Spherical, Cartesian
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable, GeometryProcessor
-from ocgis.vmachine.mpi import OcgMpi, MPI_RANK, variable_scatter, MPI_SIZE, variable_gather, MPI_COMM
+from ocgis.vmachine.mpi import OcgDist, MPI_RANK, variable_scatter, MPI_SIZE, variable_gather, MPI_COMM
 
 
 class TestGeometryProcessor(AbstractTestInterface):
@@ -126,6 +127,12 @@ class TestGeometryVariable(AbstractTestInterface):
 
         rd_shp = RequestDataset(self.path_state_boundaries)
         field_shp = rd_shp.get()
+
+        actual = field_shp.dimension_map.get_variable(DMK.GEOM)
+        self.assertIsNotNone(actual)
+        actual = field_shp.dimension_map.get_dimensions(DMK.GEOM)
+        self.assertEqual(len(actual), 1)
+
         self.assertEqual(field_shp.crs, WGS84())
 
         try:
@@ -168,7 +175,7 @@ class TestGeometryVariable(AbstractTestInterface):
 
     @attr('mpi')
     def test_create_ugid_global(self):
-        ompi = OcgMpi()
+        ompi = OcgDist()
         m = ompi.create_dimension('m', 4)
         n = ompi.create_dimension('n', 70, dist=True)
         ompi.update_dimension_bounds()
@@ -258,7 +265,7 @@ class TestGeometryVariable(AbstractTestInterface):
 
     @attr('mpi')
     def test_get_intersects(self):
-        dist = OcgMpi()
+        dist = OcgDist()
         dist.create_dimension('x', 5, dist=False)
         dist.create_dimension('y', 5, dist=True)
         dist.update_dimension_bounds()
@@ -275,7 +282,7 @@ class TestGeometryVariable(AbstractTestInterface):
         if MPI_RANK < 2:
             self.assertTrue(y.dimensions[0].dist)
 
-        grid = GridXY(x=x, y=y)
+        grid = Grid(x=x, y=y)
         if not grid.is_empty:
             self.assertTrue(grid.dimensions[0].dist)
         pa = get_geometry_variable(grid)
@@ -359,7 +366,7 @@ class TestGeometryVariable(AbstractTestInterface):
                                  [True, False, True, True],
                                  [True, True, False, True]])
 
-        dist = OcgMpi()
+        dist = OcgDist()
         xdim = dist.create_dimension('x', 4, dist=True)
         ydim = dist.create_dimension('y', 3)
         dist.create_dimension('bounds', 2)
@@ -368,7 +375,7 @@ class TestGeometryVariable(AbstractTestInterface):
         if MPI_RANK == 0:
             x = self.get_variable_x()
             y = self.get_variable_y()
-            grid = GridXY(x=x, y=y, abstraction='point', crs=WGS84())
+            grid = Grid(x=x, y=y, abstraction='point', crs=WGS84())
             pa = get_geometry_variable(grid)
         else:
             pa = None
@@ -488,7 +495,7 @@ class TestGeometryVariable(AbstractTestInterface):
         if MPI_SIZE != 8:
             raise SkipTest('MPI_SIZE != 8')
 
-        dist = OcgMpi()
+        dist = OcgDist()
         geom_count = dist.create_dimension('geom_count', size=8, dist=True)
         time_count = dist.create_dimension('time', size=3)
         dist.update_dimension_bounds()
@@ -586,14 +593,14 @@ class TestGeometryVariablePolygons(AbstractTestInterface):
     def test_init(self):
         row = Variable(value=[2, 3], name='row', dimensions='y')
         col = Variable(value=[4, 5], name='col', dimensions='x')
-        grid = GridXY(col, row)
+        grid = Grid(col, row)
         self.assertIsNone(grid.archetype.bounds)
 
         row = Variable(value=[2, 3], name='row', dimensions='y')
         row.set_extrapolated_bounds('row_bounds', 'y')
         col = Variable(value=[4, 5], name='col', dimensions='x')
         col.set_extrapolated_bounds('col_bounds', 'x')
-        grid = GridXY(y=row, x=col)
+        grid = Grid(y=row, x=col)
         self.assertEqual(grid.abstraction, 'polygon')
         poly = get_geometry_variable(grid)
         self.assertEqual(poly.geom_type, 'Polygon')

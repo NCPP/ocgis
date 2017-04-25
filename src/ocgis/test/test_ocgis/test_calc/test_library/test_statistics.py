@@ -2,7 +2,7 @@ import numpy as np
 
 import ocgis
 from ocgis.calc.library.statistics import Mean, FrequencyPercentile, MovingWindow, DailyPercentile
-from ocgis.collection.field import OcgField
+from ocgis.collection.field import Field
 from ocgis.constants import OutputFormatName
 from ocgis.exc import DefinitionValidationError
 from ocgis.ops.parms.definition import Calc
@@ -59,6 +59,7 @@ class TestDailyPercentile(AbstractTestField):
         ops = ocgis.OcgOperations(dataset=rd, geom='state_boundaries', select_ugid=[23], calc=calc,
                                   output_format='nc', time_region={'year': [2002, 2003]})
         ret = ops.execute()
+
         new_rd = ocgis.RequestDataset(ret)
         for alias in [None, 'dp']:
             dp = DailyPercentile.get_daily_percentile_from_request_dataset(new_rd, alias=alias)
@@ -230,7 +231,7 @@ class TestMean(AbstractTestField):
 
     def test_execute(self):
         field = self.get_field(with_value=True, month_count=2)
-        self.assertIsInstance(field, OcgField)
+        self.assertIsInstance(field, Field)
         grouping = ['month']
         tgd = field.temporal.get_grouping(grouping)
         mu = Mean(field=field, tgd=tgd, alias='my_mean', dtype=np.float64)

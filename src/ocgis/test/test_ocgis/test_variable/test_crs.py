@@ -8,18 +8,18 @@ from shapely.geometry.multipolygon import MultiPolygon
 
 import ocgis
 from ocgis import constants, vm
-from ocgis.collection.field import OcgField
+from ocgis.collection.field import Field
 from ocgis.constants import WrapAction, WrappedState, ConversionFactor, OcgisUnits
 from ocgis.exc import CRSNotEquivalenError
-from ocgis.spatial.grid import GridXY
-from ocgis.test.base import TestBase, nc_scope, create_exact_field, create_gridxy_global
+from ocgis.spatial.grid import Grid
+from ocgis.test.base import TestBase, nc_scope, create_gridxy_global
 from ocgis.test.base import attr
 from ocgis.util.helpers import make_poly
 from ocgis.util.itester import itr_products_keywords
 from ocgis.variable.base import Variable
-from ocgis.variable.crs import CoordinateReferenceSystem, WGS84, CFAlbersEqualArea, CFLambertConformal, \
-    CFRotatedPole, WGS84, Spherical, CFCoordinateReferenceSystem, CFSpherical, Tripole, Cartesian
-from ocgis.vmachine.mpi import OcgMpi, MPI_RANK, variable_scatter
+from ocgis.variable.crs import CoordinateReferenceSystem, CFAlbersEqualArea, CFLambertConformal, \
+    CFRotatedPole, WGS84, Spherical, CFSpherical, Tripole, Cartesian
+from ocgis.vmachine.mpi import OcgDist, MPI_RANK, variable_scatter
 
 
 class TestCoordinateReferenceSystem(TestBase):
@@ -113,7 +113,7 @@ class TestCoordinateReferenceSystem(TestBase):
 
     @attr('mpi')
     def test_get_wrapped_state(self):
-        ompi = OcgMpi()
+        ompi = OcgDist()
         ompi.create_dimension('x', 5, dist=True)
         ompi.create_dimension('y', 1)
         ompi.update_dimension_bounds()
@@ -133,8 +133,8 @@ class TestCoordinateReferenceSystem(TestBase):
             vx = variable_scatter(vx, ompi)
             vy = variable_scatter(vy, ompi)
 
-            grid = GridXY(vx, vy)
-            field = OcgField(grid=grid, crs=k.crs)
+            grid = Grid(vx, vy)
+            field = Field(grid=grid, crs=k.crs)
 
             with vm.scoped_by_emptyable('wrap', field):
                 if not vm.is_null:
@@ -278,25 +278,25 @@ class TestCFLambertConformalConic(TestBase):
     @property
     def archetype_minimal_metadata(self):
         min_meta = {'variables': {'pr': {'name': 'pr',
-                                         'attributes': {'grid_mapping': 'Lambert_Conformal'}
+                                         'attrs': {'grid_mapping': 'Lambert_Conformal'}
                                          },
                                   'Lambert_Conformal': {'name': 'Lambert_Conformal',
-                                                        'attributes': {'false_easting': 3325000.0,
-                                                                       'standard_parallel': [30., 60.],
-                                                                       'false_northing': 2700000.0,
-                                                                       'grid_mapping_name': 'lambert_conformal_conic',
-                                                                       'latitude_of_projection_origin': 47.5,
-                                                                       'longitude_of_central_meridian': -97.0},
+                                                        'attrs': {'false_easting': 3325000.0,
+                                                                  'standard_parallel': [30., 60.],
+                                                                  'false_northing': 2700000.0,
+                                                                  'grid_mapping_name': 'lambert_conformal_conic',
+                                                                  'latitude_of_projection_origin': 47.5,
+                                                                  'longitude_of_central_meridian': -97.0},
                                                         },
                                   'xc': {'name': 'xc',
-                                         'attributes': {'units': 'm',
-                                                        'standard_name': 'projection_x_coordinate',
-                                                        'axis': 'X'}
+                                         'attrs': {'units': 'm',
+                                                   'standard_name': 'projection_x_coordinate',
+                                                   'axis': 'X'}
                                          },
                                   'yc': {'name': 'yc',
-                                         'attributes': {'units': 'm',
-                                                        'standard_name': 'projection_y_coordinate',
-                                                        'axis': 'Y'}
+                                         'attrs': {'units': 'm',
+                                                   'standard_name': 'projection_y_coordinate',
+                                                   'axis': 'Y'}
                                          }
                                   }
                     }
@@ -320,7 +320,7 @@ class TestCFLambertConformalConic(TestBase):
         meta = self.archetype_minimal_metadata
         to_pop = ['false_easting', 'false_northing']
         for t in to_pop:
-            meta['variables']['Lambert_Conformal']['attributes'].pop(t)
+            meta['variables']['Lambert_Conformal']['attrs'].pop(t)
 
         crs = CFLambertConformal.load_from_metadata('pr', meta)
         self.assertIsInstance(crs, CFLambertConformal)
@@ -344,7 +344,7 @@ class TestCFLambertConformalConic(TestBase):
                     self.assertEqual(variable_v.tolist(), v)
 
         with nc_scope(path) as ds:
-            meta2 = {'variables': {'Lambert_Conformal': {'attributes': dict(ds.variables['Lambert_Conformal'].__dict__),
+            meta2 = {'variables': {'Lambert_Conformal': {'attrs': dict(ds.variables['Lambert_Conformal'].__dict__),
                                                          'name': 'Lambert_Conformal'}}}
         meta['variables']['Lambert_Conformal'] = meta2['variables']['Lambert_Conformal']
         crs2 = CFLambertConformal.load_from_metadata('pr', meta)
@@ -398,7 +398,7 @@ class TestCFRotatedPole(TestBase):
 
         # Test without the grid_mapping attribute attached to a variable.
         meta = rd.metadata.copy()
-        meta['variables']['tas']['attributes'].pop('grid_mapping')
+        meta['variables']['tas']['attrs'].pop('grid_mapping')
         res = CFRotatedPole.load_from_metadata('tas', meta, strict=False)
         self.assertIsInstance(res, CFRotatedPole)
 
@@ -415,7 +415,6 @@ class TestCFRotatedPole(TestBase):
 
 
 class TestTripole(TestBase):
-
     def test_init(self):
         Tripole()
 
@@ -424,18 +423,18 @@ class TestTripole(TestBase):
                              [-0.96592582628906831, 0.96592582628906831]]
 
         keywords = {'wrapped': [
-                                False,
-                                True
-                               ],
-                    'angular_units': [
-                              OcgisUnits.DEGREES,
-                              OcgisUnits.RADIANS
-                             ],
-                    'other_crs': [
-                                  Cartesian(),
-                                  WGS84()
-                                 ]
-                    }
+            False,
+            True
+        ],
+            'angular_units': [
+                OcgisUnits.DEGREES,
+                OcgisUnits.RADIANS
+            ],
+            'other_crs': [
+                Cartesian(),
+                WGS84()
+            ]
+        }
 
         for k in self.iter_product_keywords(keywords):
             spherical = Spherical(angular_units=k.angular_units)

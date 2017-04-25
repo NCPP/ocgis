@@ -1,6 +1,7 @@
 import abc
 import itertools
 import tempfile
+from copy import copy, deepcopy
 
 import numpy as np
 import six
@@ -16,18 +17,18 @@ from ocgis.environment import osr
 from ocgis.exc import ProjectionCoordinateNotFound, ProjectionDoesNotMatch, CRSNotEquivalenError
 from ocgis.spatial.wrap import GeometryWrapper, CoordinateArrayWrapper
 from ocgis.util.helpers import iter_array, get_iter
-from copy import copy, deepcopy
 
 SpatialReference = osr.SpatialReference
 
 
 @six.add_metaclass(abc.ABCMeta)
-class AbstractOcgisCoordinateReferenceSystem(AbstractOcgisObject):
+class AbstractCoordinateReferenceSystem(AbstractOcgisObject):
     """
     Base class for all OCGIS coordinate systems. Intended to allow differentiation between standard PROJ.4 coordinate
     systems and specialized OCGIS-supported coordinate systems.
     """
     _cf_attributes = None
+    _cf_attributes_to_remove = ('units', 'standard_name')
 
     def __init__(self, angular_units=OcgisUnits.DEGREES, linear_units=None):
         self._angular_units = angular_units
@@ -94,16 +95,33 @@ class AbstractOcgisCoordinateReferenceSystem(AbstractOcgisObject):
     def convert_to_empty(self):
         pass
 
-    def format_field(self, field):
+    def format_field(self, field, is_transform=False):
         """
         :param field: The field to format.
-        :type field: :class:`~ocgis.OcgField`
+        :type field: :class:`~ocgis.Field`
+        :param bool is_transform: If ``True``, this is a coordinate system tranformation format. CF attributes should be
+         removed. If ``False``, this is for a write and attributes should be left as is or overwritten if explicitly
+         defined by the coordinate system.
         """
-        for data_variable in field.data_variables:
-            field[data_variable.name].attrs[CFName.GRID_MAPPING] = field.crs.name
+
+        # No changes to geometry variables.
+        from ocgis.variable.geom import GeometryVariable
+        if isinstance(field, GeometryVariable):
+            return
+
+        # Allows grids to be modified in addition to fields.
+        if hasattr(field, 'data_variables'):
+            for data_variable in field.data_variables:
+                field[data_variable.name].attrs[CFName.GRID_MAPPING] = self.name
 
         # Add CF attributes to coordinate variables.
-        if self._cf_attributes is not None:
+        if self._cf_attributes is None and is_transform:
+            targets = [field.x, field.y]
+            for target in targets:
+                if target is not None:
+                    for attr_key in self._cf_attributes_to_remove:
+                        target.attrs.pop(attr_key, None)
+        elif self._cf_attributes is not None:
 
             def _update_attr_(target, name, value, clobber=False):
                 attrs = target.attrs
@@ -114,8 +132,9 @@ class AbstractOcgisCoordinateReferenceSystem(AbstractOcgisObject):
                        field.y: self._cf_attributes[DimensionMapKey.Y]}
 
             for target, name_values in updates.items():
-                for k, v in name_values.items():
-                    _update_attr_(target, k, v)
+                if target is not None:
+                    for k, v in name_values.items():
+                        _update_attr_(target, k, v)
 
     @classmethod
     def get_wrap_action(cls, state_src, state_dst):
@@ -159,11 +178,11 @@ class AbstractOcgisCoordinateReferenceSystem(AbstractOcgisObject):
         """
         :param field: Return the wrapped state of a field. This function only checks grid centroids and geometry
          exteriors. Bounds/corners on the grid are excluded.
-        :type field: :class:`ocgis.new_interface.field.OcgField`
+        :type field: :class:`ocgis.new_interface.field.Field`
         """
         # TODO: Wrapped state should operate on the x-coordinate variable vectors or geometries only.
-        from ocgis.collection.field import OcgField
-        from ocgis.spatial.grid import GridXY
+        from ocgis.collection.field import Field
+        from ocgis.spatial.grid import Grid
         from ocgis import vm
 
         raise_if_empty(self)
@@ -172,7 +191,7 @@ class AbstractOcgisCoordinateReferenceSystem(AbstractOcgisObject):
         if not self.is_wrappable:
             ret = None
         else:
-            if isinstance(target, OcgField):
+            if isinstance(target, Field):
                 if target.grid is not None:
                     target = target.grid
                 else:
@@ -182,7 +201,7 @@ class AbstractOcgisCoordinateReferenceSystem(AbstractOcgisObject):
                 raise ValueError('Target has no spatial information to evaluate.')
             elif target.is_empty:
                 ret = None
-            elif isinstance(target, GridXY):
+            elif isinstance(target, Grid):
                 ret = self._get_wrapped_state_from_array_(target.x.get_value())
             else:
                 stops = (WrappedState.WRAPPED, WrappedState.UNWRAPPED)
@@ -211,7 +230,7 @@ class AbstractOcgisCoordinateReferenceSystem(AbstractOcgisObject):
 
     def wrap_or_unwrap(self, action, target):
         from ocgis.variable.geom import GeometryVariable
-        from ocgis.spatial.grid import GridXY
+        from ocgis.spatial.grid import Grid
 
         if action not in (WrapAction.WRAP, WrapAction.UNWRAP):
             raise ValueError('"action" not recognized: {}'.format(action))
@@ -228,7 +247,7 @@ class AbstractOcgisCoordinateReferenceSystem(AbstractOcgisObject):
             for idx, target_geom in iter_array(target_value, use_mask=True, return_value=True,
                                                mask=target.get_mask()):
                 target_value.__setitem__(idx, func(target_geom))
-        elif isinstance(target, GridXY):
+        elif isinstance(target, Grid):
             ca = CoordinateArrayWrapper()
             func = getattr(ca, attr)
             func(target.x.get_value())
@@ -309,7 +328,7 @@ class AbstractOcgisCoordinateReferenceSystem(AbstractOcgisObject):
 
 
 @six.add_metaclass(abc.ABCMeta)
-class AbstractProj4CoordinateReferenceSystem(AbstractOcgisCoordinateReferenceSystem):
+class AbstractProj4CoordinateReferenceSystem(AbstractCoordinateReferenceSystem):
     """
     Base class for coordinate systems that may be transformed using PROJ.4.
     """
@@ -499,13 +518,13 @@ class AbstractSphericalCoordinateReferenceSystem(AbstractOcgisObject):
     is_wrappable = True
     is_geographic = True
 
-    def format_field(self, field):
+    def format_field(self, *args, **kwargs):
         if self.angular_units == OcgisUnits.RADIANS:
             msg = '{} are not acceptable units for field formatting. Must be {}.'
             msg = msg.format(OcgisUnits.RADIANS, OcgisUnits.DEGREES)
             raise ValueError(msg)
 
-        super(AbstractSphericalCoordinateReferenceSystem, self).format_field(field)
+        super(AbstractSphericalCoordinateReferenceSystem, self).format_field(*args, **kwargs)
 
     def transform_coordinates(self, other_crs, x, y, z, inverse=False):
         """
@@ -515,7 +534,7 @@ class AbstractSphericalCoordinateReferenceSystem(AbstractOcgisObject):
 
         .. note:: If ``z`` is a scalar, the transformed ``z`` value is not returned.
 
-        :param other_crs: :class:`ocgis.variable.crs.AbstractOcgisCoordinateReferenceSystem`
+        :param other_crs: :class:`ocgis.variable.crs.AbstractCoordinateReferenceSystem`
         :param x: The x-coordinate array.
         :type x: :class:`numpy.ndarray`
         :param y: The y-coordinate array.
@@ -589,7 +608,7 @@ class AbstractSphericalCoordinateReferenceSystem(AbstractOcgisObject):
         
         :param other_crs: See :meth:`ocgis.variable.crs.AbstractSphericalCoordinateReferenceSystem.transform_coordinates`
         :param grid: The grid to transform in-place.
-        :type grid: :class:`ocgis.GridXY`
+        :type grid: :class:`ocgis.Grid`
         :param inverse: See :meth:`ocgis.variable.crs.AbstractSphericalCoordinateReferenceSystem.transform_coordinates` 
         """
 
@@ -641,11 +660,11 @@ class Spherical(AbstractSphericalCoordinateReferenceSystem, CoordinateReferenceS
         value = {'proj': 'longlat', 'towgs84': '0,0,0,0,0,0,0', 'no_defs': '', 'a': semi_major_axis,
                  'b': semi_major_axis}
         CoordinateReferenceSystem.__init__(self, value=value, name='latitude_longitude')
-        AbstractOcgisCoordinateReferenceSystem.__init__(self, angular_units=angular_units)
+        AbstractCoordinateReferenceSystem.__init__(self, angular_units=angular_units)
         self.semi_major_axis = semi_major_axis
 
 
-class Cartesian(AbstractOcgisCoordinateReferenceSystem):
+class Cartesian(AbstractCoordinateReferenceSystem):
     """
     A regular Cartesian coordinate system.
     """
@@ -670,7 +689,7 @@ class Cartesian(AbstractOcgisCoordinateReferenceSystem):
         return other_crs.transform_grid(self, grid, inverse=True)
 
 
-class Tripole(AbstractSphericalCoordinateReferenceSystem, AbstractOcgisCoordinateReferenceSystem):
+class Tripole(AbstractSphericalCoordinateReferenceSystem, AbstractCoordinateReferenceSystem):
     """
     A spherical representation of the Earth's surface having three poles (singularities).
     
@@ -683,8 +702,8 @@ class Tripole(AbstractSphericalCoordinateReferenceSystem, AbstractOcgisCoordinat
         if spherical is None:
             spherical = Spherical()
         self.spherical = spherical
-        AbstractOcgisCoordinateReferenceSystem.__init__(self, linear_units=spherical.linear_units,
-                                                        angular_units=spherical.angular_units)
+        AbstractCoordinateReferenceSystem.__init__(self, linear_units=spherical.linear_units,
+                                                   angular_units=spherical.angular_units)
 
 
 class WGS84(CoordinateReferenceSystem):
@@ -799,15 +818,15 @@ class CFCoordinateReferenceSystem(CoordinateReferenceSystem):
         def _get_projection_coordinate_(target, meta):
             key = 'projection_{0}_coordinate'.format(target)
             for k, v in list(meta['variables'].items()):
-                if 'standard_name' in v['attributes']:
-                    if v['attributes']['standard_name'] == key:
+                if 'standard_name' in v['attrs']:
+                    if v['attrs']['standard_name'] == key:
                         return k
             raise ProjectionCoordinateNotFound(key)
 
         r_var = meta['variables'][var]
         try:
             # Look for the grid_mapping attribute on the target variable.
-            r_grid_mapping = meta['variables'][r_var['attributes']['grid_mapping']]
+            r_grid_mapping = meta['variables'][r_var['attrs']['grid_mapping']]
         except KeyError:
             # Attempt to match the class's grid mapping name across variables if strictness allows.
             if not strict:
@@ -822,7 +841,7 @@ class CFCoordinateReferenceSystem(CoordinateReferenceSystem):
             else:
                 raise ProjectionDoesNotMatch
         try:
-            grid_mapping_name = r_grid_mapping['attributes']['grid_mapping_name']
+            grid_mapping_name = r_grid_mapping['attrs']['grid_mapping_name']
         except KeyError:
             raise ProjectionDoesNotMatch
         if grid_mapping_name != cls.grid_mapping_name:
@@ -837,7 +856,7 @@ class CFCoordinateReferenceSystem(CoordinateReferenceSystem):
         # this variable name is used by the netCDF converter
         # meta['grid_mapping_variable_name'] = r_grid_mapping['name']
 
-        kwds = r_grid_mapping['attributes'].copy()
+        kwds = r_grid_mapping['attrs'].copy()
         kwds.pop('grid_mapping_name', None)
         kwds['projection_x_coordinate'] = pc_x
         kwds['projection_y_coordinate'] = pc_y
@@ -875,8 +894,8 @@ class CFSpherical(Spherical, CFCoordinateReferenceSystem):
 
     @classmethod
     def load_from_metadata(cls, var, meta):
-        r_grid_mapping = meta['variables'][var]['attributes'].get('grid_mapping')
-        r_grid_mapping_name = meta['variables'][var]['attributes'].get('grid_mapping_name')
+        r_grid_mapping = meta['variables'][var]['attrs'].get('grid_mapping')
+        r_grid_mapping_name = meta['variables'][var]['attrs'].get('grid_mapping_name')
         if cls.grid_mapping_name in (r_grid_mapping, r_grid_mapping_name):
             return cls()
         else:
@@ -909,7 +928,7 @@ class CFLambertConformal(CFCoordinateReferenceSystem):
 
     @classmethod
     def _load_from_metadata_finalize_(cls, kwds, var, meta):
-        kwds['units'] = meta['variables'][kwds['projection_x_coordinate']]['attributes'].get('units')
+        kwds['units'] = meta['variables'][kwds['projection_x_coordinate']]['attrs'].get('units')
 
 
 class CFPolarStereographic(CFCoordinateReferenceSystem):

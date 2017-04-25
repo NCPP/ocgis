@@ -8,7 +8,7 @@ from ocgis.constants import DataType
 from ocgis.exc import EmptyObjectError
 from ocgis.test.base import attr, AbstractTestInterface
 from ocgis.variable.dimension import Dimension
-from ocgis.vmachine.mpi import OcgMpi, MPI_SIZE, MPI_RANK, get_nonempty_ranks
+from ocgis.vmachine.mpi import OcgDist, MPI_SIZE, MPI_RANK, get_nonempty_ranks
 
 
 class TestDimension(AbstractTestInterface):
@@ -102,7 +102,7 @@ class TestDimension(AbstractTestInterface):
     @attr('mpi')
     def test_get_distributed_slice(self):
         for d in [True, False]:
-            dist = OcgMpi()
+            dist = OcgDist()
             dim = dist.create_dimension('five', 5, dist=d, src_idx='auto')
             dist.update_dimension_bounds()
             if not dim.is_empty:
@@ -137,7 +137,7 @@ class TestDimension(AbstractTestInterface):
                 self.assertEqual(dim.bounds_global, (0, 5))
                 self.assertEqual(dim.bounds_local, (0, 5))
 
-        dist = OcgMpi()
+        dist = OcgDist()
         dim = dist.create_dimension('five', 5, dist=True, src_idx='auto')
         dist.update_dimension_bounds()
         with vm.scoped_by_emptyable('five slice', dim):
@@ -154,7 +154,7 @@ class TestDimension(AbstractTestInterface):
         if MPI_SIZE != 4:
             raise SkipTest('MPI_SIZE != 4')
 
-        ompi = OcgMpi()
+        ompi = OcgDist()
         dim = ompi.create_dimension('eight', 8, dist=True)
         ompi.update_dimension_bounds()
 
@@ -188,7 +188,7 @@ class TestDimension(AbstractTestInterface):
 
     @attr('mpi')
     def test_get_distributed_slice_simple(self):
-        ompi = OcgMpi()
+        ompi = OcgDist()
         dim = ompi.create_dimension('five', 5, dist=True, src_idx='auto')
         ompi.update_dimension_bounds(min_elements=1)
 
@@ -208,7 +208,7 @@ class TestDimension(AbstractTestInterface):
                 self.assertEqual(sub.bounds_local, (0, 0))
 
         # Test global bounds are updated.
-        ompi = OcgMpi()
+        ompi = OcgDist()
         dim = ompi.create_dimension('tester', 768, dist=False)
         ompi.update_dimension_bounds()
 
@@ -219,7 +219,7 @@ class TestDimension(AbstractTestInterface):
 
     @attr('mpi')
     def test_get_distributed_slice_uneven_boundary(self):
-        ompi = OcgMpi()
+        ompi = OcgDist()
         dim = ompi.create_dimension('the_dim', 360, dist=True, src_idx='auto')
         ompi.update_dimension_bounds()
 

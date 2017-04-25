@@ -1,18 +1,18 @@
 import logging
 from copy import deepcopy
+from types import NoneType
 
 import ESMF
 import numpy as np
 from ESMF.api.constants import RegridMethod
-from types import NoneType
 
-from ocgis import constants
+from ocgis import constants, DimensionMap
 from ocgis import env
 from ocgis.base import AbstractOcgisObject, get_dimension_names
-from ocgis.collection.field import OcgField
+from ocgis.collection.field import Field
 from ocgis.constants import DimensionMapKey, KeywordArgument
 from ocgis.exc import RegriddingError, CornersInconsistentError
-from ocgis.spatial.grid import GridXY, expand_grid
+from ocgis.spatial.grid import Grid, expand_grid
 from ocgis.spatial.spatial_subset import SpatialSubsetOperation
 from ocgis.util.helpers import iter_array, get_esmf_corners_from_ocgis_corners
 from ocgis.util.logging_ocgis import ocgis_lh
@@ -25,11 +25,11 @@ class RegridOperation(AbstractOcgisObject):
     Execute a regrid operation handling spatial subsetting and coordinate system transformations.
 
     :param field_src: The source field to regrid.
-    :type field_src: :class:`ocgis.OcgField`
+    :type field_src: :class:`ocgis.Field`
     :param field_dst: The destination regrid field.
-    :type field_dst: :class:`ocgis.OcgField`
+    :type field_dst: :class:`ocgis.Field`
     :param subset_field: If provided, use this field to subset the regridding fields.
-    :type subset_field: :class:`ocgis.OcgField`
+    :type subset_field: :class:`ocgis.Field`
     :param regrid_options: A dictionary of keyword options to pass to :func:`~ocgis.regrid.base.regrid_field`.
     :type regrid_options: dict
     :param bool revert_dst_crs: If ``True``, revert the destination grid coordinate system if it needed to be
@@ -38,9 +38,9 @@ class RegridOperation(AbstractOcgisObject):
     """
 
     def __init__(self, field_src, field_dst, subset_field=None, regrid_options=None, revert_dst_crs=False):
-        assert isinstance(field_src, OcgField)
-        assert isinstance(field_dst, OcgField)
-        assert isinstance(subset_field, (OcgField, NoneType))
+        assert isinstance(field_src, Field)
+        assert isinstance(field_dst, Field)
+        assert isinstance(subset_field, (Field, NoneType))
 
         self.field_dst = field_dst
         self.field_src = field_src
@@ -55,7 +55,7 @@ class RegridOperation(AbstractOcgisObject):
         """
         Execute regridding operation.
 
-        :rtype: :class:`ocgis.OcgField`
+        :rtype: :class:`ocgis.Field`
         """
 
         regrid_destination, backtransform_dst_crs = self._get_regrid_destination_()
@@ -77,7 +77,7 @@ class RegridOperation(AbstractOcgisObject):
         """
         Prepare destination field for regridding.
 
-        :rtype: (:class:`~ocgis.OcgField`, :class:`~ocgis.CoordinateReferenceSystem` or ``None``)
+        :rtype: (:class:`~ocgis.Field`, :class:`~ocgis.CoordinateReferenceSystem` or ``None``)
         """
 
         # Transform the coordinate system of the regrid destination. ###################################################
@@ -126,13 +126,17 @@ def get_ocgis_grid_from_esmf_grid(egrid, crs=None, dimension_map=None):
     :type egrid: :class:`ESMF.driver.grid.Grid`
     :param crs: The coordinate system to attach to the output spatial dimension.
     :type crs: :class:`ocgis.interface.base.crs.CoordinateReferenceSystem`
-    :param dict dimension_map: Dimension map for the outgoing OCGIS field/grid.
-    :rtype: :class:`~ocgis.GridXY`
+    :param dimension_map: Dimension map for the outgoing OCGIS field/grid.
+    :type dimension_map: :class:`ocgis.DimensionMap`
+    :rtype: :class:`~ocgis.Grid`
     """
 
     if dimension_map is None:
-        dimension_map = {DimensionMapKey.X: {'variable': 'x', 'bounds': 'x_bounds', 'names': ['x']},
-                         DimensionMapKey.Y: {'variable': 'y', 'bounds': 'y_bounds', 'names': ['y']}}
+        dimension_map = {DimensionMapKey.X: {'variable': 'x', 'bounds': 'x_bounds', DimensionMapKey.DIMS: ['x']},
+                         DimensionMapKey.Y: {'variable': 'y', 'bounds': 'y_bounds', DimensionMapKey.DIMS: ['y']}}
+        dimension_map = DimensionMap.from_dict(dimension_map)
+    else:
+        assert isinstance(dimension_map, DimensionMap)
 
     # OCGIS grid values are built on centers.
     coords = egrid.coords[ESMF.StaggerLoc.CENTER]
@@ -174,29 +178,29 @@ def get_ocgis_grid_from_esmf_grid(egrid, crs=None, dimension_map=None):
     if grid_corners is not None:
         grid_corners = np.ma.array(grid_corners)
 
-    grid_dimensions = [dimension_map[DimensionMapKey.Y][DimensionMapKey.NAMES][0],
-                       dimension_map[DimensionMapKey.X][DimensionMapKey.NAMES][0]]
+    grid_dimensions = [dimension_map.get_dimensions(DimensionMapKey.Y)[0],
+                       dimension_map.get_dimensions(DimensionMapKey.X)[0]]
     if grid_corners is not None:
         grid_bounds_dimensions = deepcopy(grid_dimensions)
         grid_bounds_dimensions.append(constants.DEFAULT_NAME_CORNERS_DIMENSION)
 
-        name = dimension_map[DimensionMapKey.X][DimensionMapKey.BOUNDS]
+        name = dimension_map.get_bounds(DimensionMapKey.X)
         x_bounds = Variable(name=name, value=grid_corners[1, ...],
                             dimensions=['y', 'x', constants.DEFAULT_NAME_CORNERS_DIMENSION])
 
-        name = dimension_map[DimensionMapKey.Y][DimensionMapKey.BOUNDS]
+        name = dimension_map.get_bounds(DimensionMapKey.Y)
         y_bounds = Variable(name=name, value=grid_corners[0, ...],
                             dimensions=['y', 'x', constants.DEFAULT_NAME_CORNERS_DIMENSION])
     else:
         x_bounds, y_bounds = [None] * 2
 
-    name = dimension_map[DimensionMapKey.X][DimensionMapKey.VARIABLE]
+    name = dimension_map.get_variable(DimensionMapKey.X)
     x = Variable(name=name, dimensions=grid_dimensions, value=grid_value[1, ...], bounds=x_bounds)
 
-    name = dimension_map[DimensionMapKey.Y][DimensionMapKey.VARIABLE]
+    name = dimension_map.get_variable(DimensionMapKey.Y)
     y = Variable(name=name, dimensions=grid_dimensions, value=grid_value[0, ...], bounds=y_bounds)
 
-    ogrid = GridXY(x, y, crs=crs)
+    ogrid = Grid(x, y, crs=crs)
 
     if has_mask:
         ogrid.set_mask(egrid_mask)
@@ -207,7 +211,7 @@ def get_ocgis_grid_from_esmf_grid(egrid, crs=None, dimension_map=None):
 def get_esmf_field_from_ocgis_field(ofield, esmf_field_name=None, **kwargs):
     """
     :param ofield: The OCGIS field to convert to an ESMF field.
-    :type ofield: :class:`ocgis.OcgField`
+    :type ofield: :class:`ocgis.Field`
     :param str esmf_field_name: An optional ESMF field name. If ``None``, use the name of the data variable on
      ``ofield``.
     :param dict kwargs: Any keyword arguments to :func:`ocgis.regrid.base.get_esmf_grid`.
@@ -270,7 +274,7 @@ def get_ocgis_field_from_esmf_field(efield, dimensions=None, **kwargs):
      in preference over any internal default values created in this function. The keyword argument
      :attrs:`~ocgis.constants.KeywordArgument.IS_DATA` may not be overloaded.
     :returns: An OCGIS field object.
-    :rtype: :class:`~ocgis.OcgField`
+    :rtype: :class:`~ocgis.Field`
     """
 
     kwargs = kwargs.copy()
@@ -290,7 +294,7 @@ def get_ocgis_field_from_esmf_field(efield, dimensions=None, **kwargs):
     if KeywordArgument.CRS not in kwargs:
         kwargs[KeywordArgument.CRS] = Spherical()
 
-    field = OcgField(**kwargs)
+    field = Field(**kwargs)
 
     grid_mask = grid.get_mask()
     if grid_mask is not None:
@@ -317,10 +321,10 @@ def get_crs_from_esmf_field(efield):
 
 def get_esmf_grid(ogrid, regrid_method='auto', value_mask=None):
     """
-    Create an ESMF :class:`~ESMF.driver.grid.Grid` object from an OCGIS :class:`ocgis.GridXY` object.
+    Create an ESMF :class:`~ESMF.driver.grid.Grid` object from an OCGIS :class:`ocgis.Grid` object.
 
     :param ogrid: The target OCGIS grid to convert to an ESMF grid.
-    :type ogrid: :class:`~ocgis.GridXY`
+    :type ogrid: :class:`~ocgis.Grid`
     :param regrid_method: If ``'auto'`` or :attr:`ESMF.api.constants.RegridMethod.CONSERVE`, use corners/bounds from the
      grid object. If :attr:`ESMF.api.constants.RegridMethod.CONSERVE`, the corners/bounds must be present on the grid.
     :param value_mask: If an ``bool`` :class:`numpy.array` with same shape as ``ogrid``, use a logical *or* operation
@@ -394,7 +398,7 @@ def get_periodicity_parameters(grid):
      1. A grid is periodic (i.e. it has global coverage). Periodicity is determined only with the x/longitude dimension.
      2. A grid is non-periodic (i.e. it has regional coverage).
 
-    :param grid: :class:`~ocgis.GridXY`
+    :param grid: :class:`~ocgis.Grid`
     :return: A dictionary containing periodicity parameters.
     :rtype: dict
     """
@@ -525,9 +529,9 @@ def check_fields_for_regridding(source, destination, regrid_method='auto'):
     Perform a standard series of checks on regridding inputs.
 
     :param source: The source field.
-    :type source: :class:`ocgis.OcgField`
+    :type source: :class:`ocgis.Field`
     :param destination: The destination field.
-    :type destination: :class:`ocgis.OcgField`
+    :type destination: :class:`ocgis.Field`
     :param regrid_method: If ``'auto'``, attempt to do conservative regridding if bounds/corners are available on both
       fields. Otherwise, do bilinear regridding. This may also be an ESMF regrid method flag.
     :type regrid_method: str or :attr:`ESMF.api.constants.RegridMethod`
@@ -536,7 +540,7 @@ def check_fields_for_regridding(source, destination, regrid_method='auto'):
 
     # Check field objects are used.
     for element in [source, destination]:
-        if not isinstance(element, OcgField):
+        if not isinstance(element, Field):
             raise RegriddingError('OCGIS field objects only for regridding.')
 
     # Check their are grids on source and destination. Only structured grids are supported at this time.
@@ -570,14 +574,14 @@ def regrid_field(source, destination, regrid_method='auto', value_mask=None, spl
     Regrid ``source`` data to match the grid of ``destination``.
 
     :param source: The source field.
-    :type source: :class:`ocgis.OcgField`
+    :type source: :class:`ocgis.Field`
     :param destination: The destination field.
-    :type destination: :class:`ocgis.OcgField`
+    :type destination: :class:`ocgis.Field`
     :param regrid_method: See :func:`~ocgis.regrid.base.get_esmf_grid`.
     :param value_mask: See :func:`~ocgis.regrid.base.iter_esmf_fields`.
     :type value_mask: :class:`numpy.ndarray`
     :param bool split: See :func:`~ocgis.regrid.base.iter_esmf_fields`.
-    :rtype: :class:`ocgis.OcgField`
+    :rtype: :class:`ocgis.Field`
     """
 
     # This function runs a series of asserts to make sure the sources and destination are compatible.

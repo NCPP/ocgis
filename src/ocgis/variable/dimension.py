@@ -11,6 +11,22 @@ from ocgis.vmachine.mpi import get_global_to_local_slice, get_nonempty_ranks
 class Dimension(AbstractNamedObject):
     def __init__(self, name, size=None, size_current=None, src_idx=None, dist=False, is_empty=False,
                  source_name=constants.UNINITIALIZED, aliases=None, uid=None):
+        """
+        See https://en.wikipedia.org/wiki/Dimension for an overview of dimensions.
+        
+        :param name: See :class:`ocgis.base.AbstractNamedObject`.
+        :param int size: The dimension's size. Set to ``None`` if this dimension is unlimited. 
+        :param size_current: The dimension's current size. The current size is needed to track sizes if the dimension is
+         unlimited.
+        :param src_idx: An one-dimensional, integer array containing the source indices for a "dimensioned" element.
+        :type src_idx: (:class:`numpy.ndarray`, ``shape=(m,)``, ``dtype=int``) (default type is ``numpy.int32``)
+        :param bool dist: If ``True``, this dimension is distributed. 
+        :param bool is_empty: If ``True``, the dimension is empty on the current rank. 
+        :param source_name: See :class:`ocgis.base.AbstractNamedObject`.
+        :param aliases: See :class:`ocgis.base.AbstractNamedObject`.
+        :param uid: See :class:`ocgis.base.AbstractNamedObject`.
+        """
+
         if isinstance(src_idx, six.string_types):
             if src_idx != 'auto' and size is None and size_current is None:
                 raise ValueError('Unsized dimensions should not have source indices.')

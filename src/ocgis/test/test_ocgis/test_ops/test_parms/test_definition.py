@@ -1,5 +1,4 @@
 import tempfile
-
 import types
 
 from ocgis.calc.library.statistics import Mean
@@ -445,7 +444,7 @@ class TestDataset(TestBase):
         efield = get_esmf_field_from_ocgis_field(original_field)
         dd = Dataset(efield, esmf_field_dimensions=dimensions)
         ofield = list(dd)[0]
-        self.assertIsInstance(ofield, OcgField)
+        self.assertIsInstance(ofield, Field)
         dimensioned = ofield.get_by_tag(TagName.DATA_VARIABLES)[0]
         self.assertTrue(np.may_share_memory(dimensioned.get_value(), efield.data))
         self.assertNumpyAll(dimensioned.get_value(), efield.data)
@@ -483,8 +482,8 @@ class TestDataset(TestBase):
         self.assertEqual(ret, ['* dataset=', 'Field object with name: "wow"', ''])
 
     def test_iter(self):
-        f1 = OcgField(name='field_one', uid=4)
-        f2 = OcgField(name='field_two')
+        f1 = Field(name='field_one', uid=4)
+        f2 = Field(name='field_two')
 
         init_value = [f1, f2]
         d = Dataset(init_value)
@@ -516,7 +515,7 @@ class TestGeom(TestBase):
 
         g = Geom(geom)
         self.assertEqual(type(g.value), tuple)
-        self.assertIsInstance(g.value[0], OcgField)
+        self.assertIsInstance(g.value[0], Field)
         g.value = None
         self.assertEqual(None, g.value)
 
@@ -541,7 +540,7 @@ class TestGeom(TestBase):
         g = Geom(sci)
         for _ in range(2):
             for ii, element in enumerate(g.value):
-                self.assertIsInstance(element, OcgField)
+                self.assertIsInstance(element, Field)
             self.assertGreater(ii, 10)
 
         su = GeomSelectUid([1, 2, 3])
@@ -601,12 +600,12 @@ class TestGeom(TestBase):
     def test_init_field(self):
         """Test using a field as initial value."""
 
-        field = OcgField.from_records(GeomCabinetIterator(key='state_boundaries'))
+        field = Field.from_records(GeomCabinetIterator(key='state_boundaries'))
         self.assertIsInstance(field.crs, env.DEFAULT_COORDSYS.__class__)
         g = Geom(field)
         self.assertEqual(len(g.value), 51)
         for field in g.value:
-            self.assertIsInstance(field, OcgField)
+            self.assertIsInstance(field, Field)
             self.assertEqual(field.geom.shape, (1,))
 
     def test_parse(self):
@@ -840,7 +839,7 @@ class TestRegridDestination(TestBase):
                 if poss == 'tas':
                     self.assertEqual(regrid.value.name, 'tas')
                 else:
-                    type_check = isinstance(regrid.value, (OcgField, GridXY))
+                    type_check = isinstance(regrid.value, (Field, Grid))
                     try:
                         self.assertTrue(type_check)
                     except AssertionError:

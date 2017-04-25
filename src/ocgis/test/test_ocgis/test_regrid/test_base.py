@@ -5,9 +5,9 @@ import numpy as np
 from ocgis import OcgOperations
 from ocgis import RequestDataset
 from ocgis import Variable
-from ocgis.collection.field import OcgField
+from ocgis.collection.field import Field
 from ocgis.exc import RegriddingError, CornersInconsistentError
-from ocgis.spatial.grid import GridXY
+from ocgis.spatial.grid import Grid
 from ocgis.test.base import attr, AbstractTestInterface
 from ocgis.test.test_simple.make_test_data import SimpleNc
 from ocgis.test.test_simple.test_simple import TestSimpleBase
@@ -118,7 +118,7 @@ class TestRegrid(TestSimpleBase):
         for k in itr_products_keywords(keywords, as_namedtuple=True):
             from ocgis.regrid.base import regrid_field
             regridded = regrid_field(source, destination, split=k.split)
-            self.assertIsInstance(regridded, OcgField)
+            self.assertIsInstance(regridded, Field)
             self.assertNumpyAll(regridded.grid.get_value_stacked(), desired.grid.get_value_stacked())
             self.assertEqual(regridded.crs, source.crs)
             for variable in regridded.data_variables:
@@ -416,7 +416,7 @@ class TestRegrid(TestSimpleBase):
 
         x = Variable(name='x', value=[1, 2, 3], dimensions='x')
         y = Variable(name='y', value=[4, 5, 6], dimensions='y')
-        grid = GridXY(x, y)
+        grid = Grid(x, y)
 
         gmask = grid.get_mask(create=True)
         gmask[1, 1] = True
@@ -467,8 +467,8 @@ class TestRegrid(TestSimpleBase):
 
         row = Variable(name='row', value=[5, 6], dimensions='row')
         col = Variable(name='col', value=[7, 8], dimensions='col')
-        grid = GridXY(col, row)
-        ofield = OcgField(grid=grid)
+        grid = Grid(col, row)
+        ofield = Field(grid=grid)
 
         efield = get_esmf_field_from_ocgis_field(ofield)
         ofield_actual = get_ocgis_field_from_esmf_field(efield)
@@ -557,5 +557,5 @@ class TestRegridOperation(AbstractTestInterface):
         row_shape = grid.shape[0]
         value = np.ones(col_shape * row_shape, dtype=float).reshape(grid.shape) * 15.
         variable = Variable(name=name_variable, value=value, dimensions=grid.dimensions)
-        field = OcgField(is_data=variable, grid=grid, crs=Spherical())
+        field = Field(is_data=variable, grid=grid, crs=Spherical())
         return field

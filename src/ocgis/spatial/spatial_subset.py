@@ -2,7 +2,7 @@ from copy import deepcopy, copy
 
 from ocgis import env, vm
 from ocgis.base import raise_if_empty
-from ocgis.collection.field import OcgField
+from ocgis.collection.field import Field
 from ocgis.constants import WrappedState
 from ocgis.variable.crs import CFRotatedPole, CFSpherical
 from ocgis.variable.geom import GeometryVariable
@@ -13,7 +13,7 @@ class SpatialSubsetOperation(object):
     Perform spatial subsets on various types of ``ocgis`` data objects.
 
     :param field: The target field to subset.
-    :type field: :class:`ocgis.new_interface.field.OcgField`
+    :type field: :class:`ocgis.new_interface.field.Field`
     :param output_crs: If provided, all output coordinates will be remapped to match.
     :type output_crs: :class:`ocgis.interface.base.crs.CoordinateReferenceSystem`
     :param wrap: This is only relevant for spherical coordinate systems on ``field`` or when selected as the
@@ -26,8 +26,8 @@ class SpatialSubsetOperation(object):
     _rotated_pole_destination_crs = env.DEFAULT_COORDSYS
 
     def __init__(self, field, output_crs='input', wrap=None):
-        if not isinstance(field, OcgField):
-            raise ValueError('"field" must be an "OcgField" object.')
+        if not isinstance(field, Field):
+            raise ValueError('"field" must be an "Field" object.')
         raise_if_empty(field)
 
         self.field = field
@@ -163,7 +163,7 @@ class SpatialSubsetOperation(object):
         Return ``True`` if the output from ``get_spatial_subset`` should be wrapped.
 
         :param field: The target field to test for wrapped stated.
-        :type fiedl: :class:`ocgis.new_interface.field.OcgField`
+        :type fiedl: :class:`ocgis.new_interface.field.Field`
         """
 
         # The output needs to be wrapped and the input data is unwrapped. Output from get_spatial_subset is always

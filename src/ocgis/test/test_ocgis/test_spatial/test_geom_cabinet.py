@@ -8,7 +8,7 @@ from shapely.geometry.polygon import Polygon
 import ocgis
 from ocgis import env
 from ocgis.base import get_variable_names
-from ocgis.collection.field import OcgField
+from ocgis.collection.field import Field
 from ocgis.environment import ogr
 from ocgis.spatial.geom_cabinet import GeomCabinet, GeomCabinetIterator, get_uid_from_properties
 from ocgis.test.base import TestBase
@@ -88,7 +88,7 @@ class TestGeomCabinetIterator(TestBase):
         for _ in range(2):
             ugids = []
             for field in sci:
-                self.assertIsInstance(field, OcgField)
+                self.assertIsInstance(field, Field)
                 self.assertEqual(field.geom.ugid.shape, (1,))
                 self.assertEqual(get_variable_names(field.data_variables), desired_data_variables)
                 self.assertEqual(field.crs, WGS84())
@@ -309,7 +309,7 @@ class TestGeomCabinet(TestBase):
 
         target = list(sc.iter_geoms(path=new, uid='ID', as_field=True))
         ref = target[4]
-        self.assertIsInstance(ref, OcgField)
+        self.assertIsInstance(ref, Field)
 
         # Test with a different geometry unique identifier.
         path = self.get_shapefile_path_with_no_ugid()

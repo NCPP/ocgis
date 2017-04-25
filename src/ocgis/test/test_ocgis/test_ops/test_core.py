@@ -12,14 +12,14 @@ import ocgis
 from ocgis import RequestDataset, vm
 from ocgis import constants
 from ocgis import env
-from ocgis.collection.field import OcgField
-from ocgis.constants import WrappedState, HeaderName, OutputFormatName
+from ocgis.collection.field import Field
+from ocgis.constants import WrappedState, HeaderName, OutputFormatName, DMK
 from ocgis.exc import DefinitionValidationError
 from ocgis.ops.core import OcgOperations
 from ocgis.ops.parms import definition
 from ocgis.ops.parms.definition import RegridOptions, OutputFormat, SpatialWrapping
 from ocgis.spatial.geom_cabinet import GeomCabinetIterator, GeomCabinet
-from ocgis.spatial.grid import GridXY
+from ocgis.spatial.grid import Grid
 from ocgis.test.base import TestBase, attr, create_gridxy_global, create_exact_field
 from ocgis.test.test_simple.test_dependencies import create_mftime_nc_files
 from ocgis.util.addict import Dict
@@ -27,7 +27,7 @@ from ocgis.util.helpers import make_poly, create_exact_field_value
 from ocgis.variable.base import Variable
 from ocgis.variable.crs import Spherical, CoordinateReferenceSystem, WGS84
 from ocgis.variable.temporal import TemporalVariable
-from ocgis.vmachine.mpi import OcgMpi, MPI_RANK, variable_collection_scatter, MPI_COMM, dgather, \
+from ocgis.vmachine.mpi import OcgDist, MPI_RANK, variable_collection_scatter, MPI_COMM, dgather, \
     hgather, MPI_SIZE
 
 
@@ -95,8 +95,8 @@ class TestOcgOperations(TestBase):
         actual = rd_out.metadata['variables']['height']
 
         # Not worried about order of attributes.
-        desired_height_metadata['attributes'] = dict(desired_height_metadata['attributes'])
-        actual['attributes'] = dict(actual['attributes'])
+        desired_height_metadata['attrs'] = dict(desired_height_metadata['attrs'])
+        actual['attrs'] = dict(actual['attrs'])
 
         self.assertDictEqual(actual, desired_height_metadata)
 
@@ -128,8 +128,8 @@ class TestOcgOperations(TestBase):
 
         rd2 = self.test_data.get_rd('narccap_pr_wrfg_ncep')
         bdm = rd2.dimension_map
-        bdm['x'] = {'variable': 'xc'}
-        bdm['y'] = {'variable': 'yc'}
+        bdm.set_variable(DMK.X, 'xc')
+        bdm.set_variable(DMK.Y, 'yc')
         rd2 = self.test_data.get_rd('narccap_pr_wrfg_ncep', kwds={'dimension_map': bdm})
 
         rds = [rd1, rd2]
@@ -640,7 +640,7 @@ class TestOcgOperations(TestBase):
 class TestOcgOperationsNoData(TestBase):
     @staticmethod
     def get_wrap_field(crs=None, unwrapped=True):
-        ompi = OcgMpi()
+        ompi = OcgDist()
         ompi.create_dimension('x', 5, dist=False)
         ompi.create_dimension('y', 7, dist=True)
         ompi.create_dimension('time', size_current=4, dist=False)
@@ -653,13 +653,13 @@ class TestOcgOperationsNoData(TestBase):
             else:
                 col_value = [-170, -85, 0, 85, 170]
             col = Variable(value=col_value, name='x', dimensions='x')
-            grid = GridXY(col, row)
+            grid = Grid(col, row)
             value = np.zeros((4, 7, 5))
             for col_idx in range(value.shape[-1]):
                 value[:, :, col_idx] = col_idx
             time = TemporalVariable(name='time', value=[1, 2, 3, 4], dimensions='time')
             var = Variable(name='foo', value=value, dimensions=['time', 'y', 'x'])
-            field = OcgField(grid=grid, is_data=var, crs=crs, time=time)
+            field = Field(grid=grid, is_data=var, crs=crs, time=time)
         else:
             field = None
         field = variable_collection_scatter(field, ompi)
@@ -680,8 +680,8 @@ class TestOcgOperationsNoData(TestBase):
             variables.append(data_variable_name)
             data = Variable(name=data_variable_name, value=np.arange(6).reshape(2, 3) + suffix,
                             dimensions=['x', 'y'])
-            grid = GridXY(x, y)
-            field = OcgField(grid=grid, is_data=data)
+            grid = Grid(x, y)
+            field = Field(grid=grid, is_data=data)
             field.write(path)
 
         rds = [RequestDataset(uri=p, variable=dv) for p, dv in zip(paths, variables)]
@@ -756,9 +756,9 @@ class TestOcgOperationsNoData(TestBase):
 
         x = Variable('x', [-1, -0.5, 0.5, 1.5, 2], 'x')
         y = Variable('y', [-0.5, 0.5, 1.5], 'y')
-        grid = GridXY(x, y)
+        grid = Grid(x, y)
         grid.set_extrapolated_bounds('x_bounds', 'y_bounds', 'bounds')
-        field = OcgField(grid=grid)
+        field = Field(grid=grid)
 
         ops = OcgOperations(dataset=field, geom=geom)
         ret = ops.execute()
@@ -813,7 +813,7 @@ class TestOcgOperationsNoData(TestBase):
                         value=original_value,
                         dimensions=['time_dimension', 'level_dimension'],
                         units='fahrenheit')
-        field = OcgField(time=time, level=level, is_data=data)
+        field = Field(time=time, level=level, is_data=data)
 
         ops = OcgOperations(dataset=field,
                             time_range=[datetime.datetime(2003, 1, 1), datetime.datetime(2007, 1, 1)],
@@ -857,13 +857,13 @@ class TestOcgOperationsNoData(TestBase):
             if not vm.is_null:
                 x = Variable('x', range(5), 'x', float)
                 y = Variable('y', range(7), 'y', float)
-                grid = GridXY(x, y)
+                grid = Grid(x, y)
 
                 data_value = np.arange(x.size * y.size).reshape(grid.shape)
                 data = Variable(data_name, data_value, grid.dimensions, float)
                 data_value = data.get_value()
 
-                field = OcgField(grid=grid, is_data=data)
+                field = Field(grid=grid, is_data=data)
 
                 path = self.get_temporary_file_path('data.nc')
                 field.write(path)

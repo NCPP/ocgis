@@ -5,10 +5,10 @@ from ocgis import OcgOperations
 from ocgis import env
 from ocgis.calc.library.math import NaturalLogarithm, Divide, Sum, Convolve1D
 from ocgis.calc.library.thresholds import Threshold
-from ocgis.collection.field import OcgField
+from ocgis.collection.field import Field
 from ocgis.exc import SampleSizeNotImplemented
 from ocgis.ops.parms.definition import Calc
-from ocgis.spatial.grid import GridXY
+from ocgis.spatial.grid import Grid
 from ocgis.test.base import attr, AbstractTestField
 from ocgis.variable.base import Variable
 from ocgis.variable.temporal import TemporalVariable
@@ -112,12 +112,12 @@ class TestSum(AbstractTestField):
 
         row = Variable(name='y', value=[1, 2, 3, 4], dimensions='y')
         col = Variable(name='x', value=[10, 11, 12], dimensions='x')
-        grid = GridXY(col, row)
+        grid = Grid(col, row)
         time = TemporalVariable(name='time', value=[1, 2], dimensions='time')
         data = Variable(name='data', dimensions=[time.dimensions[0]] + list(grid.dimensions))
         data.get_value()[0, :] = 1
         data.get_value()[1, :] = 2
-        field = OcgField(grid=grid, time=time, is_data=data)
+        field = Field(grid=grid, time=time, is_data=data)
 
         calc = [{'func': 'sum', 'name': 'sum'}]
         ops = OcgOperations(dataset=field, calc=calc, calc_grouping='day', calc_raw=True, aggregate=True)

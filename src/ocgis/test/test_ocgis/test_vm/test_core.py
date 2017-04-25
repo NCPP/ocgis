@@ -19,13 +19,13 @@ class TestOcgVM(TestBase):
             # vm = OcgVM()
             # self.assertEqual(vm.live_ranks, tuple(range(MPI_SIZE)))
             #
-            # ompi = OcgMpi(size=3)
+            # ompi = OcgDist(size=3)
             # ompi.create_dimension('five', 5)
             # ompi.update_dimension_bounds()
             # vm = OcgVM(ompi=ompi)
             # self.assertEqual(vm.live_ranks, (0, 1, 2))
             #
-            # ompi = OcgMpi()
+            # ompi = OcgDist()
             # ompi.create_dimension('varying', 2 * MPI_SIZE)
             # ompi.update_dimension_bounds()
             # vm = OcgVM(ompi=ompi)

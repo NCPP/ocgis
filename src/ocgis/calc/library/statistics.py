@@ -169,7 +169,6 @@ class DailyPercentile(base.AbstractUnivariateFunction, base.AbstractParameterize
             fill[0, month_day_map[key], 0, :, :] = value
         for idx in range(fill.shape[1]):
             fill.mask[0, idx, 0, :, :] = values.mask[0, 0, 0, :, :]
-        self.field.set_time(self.tgd)
         return fill
 
     @staticmethod

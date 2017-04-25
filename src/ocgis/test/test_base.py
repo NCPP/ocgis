@@ -4,7 +4,7 @@ import os
 import numpy as np
 from netCDF4 import Dataset
 
-from ocgis.collection.field import OcgField
+from ocgis.collection.field import Field
 from ocgis.test.base import TestBase
 from ocgis.test.base import attr
 
@@ -49,7 +49,7 @@ class TestTestBase(TestBase):
 
     def test_get_field(self):
         field = self.get_field()
-        self.assertIsInstance(field, OcgField)
+        self.assertIsInstance(field, Field)
 
     def test_get_time_series(self):
         start = datetime.datetime(1900, 1, 1)

@@ -4,7 +4,7 @@ from csv import excel
 
 from ocgis import Variable, vm
 from ocgis import constants
-from ocgis.collection.field import OcgField
+from ocgis.collection.field import Field
 from ocgis.constants import KeywordArgument, HeaderName, DriverKey
 from ocgis.conv.base import AbstractTabularConverter
 from ocgis.driver.csv_ import DriverCSV
@@ -111,7 +111,7 @@ class CsvShapefileConverter(CsvConverter):
                 gid = gid.extract()
 
                 # Construct the field to write.
-                field_to_write = OcgField(geom=geom, crs=crs, uid=field.uid)
+                field_to_write = Field(geom=geom, crs=crs, uid=field.uid)
                 if container.geom is not None:
                     field_to_write.add_variable(ugid_var, is_data=True)
                 field_to_write.add_variable(gid, is_data=True)

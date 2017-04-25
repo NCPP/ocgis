@@ -223,6 +223,7 @@ class Test(TestBase):
     def test_clip_aggregate(self):
         # This geometry was hanging.
         rd = self.test_data.get_rd('cancm4_tas', kwds={'time_region': {'year': [2003]}})
+        field = rd.get()
         ops = OcgOperations(dataset=rd, geom='state_boundaries', select_ugid=[14, 16],
                             aggregate=False, spatial_operation='clip',
                             output_format=constants.OutputFormatName.CSV_SHAPEFILE)

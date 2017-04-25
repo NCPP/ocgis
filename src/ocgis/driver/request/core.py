@@ -7,18 +7,17 @@ import six
 
 from ocgis import constants
 from ocgis import env
-from ocgis.constants import DriverKey
+from ocgis.constants import DMK
+from ocgis.driver.dimension_map import DimensionMap
 from ocgis.driver.registry import get_driver_class, driver_registry
 from ocgis.driver.request.base import AbstractRequestObject
 from ocgis.exc import RequestValidationError, NoDataVariablesFound, VariableNotFoundError
-from ocgis.util.helpers import get_iter, locate, validate_time_subset, get_tuple, get_by_sequence
+from ocgis.util.helpers import get_iter, locate, validate_time_subset, get_tuple
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.util.units import get_units_object, get_are_units_equivalent
 
 
-# tdk: clean-up
 class RequestDataset(AbstractRequestObject):
-    # todo: document vector format
     """
     A :class:`ocgis.RequestDataset` contains all the information necessary to find and subset a variable (by time
     and/or level) contained in a local or OpenDAP-hosted CF dataset.
@@ -50,13 +49,6 @@ class RequestDataset(AbstractRequestObject):
     >>> variable = 'tas'
     >>> variable = ['tas', 'tasmax']
 
-    :param alias: An alternative name to identify the returned variable's data. If ``None``, this defaults to
-     ``variable``. If variables having the same name occur in a request, this argument is required.
-    :type alias: str or sequence
-
-    >>> alias = 'tas_alias'
-    >>> alias = ['tas_alias', 'tasmax_alias']
-
     :param time_range: Upper and lower bounds for time dimension subsetting. If ``None``, return all time points.
     :type time_range: [:class:`datetime.datetime`, :class:`datetime.datetime`]
     :param time_region: A dictionary with keys of ``'month'`` and/or ``'year'`` and values as sequences corresponding to
@@ -72,45 +64,68 @@ class RequestDataset(AbstractRequestObject):
     :param level_range: Upper and lower bounds for level dimension subsetting. If ``None``, return all levels.
     :type level_range: [int, int] or [float, float]
     :param crs: Overload the autodiscovered coordinate system.
-    :type crs: :class:`ocgis.crs.CoordinateReferenceSystem`
+    :type crs: :class:`ocgis.variable.crs.AbstractCoordinateReferenceSystem`
 
     >>> from ocgis.variable.crs import WGS84
     >>> crs = WGS84()
 
-    :param t_units: Overload the autodiscover `time units`_.
+    :param t_units: Overload the `time units`_.
     :type t_units: str
-    :param t_calendar: Overload the autodiscover `time calendar`_.
+    :param t_calendar: Overload the `time calendar`_.
     :type t_calendar: str
     :param str t_conform_units_to: Conform the time dimension to the provided units. The calendar may not be changed.
-     The option dependency ``cfunits-python`` is required.
+     The optional dependency ``cf_units`` is required.
 
     >>> t_conform_units_to = 'days since 1949-1-1'
 
-    :param s_abstraction: Abstract the geometry data to either ``'point'`` or ``'polygon'``. If ``'polygon'`` is not
-     possible due to missing bounds, ``'point'`` will be used instead.
-    :type s_abstraction: str
+    :param grid_abstraction: Abstract the geometry data to either ``'point'`` or ``'polygon'``. If ``'polygon'`` is not
+     possible due to missing bounds, ``'point'`` will be used instead. If ``'auto'`` (the default), identify the grid
+     abstraction automatically.
+    :type grid_abstraction: str
 
     .. note:: The ``abstraction`` argument in :class:`ocgis.OcgOperations` will overload this.
 
     :param dimension_map: Maps dimensions to axes in the case of a projection/realization axis or an uncommon axis
-     ordering. All axes must be in the dictionary.
-    :type dimension_map: dict
+     ordering. All axes must be in the dictionary. A fully-specified dimension map for a CF grid file containing time, 
+     x, and y axes is below. The file also contains a scalar level axis. At minimum, a ``'variable'`` must be provided
+     for each axis.
+    :type dimension_map: :class:`ocgis.DimensionMap` | dict
 
-    >>> dimension_map = {'T': 'time', 'X': 'longitude', 'Y': 'latitude', 'R': 'projection'}
+    >>> {'crs': {'variable': 'latitude_longitude'},
+         'groups': {},
+         'level': {'attrs': {'axis': 'Z'},
+                   'bounds': None,
+                   'dimensions': [],
+                   'variable': 'height'},
+         'realization': {'dimensions': [], 'variable': None},
+         'time': {'attrs': {'axis': 'T'},
+                  'bounds': 'time_bnds',
+                  'dimensions': ['time'],
+                  'variable': 'time'},
+         'x': {'attrs': {'axis': 'X'},
+               'bounds': 'lon_bnds',
+               'dimensions': ['lon'],
+               'variable': 'lon'},
+         'y': {'attrs': {'axis': 'Y'},
+               'bounds': 'lat_bnds',
+               'dimensions': ['lat'],
+               'variable': 'lat'}}
 
     :param units: The units of the source variable. This will be read from metadata if this value is ``None``.
     :type units: str or :class:`cfunits.Units` or sequence
     :param conform_units_to: Destination units for conversion. If this parameter is set, then the :mod:`cfunits` module
      must be installed.
     :type conform_units_to: str or :class:`cfunits.Units` or sequence
-    :param str driver: If ``None``, autodiscover the appropriate driver. Other accepted values are listed below.
+    :param str driver: If ``None``, autodiscover the appropriate driver. Acceptable values are listed below.
 
-    ============ ================= =============================================
-    Value        File Extension(s) Description
-    ============ ================= =============================================
-    ``'netCDF'`` ``'nc'``          A netCDF file using a CF metadata convention.
-    ``'vector'`` ``'shp'``         An ESRI Shapefile.
-    ============ ================= =============================================
+    ============= ================= =============================================
+    Value         File Extension(s) Description
+    ============= ================= =============================================
+    ``'netcdf-cf' ``'nc'``          A netCDF file using a CF metadata convention.
+    ``'netcdf' `` ``'nc'``          A netCDF file with no metadata convention.
+    ``'vector'``  ``'shp'``         An ESRI Shapefile.
+    ``'csv'``     ``'csv'``         A CSV file.
+    ============= ================= =============================================
 
     :param str field_name: Name of the requested field in the output collection. If ``None``, defaults to the variable
      name or names joined by ``_``.
@@ -119,12 +134,18 @@ class RequestDataset(AbstractRequestObject):
     :param bool regrid_destination: If ``True``, use this dataset as the destination grid for a regridding operation.
      Only one :class:`~ocgis.RequestDataset` may be set as the destination grid. Please see :ref:`esmpy-regridding` for
      an overview.
+    :param rename_variable: A sequence with the same length as ``variable``. Provides new names for the variables.
+    :type rename_variable: sequence(str, ...)
+    :param dict metadata: Overload the metadata that would normally be loaded by the driver.
+    :param opened: An open file used as a write target for the driver.
+    :type opened: varies by ``driver`` class
+    :param int uid: A unique identifier for the request dataset.
 
     .. _time units: http://netcdf4-python.googlecode.com/svn/trunk/docs/netCDF4-module.html#num2date
     .. _time calendar: http://netcdf4-python.googlecode.com/svn/trunk/docs/netCDF4-module.html#num2date
     """
 
-    # tdk: RESUME: driver-specific option for netcdf: grid_abstraction - perhaps driver_options?
+    # TODO: driver-specific option for netcdf: grid_abstraction - perhaps driver_options?
     def __init__(self, uri=None, variable=None, units=None, time_range=None, time_region=None,
                  time_subset_func=None, level_range=None, conform_units_to=None, crs='auto', t_units=None,
                  t_calendar=None, t_conform_units_to=None, grid_abstraction='auto', dimension_map=None,
@@ -138,7 +159,11 @@ class RequestDataset(AbstractRequestObject):
         self._time_range = None
         self._time_region = None
         self._time_subset_func = None
-        self._dimension_map = deepcopy(dimension_map)
+
+        if dimension_map is not None and isinstance(dimension_map, dict):
+            dimension_map = DimensionMap.from_dict(dimension_map)
+        self._dimension_map = dimension_map
+
         self._metadata = deepcopy(metadata)
         self._uri = None
         self._rename_variable = rename_variable
@@ -190,16 +215,16 @@ class RequestDataset(AbstractRequestObject):
         self._validate_time_subset_()
 
         # Update metadata for time variable.
-        tvar = get_by_sequence(self.dimension_map, ['time', 'variable'])
+        tvar = self.dimension_map.get_variable(DMK.TIME)
         if tvar is not None:
             m = self.metadata['variables'][tvar]
             if t_units is not None:
-                m['attributes']['units'] = t_units
+                m['attrs']['units'] = t_units
             if t_calendar is not None:
-                m['attributes']['calendar'] = t_calendar
+                m['attrs']['calendar'] = t_calendar
             if t_conform_units_to is not None:
                 from ocgis.util.units import get_units_object
-                t_calendar = m['attributes'].get('calendar', constants.DEFAULT_TEMPORAL_CALENDAR)
+                t_calendar = m['attrs'].get('calendar', constants.DEFAULT_TEMPORAL_CALENDAR)
                 t_conform_units_to = get_units_object(t_conform_units_to, calendar=t_calendar)
                 m['conform_units_to'] = t_conform_units_to
 
@@ -278,7 +303,7 @@ class RequestDataset(AbstractRequestObject):
         if self._dimension_map is None:
             dimension_map_raw = self.driver.dimension_map_raw
             self._dimension_map = deepcopy(dimension_map_raw)
-        self.driver.format_dimension_map(self._dimension_map, self.metadata)
+        self._dimension_map.update_dimensions_from_metadata(self.metadata)
         return self._dimension_map
 
     @property
@@ -380,7 +405,7 @@ class RequestDataset(AbstractRequestObject):
     def units(self):
         ret = []
         for v in get_iter(self.variable):
-            ret.append(self.metadata['variables'][v]['attributes'].get('units'))
+            ret.append(self.metadata['variables'][v]['attrs'].get('units'))
         ret = get_first_or_tuple(ret)
         return ret
 
@@ -396,7 +421,7 @@ class RequestDataset(AbstractRequestObject):
 
             m = self.metadata['variables']
             for v, u in zip(get_tuple(self.variable), value):
-                m[v]['attributes']['units'] = u
+                m[v]['attrs']['units'] = u
 
     # tdk: remove
     @property
@@ -548,7 +573,7 @@ def get_autodiscovered_driver(uri):
 
 
 def get_driver(driver):
-    return get_driver_class(key_or_class=driver, default=DriverKey.NETCDF_CF)
+    return get_driver_class(key_class_or_instance=driver, default=constants.DEFAULT_DRIVER)
 
 
 def get_uri(uri, ignore_errors=False, followlinks=True):

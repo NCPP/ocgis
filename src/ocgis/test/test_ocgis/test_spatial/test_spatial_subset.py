@@ -5,8 +5,8 @@ from shapely import wkt
 
 from ocgis import CoordinateReferenceSystem, vm
 from ocgis import env
-from ocgis.collection.field import OcgField
-from ocgis.constants import WrappedState
+from ocgis.collection.field import Field
+from ocgis.constants import WrappedState, DimensionMapKey
 from ocgis.exc import EmptySubsetError
 from ocgis.spatial.spatial_subset import SpatialSubsetOperation
 from ocgis.test.base import TestBase, attr
@@ -14,7 +14,7 @@ from ocgis.test.strings import GERMANY_WKT, NEBRASKA_WKT
 from ocgis.test.test_ocgis.test_ops.test_parms.test_definition import TestGeom
 from ocgis.util.helpers import make_poly
 from ocgis.util.itester import itr_products_keywords
-from ocgis.variable.crs import WGS84, CFRotatedPole, WGS84, CFSpherical
+from ocgis.variable.crs import CFRotatedPole, WGS84, CFSpherical
 from ocgis.variable.geom import GeometryVariable
 from ocgis.vmachine.mpi import MPI_COMM, MPI_RANK
 
@@ -85,9 +85,9 @@ class TestSpatialSubsetOperation(TestBase):
 
         # 4: field with lambert conformal coordinate system
         lambert_dmap = {'crs': {'variable': 'Lambert_Conformal'}, 'groups': {},
-                        'time': {'variable': 'time', 'names': ['time'], 'bounds': 'time_bnds'},
-                        'x': {'variable': 'xc', 'names': ['xc']},
-                        'y': {'variable': 'yc', 'names': ['yc']}}
+                        'time': {'variable': 'time', DimensionMapKey.DIMS: ['time'], 'bounds': 'time_bnds'},
+                        'x': {'variable': 'xc', DimensionMapKey.DIMS: ['xc']},
+                        'y': {'variable': 'yc', DimensionMapKey.DIMS: ['yc']}}
         rd = self.test_data.get_rd('narccap_lambert_conformal', kwds={'dimension_map': lambert_dmap})
         field_lambert = rd.get()
 
@@ -196,7 +196,7 @@ class TestSpatialSubsetOperation(TestBase):
                             self.assertEqual(geometry_record['properties']['DESC'], 'Nebraska')
                         continue
                     else:
-                        self.assertIsInstance(ret, OcgField)
+                        self.assertIsInstance(ret, Field)
                         with vm.scoped_by_emptyable('write', ret):
                             if not vm.is_null:
                                 ret.write(output_path)

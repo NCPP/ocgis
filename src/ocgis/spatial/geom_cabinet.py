@@ -7,7 +7,7 @@ import ogr
 from shapely import wkb
 
 from ocgis import env
-from ocgis.collection.field import OcgField
+from ocgis.collection.field import Field
 from ocgis.util.helpers import get_formatted_slice
 from ocgis.util.logging_ocgis import ocgis_lh
 
@@ -92,7 +92,7 @@ class GeomCabinet(object):
         if union:
             gic = GeomCabinetIterator(key=key, select_uid=select_uid, path=path, load_geoms=load_geoms, as_field=False,
                                       uid=uid, select_sql_where=select_sql_where, slc=slc, union=False)
-            yld = OcgField.from_records(gic, meta['schema'], crs=meta['crs'], uid=uid, union=True)
+            yld = Field.from_records(gic, meta['schema'], crs=meta['crs'], uid=uid, union=True)
             yield yld
         else:
             if slc is not None and (select_uid is not None or select_sql_where is not None):
@@ -144,7 +144,7 @@ class GeomCabinet(object):
                         properties[uid] = int(properties[uid])
 
                     if as_field:
-                        yld = OcgField.from_records([yld], schema=meta['schema'], crs=yld['meta']['crs'], uid=uid)
+                        yld = Field.from_records([yld], schema=meta['schema'], crs=yld['meta']['crs'], uid=uid)
 
                     yield yld
                 try:

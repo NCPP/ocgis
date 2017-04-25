@@ -148,7 +148,7 @@ class NcConverter(AbstractCollectionConverter):
         Write a field to a netCDF dataset object.
 
         :param arch: The field to write.
-        :type arch: :class:`ocgis.new_interface.field.OcgField`
+        :type arch: :class:`ocgis.new_interface.field.Field`
         :param dict write_kwargs: Dictionary of parameters needed for the write.
         :param dict variable_kwargs: Optional keyword parameters to pass to the creation of netCDF4 variable objects.
          See http://unidata.github.io/netcdf4-python/#netCDF4.Variable.

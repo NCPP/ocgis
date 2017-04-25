@@ -5,21 +5,21 @@ import os
 from collections import OrderedDict
 from copy import deepcopy, copy
 from os.path import exists
+from types import FunctionType
 
 import numpy as np
 import six
 from shapely.geometry.base import BaseGeometry
 from shapely.geometry.point import Point
 from shapely.geometry.polygon import Polygon
-from types import FunctionType
 
 import ocgis
-from ocgis import RequestDataset
+from ocgis import RequestDataset, DimensionMap
 from ocgis import constants
 from ocgis import env
 from ocgis.calc.eval_function import EvalFunction, MultivariateEvalFunction
 from ocgis.calc.library import register
-from ocgis.collection.field import OcgField
+from ocgis.collection.field import Field
 from ocgis.constants import WrapAction, DimensionMapKey, KeywordArgument
 from ocgis.conv.base import get_converter, get_converter_map
 from ocgis.driver.request.base import AbstractRequestObject
@@ -27,7 +27,7 @@ from ocgis.exc import DefinitionValidationError
 from ocgis.ops.parms import base
 from ocgis.ops.parms.definition_helpers import MetadataAttributes
 from ocgis.spatial.geom_cabinet import GeomCabinetIterator
-from ocgis.spatial.grid import GridXY
+from ocgis.spatial.grid import Grid
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.util.units import get_units_class, get_units_object
 from ocgis.variable.crs import CoordinateReferenceSystem
@@ -464,7 +464,7 @@ class Dataset(base.AbstractParameter):
             super(Dataset, self).__init__(init_value)
 
     def __iter__(self):
-        non_iterables = [AbstractRequestObject, dict, OcgField]
+        non_iterables = [AbstractRequestObject, dict, Field]
         if env.USE_ESMF:
             import ESMF
             non_iterables.append(ESMF.Field)
@@ -479,8 +479,9 @@ class Dataset(base.AbstractParameter):
 
             if env.USE_ESMF and isinstance(element, ESMF.Field):
                 from ocgis.regrid.base import get_ocgis_field_from_esmf_field
-                dimension_map = {DimensionMapKey.X: {DimensionMapKey.VARIABLE: 'x', DimensionMapKey.NAMES: ['x']},
-                                 DimensionMapKey.Y: {DimensionMapKey.VARIABLE: 'y', DimensionMapKey.NAMES: ['y']}}
+                dimension_map = {DimensionMapKey.X: {DimensionMapKey.VARIABLE: 'x', DimensionMapKey.DIMS: ['x']},
+                                 DimensionMapKey.Y: {DimensionMapKey.VARIABLE: 'y', DimensionMapKey.DIMS: ['y']}}
+                dimension_map = DimensionMap.from_dict(dimension_map)
                 element = get_ocgis_field_from_esmf_field(element, dimensions=self.esmf_field_dimensions,
                                                           dimension_map=dimension_map)
 
@@ -493,8 +494,12 @@ class Dataset(base.AbstractParameter):
                 element.uid = uid
                 # TODO: Remove me once the driver does not accept request datasets at initialization.
                 # Try to change the driver UID.
-                if hasattr(element, 'driver'):
+                try:
                     element.driver.rd.uid = uid
+                except AttributeError:
+                    # The field driver does not keep a copy of the request dataset.
+                    if hasattr(element.driver, 'rd'):
+                        raise
 
             yield element
 
@@ -606,7 +611,7 @@ class Geom(base.AbstractParameter):
     name = 'geom'
     nullable = True
     default = None
-    input_types = [list, tuple, GeomCabinetIterator, BaseGeometry, OcgField, GeometryVariable]
+    input_types = [list, tuple, GeomCabinetIterator, BaseGeometry, Field, GeometryVariable]
     return_type = [GeomCabinetIterator, tuple]
     _shp_key = None
     _bounds = None
@@ -658,7 +663,7 @@ class Geom(base.AbstractParameter):
                     crs = element.get('crs', constants.UNINITIALIZED)
                     if 'crs' not in element:
                         ocgis_lh(msg='No CRS in geometry dictionary - assuming WGS84.', level=logging.WARN)
-                ret = OcgField.from_records(value, crs=crs, uid=self.geom_uid, union=self.union)
+                ret = Field.from_records(value, crs=crs, uid=self.geom_uid, union=self.union)
             else:
                 if len(value) == 2:
                     geom = Point(value[0], value[1])
@@ -668,7 +673,7 @@ class Geom(base.AbstractParameter):
                 if not geom.is_valid:
                     raise DefinitionValidationError(self, 'Parsed geometry is not valid.')
                 ret = [{'geom': geom, 'properties': {self._ugid_key: 1}}]
-                ret = OcgField.from_records(ret, uid=self.geom_uid, union=self.union)
+                ret = Field.from_records(ret, uid=self.geom_uid, union=self.union)
                 self._bounds = geom.bounds
         elif isinstance(value, GeomCabinetIterator):
             self._shp_key = value.key or value.path
@@ -677,21 +682,21 @@ class Geom(base.AbstractParameter):
             ret = value
         elif isinstance(value, BaseGeometry):
             ret = [{'geom': value, 'properties': {self._ugid_key: 1}}]
-            ret = OcgField.from_records(ret, uid=self.geom_uid, union=self.union)
+            ret = Field.from_records(ret, uid=self.geom_uid, union=self.union)
         elif value is None:
             ret = value
-        elif isinstance(value, OcgField):
+        elif isinstance(value, Field):
             ret = value
         elif isinstance(value, GeometryVariable):
             if value.ugid is None:
                 msg = 'Geometry variables must have an associated "UGID".'
                 raise DefinitionValidationError(self, msg)
-            ret = OcgField(geom=value, crs=value.crs)
+            ret = Field(geom=value, crs=value.crs)
         else:
             raise NotImplementedError(type(value))
 
         # Convert to singular field if this is a field object.
-        if isinstance(ret, OcgField):
+        if isinstance(ret, Field):
             ret = tuple(self._iter_singular_fields_(ret))
 
         return ret
@@ -762,7 +767,7 @@ class Geom(base.AbstractParameter):
     def _iter_singular_fields_(field):
         """
         :param field:
-        :type field: :class:`ocgis.new_interface.field.OcgField`
+        :type field: :class:`ocgis.new_interface.field.Field`
         :rtype: tuple
         """
 
@@ -987,7 +992,7 @@ class RegridDestination(base.AbstractParameter):
     nullable = True
     default = None
     input_types = None
-    return_type = [OcgField, GridXY]
+    return_type = [Field, Grid]
     _check_input_type = False
 
     def __init__(self, **kwargs):

@@ -28,6 +28,16 @@ class AbstractInterfaceObject(AbstractOcgisObject):
 
 @six.add_metaclass(abc.ABCMeta)
 class AbstractNamedObject(AbstractInterfaceObject):
+    """
+    Base class for objects with a name.
+    
+    :param str name: The object's name.
+    :param aliases: Alternative names for the object.
+    :type aliases: sequence(str, ...)
+    :param str source_name: Name of the object in its source data. Allows the object name and its source name to differ.
+    :param int uid: A unique integer identifier for the object.
+    """
+
     def __init__(self, name, aliases=None, source_name=constants.UNINITIALIZED, uid=None):
         self._aliases = None
         self._name = None

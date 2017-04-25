@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 import numpy as np
 
 from ocgis.util.enum import Enum, IntEnum
@@ -194,15 +196,18 @@ class DimensionMapKey(object):
     GROUPS = 'groups'
     X = 'x'
     Y = 'y'
-    Z = 'z'
     TIME = 'time'
     REALIZATION = 'realization'
     CRS = 'crs'
     BOUNDS = 'bounds'
     VARIABLE = 'variable'
-    NAMES = 'names'
+    DIMS = 'dimensions'
     LEVEL = 'level'
     GEOM = 'geom'
+
+
+class DMK(DimensionMapKey):
+    """Here for convenience."""
 
 
 # MPI Writing flags.
@@ -272,6 +277,7 @@ class KeywordArgument(object):
     STRICT = 'strict'
     TAG = 'tag'
     UGID = 'ugid'
+    UID = 'uid'
     UNLIMITED_TO_FIXED_SIZE = 'unlimited_to_fixedsize'
     UNION = 'union'
     UPDATE = 'update'
@@ -343,3 +349,22 @@ class ConversionFactor(object):
 
 
 MPI_COMM_NULL_VALUE = 8675309
+
+DEFAULT_DRIVER = DriverKey.NETCDF_CF
+
+DIMENSION_MAP_TEMPLATE = OrderedDict()
+DIMENSION_MAP_TEMPLATE[DimensionMapKey.REALIZATION] = {DimensionMapKey.ATTRS: {CFName.AXIS: 'R'},
+                                                       DimensionMapKey.VARIABLE: None, DimensionMapKey.DIMS: []}
+DIMENSION_MAP_TEMPLATE[DimensionMapKey.TIME] = {DimensionMapKey.ATTRS: {CFName.AXIS: 'T'},
+                                                DimensionMapKey.VARIABLE: None, DimensionMapKey.BOUNDS: None,
+                                                DimensionMapKey.DIMS: []}
+DIMENSION_MAP_TEMPLATE[DimensionMapKey.LEVEL] = {DimensionMapKey.ATTRS: {CFName.AXIS: 'Z'},
+                                                 DimensionMapKey.VARIABLE: None, DimensionMapKey.BOUNDS: None,
+                                                 DimensionMapKey.DIMS: []}
+DIMENSION_MAP_TEMPLATE[DimensionMapKey.Y] = {DimensionMapKey.ATTRS: {CFName.AXIS: 'Y'}, DimensionMapKey.VARIABLE: None,
+                                             DimensionMapKey.BOUNDS: None, DimensionMapKey.DIMS: []}
+DIMENSION_MAP_TEMPLATE[DimensionMapKey.X] = {DimensionMapKey.ATTRS: {CFName.AXIS: 'X'}, DimensionMapKey.VARIABLE: None,
+                                             DimensionMapKey.BOUNDS: None, DimensionMapKey.DIMS: []}
+DIMENSION_MAP_TEMPLATE[DimensionMapKey.GEOM] = {DimensionMapKey.ATTRS: {CFName.AXIS: 'ocgis_geom'},
+                                                DimensionMapKey.VARIABLE: None, DimensionMapKey.DIMS: []}
+DIMENSION_MAP_TEMPLATE[DimensionMapKey.CRS] = {DimensionMapKey.VARIABLE: None}

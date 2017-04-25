@@ -5,35 +5,63 @@ from copy import deepcopy
 
 from shapely.geometry import shape
 
-from ocgis import env
+from ocgis import env, DimensionMap
 from ocgis.base import get_dimension_names, get_variable_names, get_variables, renamed_dimensions_on_variables, \
     revert_renamed_dimensions_on_variables, raise_if_empty
 from ocgis.constants import DimensionMapKey, WrapAction, TagName, HeaderName, DimensionName, UNINITIALIZED, \
     KeywordArgument
-from ocgis.spatial.grid import GridXY
+from ocgis.spatial.grid import Grid
 from ocgis.util.helpers import get_iter
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import VariableCollection, Variable, get_bounds_names_1d
-from ocgis.variable.crs import CoordinateReferenceSystem, AbstractOcgisCoordinateReferenceSystem
+from ocgis.variable.crs import CoordinateReferenceSystem
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.variable.iterator import Iterator
 from ocgis.variable.temporal import TemporalGroupVariable, TemporalVariable
 
-_DIMENSION_MAP = OrderedDict()
-_DIMENSION_MAP['realization'] = {'attrs': {'axis': 'R'}, 'variable': None, 'names': []}
-_DIMENSION_MAP['time'] = {'attrs': {'axis': 'T'}, 'variable': None, 'bounds': None, 'names': []}
-_DIMENSION_MAP['level'] = {'attrs': {'axis': 'Z'}, 'variable': None, 'bounds': None, 'names': []}
-_DIMENSION_MAP['y'] = {'attrs': {'axis': 'Y'}, 'variable': None, 'bounds': None, 'names': []}
-_DIMENSION_MAP['x'] = {'attrs': {'axis': 'X'}, 'variable': None, 'bounds': None, 'names': []}
-_DIMENSION_MAP['geom'] = {'attrs': {'axis': 'ocgis_geom'}, 'variable': None, 'names': []}
-_DIMENSION_MAP['crs'] = {'attrs': None, 'variable': None}
 
+class Field(VariableCollection):
+    """
+    A field behaves like a variable collection but with additional metadata on its component variables.
+    
+    .. note:: Accepts all parameters to :class:`ocgis.VariableCollection`.
 
-class OcgField(VariableCollection):
-    def __init__(self, *args, **kwargs):
-        dimension_map = deepcopy(kwargs.pop('dimension_map', None))
-        self.dimension_map = get_merged_dimension_map(dimension_map)
+    Additional keyword arguments are:
+
+    :param dimension_map: (``=None``) Maps variables to axes, dimensions, bounds, and default attributes. It is possible
+     to fully-specify a default field by providing a list of ``variables`` and the dimension map. 
+     Instrumented/coordinate variables may be provided with keyword arguments. The dimension map is updated internally 
+     in those cases.
+    :type dimension_map: :class:`ocgis.DimensionMap` | dict
+    :param is_data: (``=None``) Set these variables or variable names (if names are provided, the variables must be
+     provided through ``variables``) as data variables. Data variables often contain the field information of interest
+     such as temperature, relative humidity, etc.
+    :type is_data: sequence(:class:`ocgis.Variable` | str, ...)
+    :param realization: (``=None``) A realization or ensemble variable. Its value is typically an integer representing
+     its record count across global realizations.
+    :type realization: :class:`ocgis.Variable`
+    :param time: (``=None``) A time variable.
+    :type time: :class:`ocgis.TemporalVariable`
+    :param level: (``=None``) A level variable. This may also be considered the field's z-coordinate.
+    :type level: :class:`ocgis.Variable`
+    :param grid: (``=None``) A grid object. x/y-coordinates will be pulled from the grid automatically. Any level or
+     z-coordinate must be provided using ``level``.
+    :type grid: :class:`ocgis.Grid`
+    :param geom: (``=None``) The geometry variable.
+    :type geom: :class:`ocgis.GeometryVariable`
+    :param crs: (``='auto'``) A coordinate reference system variable. If ``'auto'``, use the coordinate system from
+     the ``grid`` or ``geom``. ``geom`` is given preference if both are present.
+    :type crs: str | None | :class:`ocgis.variable.crs.AbstractCoordinateReferenceSystem`
+    :param str grid_abstraction: See keyword argument ``abstraction`` for :class:`ocgis.Grid`.
+    :param str format_time: See keyword argument ``format_time`` for :class:`ocgis.TemporalVariable`.
+    """
+
+    def __init__(self, **kwargs):
+        dimension_map = deepcopy(kwargs.pop('dimension_map', DimensionMap()))
+        if isinstance(dimension_map, dict):
+            dimension_map = DimensionMap.from_dict(dimension_map)
+        self.dimension_map = dimension_map
 
         # Flag updated by driver to indicate if the coordinate system is assigned or implied.
         self._has_assigned_coordinate_system = False
@@ -42,11 +70,20 @@ class OcgField(VariableCollection):
         # Flag to indicate if this is a regrid source.
         self.regrid_source = kwargs.pop('regrid_source', True)
 
+        # Other incoming data objects may have a coordinate system which should be used.
+        crs = kwargs.pop('crs', 'auto')
+
         # Add grid variable metadata to dimension map.
         grid = kwargs.pop('grid', None)
         if grid is not None:
             update_dimension_map_with_variable(self.dimension_map, DimensionMapKey.X, grid.x, grid.dimensions[1])
             update_dimension_map_with_variable(self.dimension_map, DimensionMapKey.Y, grid.y, grid.dimensions[0])
+            if grid.crs is not None:
+                if crs == 'auto':
+                    crs = grid.crs
+                else:
+                    if grid.crs != crs:
+                        raise ValueError("'grid' CRS differs from field CRS.")
         # Add realization variable metadata to dimension map.
         rvar = kwargs.pop('realization', None)
         if rvar is not None:
@@ -60,14 +97,19 @@ class OcgField(VariableCollection):
         lvar = kwargs.pop('level', None)
         if lvar is not None:
             update_dimension_map_with_variable(self.dimension_map, DimensionMapKey.LEVEL, lvar, lvar.dimensions[0])
-        # Add the coordinate system.
-        crs = kwargs.pop('crs', None)
-        if crs is not None:
-            update_dimension_map_with_variable(self.dimension_map, DimensionMapKey.CRS, crs, None)
         # Add the geometry variable.
         geom = kwargs.pop('geom', None)
         if geom is not None:
             update_dimension_map_with_variable(self.dimension_map, DimensionMapKey.GEOM, geom, None)
+            if geom.crs is not None:
+                if crs == 'auto':
+                    crs = geom.crs
+                else:
+                    if geom.crs != crs:
+                        raise ValueError("'geom' CRS differs from field CRS.")
+        # Add the coordinate system.
+        if crs != 'auto' and crs is not None:
+            self.dimension_map.set_crs(crs)
 
         self.grid_abstraction = kwargs.pop('grid_abstraction', 'auto')
         if self.grid_abstraction is None:
@@ -78,7 +120,7 @@ class OcgField(VariableCollection):
         # Use tags to set data variables.
         is_data = kwargs.pop(KeywordArgument.IS_DATA, [])
 
-        VariableCollection.__init__(self, *args, **kwargs)
+        VariableCollection.__init__(self, **kwargs)
 
         # Append the data variable tagged variable names.
         is_data = list(get_iter(is_data, dtype=Variable))
@@ -90,9 +132,8 @@ class OcgField(VariableCollection):
                 if isinstance(is_data[idx], Variable):
                     self.add_variable(is_data[idx])
 
-        # Add grid variables to the variable collection.
         if grid is not None:
-            for var in list(grid.parent.values()):
+            for var in grid.parent.values():
                 self.add_variable(var, force=True)
         if tvar is not None:
             self.add_variable(tvar, force=True)
@@ -100,10 +141,12 @@ class OcgField(VariableCollection):
             self.add_variable(rvar, force=True)
         if lvar is not None:
             self.add_variable(lvar, force=True)
-        if crs is not None:
+        if crs != 'auto' and crs is not None:
             self.add_variable(crs, force=True)
         if geom is not None:
             self.add_variable(geom, force=True)
+
+        self.dimension_map.update_dimensions_from_field(self)
 
     @property
     def _should_regrid(self):
@@ -141,7 +184,12 @@ class OcgField(VariableCollection):
 
     @property
     def crs(self):
-        return get_field_property(self, 'crs')
+        crs_name = self.dimension_map.get_crs()
+        if crs_name is None:
+            ret = None
+        else:
+            ret = self[crs_name]
+        return ret
 
     @property
     def data_variables(self):
@@ -190,13 +238,17 @@ class OcgField(VariableCollection):
         return get_field_property(self, 'x')
 
     @property
+    def z(self):
+        return self.level
+
+    @property
     def grid(self):
         x = self.x
         y = self.y
         if x is None or y is None:
             ret = None
         else:
-            ret = GridXY(self.x, self.y, parent=self, crs=self.crs, abstraction=self.grid_abstraction, z=self.level)
+            ret = Grid(self.x, self.y, parent=self, crs=self.crs, abstraction=self.grid_abstraction, z=self.level)
         return ret
 
     @property
@@ -219,14 +271,14 @@ class OcgField(VariableCollection):
         return ret
 
     def add_variable(self, variable, force=False, is_data=False):
-        super(OcgField, self).add_variable(variable, force=force)
+        super(Field, self).add_variable(variable, force=force)
         if is_data:
             tagged = get_variable_names(self.get_by_tag(TagName.DATA_VARIABLES, create=True))
             if variable.name not in tagged:
                 self.append_to_tags(TagName.DATA_VARIABLES, variable.name)
 
     def copy(self):
-        ret = super(OcgField, self).copy()
+        ret = super(Field, self).copy()
         # Changes to a field's shallow copy should be able to adjust attributes in the dimension map as needed.
         ret.dimension_map = deepcopy(ret.dimension_map)
         return ret
@@ -251,7 +303,7 @@ class OcgField(VariableCollection):
         :param bool union: If ``True``, union the geometries from records yielding a single geometry with a unique
          identifier value of ``1``.
         :returns: Field object constructed from records.
-        :rtype: :class:`ocgis.new_interface.field.OcgField`
+        :rtype: :class:`ocgis.new_interface.field.Field`
         """
 
         if uid is None:
@@ -328,7 +380,7 @@ class OcgField(VariableCollection):
         uid = Variable(name=uid, value=deque_uid, dimensions=dim)
         geom.set_ugid(uid)
 
-        field = OcgField(geom=geom, crs=crs)
+        field = Field(geom=geom, crs=crs)
 
         # All records from a unioned geometry are not relevant.
         if not union:
@@ -373,10 +425,12 @@ class OcgField(VariableCollection):
         kwargs['attrs'] = vc.attrs
         kwargs['parent'] = vc.parent
         kwargs['children'] = vc.children
-        kwargs['uid'] = vc.uid
+        kwargs[KeywordArgument.UID] = vc.uid
+        kwargs[KeywordArgument.DRIVER] = vc.driver
+        kwargs['variables'] = vc.values()
+        if 'force' not in kwargs:
+            kwargs['force'] = True
         ret = cls(*args, **kwargs)
-        for v in list(vc.values()):
-            ret.add_variable(v, force=True)
         return ret
 
     def get_field_slice(self, dslice, strict=True, distributed=False):
@@ -407,7 +461,7 @@ class OcgField(VariableCollection):
             if distributed:
                 ret = self.data_variables[0].get_distributed_slice(the_slice).parent
             else:
-                ret = super(OcgField, self).__getitem__(the_slice)
+                ret = super(Field, self).__getitem__(the_slice)
 
         revert_renamed_dimensions_on_variables(mapping_meta, ret)
         return ret
@@ -544,7 +598,7 @@ class OcgField(VariableCollection):
         kwargs[KeywordArgument.FOLLOWERS] = followers
         kwargs[KeywordArgument.GEOM] = geom
 
-        for yld in super(OcgField, self).iter(**kwargs):
+        for yld in super(Field, self).iter(**kwargs):
             yield yld
 
     def iter_data_variables(self, tag_name=TagName.DATA_VARIABLES):
@@ -579,19 +633,16 @@ class OcgField(VariableCollection):
         if value is not None:
             variable_name = value.name
             self.add_variable(value)
+            value.format_field(self)
         else:
             variable_name = None
-        self.dimension_map[DimensionMapKey.CRS][DimensionMapKey.VARIABLE] = variable_name
+        self.dimension_map.set_crs(value)
 
     def set_geom(self, variable, force=True):
-        if variable is None:
-            self.dimension_map[DimensionMapKey.GEOM] = None
-        else:
-            dmap_entry = self.dimension_map[DimensionMapKey.GEOM]
-            dmap_entry[DimensionMapKey.VARIABLE] = variable.name
-            if variable.crs != self.crs and not self.is_empty:
-                raise ValueError('Geometry and field do not have matching coordinate reference systems.')
-            self.add_variable(variable, force=force)
+        self.dimension_map.set_variable(DimensionMapKey.GEOM, variable)
+        if variable.crs != self.crs and not self.is_empty:
+            raise ValueError('Geometry and field do not have matching coordinate reference systems.')
+        self.add_variable(variable, force=force)
 
     def set_grid(self, grid, force=True):
         for member in grid.get_member_variables():
@@ -604,21 +655,9 @@ class OcgField(VariableCollection):
         new_geom = self.grid.get_abstraction_geometry()
         self.set_geom(new_geom, force=force)
 
-    def set_time(self, variable):
-        if self.time is not None:
-            time_bounds = self.time.bounds
-            if time_bounds is not None:
-                bounds_dimension_name = time_bounds.dimensions[1].name
-            time_name = self.time.name
-            self.dimensions.pop(self.time.dimensions[0].name)
-            self.pop(time_name)
-            if time_bounds is not None:
-                self.dimensions.pop(bounds_dimension_name)
-                self.pop(time_bounds.name)
-        self.add_variable(variable)
-        self.dimension_map[DimensionMapKey.TIME][DimensionMapKey.VARIABLE] = variable.name
-        if variable.has_bounds:
-            self.dimension_map[DimensionMapKey.TIME][DimensionMapKey.BOUNDS] = variable.bounds.name
+    def set_time(self, variable, force=True):
+        self.add_variable(variable, force=force)
+        self.dimension_map.set_variable(DimensionMapKey.TIME, variable)
 
     def set_x(self, variable, dimension, force=True):
         self.add_variable(variable, force=force)
@@ -640,7 +679,8 @@ class OcgField(VariableCollection):
             self.grid.update_crs(to_crs)
         else:
             self.geom.update_crs(to_crs)
-        self.dimension_map[DimensionMapKey.CRS]['variable'] = to_crs.name
+
+        self.dimension_map.set_crs(to_crs)
 
     def wrap(self, inplace=True):
         wrap_or_unwrap(self, WrapAction.WRAP, inplace=inplace)
@@ -649,11 +689,13 @@ class OcgField(VariableCollection):
         from ocgis.driver.nc import DriverNetcdfCF
         from ocgis.driver.registry import get_driver_class
 
+        to_load = (DimensionMapKey.REALIZATION, DimensionMapKey.TIME, DimensionMapKey.LEVEL, DimensionMapKey.Y,
+                   DimensionMapKey.X)
+
         # Attempt to load all instrumented dimensions once. Do not do this for the geometry variable. This is done to
         # ensure proper attributes are applied to dimension variables before writing.
-        for k in list(self.dimension_map.keys()):
-            if k != 'geom':
-                getattr(self, k)
+        for k in to_load:
+            getattr(self, k)
 
         driver = kwargs.pop('driver', DriverNetcdfCF)
         driver = get_driver_class(driver, default=driver)
@@ -663,8 +705,8 @@ class OcgField(VariableCollection):
 
 
 def get_field_property(field, name, strict=False):
-    variable = field.dimension_map[name]['variable']
-    bounds = field.dimension_map[name].get('bounds')
+    variable = field.dimension_map.get_variable(name)
+    bounds = field.dimension_map.get_bounds(name)
     if variable is None:
         ret = None
     else:
@@ -675,59 +717,37 @@ def get_field_property(field, name, strict=False):
                 raise
             else:
                 ret = None
-        if not isinstance(ret, AbstractOcgisCoordinateReferenceSystem) and ret is not None:
-            ret.attrs.update(field.dimension_map[name].get(DimensionMapKey.ATTRS, {}))
+        if ret is not None:
+            ret.attrs.update(field.dimension_map.get_attrs(name))
             if bounds is not None:
                 ret.set_bounds(field.get(bounds), force=True)
     return ret
 
 
-def get_merged_dimension_map(dimension_map):
-    dimension_map_template = deepcopy(_DIMENSION_MAP)
-    # Merge incoming dimension map with the template.
-    if dimension_map is not None:
-        for k, v in list(dimension_map.items()):
-            # Groups in dimension maps don't matter to the target field. Each field keeps its own copy.
-            if k == 'groups':
-                continue
-            for k2, v2, in list(v.items()):
-                if k2 == 'attrs':
-                    dimension_map_template[k][k2].update(v2)
-                else:
-                    dimension_map_template[k][k2] = v2
-    return dimension_map_template
-
-
 def get_name_mapping(dimension_map):
     name_mapping = {}
-    for k, v in list(dimension_map.items()):
-        # Do not slice the coordinate system variable.
-        if k == DimensionMapKey.CRS:
-            continue
-        variable_name = v[DimensionMapKey.VARIABLE]
+    to_slice = [DimensionMapKey.REALIZATION, DimensionMapKey.TIME, DimensionMapKey.LEVEL, DimensionMapKey.Y,
+                DimensionMapKey.X]
+    if len(dimension_map.get_dimensions(DimensionMapKey.GEOM)) == 1:
+        to_slice.append(DimensionMapKey.GEOM)
+    for k in to_slice:
+        variable_name = dimension_map.get_variable(k)
         if variable_name is not None:
-            dimension_names = dimension_map[k][DimensionMapKey.NAMES]
+            dimension_names = dimension_map.get_dimensions(k)
             # Use the variable name if there are no dimension names available.
             if len(dimension_names) == 0:
-                dimension_name = dimension_map[k][DimensionMapKey.VARIABLE]
+                dimension_name = variable_name
             else:
                 dimension_name = dimension_names[0]
 
-            variable_names = v[DimensionMapKey.NAMES]
-            if dimension_name not in variable_names:
-                variable_names.append(dimension_name)
-            name_mapping[k] = variable_names
+            if dimension_name not in dimension_names:
+                dimension_names.append(dimension_name)
+            name_mapping[k] = dimension_names
     return name_mapping
 
 
 def update_dimension_map_with_variable(dimension_map, key, variable, dimension):
-    r = dimension_map[key]
-    r[DimensionMapKey.VARIABLE] = variable.name
-    if variable.has_bounds:
-        r[DimensionMapKey.BOUNDS] = variable.bounds.name
-    if dimension is not None:
-        for dimension in get_iter(dimension, dtype=Dimension):
-            r[DimensionMapKey.NAMES].append(dimension.name)
+    dimension_map.set_variable(key, variable, dimensions=dimension)
 
 
 def update_header_rename_bounds_names(bounds_name_desired, header_rename, variable):
@@ -760,5 +780,6 @@ def wrap_or_unwrap(field, action, inplace=True):
         raise ValueError('No grid or geometry to wrap/unwrap.')
 
     # Bounds are not handled by wrap/unwrap operations. They should be removed from the dimension map if present.
-    for key in [DimensionMapKey.X, DimensionMapKey.Y]:
-        field.dimension_map[key][DimensionMapKey.BOUNDS] = None
+    if field.grid is not None:
+        for key in [DimensionMapKey.X, DimensionMapKey.Y]:
+            field.dimension_map.set_bounds(key, None)

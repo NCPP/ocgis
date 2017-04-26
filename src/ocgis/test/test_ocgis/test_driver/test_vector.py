@@ -4,6 +4,7 @@ import fiona
 import numpy as np
 import six
 from shapely.geometry import Point
+from shapely.ops import cascaded_union
 
 from ocgis import RequestDataset, vm
 from ocgis import constants
@@ -11,7 +12,9 @@ from ocgis.collection.field import Field
 from ocgis.constants import MPIWriteMode, DimensionName
 from ocgis.driver.base import AbstractDriver
 from ocgis.driver.vector import DriverVector, get_fiona_crs, get_fiona_schema
-from ocgis.test.base import TestBase, attr
+from ocgis.ops.core import OcgOperations
+from ocgis.spatial.geom_cabinet import GeomCabinetIterator
+from ocgis.test.base import TestBase, attr, create_exact_field, create_gridxy_global
 from ocgis.variable.base import Variable, SourcedVariable
 from ocgis.variable.crs import WGS84, CoordinateReferenceSystem, Spherical
 from ocgis.variable.dimension import Dimension
@@ -81,6 +84,24 @@ class TestDriverVector(TestBase):
         path = self.get_temporary_file_path('foo.geojson')
         field.write(path, driver=DriverVector, fiona_driver='GeoJSON')
         # subprocess.check_call(['gedit', path])
+
+    def test_system_merge_geometries_across_shapefiles(self):
+        geoms_to_union = []
+        state_names = ('Nebraska', 'South Dakota', 'North Dakota')
+        gci = GeomCabinetIterator(path=self.path_state_boundaries)
+        for row in gci:
+            if row['properties']['STATE_NAME'] in state_names:
+                geoms_to_union.append(row['geom'])
+        self.assertEqual(len(geoms_to_union), 3)
+        unioned = cascaded_union(geoms_to_union)
+
+        grid = create_gridxy_global()
+        field = create_exact_field(grid, 'data', crs=WGS84())
+        original_shape = field.grid.shape
+        ops = OcgOperations(dataset=field, geom=unioned)
+        ret = ops.execute()
+        actual_shape = ret.get_element().grid.shape
+        self.assertNotEqual(actual_shape, original_shape)
 
     @attr('mpi')
     def test_system_parallel_write_ndvariable(self):

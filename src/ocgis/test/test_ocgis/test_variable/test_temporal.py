@@ -8,10 +8,12 @@ from netCDF4 import date2num, num2date, netcdftime
 
 from ocgis import RequestDataset
 from ocgis import constants
-from ocgis.constants import HeaderName, KeywordArgument
+from ocgis.constants import HeaderName, KeywordArgument, DimensionMapKey
+from ocgis.driver.dimension_map import DimensionMap
 from ocgis.exc import CannotFormatTimeError, IncompleteSeasonError
 from ocgis.ops.parms.definition import CalcGrouping
 from ocgis.test.base import attr, AbstractTestInterface
+from ocgis.test.test_simple.test_dependencies import create_mftime_nc_files
 from ocgis.util.helpers import get_date_list
 from ocgis.util.units import get_units_object, get_are_units_equal, get_are_units_equivalent
 from ocgis.variable.temporal import get_datetime_conversion_state, get_datetime_from_months_time_units, \
@@ -247,7 +249,7 @@ class TestTemporalVariable(AbstractTestTemporal):
         sub = var[np.array([False, True, True, True, False])]
         self.assertEqual(sub.shape, (3,))
 
-    def test_360_day_calendar(self):
+    def test_system_360_day_calendar(self):
         months = list(range(1, 13))
         days = list(range(1, 31))
         vec = []
@@ -284,6 +286,31 @@ class TestTemporalVariable(AbstractTestTemporal):
                         self.assertIsNotNone(td.value_datetime)
                     except CannotFormatTimeError:
                         self.assertFalse(format_time)
+
+    def test_bounds(self):
+        # Test bounds inherits calendar from parent.
+        tv = TemporalVariable(name='time', value=[1, 2], calendar='noleap', dimensions='time')
+        tvb = TemporalVariable(name='tbounds', value=[[0.5, 1.5], [1.5, 2.5]], dimensions=['time', 'bounds'])
+        tv.set_bounds(tvb)
+        self.assertEqual(tv.bounds.calendar, tv.calendar)
+
+        # Test MFTime and bad bounds metadata overloading the dimension map.
+        paths = create_mftime_nc_files(self, units_on_time_bounds=True)
+        dmap = {'time': {'attrs': {'axis': 'T'},
+                         'bounds': None,
+                         'dimensions': [u'time'],
+                         'variable': u'time'}}
+        rd = RequestDataset(paths, dimension_map=dmap)
+        field = rd.get()
+        self.assertIsNone(field.time.bounds)
+        self.assertIsNotNone(field.time.value_datetime)
+
+        # Run test same as above but change how dimension map is modified.
+        rd = RequestDataset(paths)
+        rd.dimension_map.set_bounds(DimensionMapKey.TIME, None)
+        field = rd.get()
+        self.assertIsNone(field.time.bounds)
+        self.assertIsNotNone(field.time.value_datetime)
 
     @attr('cfunits')
     def test_cfunits(self):

@@ -1,9 +1,10 @@
 import os
 
 import numpy as np
-from netCDF4._netCDF4 import MFDataset, MFTime
+from netCDF4._netCDF4 import MFDataset, MFTime, num2date
 
-from ocgis import CoordinateReferenceSystem
+from ocgis import CoordinateReferenceSystem, Variable
+from ocgis.driver.request.core import RequestDataset
 from ocgis.test.base import TestBase, attr
 
 
@@ -22,7 +23,6 @@ class TestDependencies(TestBase):
 
     def test_netCDF4_MFTime(self):
         paths = create_mftime_nc_files(self)
-
         mfd = MFDataset(paths)
         try:
             mvtime = MFTime(mfd.variables['time'])
@@ -32,17 +32,31 @@ class TestDependencies(TestBase):
         finally:
             mfd.close()
 
+        # Test units/no calendar on time bounds breaks MFTime.
+        paths = create_mftime_nc_files(self, units_on_time_bounds=True)
+        mfd = MFDataset(paths)
+        try:
+            with self.assertRaises(ValueError):
+                MFTime(mfd['time_bounds'])
+        finally:
+            mfd.close()
+
     def test_osr(self):
         crs = CoordinateReferenceSystem(epsg=4326)
         self.assertNotEqual(crs.value, {})
 
 
-def create_mftime_nc_files(test_obj, with_all_cf=False):
+def create_mftime_nc_files(test_obj, with_all_cf=False, units_on_time_bounds=False, calendar_on_second=True):
     value = [0, 1, 2]
     units = ['days since 2000-1-1', 'days since 2001-1-1']
     names = ['time_2000.nc', 'time_2001.nc']
     paths = []
-    for unit, name in zip(units, names):
+
+    if units_on_time_bounds:
+        tv = Variable(name='time_bounds_maker', value=value, dimensions='tbmdim')
+        tv.set_extrapolated_bounds('time_bounds', 'bounds')
+
+    for ctr, (unit, name) in enumerate(zip(units, names)):
         path = test_obj.get_temporary_file_path(name)
         paths.append(path)
 
@@ -50,9 +64,20 @@ def create_mftime_nc_files(test_obj, with_all_cf=False):
             f.createDimension('time')
             vtime = f.createVariable('time', np.float32, dimensions=('time',))
             vtime[:] = value
-            vtime.calendar = 'standard'
             vtime.units = unit
+            if ctr == 0 or (calendar_on_second and ctr == 1):
+                vtime.calendar = 'standard'
             vtime.axis = 'T'
+            if units_on_time_bounds:
+                vtime.calendar = 'noleap'
+                vtime.bounds = 'time_bounds'
+
+            if units_on_time_bounds:
+                f.createDimension('bounds', 2)
+                vbtime = f.createVariable('time_bounds', np.float32, dimensions=('time', 'bounds'))
+                vbtime[:] = tv.bounds.get_value()
+                # Note no calendar on bounds variable.
+                vbtime.units = units
 
             if with_all_cf:
                 f.createDimension('x', 4)

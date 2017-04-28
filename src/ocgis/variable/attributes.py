@@ -1,8 +1,10 @@
 from collections import OrderedDict
+from warnings import warn
 
 import six
 
 from ocgis.base import AbstractOcgisObject
+from ocgis.exc import OcgWarning
 
 
 class Attributes(AbstractOcgisObject):
@@ -44,13 +46,20 @@ class Attributes(AbstractOcgisObject):
             if k.startswith('_') or v is None:
                 # Do not write private/protected attributes used by netCDF or None values.
                 continue
-            if isinstance(v, six.string_types):
-                v = str(v)
-            if k == 'axis' and isinstance(v, six.string_types):
-                # HACK: Axis writing was causing a strange netCDF failure.
-                target.axis = str(v)
-            else:
-                target.setncattr(str(k), v)
+            try:
+                if isinstance(v, six.string_types):
+                    v = str(v)
+                if k == 'axis' and isinstance(v, six.string_types):
+                    # HACK: Axis writing was causing a strange netCDF failure.
+                    target.axis = str(v)
+                else:
+                    target.setncattr(str(k), v)
+            except UnicodeError:
+                # Just write the attribute if we encounter a unicode error.
+                msg = "UnicodeError encountered when converting the value of attribute with name '{}' to a string. " \
+                      "Sending the value to the netCDF API".format(k)
+                warn(OcgWarning(msg))
+                target.setncattr(k, v)
 
     def _get_attrs_(self):
         return OrderedDict()

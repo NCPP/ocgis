@@ -1416,22 +1416,29 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
     A variable collection may have a parent and children (groups). Variable collections may be sliced using a 
     dictionary.
 
-    :param name: See :class:`ocgis.base.AbstractNamedObject`. 
+    :param str name: The collection's name.
     :param variables: Initial set of variables used to initialize the collection.
-    :type variables: sequence(:class:`ocgis.Variable`, ...)
-    :param attrs: See :class:`ocgis.variable.attributes.Attributes`.
+    :type variables: `sequence` of :class:`~ocgis.Variable`
+    :param attrs: See :class:`~ocgis.variable.attributes.Attributes`.
     :param parent: The parent collection.
-    :type parent: :class:`ocgis.VariableCollection`
+    :type parent: :class:`~ocgis.VariableCollection`
     :param children: A dictionary of child variable collections.
-    :type children: dict ``{<str:variable collection name>: <:class:`ocgis.VariableCollection`>, ...}``)
-    :param aliases: See :class:`ocgis.base.AbstractNamedObject`.
+    :type children: dict
+    
+    >>> child_vc = VariableCollection()
+    >>> children = {'child1': child_vc}
+    
+    :param aliases: See :class:`~ocgis.base.AbstractNamedObject`.
     :param tags: Tags are used to group variables (data variables for example).
-    :type tags: dict ``{<str: tag name>, [<str:variable name>, ...], ...}``
-    :param source_name: See :class:`ocgis.base.AbstractNamedObject`.
-    :param uid: See :class:`ocgis.base.AbstractNamedObject`.
+    :type tags: dict
+    
+    >>> tags = {'special_variables': ['teddy', 'unicorn']}
+    
+    :param source_name: See :class:`~ocgis.base.AbstractNamedObject`.
+    :param uid: See :class:`~ocgis.base.AbstractNamedObject`.
     :param is_empty: If ``True``, this is an empty collection.
     :param driver: A driver contains format-specific data transformations.
-    :type driver: :class:`ocgis.driver.base.AbstractDriver`
+    :type driver: :class:`~ocgis.driver.base.AbstractDriver`
     :param bool force: If ``True``, clobber any names that already exist in the collection.
     :param groups: Alias for ``children``.
     """
@@ -1461,6 +1468,13 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
                 self.add_variable(variable, force=force)
 
     def __getitem__(self, item_or_slc):
+        """
+        :param item_or_slc: The string name of the variable to retrieve or a dictionary slice. A dictionary slice has
+         dimension names for keys and the slice as values. A shallow copy of the variable collection is returned in
+         the case of a slice.
+        :type item_or_slc: :class:`str` | :class:`dict`
+        :return: :class:`~ocgis.Variable` | :class:`~ocgis.VariableCollection`
+        """
         if not isinstance(item_or_slc, dict):
             ret = AbstractCollection.__getitem__(self, item_or_slc)
         else:
@@ -1491,15 +1505,27 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
 
     @property
     def dimensions(self):
+        """
+        :return: A dimension dictionary containing all dimensions on associated with variables in the collection.
+        :rtype: :class:`~collections.OrderedDict`
+        """
         return self._dimensions
 
     @property
     def driver(self):
+        """
+        :return: Get the driver associated with the collection.
+        :rtype: :class:`~ocgis.AbstractDriver`
+        """
         from ocgis.driver.registry import get_driver_class
         return get_driver_class(self._driver)
 
     @property
     def group(self):
+        """
+        :return: The group index in the parent/child hierarchy. Returns ``None`` if this collection is the head.
+        :rtype: ``None`` | :class:`list` of :class:`str`
+        """
         if self.parent is None:
             ret = None
         else:
@@ -1516,14 +1542,23 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
 
     @property
     def groups(self):
+        """Alias for :attr:`~ocgis.VariableCollection.children`."""
         return self.children
 
     @property
     def is_empty(self):
+        """
+        :return: ``True`` if there is anything empty in the collection.
+        :rtype: bool
+        """
         return get_is_empty_recursive(self)
 
     @property
     def shapes(self):
+        """
+        :return: A dictionary of variable shapes.
+        :rtype: :class:`~collections.OrderedDict`
+        """
         return OrderedDict([[k, v.shape] for k, v in list(self.items()) if not is_crs_variable(v)])
 
     @property
@@ -1531,12 +1566,29 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
         raise NotImplementedError
 
     def add_child(self, child, force=False):
+        """
+        Add a child variable collection to the current variable collection.
+        
+        :param child: Child variable collection to add.
+        :type child: :class:`~ocgis.VariableCollection`
+        :param bool force: If ``True``, clobber any existing children with the same name.
+        :raises: ValueError
+        """
         if child.name in self.children and not force:
             raise ValueError("Child with name '{}' already in parent with name '{}'.".format(child.name, self.name))
         child.parent = self
         self.children[child.name] = child
 
     def add_dimension(self, dimension, force=False):
+        """
+        Add a dimension to the variable collection.
+        
+        :param dimension: The dimension to add. Will raise an exception if the dimension name is found in the collection
+         and the dimensions are not equal.
+        :type dimension: :class:`~ocgis.Dimension`
+        :param bool force: If ``True``, clobber any dimensions with the same name.
+        :raises: :class:`~ocgis.exc.DimensionMismatchError`
+        """
         existing_dim = self.dimensions.get(dimension.name)
         if existing_dim is not None and not force:
             if existing_dim != dimension:
@@ -1546,7 +1598,12 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
 
     def add_variable(self, variable, force=False):
         """
-        :param :class:`ocgis.interface.base.variable.Variable`
+        Add a variable to the variable collection.
+        
+        :param variable: The variable to add.
+        :param bool force: If ``True``, clobber any variables in the collection with the same name.
+        :type variable: :class:`~ocgis.Variable`
+        :raises: :class:`~ocgis.exc.VariableInCollectionError`
         """
 
         if variable.is_orphaned:
@@ -1562,6 +1619,16 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
                 self.add_variable(var, force=force)
 
     def append_to_tags(self, tag, to_append, create=True):
+        """
+        Append a variable name to a tag.
+        
+        :param str tag: The tag name. 
+        :param to_append: The variable or variable name to append to the tag.
+        :type to_append: :class:`str` | :class:`~ocgis.Variable`
+        :param bool create: If ``True``, create the tag if it does not exist. 
+        :raises: ValueError
+        """
+
         to_append = get_variable_names(to_append)
         try:
             names = self.get_by_tag(tag)
@@ -1582,11 +1649,18 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
         self._tags[tag] = names
 
     def convert_to_empty(self):
+        """Convert the variable collection to an empty collection. This will convert every variable to empty."""
+
         for v in list(self.values()):
             with orphaned(v):
                 v.convert_to_empty()
 
     def copy(self):
+        """
+        :return: A shallow copy of the variable collection. Member variables and dimensions are also shallow copied.
+        :rtype: :class:`~ocgis.VariableCollection`
+        """
+
         ret = AbstractCollection.copy(self)
         ret._tags = deepcopy(self._tags)
         ret._dimensions = ret._dimensions.copy()
@@ -1598,6 +1672,13 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
         return ret
 
     def create_tag(self, tag):
+        """
+        Create a tag.
+        
+        :param str tag: The tag name.
+        :raises: ValueError
+        """
+
         if tag in self._tags:
             raise ValueError('Tag "{}" already exists.'.format(tag))
         else:
@@ -1606,8 +1687,8 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
     def get_by_tag(self, tag, create=False, strict=False):
         """
         :param str tag: The tag to retrieve.
-        :param create bool: If ``True``, create the tag if it does not exist.
-        :param strict bool: If ``True``, raise exception if variable name is not found in collection.
+        :param bool create: If ``True``, create the tag if it does not exist.
+        :param bool strict: If ``True``, raise exception if variable name is not found in collection.
         :return: Tuple of variable objects that have the ``tag``.
         :rtype: tuple(:class:`ocgis.Variable`, ...)
         """
@@ -1630,13 +1711,19 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
         return ret
 
     def load(self):
-        """Load all variable values from source."""
+        """Load all variable values (payloads) from source. Here for compatibility with sourced variables."""
 
         for v in list(self.values()):
             v.load()
 
     # tdk: move implementation to function (also for field)
+    # TODO: Document kwargs.
     def iter(self, **kwargs):
+        """
+        :return: Yield record dictionaries for variables in the collection.
+        :rtype: dict
+        """
+
         if self.is_empty:
             raise StopIteration
 
@@ -1710,6 +1797,12 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
             yield yld
 
     def iter_variables_by_dimensions(self, dimensions):
+        """
+        :param dimensions: Dimensions required to select a variable.
+        :type dimensions: `sequence` of :class:`str` | `sequence` of :class:`~ocgis.Dimension`
+        :return: Yield variables sharing ``dimensions``.
+        :rtype: :class:`~ocgis.Variable`
+        """
         names = get_dimension_names(dimensions)
         for var in list(self.values()):
             if len(set(var.dimension_names).intersection(names)) == len(names):
@@ -1717,11 +1810,28 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
 
     @staticmethod
     def read(*args, **kwargs):
+        """
+        Read a variable collection from a request dataset.
+        
+        :param args: Arguments to :class:`~ocgis.RequestDataset`.
+        :param kwargs: Keyword arguments to :class:`~ocgis.RequestDataset`.
+        :rtype: :class:`~ocgis.VariableCollection`
+        """
+
         from ocgis import RequestDataset
         rd = RequestDataset(*args, **kwargs)
         return rd.driver.get_variable_collection()
 
     def remove_variable(self, variable, remove_bounds=True):
+        """
+        Remove a variable from the collection. This removes the variable's bounds by default. Any orphaned dimensions
+        are removed from the collection following variable removal.
+        
+        :param variable: The variable or variable name to remove from the collection.
+        :type variable: :class:`~ocgis.Variable` | :class:`str`
+        :param bool remove_bounds: If ``True`` (the default), remove the variable's bounds from the collection.
+        """
+
         variable = get_variables(variable, self)[0]
 
         variable = variable.extract()
@@ -1749,11 +1859,20 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
         for d in dims_to_pop:
             self.dimensions.pop(d)
 
-    def set_mask(self, variable, **kwargs):
-        exclude = kwargs.pop(KeywordArgument.EXCLUDE, None)
+    def set_mask(self, variable, exclude=None, update=False):
+        """
+        Set all variable masks to the mask on `variable`. See :meth:`~ocgis.Variable.set_mask` for a description of how
+        this works on variables.
+        
+        :param variable: The variable having the source mask.
+        :type variable: :class:`~ocgis.Variable`
+        :param exclude: Variables to exclude from mask setting.
+        :type exclude: `sequence` of :class:`~ocgis.Variable` | `sequence` of :class:`str`
+        :param update: See :meth:`~ocgis.Variable.set_mask`.
+        """
+
         if exclude is not None:
             exclude = get_variable_names(exclude)
-        update = kwargs.pop(KeywordArgument.UPDATE, False)
         names_container = [d.name for d in variable.dimensions]
         for k, v in list(self.items()):
             if exclude is not None and k in exclude:
@@ -1765,11 +1884,23 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
                     set_mask_by_variable(variable, v, slice_map=slice_map, update=update)
 
     def strip(self):
+        """Remove dimensions, variables, and children from the collection."""
+
         self._storage = OrderedDict()
         self._dimensions = OrderedDict()
         self.children = OrderedDict()
 
     def write(self, *args, **kwargs):
+        """
+        Write the variable collection to file.
+        
+        :keyword driver: (`=`:attr:`ocgis.constants.DriverKey.NETCDF`) The driver to use for writing.
+        :param args: Arguments to the driver's :meth:`~ocgis.driver.base.AbstractDriver.write_variable_collection`
+         method.
+        :param kwargs: Keyword arguments to the driver's :meth:`~ocgis.driver.base.AbstractDriver.write_variable_collection`
+         method.
+        """
+
         from ocgis.driver.registry import get_driver_class
         driver = kwargs.pop(KeywordArgument.DRIVER, DriverKey.NETCDF)
         driver = get_driver_class(driver)

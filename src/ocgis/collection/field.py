@@ -5,7 +5,7 @@ from copy import deepcopy
 
 from shapely.geometry import shape
 
-from ocgis import env, DimensionMap
+from ocgis import env, DimensionMap, VariableCollection
 from ocgis.base import get_dimension_names, get_variable_names, get_variables, renamed_dimensions_on_variables, \
     revert_renamed_dimensions_on_variables, raise_if_empty
 from ocgis.constants import DimensionMapKey, WrapAction, TagName, HeaderName, DimensionName, UNINITIALIZED, \
@@ -13,7 +13,7 @@ from ocgis.constants import DimensionMapKey, WrapAction, TagName, HeaderName, Di
 from ocgis.spatial.grid import Grid
 from ocgis.util.helpers import get_iter
 from ocgis.util.logging_ocgis import ocgis_lh
-from ocgis.variable.base import VariableCollection, Variable, get_bounds_names_1d
+from ocgis.variable.base import Variable, get_bounds_names_1d
 from ocgis.variable.crs import CoordinateReferenceSystem
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
@@ -25,7 +25,7 @@ class Field(VariableCollection):
     """
     A field behaves like a variable collection but with additional metadata on its component variables.
     
-    .. note:: Accepts all parameters to :class:`ocgis.VariableCollection`.
+    .. note:: Accepts all parameters to :class:`~ocgis.VariableCollection`.
 
     Additional keyword arguments are:
 
@@ -33,28 +33,28 @@ class Field(VariableCollection):
      to fully-specify a default field by providing a list of ``variables`` and the dimension map. 
      Instrumented/coordinate variables may be provided with keyword arguments. The dimension map is updated internally 
      in those cases.
-    :type dimension_map: :class:`ocgis.DimensionMap` | dict
+    :type dimension_map: :class:`~ocgis.DimensionMap` | :class:`dict`
     :param is_data: (``=None``) Set these variables or variable names (if names are provided, the variables must be
      provided through ``variables``) as data variables. Data variables often contain the field information of interest
      such as temperature, relative humidity, etc.
-    :type is_data: sequence(:class:`ocgis.Variable` | str, ...)
+    :type is_data: `sequence` of :class:`~ocgis.Variable` | `sequence` of :class:`str`
     :param realization: (``=None``) A realization or ensemble variable. Its value is typically an integer representing
      its record count across global realizations.
-    :type realization: :class:`ocgis.Variable`
+    :type realization: :class:`~ocgis.Variable`
     :param time: (``=None``) A time variable.
-    :type time: :class:`ocgis.TemporalVariable`
+    :type time: :class:`~ocgis.TemporalVariable`
     :param level: (``=None``) A level variable. This may also be considered the field's z-coordinate.
-    :type level: :class:`ocgis.Variable`
+    :type level: :class:`~ocgis.Variable`
     :param grid: (``=None``) A grid object. x/y-coordinates will be pulled from the grid automatically. Any level or
      z-coordinate must be provided using ``level``.
-    :type grid: :class:`ocgis.Grid`
+    :type grid: :class:`~ocgis.Grid`
     :param geom: (``=None``) The geometry variable.
-    :type geom: :class:`ocgis.GeometryVariable`
+    :type geom: :class:`~ocgis.GeometryVariable`
     :param crs: (``='auto'``) A coordinate reference system variable. If ``'auto'``, use the coordinate system from
      the ``grid`` or ``geom``. ``geom`` is given preference if both are present.
-    :type crs: str | None | :class:`ocgis.variable.crs.AbstractCoordinateReferenceSystem`
-    :param str grid_abstraction: See keyword argument ``abstraction`` for :class:`ocgis.Grid`.
-    :param str format_time: See keyword argument ``format_time`` for :class:`ocgis.TemporalVariable`.
+    :type crs: :class:`str` | ``None`` | :class:`~ocgis.variable.crs.AbstractCoordinateReferenceSystem`
+    :param str grid_abstraction: See keyword argument ``abstraction`` for :class:`~ocgis.Grid`.
+    :param str format_time: See keyword argument ``format_time`` for :class:`~ocgis.TemporalVariable`.
     """
 
     def __init__(self, **kwargs):
@@ -154,6 +154,10 @@ class Field(VariableCollection):
 
     @property
     def axes_shapes(self):
+        """
+        :return: Axis variables shapes.
+        :rtype: dict
+        """
         ret = {}
         if self.realization is None:
             r = 1
@@ -184,6 +188,10 @@ class Field(VariableCollection):
 
     @property
     def crs(self):
+        """
+        :return: Get the field's coordinate reference system. Return ``None`` if no coordinate system is assigned.
+        :rtype: :class:`~ocgis.variable.crs.AbstractCoordinateReferenceSystem`
+        """
         crs_name = self.dimension_map.get_crs()
         if crs_name is None:
             ret = None
@@ -193,6 +201,13 @@ class Field(VariableCollection):
 
     @property
     def data_variables(self):
+        """
+        Data variables are the "value" variables for the field. They are often variables like temperature or relative
+        humidity. The default tag :attr:`ocgis.constants.TagName.DATA_VARIABLES` is used for data variables.
+        
+        :returns: A sequence of variables tagged with the default data variable tag.
+        :rtype: `sequence` of :class:`~ocgis.Variable`
+        """
         try:
             ret = tuple(self.get_by_tag(TagName.DATA_VARIABLES))
         except KeyError:
@@ -201,14 +216,23 @@ class Field(VariableCollection):
 
     @property
     def realization(self):
+        """
+        :return: Get the field's realization variable. Return ``None`` if no realization is assigned.
+        :rtype: :class:`~ocgis.Variable` | ``None``
+        """
         return get_field_property(self, 'realization')
 
     @property
     def temporal(self):
+        """Alias for :attr:`~ocgis.Field.time`"""
         return self.time
 
     @property
     def time(self):
+        """
+        :return: Get the field's time variable. Return ``None`` if no time is assigned.
+        :rtype: :class:`~ocgis.TemporalVariable` | ``None``
+        """
         ret = get_field_property(self, 'time')
         if ret is not None:
             if not isinstance(ret, TemporalGroupVariable):
@@ -217,6 +241,11 @@ class Field(VariableCollection):
 
     @property
     def wrapped_state(self):
+        """
+        :return: The wrapped state for the field.
+        :rtype: :attr:`ocgis.constants.WrappedState`
+        :raises: :class:`~ocgis.exc.EmptyObjectError`
+        """
         raise_if_empty(self)
 
         if self.crs is None:
@@ -227,22 +256,44 @@ class Field(VariableCollection):
 
     @property
     def level(self):
+        """
+        :return: Get the field's level variable. Return ``None`` if no level is assigned.
+        :rtype: :class:`~ocgis.Variable` | ``None``
+        """
+
         return get_field_property(self, 'level')
 
     @property
     def y(self):
+        """
+        :return: Get the field's y-coordinate variable. Return ``None`` if no y-coordinate is assigned.
+        :rtype: :class:`~ocgis.Variable` | ``None``
+        """
+
         return get_field_property(self, 'y')
 
     @property
     def x(self):
+        """
+        :return: Get the field's x-coordinate variable. Return ``None`` if no x-coordinate is assigned.
+        :rtype: :class:`~ocgis.Variable` | ``None``
+        """
+
         return get_field_property(self, 'x')
 
     @property
     def z(self):
+        """Alias for :attr:`~ocgis.Field.level`."""
+
         return self.level
 
     @property
     def grid(self):
+        """
+        :return: Get the field's grid object. Return ``None`` if no grid is present.
+        :rtype: :class:`~ocgis.Grid` | ``None``
+        """
+
         x = self.x
         y = self.y
         if x is None or y is None:
@@ -253,6 +304,11 @@ class Field(VariableCollection):
 
     @property
     def geom(self):
+        """
+        :return: Get the field's geometry variable. Return ``None`` if no geometry is available.
+        :rtype: :class:`~ocgis.GeometryVariable` | ``None``
+        """
+
         ret = get_field_property(self, 'geom')
         if ret is not None:
             crs = self.crs
@@ -264,6 +320,10 @@ class Field(VariableCollection):
 
     @property
     def has_data_variables(self):
+        """
+        :return: ``True`` if the field has data variables.
+        :rtype: bool
+        """
         if len(self.data_variables) > 0:
             ret = True
         else:
@@ -271,6 +331,14 @@ class Field(VariableCollection):
         return ret
 
     def add_variable(self, variable, force=False, is_data=False):
+        """
+        ..note:: Accepts all paramters to :meth:`~ocgis.VariableCollection.add_variable`.
+        
+        Additional keyword arguments are:
+        
+        :param bool is_data: If ``True``, the variable is considered a data variable.
+        """
+
         super(Field, self).add_variable(variable, force=force)
         if is_data:
             tagged = get_variable_names(self.get_by_tag(TagName.DATA_VARIABLES, create=True))
@@ -278,6 +346,11 @@ class Field(VariableCollection):
                 self.append_to_tags(TagName.DATA_VARIABLES, variable.name)
 
     def copy(self):
+        """
+        :return: A shallow copy of the field. The field's dimension map is deep copied.
+        :rtype: :class:`~ocgis.Field`
+        """
+
         ret = super(Field, self).copy()
         # Changes to a field's shallow copy should be able to adjust attributes in the dimension map as needed.
         ret.dimension_map = deepcopy(ret.dimension_map)
@@ -286,10 +359,10 @@ class Field(VariableCollection):
     @classmethod
     def from_records(cls, records, schema=None, crs=UNINITIALIZED, uid=None, union=False):
         """
-        Create a :class:`ocgis.interface.base.dimension.SpatialDimension` from Fiona-like records.
+        Create a :class:`~ocgis.Field` from Fiona-like records.
 
         :param records: A sequence of records returned from an Fiona file object.
-        :type records: sequence
+        :type records: `sequence` of :class:`dict`
         :param schema: A Fiona-like schema dictionary. If ``None`` and any records properties are ``None``, then this
          must be provided.
         :type schema: dict
@@ -297,13 +370,13 @@ class Field(VariableCollection):
         >>> schema = {'geometry': 'Point', 'properties': {'UGID': 'int', 'NAME', 'str:4'}}
 
         :param crs: If :attr:`ocgis.constants.UNINITIALIZED`, default to :attr:`ocgis.env.DEFAULT_COORDSYS`.
-        :type crs: dict or :class:`ocgis.interface.base.crs.CoordinateReferenceSystem`
+        :type crs: :class:`dict` | :class:`~ocgis.variable.crs.AbstractCoordinateReferenceSystem`
         :param str uid: If provided, use this attribute name as the unique identifier. Otherwise search for
          :attr:`env.DEFAULT_GEOM_UID` and, if not present, construct a 1-based identifier with this name.
         :param bool union: If ``True``, union the geometries from records yielding a single geometry with a unique
          identifier value of ``1``.
         :returns: Field object constructed from records.
-        :rtype: :class:`ocgis.new_interface.field.Field`
+        :rtype: :class:`~ocgis.Field`
         """
 
         if uid is None:
@@ -418,6 +491,13 @@ class Field(VariableCollection):
 
     @classmethod
     def from_variable_collection(cls, vc, *args, **kwargs):
+        """Create a field from a variable collection.
+        
+        :param vc: The template variable collection.
+        :type vc: :class:`~ocgis.VariableCollection`
+        :rtype: :class:`~ocgis.Field`
+        """
+
         if 'name' not in kwargs:
             kwargs['name'] = vc.name
         if 'source_name' not in kwargs:
@@ -434,6 +514,18 @@ class Field(VariableCollection):
         return ret
 
     def get_field_slice(self, dslice, strict=True, distributed=False):
+        """
+        Slice the field using a dictionary. Keys are dimension map standard names defined by 
+        :class:`ocgis.constants.DimensionMapKey`. Dimensions are temporarily renamed for the duration of the slice.
+        
+        :param dict dslice: The dictionary slice.
+        :param strict: If ``True`` (the default), any dimension names in ``dslice`` are required to be in the target
+         field.
+        :param bool distributed: If ``True``, this is should be considered a parallel/global slice.
+        :return: A shallow copy of the sliced field.
+        :rtype: :class:`~ocgis.Field`
+        """
+
         name_mapping = get_name_mapping(self.dimension_map)
         with renamed_dimensions_on_variables(self, name_mapping) as mapping_meta:
             # When strict is False, we don't care about extra dimension names in the slice. This is useful for a general
@@ -467,6 +559,12 @@ class Field(VariableCollection):
         return ret
 
     def get_report(self, should_print=False):
+        """
+        :param bool should_print: If ``True``, print the report lines in addition to returning them. 
+        :return: A sequence of strings with descriptive field information.
+        :rtype: :class:`list` of :class:`str`
+        """
+
         field = self
         m = OrderedDict([['=== Realization ================', 'realization'],
                          ['=== Time =======================', 'time'],
@@ -491,6 +589,11 @@ class Field(VariableCollection):
         return lines
 
     def iter(self, **kwargs):
+        """
+        :return: Yield record dictionaries for variables in the field applying standard names to dimensions by default.
+        :rtype: dict
+        """
+
         if self.is_empty:
             raise StopIteration
 
@@ -602,6 +705,12 @@ class Field(VariableCollection):
             yield yld
 
     def iter_data_variables(self, tag_name=TagName.DATA_VARIABLES):
+        """
+        :param str tag_name: The tag to iterate. 
+        :return: Yields variables associated with ``tag``.
+        :rtype: :class:`~ocgis.Variable`
+        """
+
         for var in self.get_by_tag(tag_name):
             yield var
 
@@ -614,7 +723,20 @@ class Field(VariableCollection):
 
     def set_abstraction_geom(self, force=True, create_ugid=False, ugid_name=HeaderName.ID_GEOMETRY, ugid_start=1,
                              set_ugid_as_data=False):
-        """Collective!"""
+        """
+        Set the abstraction geometry for the field using the field's geometry variable or the field's grid abstraction
+        geometry.
+        
+        :param bool force: If ``True`` (the default), clobber any existing geometry variables.
+        :param bool create_ugid: If ``True``, create a unique identifier integer :class:`~ocgis.Variable` for the 
+         abstraction geometry. Only creates the variable if the geometry does not already have a ``ugid``.
+        :param str ugid_name: Name for the ``ugid`` variable.
+        :param int ugid_start: Starting value to use for the unique identifier.
+        :param bool set_ugid_as_data: If ``True``, set the ``ugid`` variable as data on the field. Useful for writing
+         shapefiles which require at least one data variable.
+        :raises: ValueError
+        """
+
         if self.geom is None:
             if self.grid is None:
                 raise ValueError('No grid available to set abstraction geometry.')
@@ -628,23 +750,45 @@ class Field(VariableCollection):
             self.add_variable(self.geom.ugid, force=True, is_data=True)
 
     def set_crs(self, value):
+        """
+        Set the field's coordinate reference system. If coordinate system is already present on the field. Remove this
+        variable.
+        
+        :param value: The coordinate reference system variable or ``None``.
+        :type value: :class:`~ocgis.variable.crs.AbstractCoordinateReferenceSystem` | ``None``
+        """
+
         if self.crs is not None:
             self.pop(self.crs.name)
         if value is not None:
-            variable_name = value.name
             self.add_variable(value)
             value.format_field(self)
-        else:
-            variable_name = None
         self.dimension_map.set_crs(value)
 
     def set_geom(self, variable, force=True):
+        """
+        Set the field's geometry variable. 
+
+        :param value: The coordinate reference system variable or ``None``.
+        :type value: :class:`~ocgis.variable.crs.AbstractCoordinateReferenceSystem` | ``None``
+        :param bool force: If ``True`` (the default), clobber any existing geometry variable.
+        :raises: ValueError
+        """
+
         self.dimension_map.set_variable(DimensionMapKey.GEOM, variable)
         if variable.crs != self.crs and not self.is_empty:
             raise ValueError('Geometry and field do not have matching coordinate reference systems.')
         self.add_variable(variable, force=force)
 
     def set_grid(self, grid, force=True):
+        """
+        Set the field's grid.
+
+        :param grid: The grid object.
+        :type grid: :class:`~ocgis.Grid`
+        :param bool force: If ``True`` (the default), clobber any existing grid member variables.
+        """
+
         for member in grid.get_member_variables():
             self.add_variable(member, force=force)
         self.grid_abstraction = grid.abstraction
@@ -652,27 +796,77 @@ class Field(VariableCollection):
         self.set_y(grid.y, grid.dimensions[0])
 
     def set_geom_from_grid(self, force=True):
+        """
+        Set the field's geometry from its grid's abstraction geometry.
+        
+        :param bool force: If ``True`` (the default), clobber any existing geometry variables. 
+        """
+
         new_geom = self.grid.get_abstraction_geometry()
         self.set_geom(new_geom, force=force)
 
     def set_time(self, variable, force=True):
+        """
+        Set the field's time variable.
+
+        :param variable: The time variable to use.
+        :type variable: :class:`~ocgis.TemporalVariable` | ``None``
+        :param bool force: If ``True`` (the default), clobber any existing geometry variables. 
+        """
+
         self.add_variable(variable, force=force)
         self.dimension_map.set_variable(DimensionMapKey.TIME, variable)
 
     def set_x(self, variable, dimension, force=True):
+        """
+        Set the field's x-coordinate variable.
+
+        :param variable: The source variable.
+        :type variable: :class:`~ocgis.Variable`
+        :param dimension: The representative field dimension for the variable. Required as the representative dimension
+         cannot be determined with greater than one dimension on the coordinate variable.
+        :type dimension: :class:`~ocgis.Dimension`
+        :param bool force: If ``True`` (the default), clobber any existing geometry variables. 
+        """
+
         self.add_variable(variable, force=force)
         update_dimension_map_with_variable(self.dimension_map, DimensionMapKey.X, variable, dimension)
 
     def set_y(self, variable, dimension, force=True):
+        """
+        Set the field's y-coordinate variable.
+
+        :param variable: The source variable.
+        :type variable: :class:`~ocgis.Variable`
+        :param dimension: The representative field dimension for the variable. Required as the representative dimension
+         cannot be determined with greater than one dimension on the coordinate variable.
+        :type dimension: :class:`~ocgis.Dimension`
+        :param bool force: If ``True`` (the default), clobber any existing geometry variables. 
+        """
+
         self.add_variable(variable, force=force)
         update_dimension_map_with_variable(self.dimension_map, DimensionMapKey.Y, variable, dimension)
 
     def unwrap(self):
+        """
+        Unwrap the field's coordinates contained in its grid and/or geometry.
+        
+        :raises: :class:`~ocgis.exc.EmptyObjectError` 
+        """
+
         raise_if_empty(self)
 
         wrap_or_unwrap(self, WrapAction.UNWRAP)
 
     def update_crs(self, to_crs):
+        """
+        Update the field coordinates contained in its grid and/or geometry.
+        
+        :param to_crs: The destination coordinate reference system.
+        :type to_crs: :class:`~ocgis.variable.crs.AbstractCoordinateReferenceSystem`
+        :raises: :class:`~ocgis.exc.EmptyObjectError`
+        """
+
         raise_if_empty(self)
 
         if self.grid is not None:
@@ -683,9 +877,17 @@ class Field(VariableCollection):
         self.dimension_map.set_crs(to_crs)
 
     def wrap(self, inplace=True):
+        """
+        Wrap the field's coordinates contained in its grid and/or geometry.
+
+        :raises: :class:`~ocgis.exc.EmptyObjectError` 
+        """
+
         wrap_or_unwrap(self, WrapAction.WRAP, inplace=inplace)
 
     def write(self, *args, **kwargs):
+        """See :meth:`ocgis.VariableCollection.write`"""
+
         from ocgis.driver.nc import DriverNetcdfCF
         from ocgis.driver.registry import get_driver_class
 

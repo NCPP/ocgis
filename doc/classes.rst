@@ -23,6 +23,22 @@ Variable
     :members:
     :special-members:
 
+VariableCollection
+==================
+
+.. autoclass:: ocgis.VariableCollection
+    :show-inheritance:
+    :members:
+    :special-members:
+
+Field
+=====
+
+.. autoclass:: ocgis.Field
+    :show-inheritance:
+    :members:
+    :special-members:
+
 Base Classes
 ------------
 

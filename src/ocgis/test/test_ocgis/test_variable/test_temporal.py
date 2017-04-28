@@ -468,6 +468,12 @@ class TestTemporalVariable(AbstractTestTemporal):
             nums = td.get_numtime(td.value_datetime)
             self.assertNumpyAll(nums, value)
 
+        # Test passing in a list.
+        value = [datetime.datetime(2000, 1, 1), datetime.datetime(2000, 1, 2)]
+        tv = TemporalVariable(name='t', value=[1], dimensions=['a'])
+        nt = tv.get_numtime(value)
+        self.assertIsInstance(nt, np.ndarray)
+
     def test_get_grouping(self):
         tv = self.get_temporalvariable()
         td = tv.get_between(datetime.datetime(1900, 1, 1), datetime.datetime(1900, 12, 31, 23, 59))

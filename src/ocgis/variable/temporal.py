@@ -252,13 +252,14 @@ class TemporalVariable(SourcedVariable):
     def get_numtime(self, arr):
         """
         :param arr: An array of datetime objects to convert to numeric time.
-        :type array: :class:`numpy.array`
+        :type arr: :class:`numpy.ndarray`
         :returns: An array of numeric values with same shape as ``arr``.
-        :rtype: :class:`numpy.array`
+        :rtype: :class:`numpy.ndarray`
         """
 
+        arr = np.atleast_1d(arr)
         try:
-            ret = np.atleast_1d(nc.date2num(arr, str(self.units), calendar=self.calendar))
+            ret = nc.date2num(arr, str(self.units), calendar=self.calendar)
         except (ValueError, TypeError):
             # Special behavior for conversion of time units with months.
             if self._has_months_units:

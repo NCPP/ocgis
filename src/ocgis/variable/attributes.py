@@ -7,9 +7,9 @@ from ocgis.base import AbstractOcgisObject
 
 class Attributes(AbstractOcgisObject):
     """
-    Adds an ``attrs`` attribute and writes to an open netCDF object.
+    Adds an ``attrs`` dictionary. Always converts dictionaries to :class:`collections.OrderedDict` objects.
 
-    :param dict attrs: A dictionary of arbitrary attributes to write to a netCDF object.
+    :param dict attrs: A dictionary of attribute name/value pairs.
     """
 
     def __init__(self, attrs=None):
@@ -18,6 +18,12 @@ class Attributes(AbstractOcgisObject):
 
     @property
     def attrs(self):
+        """
+        Get or set the attributes dictionary.
+        
+        :param dict value: The dictionary of attributes. Always converted to an :class:`collections.OrderedDict`.
+        :rtype: :class:`collections.OrderedDict`
+        """
         if self._attrs is None:
             self._attrs = self._get_attrs_()
         return self._attrs
@@ -30,8 +36,8 @@ class Attributes(AbstractOcgisObject):
 
     def write_attributes_to_netcdf_object(self, target):
         """
-        :param target: A netCDF data object to write attributes to.
-        :type target: :class:`netCDF4.Variable` or :class:`netCDF4.Dataset`
+        :param target: The attribute write target.
+        :type target: :class:`netCDF4.Variable` | :class:`netCDF4.Dataset`
         """
 
         for k, v in self.attrs.items():

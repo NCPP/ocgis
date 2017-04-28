@@ -9,24 +9,40 @@ from ocgis.vmachine.mpi import get_global_to_local_slice, get_nonempty_ranks
 
 
 class Dimension(AbstractNamedObject):
+    """
+    A dimension tracks the count of elements along an axis in a multi-dimensional array. All :class:`~ocgis.Variable`
+    objects use dimensions. Dimensions are used to track global and local bounds when running and parallel. They also
+    track source indices allowed data to be sliced without loading from source. See 
+    https://en.wikipedia.org/wiki/Dimension for an overview of dimensions.
+    
+    :param str name: The dimension's name.
+    :param int size: The dimension's size. Set to ``None`` if this dimension is unlimited. 
+    :param size_current: The dimension's current size. The current size is needed to track sizes if the dimension is
+     unlimited.
+    :param src_idx: An one-dimensional, integer array containing the source indices for a "dimensioned" element. If
+     ``'auto'``, generate the index array automatically from the dimension size (not applicable for unlimited
+     dimensions). 
+    :type src_idx: :class:`numpy.ndarray` | ``str``
+    :param bool dist: If ``True``, this dimension is distributed. Used by :class:`ocgis.OcgDist` to generate the 
+     parallel distribution.
+    :param bool is_empty: If ``True``, the dimension is empty on the current rank. 
+    :param source_name: See :class:`~ocgis.base.AbstractNamedObject`.
+    :param aliases: See :class:`~ocgis.base.AbstractNamedObject`.
+    :param uid: See :class:`~ocgis.base.AbstractNamedObject`.
+    
+    **Example Code:**
+    
+    >>> # Create standard dimension.
+    >>> dim = Dimension('the_dim', size=5)
+    >>> assert dim.size == 5 and len(dim) == 5
+    
+    >>> # Create an unlimited dimension.
+    >>> udim = Dimension('unlimited_dim', size_current=10)
+    >>> assert udim.size is None and len(udim) == 10 and udim.size_current == 10
+    """
+
     def __init__(self, name, size=None, size_current=None, src_idx=None, dist=False, is_empty=False,
                  source_name=constants.UNINITIALIZED, aliases=None, uid=None):
-        """
-        See https://en.wikipedia.org/wiki/Dimension for an overview of dimensions.
-        
-        :param name: See :class:`ocgis.base.AbstractNamedObject`.
-        :param int size: The dimension's size. Set to ``None`` if this dimension is unlimited. 
-        :param size_current: The dimension's current size. The current size is needed to track sizes if the dimension is
-         unlimited.
-        :param src_idx: An one-dimensional, integer array containing the source indices for a "dimensioned" element.
-        :type src_idx: (:class:`numpy.ndarray`, ``shape=(m,)``, ``dtype=int``) (default type is ``numpy.int32``)
-        :param bool dist: If ``True``, this dimension is distributed. 
-        :param bool is_empty: If ``True``, the dimension is empty on the current rank. 
-        :param source_name: See :class:`ocgis.base.AbstractNamedObject`.
-        :param aliases: See :class:`ocgis.base.AbstractNamedObject`.
-        :param uid: See :class:`ocgis.base.AbstractNamedObject`.
-        """
-
         if isinstance(src_idx, six.string_types):
             if src_idx != 'auto' and size is None and size_current is None:
                 raise ValueError('Unsized dimensions should not have source indices.')
@@ -51,6 +67,13 @@ class Dimension(AbstractNamedObject):
             self.convert_to_empty()
 
     def __eq__(self, other):
+        """
+        :param other: The other dimension.
+        :type other: :class:`~ocgis.Dimension`
+        :return: ``True`` if dimension objects are equal.
+        :rtype: bool
+        """
+
         ret = True
         skip = ('__src_idx__', '_aliases', '_source_name', '_bounds_local', '_bounds_global')
         for k, v in list(self.__dict__.items()):
@@ -69,6 +92,20 @@ class Dimension(AbstractNamedObject):
         return ret
 
     def __getitem__(self, slc):
+        """
+        Dimensions may be sliced like other sliceable Python objects. A shallow copy of the dimension is created before
+        slicing. Use :meth:`~ocgis.Dimension.get_distributed_slice` for parallel slicing.
+        
+        :param slc: A :class:`slice`-like object.
+        :rtype: :class:`~ocgis.Dimension`
+        :raises: IndexError
+         
+        >>> dim = Dimension('five', 5)
+        >>> sub = dim[2:4]
+        >>> assert len(sub) == 2
+        >>> assert id(dim) != id(sub)
+        """
+
         # We cannot slice zero length dimensions.
         if len(self) == 0:
             raise IndexError('Zero-length dimensions are not slicable.')
@@ -101,6 +138,19 @@ class Dimension(AbstractNamedObject):
 
     @property
     def bounds_global(self):
+        """
+        Get or set the global bounds for the dimension across all non-empty ranks.
+        
+        ===== ================
+        Index Description
+        ===== ================
+        0     The lower bound.
+        1     The upper bound.
+        ===== ================
+        
+        :rtype: ``tuple(int, int)``
+        """
+
         if self._bounds_global is None:
             ret = (0, len(self))
         else:
@@ -116,6 +166,19 @@ class Dimension(AbstractNamedObject):
 
     @property
     def bounds_local(self):
+        """
+        Get or set the rank-local bounds for the dimension.
+
+        ===== ================
+        Index Description
+        ===== ================
+        0     The lower bound.
+        1     The upper bound.
+        ===== ================
+
+        :rtype: ``tuple(int, int)``
+        """
+
         if self._bounds_local is None:
             ret = (0, len(self))
         else:
@@ -131,10 +194,18 @@ class Dimension(AbstractNamedObject):
 
     @property
     def is_empty(self):
+        """
+        :return: ``True`` if the dimension is empty. Allows for the creation of empty objects.
+        :rtype: bool
+        """
         return self._is_empty
 
     @property
     def is_unlimited(self):
+        """
+        :return: ``True`` if the dimension is unlimited.
+        :rtype: bool
+        """
         if self.size is None:
             ret = True
         else:
@@ -142,15 +213,19 @@ class Dimension(AbstractNamedObject):
         return ret
 
     @property
-    def name(self):
-        return self._name
-
-    @property
     def size(self):
+        """
+        :return: The dimension's size.
+        :rtype: ``int`` | ``None`` if unlimited 
+        """
         return self._size
 
     @property
     def size_current(self):
+        """
+        :return: The current size of the dimension. Needed to track sizes for unlimited dimensions.
+        :rtype: int 
+        """
         if self._size_current is None:
             ret = self.size
         else:
@@ -171,6 +246,12 @@ class Dimension(AbstractNamedObject):
         self.__src_idx__ = value
 
     def convert_to_empty(self):
+        """
+        Convert the dimension to an empty dimension.
+        
+        :raises: ValueError
+        """
+
         if not self.dist:
             raise ValueError('Only distributed dimensions may be converted to empty.')
 
@@ -182,6 +263,15 @@ class Dimension(AbstractNamedObject):
         self._size_current = 0
 
     def get_distributed_slice(self, slc):
+        """
+        Slice the dimension in parallel. The sliced dimension object is a shallow copy. The returned dimension may be
+        empty.
+        
+        :param slc: A :class:`slice`-like object.
+        :rtype: :class:`~ocgis.Dimension`
+        :raises: :class:`~ocgis.exc.EmptyObjectError`
+        """
+
         raise_if_empty(self)
 
         slc = get_formatted_slice(slc, 1)[0]
@@ -239,6 +329,15 @@ class Dimension(AbstractNamedObject):
         return ret
 
     def set_size(self, value, src_idx=None):
+        """
+        Set the dimension's size.
+        
+        :param value: The new size of the dimension. Allows setting to ``None`` to convert to an unlimited dimension.
+        :type value: ``int`` | ``None``
+        :param src_idx: The new source index. If ``'auto'``, create a default source index.
+        :raises: ValueError
+        """
+
         if value is not None:
             if isinstance(src_idx, six.string_types) and src_idx == 'auto':
                 src_idx = create_src_idx(0, value, dtype=DataType.DIMENSION_SRC_INDEX)

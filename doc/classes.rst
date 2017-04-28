@@ -4,11 +4,57 @@
 Class Reference
 ===============
 
-Inspect
-=======
+Dimensions, Variables, and Collections
+--------------------------------------
 
-.. autoclass:: ocgis.Inspect
+Dimension
+=========
+
+.. autoclass:: ocgis.Dimension
+    :show-inheritance:
     :members:
+    :special-members:
+
+Variable
+========
+
+.. autoclass:: ocgis.Variable
+    :show-inheritance:
+    :members:
+    :special-members:
+
+Base Classes
+------------
+
+AbstractOcgisObject
+===================
+
+.. autoclass:: ocgis.base.AbstractOcgisObject
+    :show-inheritance:
+
+AbstractInterfaceObject
+=======================
+
+.. autoclass:: ocgis.base.AbstractInterfaceObject
+    :show-inheritance:
+    :members:
+
+AbstractNamedObject
+===================
+
+.. autoclass:: ocgis.base.AbstractNamedObject
+    :show-inheritance:
+    :members:
+
+Attributes
+==========
+
+.. autoclass:: ocgis.variable.attributes.Attributes
+    :show-inheritance:
+    :members:
+
+GIS File Access
+---------------
 
 GeomCabinet
 ===========
@@ -38,10 +84,4 @@ RequestDataset
 ==============
 
 .. autoclass:: ocgis.RequestDataset
-    :members: inspect, inspect_as_dct
-
-RequestDatasetCollection
-========================
-
-.. autoclass:: ocgis.RequestDatasetCollection
-    :members: update
+    :members: inspect

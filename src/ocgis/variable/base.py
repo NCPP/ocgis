@@ -157,40 +157,56 @@ class ObjectType(object):
         return dataset.createVLType(self.dtype, name)
 
 
+# tdk: order methods
 class Variable(AbstractContainer, Attributes):
+    """
+    A variable contains data values. They may be masked and have attributes.
+
+    :param str name: The variable's name (required). 
+    :param value: The variable's data.
+    :type value: :class:`numpy.ndarray` | :class:`numpy.ma.MaskedArray` | `sequence`
+    :param dimensions: Dimensions for ``value``. The number of dimensions must match the dimension count of  ``value``
+     (if provided). ``None`` is allowed for scalar or attribute container variables.
+    :type dimensions: `sequence` of :class:`~ocgis.Dimension` | :class:`str`
+    :param dtype: The variable's data type. If ``'auto'``, the data type will match the data type of ``value``. If the 
+     data type does not match ``values``'s data type, ``value`` will be converted to match.
+    :param mask: The variable's mask. If ``None`` and ``value`` is a :class:`numpy.ma.MaskedArray`, then the mask is 
+     pulled from ``value``. Shape must be the same as ``value``. Data type is cast to ``bool``.
+    :type mask: :class:`numpy.ndarray` | `sequence`
+    :param attrs: See :class:`~ocgis.variable.attributes.Attributes`. 
+    :param int fill_value: The fill value to use when hardening the mask. If ``'auto'``, this will be determined
+     automatically from a masked array or the data type.
+    :param str units: Units for the variable's data. If ``'auto'``, attempt to pull units from the variable's  
+     ``attrs``. 
+    :param parent: See :class:`~ocgis.variable.base.AbstractContainer`. 
+    :param bounds: Bounds for the variable's data value. Mostly applicable for coordinate-type variables.
+    :type bounds: :class:`~ocgis.Variable`
+    :param is_empty: If ``True``, the variable is empty and has not value, mask, or meaning.
+    :param source_name: See :class:`~ocgis.base.AbstractNamedObject`.
+    :param uid: See :class:`~ocgis.base.AbstractNamedObject`.
+    :param repeat_record: A value to repeat when the variable's :meth:`~ocgis.Variable.iter` method is called.
+    :type repeat_record: `sequence`
+    
+    >>> repeat_record = [('i am', 'a repeater'), ('this is my value', 5)]
+    
+    **Example Code:**
+    
+    >>> # Create simple variable with a single dimension.
+    >>> var = Variable(name='data', value=[1, 2, 3], dtype=float, dimensions='three')
+    >>> assert var.dimensions[0].name == 'three'
+    
+    >>> # Create a variable using dimension objects.
+    >>> from ocgis import Dimension
+    >>> dim1 = Dimension('three', 3)
+    >>> dim2 = Dimension('five', 5)
+    >>> var = Variable(name='two_d', dimensions=[dim1, dim2], fill_value=4, dtype=int)
+    >>> assert var.get_value().mean() == 4
+    """
     _bounds_attribute_name = 'bounds'
 
     def __init__(self, name=None, value=None, dimensions=None, dtype='auto', mask=None, attrs=None, fill_value='auto',
                  units='auto', parent=None, bounds=None, is_empty=None, source_name=constants.UNINITIALIZED, uid=None,
                  repeat_record=None):
-        """
-        A variable contains data values. It may be masked and have attributes.
-        
-        :param name: See :class:`ocgis.base.AbstractNamedObject`.
-        :param value: The variable's data.
-        :type value: :class:`numpy.ndarray` or :class:`numpy.ma.MaskedArray` or sequence
-        :param dimensions: Dimensions for ``value``. The number of dimensions must match the dimension count of 
-         ``value``.
-        :type dimensions: tuple(:class:`ocgis.Dimension`, ...) or tuple(str, ...)
-        :param dtype: The variable's data type. If ``'auto'``, the data type will match the data type of ``value``. If
-         the data type does not match ``values``'s data type, ``value`` will be converted to match.
-        :param mask: The variable's mask. If ``None`` and ``value`` is a :class:`numpy.ma.MaskedArray`, then the mask
-         is pulled from ``value``.
-        :type mask: (:class:`numpy.ndarray`, ``shape=value.shape``, ``dtype=bool``) or sequence
-        :param attrs: See :class:`ocgis.variable.attributes.Attributes`. 
-        :param int fill_value: The fill value to use when hardening the mask. If ``'auto'``, this will be determined
-         automatically from a masked array or the data type.
-        :param str units: Units for the variable's data. If ``'auto'``, attempt to pull units from the variable's 
-         ``attrs``. 
-        :param parent: See :class:`ocgis.variable.base.AbstractContainer`. 
-        :param bounds: Bounds for the variable's data value. Mostly applicable for coordinate-type variables.
-        :type bounds: :class:`ocgis.Variable`
-        :param is_empty: If ``True``, the variable is empty and has not value, mask, or meaning.
-        :param source_name: See :class:`ocgis.base.AbstractNamedObject`.
-        :param uid: See :class:`ocgis.base.AbstractNamedObject`.
-        :param repeat_record: A value to repeat when the variable's ``iter`` method is called.
-        :type repeat_record: [(<key>, <value>), ...]
-        """
 
         if not is_empty:
             if name is None:
@@ -254,8 +270,21 @@ class Variable(AbstractContainer, Attributes):
         if new_mask is not None:
             ret._mask = new_mask
 
+    def __len__(self):
+        raise NotImplementedError("Use <object>.size")
+
     def __setitem__(self, slc, variable):
-        # tdk: order
+        """
+        Set the this variable's value and mask to the other variable's value and mask in the index space defined by 
+        ``slc``.
+        
+        :param slc: The index space for setting data from ``variable``. ``slc`` must have the same length as the
+         target variable's dimension count.
+        :type slc: (:class:`slice`-like, ...)
+        :param variable: The variable to use for setting values in the target.
+        :type variable: :class:`~ocgis.Variable`
+        """
+
         slc = get_formatted_slice(slc, self.ndim)
         self.get_value()[slc] = variable.get_value()
 
@@ -273,11 +302,13 @@ class Variable(AbstractContainer, Attributes):
         if variable_mask is not None:
             self.set_mask(new_mask)
 
-    def __len__(self):
-        return self.shape[0]
-
     @property
     def bounds(self):
+        """
+        :return: A bounds variable or ``None``
+        :rtype: :class:`~ocgis.Variable` | ``None``
+        """
+
         if self._bounds_name is None:
             ret = None
         else:
@@ -285,6 +316,14 @@ class Variable(AbstractContainer, Attributes):
         return ret
 
     def set_bounds(self, value, force=False):
+        """
+        Set the bounds variable.
+        
+        :param value: The variable containing bounds for the target.
+        :type value: :class:`~ocgis.Variable`
+        :param bool force: If ``True``, clobber the bounds if they exist in :attr:`~ocgis.Variable.parent`. 
+        """
+
         bounds_attr_name = self._bounds_attribute_name
         if value is None:
             if self._bounds_name is not None:
@@ -304,10 +343,22 @@ class Variable(AbstractContainer, Attributes):
 
     @property
     def cfunits(self):
+        """
+        :return: The CF units object representation.
+        :rtype: :class:`cf_units.Units`
+        """
+
         return get_units_object(self.units)
 
     @property
     def dtype(self):
+        """
+        Get or set the variable's data type. If ``'auto'``, this will be chosen automatically from the variable's 
+        ``numpy`` data type. Setting does not do any type conversion.
+        
+        :return: The data type for variable.
+        :rtype: type 
+        """
         is_auto = is_auto_dtype(self._dtype)
         if is_auto:
             ret = self._get_dtype_()
@@ -331,10 +382,19 @@ class Variable(AbstractContainer, Attributes):
 
     @property
     def dimensions(self):
+        """
+        :return: A tuple of dimension objects. 
+        :rtype: :class:`tuple` of :class:`~ocgis.Dimension`
+        """
         return self._get_dimensions_()
 
     @property
     def dimensions_dict(self):
+        """
+        :return: Dimensions as a dictionary. Keys are the dimension names. Values are the dimension objects.
+        :rtype: :class:`~collections.OrderedDict` 
+        """
+
         ret = OrderedDict()
         for d in self.dimensions:
             ret[d.name] = d
@@ -342,6 +402,10 @@ class Variable(AbstractContainer, Attributes):
 
     @property
     def dimension_names(self):
+        """
+        :return: A sequence of dimension names instead of objects.
+        :rtype: :class:`tuple` of :class:`str`
+        """
         if self._dimensions is None:
             ret = tuple()
         else:
@@ -359,6 +423,14 @@ class Variable(AbstractContainer, Attributes):
         return ret
 
     def set_dimensions(self, dimensions, force=False):
+        """
+        Set dimensions for the variable. These may be set to ``None``.
+        
+        :param dimensions: The new dimensions. Should be congruent with the target variable.
+        :type dimensions: `sequence` of :class:`~ocgis.Dimension`
+        :param bool force: If ``True``, clobber any existing dimensions on :attr:`~ocgis.Variable.parent`
+        """
+
         if dimensions is not None:
             dimensions = list(get_iter(dimensions, dtype=(Dimension, str)))
             dimension_names = [None] * len(dimensions)
@@ -387,6 +459,11 @@ class Variable(AbstractContainer, Attributes):
 
     @property
     def extent(self):
+        """
+        :return: The extent of the variable's *masked* value (minimum, maximum). Not applicable for all data types.
+        :rtype: tuple
+        :raises: :class:`~ocgis.exc.EmptyObjectError`
+        """
         raise_if_empty(self)
 
         target = self._get_extent_target_()
@@ -403,6 +480,11 @@ class Variable(AbstractContainer, Attributes):
 
     @property
     def fill_value(self):
+        """
+        :return: The variable's fill value. If ``'auto'``, determin this automatically from ``numpy``.
+        :rtype: :class:`int` or :class:`float`
+        """
+
         if self._fill_value == 'auto':
             ret = self._get_fill_value_()
         else:
@@ -452,6 +534,10 @@ class Variable(AbstractContainer, Attributes):
 
     @property
     def has_mask(self):
+        """
+        :return: ``True`` if the variable has a mask.
+        :rtype: bool 
+        """
         if self._mask is None:
             ret = False
         else:
@@ -461,8 +547,7 @@ class Variable(AbstractContainer, Attributes):
     @property
     def has_masked_values(self):
         """
-        Return ``True`` if any values are masked.
-
+        :return: ``True`` if any values are masked.
         :rtype: bool
         """
 
@@ -475,6 +560,11 @@ class Variable(AbstractContainer, Attributes):
 
     @property
     def is_empty(self):
+        """
+        :return: ``is_empty`` set at initialization or ``True`` if any dimensions are empty and ``is_empty=None`` at
+         initialization.
+        :rtype: bool
+        """
         if self._is_empty is None:
             ret = False
             if self.dist:
@@ -488,10 +578,21 @@ class Variable(AbstractContainer, Attributes):
 
     @property
     def is_orphaned(self):
+        """
+        Variables are always part of collections. "Orphaning" is used to isolate variables to avoid infinite recursion
+        when operating on variable collections.
+        
+        :return: ``True`` if the variable has no parent.
+        :rtype: bool
+        """
         return self._parent is None
 
     @property
     def ndim(self):
+        """
+        :return: The dimension count for the variable.
+        :rtype: int
+        """
         if self._dimensions is None:
             ret = 0
         else:
@@ -500,8 +601,13 @@ class Variable(AbstractContainer, Attributes):
 
     @property
     def resolution(self):
-        # tdk: test
-        # tdk: not sure where this belongs exactly. maybe on a value dimension?
+        """
+        Resolution is computed using the differences between successive values up to 
+        :attr:`ocgis.constants.RESOLUTION_LIMIT`. Applicable mostly for spatial coordinate variables.
+        
+        :rtype: :class:`float` or :class:`int`
+        :raises: ResolutionError
+        """
 
         if not self.has_bounds and self.get_value().shape[0] < 2:
             msg = 'With no bounds and only a single coordinate, approximate resolution may not be determined.'
@@ -517,10 +623,18 @@ class Variable(AbstractContainer, Attributes):
 
     @property
     def shape(self):
+        """
+        :return: Shape of the variable.
+        :rtype: tuple
+        """
         return self._get_shape_()
 
     @property
     def size(self):
+        """
+        :return: Size of the variable (count of its elements)
+        :rtype: int
+        """
         ret = 1
         if len(self.shape) == 0:
             ret = 0
@@ -534,6 +648,12 @@ class Variable(AbstractContainer, Attributes):
 
     @property
     def units(self):
+        """
+        Get or set the units.
+        
+        :return: Units for the object.
+        :rtype: str
+        """
         return self._get_units_()
 
     @units.setter
@@ -554,10 +674,9 @@ class Variable(AbstractContainer, Attributes):
     def value(self):
         raise NotImplementedError('Use <object>.get_value()')
 
-    # tdk: remove me
     @property
     def masked_value(self):
-        raise NotImplementedError
+        raise NotImplementedError('Use <object>.get_masked_value')
 
     def _get_value_(self):
         if self.is_empty:
@@ -575,6 +694,13 @@ class Variable(AbstractContainer, Attributes):
         return ret
 
     def set_value(self, value, update_mask=False):
+        """
+        Set the variable value.
+        
+        :param value: :class:`numpy.ndarray` | `sequence` 
+        :param update_mask: See :class:`~ocgis.Variable.set_mask`
+        """
+
         mask_to_set = None
         should_set_mask = False
         if value is not None:
@@ -622,6 +748,11 @@ class Variable(AbstractContainer, Attributes):
             self.set_mask(mask_to_set, update=update_mask)
 
     def copy(self):
+        """
+        :return: A shallow copy of the variable.
+        :rtype: :class:`~ocgis.Variable`
+        """
+
         if self._parent is None:
             ret = AbstractContainer.copy(self)
             ret.attrs = ret.attrs.copy()
@@ -634,6 +765,12 @@ class Variable(AbstractContainer, Attributes):
         return ret
 
     def deepcopy(self, eager=False):
+        """
+        :param bool eager: If ``True``, also deep copy the variable's :attr:`~ocgis.Variable.parent`. 
+        :return: A deep copy of the variable.
+        :rtype: :class:`~ocgis.Variable`
+        """
+
         deepcopied = self.copy()
 
         if eager:
@@ -684,6 +821,11 @@ class Variable(AbstractContainer, Attributes):
             self.bounds.cfunits_conform(to_units, from_units=from_units)
 
     def convert_to_empty(self):
+        """
+        Convert this variable to an empty variable. This sets the value and mask to ``None``. Also sets the
+        :attr:`~ocgis.Variable.parent` to empty.
+        """
+
         if self.is_orphaned:
             self.set_mask(None)
             self.set_value(None)
@@ -692,6 +834,10 @@ class Variable(AbstractContainer, Attributes):
             self.parent.convert_to_empty()
 
     def get_masked_value(self):
+        """
+        :return: The variable's value as a masked array.
+        :rtype: :class:`numpy.ma.MaskedArray`
+        """
         if isinstance(self.dtype, ObjectType):
             dtype = object
         else:
@@ -699,32 +845,13 @@ class Variable(AbstractContainer, Attributes):
         ret = np.ma.array(self.get_value(), mask=self.get_mask(), dtype=dtype, fill_value=self.fill_value)
         return ret
 
-    def reshape(self, *args):
-        assert not self.has_bounds
-
-        new_shape = [len(dimension) for dimension in args[0]]
-
-        original_value = self.get_value()
-        if self.has_mask:
-            original_mask = self.get_mask()
-        else:
-            original_mask = None
-
-        self.set_mask(None)
-        self.set_value(None)
-        self.set_dimensions(None)
-
-        if original_mask is not None:
-            new_mask = original_mask.reshape(*new_shape)
-        else:
-            new_mask = None
-
-        self.set_dimensions(args[0])
-        self.set_value(original_value.reshape(*new_shape))
-        self.set_mask(new_mask)
-
     def set_extrapolated_bounds(self, name_variable, name_dimension):
-        """Set the bounds variable using extrapolation."""
+        """
+        Set the bounds variable using extrapolation.
+        
+        :param str name_variable: Name of the bounds variable.
+        :param str name_dimension: Name for the bounds dimension.
+        """
 
         if self.bounds is not None:
             raise BoundsAlreadyAvailableError
@@ -737,7 +864,7 @@ class Variable(AbstractContainer, Attributes):
                 bounds_value = get_bounds_from_1d(self.get_value())
             bounds_dimension_size = 2
         else:
-            # tdk: consider renaming this functions to get_bounds_from_2d
+            # TODO: consider renaming this functions to get_bounds_from_2d.
             if not self.is_empty:
                 bounds_value = get_extrapolated_corners_esmf(self.get_value())
                 bounds_value = get_ocgis_corners_from_esmf_corners(bounds_value)
@@ -751,14 +878,26 @@ class Variable(AbstractContainer, Attributes):
 
     @property
     def has_allocated_mask(self):
+        """
+        :return: ``True`` if the mask is allocated.
+        :rtype: bool
+        """
         return self._mask is not None
 
     @property
     def has_allocated_value(self):
+        """
+        :return: ``True`` if the value is allocated.
+        :rtype: bool
+        """
         return self._value is not None
 
     @property
     def has_bounds(self):
+        """
+        :return: ``True`` if the variable has bounds.
+        :rtype: bool
+        """
         if not self.is_orphaned and self.bounds is not None:
             ret = True
         else:
@@ -766,6 +905,13 @@ class Variable(AbstractContainer, Attributes):
         return ret
 
     def get_mask(self, create=False, check_value=False, eager=True):
+        """
+        :param bool create: If ``True``, create the mask if it does not exist. 
+        :param check_value: If ``True``, check the variable's value for values matching 
+         :attr:`~ocgis.Variabe.fill_value`. Matching indices are set to ``True`` in the created mask.
+        :return: An array of ``bool`` data type with shape matching :attr:`~ocgis.Variable.shape`.
+        :rtype: :class:`numpy.ndarray`
+        """
         if self.is_empty:
             ret = None
         else:
@@ -781,6 +927,15 @@ class Variable(AbstractContainer, Attributes):
         return ret
 
     def set_mask(self, mask, cascade=False, update=False):
+        """
+        Set the variable's mask.
+        
+        :param mask: A boolean array with shape matching :attr:`~ocgis.Variable.shape`.
+        :type mask: :class:`numpy.ndarray` | `sequence`
+        :param bool cascade: If ``True``, set the mask on variables in :attr:`~ocgis.Variable.parent` to match this
+         mask. Only sets the masks along shared dimensions.
+        :param bool update: If ``True``, update the existing mask using a logical `or` operation. 
+        """
         if mask is not None:
             mask = np.array(mask, dtype=bool)
             assert mask.shape == self.shape
@@ -801,11 +956,17 @@ class Variable(AbstractContainer, Attributes):
                 set_mask_by_variable(self, self.bounds)
 
     def allocate_value(self, fill=None):
+        """
+        Allocate the value for the variable.
+        
+        :param fill: If ``None``, use :attr:`~ocgis.Variable.fill_value`. 
+        """
         if fill is None:
             fill = self.fill_value
         the_zeros = variable_get_zeros(self.dimensions, self.dtype, fill=fill)
         self.set_value(the_zeros)
 
+    #tdk: remove me or document
     def as_record(self, add_bounds=True, formatter=None, pytypes=False, allow_masked=True, pytype_primitives=False,
                   clobber_masked=True, bounds_names=None):
         if self.is_empty:
@@ -857,10 +1018,11 @@ class Variable(AbstractContainer, Attributes):
 
     def extract(self, keep_bounds=True, clean_break=False):
         """
+        Extract the variable from its collection.
         
         :param bool keep_bounds: If ``True``, maintain any bounds associated with the target variable. 
         :param bool clean_break: If ``True``, remove the target from the containing collection entirely. 
-        :return: 
+        :rtype: :class:`~ocgis.Variable`
         """
         if self.has_initialized_parent:
             to_keep = [self.name]
@@ -885,7 +1047,17 @@ class Variable(AbstractContainer, Attributes):
         return self.parent[self.name]
 
     def get_between(self, lower, upper, return_indices=False, closed=False, use_bounds=True):
-        # tdk: refactor to function
+        """
+        :param lower: The lower value.
+        :param upper: The upper value.
+        :param bool return_indices: If ``True``, also return the indices used to slice the variable.
+        :param bool closed: If ``False`` (the default), operate on the open interval (``>=``, ``<=``). If ``True``, 
+         operate on the closed interval (``>``, ``<``).
+        :param bool use_bounds: If ``True``, use the bounds values for the between operation. 
+        :return: A sliced variable.
+        :rtype: :class:`~ocgis.Variable`
+        """
+
         assert lower <= upper
 
         # Determine if data bounds are contiguous (if bounds exists for the data). Bounds must also have more than one
@@ -961,6 +1133,13 @@ class Variable(AbstractContainer, Attributes):
         return ret
 
     def get_distributed_slice(self, slc):
+        """
+        Slice a distributed variable. Returned variable may be empty.
+        
+        :param slc: The slice indices. The length of ``slc`` must match the number of variable dimensions.
+        :rtype: :class:`~ocgis.Variable`
+        """
+
         raise_if_empty(self)
 
         slc = get_formatted_slice(slc, self.ndim)
@@ -1000,16 +1179,27 @@ class Variable(AbstractContainer, Attributes):
                  'Data Type = {0}'.format(self.dtype)]
         return lines
 
+    # tdk: remove me?
     def get_scatter_slices(self, splits):
         slices = create_nd_slices(splits, self.shape)
         return slices
 
     def get_value(self):
+        """
+        :return: The data values associated with the variable.
+        :rtype: :class:`numpy.ndarray`
+        """
         if self._value is None:
             self._value = self._get_value_()
         return self._value
 
     def get_iter(self, **kwargs):
+        """
+        :param kwargs: See source. 
+        :return: A variable iterator object.
+        :rtype: :class:`~ocgis.variable.iterator.Iterator` 
+        """
+
         add_bounds = kwargs.pop(KeywordArgument.ADD_BOUNDS, False)
         driver = kwargs.pop(KeywordArgument.DRIVER, None)
         repeaters = kwargs.pop(KeywordArgument.REPEATERS, None)
@@ -1055,6 +1245,12 @@ class Variable(AbstractContainer, Attributes):
         return itr
 
     def iter_dict_slices(self, dimensions=None):
+        """
+        :param dimensions: Dimensions to iterate.
+        :type dimensions: `sequence`
+        :return: Yields dictionary slices in the form `{'<dimension name>': <integer index>}`.
+        :rtype: dict
+        """
         if dimensions is None:
             dimensions = self.dimensions
         dnames = get_dimension_names(dimensions)
@@ -1077,7 +1273,7 @@ class Variable(AbstractContainer, Attributes):
     def load(self, *args, **kwargs):
         """
         Allows variables to be fake-loaded in the case of mixed pure variables and sourced variables. Actual
-        implementations is in :class:`ocgis.new_interface.variable.SourcedVariable`
+        implementations is in :class:`~ocgis.variable.SourcedVariable`
         """
 
     def _get_iter_value_(self):
@@ -1085,15 +1281,12 @@ class Variable(AbstractContainer, Attributes):
 
     def write(self, *args, **kwargs):
         """
-        Write the field object to an open netCDF dataset object.
+        Write the variable object using the provided driver.
 
-        :param dataset: The open dataset object or path for the write.
-        :type dataset: :class:`netCDF4.Dataset` or str
-        :param bool file_only: If ``True``, we are not filling the value variables. Only the file schema and dimension
-         values will be written.
-        :param bool unlimited_to_fixedsize: If ``True``, convert the unlimited dimension to fixed size.
-        :param kwargs: Extra keyword arguments in addition to ``dimensions`` and ``fill_value`` to pass to
-         ``createVariable``. See http://unidata.github.io/netcdf4-python/netCDF4.Dataset-class.html#createVariable
+        :keyword driver: ``(='netcdf-cf')`` The driver for variable writing. Not all drivers support writing single
+         variables.
+        :param args: Arguments to the driver's ``write_variable`` call.
+        :param kwargs: Keyword arguments to driver's ``write_variable`` call.
         """
         from ocgis.driver.nc import DriverNetcdf
         from ocgis.driver.registry import get_driver_class
@@ -1122,7 +1315,7 @@ class SourcedVariable(Variable):
 
         Additional arguments and/or keyword arguments are:
         
-        :keyword request_dataset: (``=None``) The request dataset containg the variables source information.
+        :keyword request_dataset: (``=None``) The request dataset containing the variable's source information.
         :type request_dataset: :class`ocgis.RequestDataset`
         :keyword bool protected: (``=False``) If ``True``, attempting to access the variable's value from source will
          raise a :class:`ocgis.exc.PayloadProtectedError` exception. Set `<object>.payload = False` to disable this.

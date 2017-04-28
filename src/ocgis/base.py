@@ -12,11 +12,14 @@ from ocgis.util.helpers import get_iter
 
 @six.add_metaclass(abc.ABCMeta)
 class AbstractOcgisObject(object):
+    """Base class for all ``ocgis`` objects."""
     pass
 
 
 @six.add_metaclass(abc.ABCMeta)
 class AbstractInterfaceObject(AbstractOcgisObject):
+    """Base class for interface objects."""
+
     def copy(self):
         """Return a shallow copy of self."""
         return copy(self)
@@ -33,7 +36,7 @@ class AbstractNamedObject(AbstractInterfaceObject):
     
     :param str name: The object's name.
     :param aliases: Alternative names for the object.
-    :type aliases: sequence(str, ...)
+    :type aliases: ``sequence(str, ...)``
     :param str source_name: Name of the object in its source data. Allows the object name and its source name to differ.
     :param int uid: A unique integer identifier for the object.
     """
@@ -48,10 +51,20 @@ class AbstractNamedObject(AbstractInterfaceObject):
 
     @property
     def name(self):
+        """
+        The objects's name.
+
+        :rtype: str 
+        """
         return self._name
 
     @property
     def source_name(self):
+        """
+        The object's source name.
+        
+        :rtype: str 
+        """
         if self._source_name == constants.UNINITIALIZED:
             ret = self._name
         else:
@@ -59,12 +72,30 @@ class AbstractNamedObject(AbstractInterfaceObject):
         return ret
 
     def append_alias(self, alias):
+        """
+        Append a name alias to the list of the object's aliases.
+        
+        :param str alias: The alias to append. 
+        """
         self._aliases.append(alias)
 
     def is_matched_by_alias(self, alias):
+        """
+        Return ``True`` if the provided alias matches any of the object's aliases.
+        
+        :param str alias: The alias to check.
+        :rtype: bool
+        """
         return alias in self._aliases
 
     def set_name(self, value, aliases=None):
+        """
+        Set the object's name.
+        
+        :param str value: The new name.
+        :param aliases: New aliases for the object.
+        :type aliases: ``sequence(str, ...)``
+        """
         if aliases is None:
             aliases = []
 

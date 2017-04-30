@@ -757,8 +757,8 @@ def is_auto_dtype(dtype):
 
 
 def is_crs_variable(obj):
-    from ocgis.variable.crs import AbstractCoordinateReferenceSystem
-    return isinstance(obj, AbstractCoordinateReferenceSystem)
+    from ocgis.variable.crs import AbstractCRS
+    return isinstance(obj, AbstractCRS)
 
 
 def is_geometry(obj):

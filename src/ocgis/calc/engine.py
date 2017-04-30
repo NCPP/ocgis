@@ -8,12 +8,15 @@ from ocgis.calc.eval_function import EvalFunction, MultivariateEvalFunction
 from ocgis.util.logging_ocgis import ocgis_lh
 
 
-class OcgCalculationEngine(object):
+class CalculationEngine(object):
     """
+    Manages calculation execution.
+    
     :type grouping: list of temporal groupings (e.g. ['month','year'])
-    :type funcs: list of function dictionaries
-    :param bool calc_sample_size:
-    :param :class:`ocgis.util.logging_ocgis.ProgressOcgOperations` progress:
+    :type funcs: :class:`list` of `function dictionaries`
+    :param bool calc_sample_size: If ``True``, calculation sample sizes for the calculations.
+    :param progress:  A progress object to update.
+    :type progress: :class:`~ocgis.util.logging_ocgis.ProgressOcgOperations`
     """
 
     def __init__(self, grouping, funcs, calc_sample_size=False, spatial_aggregation=False, progress=None):

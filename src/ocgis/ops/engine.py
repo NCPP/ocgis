@@ -3,8 +3,8 @@ from copy import deepcopy
 
 from ocgis import Variable, vm
 from ocgis import env, constants
-from ocgis.base import raise_if_empty
-from ocgis.calc.engine import OcgCalculationEngine
+from ocgis.base import raise_if_empty, AbstractOcgisObject
+from ocgis.calc.engine import CalculationEngine
 from ocgis.collection.field import Field
 from ocgis.collection.spatial import SpatialCollection
 from ocgis.constants import WrappedState, HeaderName, WrapAction, SubcommName
@@ -15,12 +15,16 @@ from ocgis.util.logging_ocgis import ocgis_lh, ProgressOcgOperations
 from ocgis.variable.crs import CFRotatedPole, Spherical, WGS84
 
 
-class OperationsEngine(object):
+class OperationsEngine(AbstractOcgisObject):
     """
-    :param :class:~`ocgis.OcgOperations` ops:
-    :param bool request_base_size_only: If ``True``, return field objects following
-     the spatial subset performing as few operations as possible.
-    :param :class:`ocgis.util.logging_ocgis.ProgressOcgOperations` progress:
+    Executes the operations defined by ``ops``.
+    
+    :param ops: The operations to interpret.
+    :type ops: :class:`~ocgis.OcgOperations`
+    :param bool request_base_size_only: If ``True``, return field objects following the spatial subset performing as 
+     few operations as possible.
+    :param progress: A progress object to update.
+    :type progress: :class:`~ocgis.util.logging_ocgis.ProgressOcgOperations`
     """
 
     def __init__(self, ops, request_base_size_only=False, progress=None):
@@ -37,11 +41,11 @@ class OperationsEngine(object):
             self._has_multivariate_calculations = False
         else:
             ocgis_lh('initializing calculation engine', self._subset_log, level=logging.DEBUG)
-            self.cengine = OcgCalculationEngine(self.ops.calc_grouping,
-                                                self.ops.calc,
-                                                calc_sample_size=self.ops.calc_sample_size,
-                                                progress=self._progress,
-                                                spatial_aggregation=self.ops.aggregate)
+            self.cengine = CalculationEngine(self.ops.calc_grouping,
+                                             self.ops.calc,
+                                             calc_sample_size=self.ops.calc_sample_size,
+                                             progress=self._progress,
+                                             spatial_aggregation=self.ops.aggregate)
             self._has_multivariate_calculations = self.cengine.has_multivariate_functions
 
     def __iter__(self):

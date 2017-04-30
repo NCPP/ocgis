@@ -6,7 +6,7 @@ import ocgis
 from ocgis import RequestDataset
 from ocgis import env
 from ocgis.calc.base import AbstractMultivariateFunction, AbstractKeyedOutputFunction
-from ocgis.calc.engine import OcgCalculationEngine
+from ocgis.calc.engine import CalculationEngine
 from ocgis.calc.eval_function import MultivariateEvalFunction
 from ocgis.constants import KeywordArgument
 from ocgis.conv.base import AbstractCollectionConverter
@@ -93,7 +93,7 @@ class NcConverter(AbstractCollectionConverter):
                 msg = 'Calculations must be performed on original values (i.e. calc_raw=False) for netCDF output.'
                 _raise_(msg)
             # No keyed output functions to netCDF.
-            if OcgCalculationEngine._check_calculation_members_(ops.calc, AbstractKeyedOutputFunction):
+            if CalculationEngine._check_calculation_members_(ops.calc, AbstractKeyedOutputFunction):
                 msg = 'Keyed function output may not be written to netCDF.'
                 _raise_(msg)
 

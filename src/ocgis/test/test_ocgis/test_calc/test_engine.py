@@ -4,7 +4,7 @@ import numpy as np
 
 import ocgis
 from ocgis.base import orphaned
-from ocgis.calc.engine import OcgCalculationEngine
+from ocgis.calc.engine import CalculationEngine
 from ocgis.calc.eval_function import EvalFunction
 from ocgis.calc.library.statistics import Mean
 from ocgis.collection.spatial import SpatialCollection
@@ -13,7 +13,7 @@ from ocgis.test.base import attr
 from ocgis.util.logging_ocgis import ProgressOcgOperations
 
 
-class TestOcgCalculationEngine(TestBase):
+class TestCalculationEngine(TestBase):
     @property
     def funcs(self):
         return deepcopy([{'ref': Mean, 'name': 'mean', 'kwds': {}, 'func': 'mean'}])
@@ -30,7 +30,7 @@ class TestOcgCalculationEngine(TestBase):
         funcs = funcs or self.funcs
         if grouping == 'None':
             grouping = self.grouping
-        return OcgCalculationEngine(grouping, funcs, **kwds)
+        return CalculationEngine(grouping, funcs, **kwds)
 
     @attr('data')
     def test_with_eval_function_one_variable(self):

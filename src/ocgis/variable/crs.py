@@ -22,10 +22,15 @@ SpatialReference = osr.SpatialReference
 
 
 @six.add_metaclass(abc.ABCMeta)
-class AbstractCoordinateReferenceSystem(AbstractOcgisObject):
+class AbstractCRS(AbstractOcgisObject):
     """
     Base class for all OCGIS coordinate systems. Intended to allow differentiation between standard PROJ.4 coordinate
     systems and specialized OCGIS-supported coordinate systems.
+    
+    :param angular_units: Angular units for the coordinate system.
+    :type angular_units: :attr:`ocgis.constants.OcgisUnits`
+    :param linear_units: Linear units for the coordinate system.
+    :type linear_units: :attr:`ocgis.constants.OcgisUnits`
     """
     _cf_attributes = None
     _cf_attributes_to_remove = ('units', 'standard_name')
@@ -139,9 +144,9 @@ class AbstractCoordinateReferenceSystem(AbstractOcgisObject):
     @classmethod
     def get_wrap_action(cls, state_src, state_dst):
         """
-        :param int state_src: The wrapped state of the source dataset. (:class:`~ocgis.constants.WrappedState`)
-        :param int state_dst: The wrapped state of the destination dataset. (:class:`~ocgis.constants.WrappedState`)
-        :returns: The wrapping action to perform on ``state_src``. (:class:`~ocgis.constants.WrapAction`)
+        :param int state_src: The wrapped state of the source dataset. (:class:`ocgis.constants.WrappedState`)
+        :param int state_dst: The wrapped state of the destination dataset. (:class:`ocgis.constants.WrappedState`)
+        :returns: The wrapping action to perform on ``state_src``. (:class:`ocgis.constants.WrapAction`)
         :rtype: int
         :raises: NotImplementedError, ValueError
         """
@@ -176,9 +181,9 @@ class AbstractCoordinateReferenceSystem(AbstractOcgisObject):
 
     def get_wrapped_state(self, target):
         """
-        :param field: Return the wrapped state of a field. This function only checks grid centroids and geometry
+        :param target: Return the wrapped state of a field. This function only checks grid centroids and geometry
          exteriors. Bounds/corners on the grid are excluded.
-        :type field: :class:`ocgis.new_interface.field.Field`
+        :type target: :class:`~ocgis.Field`
         """
         # TODO: Wrapped state should operate on the x-coordinate variable vectors or geometries only.
         from ocgis.collection.field import Field
@@ -328,27 +333,25 @@ class AbstractCoordinateReferenceSystem(AbstractOcgisObject):
 
 
 @six.add_metaclass(abc.ABCMeta)
-class AbstractProj4CoordinateReferenceSystem(AbstractCoordinateReferenceSystem):
+class AbstractProj4CRS(AbstractCRS):
     """
     Base class for coordinate systems that may be transformed using PROJ.4.
     """
 
-
-class CoordinateReferenceSystem(AbstractProj4CoordinateReferenceSystem, AbstractInterfaceObject):
+class CoordinateReferenceSystem(AbstractProj4CRS, AbstractInterfaceObject):
     """
     Defines a coordinate system objects. One of ``value``, ``proj4``, or ``epsg`` is required.
 
-    :param value: (``=None``) A dictionary representation of the coordinate system with PROJ.4 paramters as keys.
+    :param value: A dictionary representation of the coordinate system with PROJ.4 paramters as keys.
     :type value: dict
-    :param proj4: (``=None``) A PROJ.4 string.
+    :param proj4: A PROJ.4 string.
     :type proj4: str
-    :param epsg: (``=None``) An EPSG code.
+    :param epsg: An EPSG code.
     :type epsg: int
-    :param name: (``=:attr:`ocgis.constants.DEFAULT_COORDINATE_SYSTEM_NAME```) A custom name for the coordinate system.
+    :param name: A custom name for the coordinate system.
     :type name: str
     """
 
-    # tdk: implement reading proj4 attribute from coordinate systems if present
     def __init__(self, value=None, proj4=None, epsg=None, name=constants.DEFAULT_COORDINATE_SYSTEM_NAME):
         self.name = name
         # Allows operations on data variables to look through an empty dimension list. Alleviates instance checking.
@@ -534,7 +537,7 @@ class AbstractSphericalCoordinateReferenceSystem(AbstractOcgisObject):
 
         .. note:: If ``z`` is a scalar, the transformed ``z`` value is not returned.
 
-        :param other_crs: :class:`ocgis.variable.crs.AbstractCoordinateReferenceSystem`
+        :param other_crs: :class:`ocgis.variable.crs.AbstractCRS`
         :param x: The x-coordinate array.
         :type x: :class:`numpy.ndarray`
         :param y: The y-coordinate array.
@@ -660,11 +663,11 @@ class Spherical(AbstractSphericalCoordinateReferenceSystem, CoordinateReferenceS
         value = {'proj': 'longlat', 'towgs84': '0,0,0,0,0,0,0', 'no_defs': '', 'a': semi_major_axis,
                  'b': semi_major_axis}
         CoordinateReferenceSystem.__init__(self, value=value, name='latitude_longitude')
-        AbstractCoordinateReferenceSystem.__init__(self, angular_units=angular_units)
+        AbstractCRS.__init__(self, angular_units=angular_units)
         self.semi_major_axis = semi_major_axis
 
 
-class Cartesian(AbstractCoordinateReferenceSystem):
+class Cartesian(AbstractCRS):
     """
     A regular Cartesian coordinate system.
     """
@@ -689,7 +692,7 @@ class Cartesian(AbstractCoordinateReferenceSystem):
         return other_crs.transform_grid(self, grid, inverse=True)
 
 
-class Tripole(AbstractSphericalCoordinateReferenceSystem, AbstractCoordinateReferenceSystem):
+class Tripole(AbstractSphericalCoordinateReferenceSystem, AbstractCRS):
     """
     A spherical representation of the Earth's surface having three poles (singularities).
     
@@ -702,8 +705,8 @@ class Tripole(AbstractSphericalCoordinateReferenceSystem, AbstractCoordinateRefe
         if spherical is None:
             spherical = Spherical()
         self.spherical = spherical
-        AbstractCoordinateReferenceSystem.__init__(self, linear_units=spherical.linear_units,
-                                                   angular_units=spherical.angular_units)
+        AbstractCRS.__init__(self, linear_units=spherical.linear_units,
+                             angular_units=spherical.angular_units)
 
 
 class WGS84(CoordinateReferenceSystem):

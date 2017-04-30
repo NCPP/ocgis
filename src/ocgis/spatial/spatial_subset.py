@@ -16,7 +16,7 @@ class SpatialSubsetOperation(AbstractOcgisObject):
     :type field: :class:`~ocgis.Field`
     :param output_crs: If provided, all output coordinates will be remapped to match. If ``'input'``, the default,
      use the coordinate system assigned to ``field``.
-    :type output_crs: :class:`~ocgis.variable.crs.AbstractCoordinateReferenceSystem`
+    :type output_crs: :class:`~ocgis.variable.crs.AbstractCRS`
     :param wrap: This is only relevant for spherical coordinate systems on ``field`` or when selected as the
      ``output_crs``. If ``None``, leave the wrapping the same as ``field``. If ``True``, wrap the coordinates. If
      ``False``, unwrap the coordinates. A "wrapped" spherical coordinate system has a longitudinal domain from -180 to
@@ -54,7 +54,7 @@ class SpatialSubsetOperation(AbstractOcgisObject):
         """
         Perform a spatial subset operation on ``target``.
 
-        :param str operation: Either 'intersects' or 'clip'.
+        :param str operation: Either ``'intersects'`` or ``'clip'``.
         :param geom: The input geometry object to use for subsetting of ``target``.
         :type geom: :class:`shapely.geometry.base.BaseGeometry`
         :param bool use_spatial_index: If ``True``, use an ``rtree`` spatial index.

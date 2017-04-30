@@ -35,7 +35,7 @@ GEOM_TYPE_MAPPING = {'Polygon': Polygon, 'Point': Point, 'MultiPoint': MultiPoin
 class AbstractSpatialObject(AbstractInterfaceObject):
     """
     :keyword crs: (``=None``) Coordinate reference system for the spatial object.
-    :type crs: :class:`ocgis.variable.crs.AbstractCoordinateReferenceSystem`
+    :type crs: :class:`ocgis.variable.crs.AbstractCRS`
     """
 
     def __init__(self, *args, **kwargs):
@@ -241,7 +241,7 @@ class GeometryVariable(AbstractSpatialVariable):
     Additional keyword arguments are:
 
     :param crs: (``=None``) The coordinate reference system for the geometries.
-    :type crs: :class:`~ocgis.variable.crs.AbstractCoordinateReferenceSystem`
+    :type crs: :class:`~ocgis.variable.crs.AbstractCRS`
     :param str geom_type: (``='auto'``) See http://toblerity.org/shapely/manual.html#object.geom_type. If ``'auto'``,
      the geometry type will be automatically determined from the object array. Providing a default prevents iterating
      over the obejct array to identify the geometry type.
@@ -816,7 +816,7 @@ class GeometryVariable(AbstractSpatialVariable):
         Update the coordinate system of the geometry variable in-place.
         
         :param to_crs: The destination CRS for the transformation.
-        :type to_crs: :class:`~ocgis.variable.crs.AbstractCoordinateReferenceSystem`
+        :type to_crs: :class:`~ocgis.variable.crs.AbstractCRS`
         """
 
         super(GeometryVariable, self).update_crs(to_crs)

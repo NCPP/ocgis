@@ -827,7 +827,7 @@ class Grid(AbstractSpatialContainer):
         Update the coordinate system in place.
 
         :param to_crs: The destination coordinate system.
-        :type to_crs: :class:`~ocgis.variable.crs.AbstractCoordinateReferenceSystem`
+        :type to_crs: :class:`~ocgis.variable.crs.AbstractCRS`
         """
         super(Grid, self).update_crs(to_crs)
 

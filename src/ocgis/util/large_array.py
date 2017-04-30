@@ -7,7 +7,7 @@ import ocgis
 from ocgis import constants
 from ocgis.calc import tile
 from ocgis.calc.base import AbstractMultivariateFunction
-from ocgis.calc.engine import OcgCalculationEngine
+from ocgis.calc.engine import CalculationEngine
 from ocgis.constants import TagName
 from ocgis.ops.core import OcgOperations
 from ocgis.util.helpers import ProgressBar
@@ -56,7 +56,7 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
         raise ValueError('"tile_dimension" must be greater than 0')
 
     # Determine if we are working with a multivariate function.
-    if OcgCalculationEngine._check_calculation_members_(ops.calc, AbstractMultivariateFunction):
+    if CalculationEngine._check_calculation_members_(ops.calc, AbstractMultivariateFunction):
         # Only one multivariate calculation allowed.
         assert len(ops.calc) == 1
         has_multivariate = True

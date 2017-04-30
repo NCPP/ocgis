@@ -66,7 +66,7 @@ class OcgOperations(AbstractOcgisObject):
     :param calc_sample_size: If `True`, calculate statistical sample sizes for calculations.
     :type calc_sample_size: bool
     :param output_crs: If provided, all output geometries will be projected to match the provided CRS.
-    :type output_crs: :class:`ocgis.variable.crs.AbstractCoordinateReferenceSystem`
+    :type output_crs: :class:`ocgis.variable.crs.AbstractCRS`
     :param search_radius_mult: This value is multiplied by the target data's spatial resolution to determine the buffer
      radius for point selection geometries.
     :type search_radius_mult: float

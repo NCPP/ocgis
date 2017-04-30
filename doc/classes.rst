@@ -40,6 +40,19 @@ Variable
     :members:
     :special-members:
 
+CoordinateReferenceSystem
++++++++++++++++++++++++++
+
+.. autoclass:: ocgis.variable.crs.CoordinateReferenceSystem
+    :show-inheritance:
+    :members:
+    :special-members:
+
+CRS
+++++
+
+.. autoclass:: ocgis.variable.crs.CRS
+
 VariableCollection
 ++++++++++++++++++
 
@@ -128,6 +141,18 @@ GeomCabinetIterator
 Operation Wrappers
 ------------------
 
+CalculationEngine
++++++++++++++++++
+
+.. autoclass:: ocgis.calc.engine.CalculationEngine
+    :show-inheritance:
+
+OperationsEngine
+++++++++++++++++
+
+.. autoclass:: ocgis.ops.engine.OperationsEngine
+    :show-inheritance:
+
 RegridOperation
 +++++++++++++++
 
@@ -203,6 +228,17 @@ Attributes
 ++++++++++
 
 .. autoclass:: ocgis.variable.attributes.Attributes
+    :show-inheritance:
+    :members:
+
+AbstractCRS
++++++++++++
+
+.. autoclass:: ocgis.variable.crs.AbstractCRS
+    :show-inheritance:
+    :members:
+
+.. autoclass:: ocgis.variable.crs.AbstractProj4CRS
     :show-inheritance:
     :members:
 

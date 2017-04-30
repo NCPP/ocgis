@@ -52,7 +52,7 @@ class Field(VariableCollection):
     :type geom: :class:`~ocgis.GeometryVariable`
     :param crs: (``='auto'``) A coordinate reference system variable. If ``'auto'``, use the coordinate system from
      the ``grid`` or ``geom``. ``geom`` is given preference if both are present.
-    :type crs: :class:`str` | ``None`` | :class:`~ocgis.variable.crs.AbstractCoordinateReferenceSystem`
+    :type crs: :class:`str` | ``None`` | :class:`~ocgis.variable.crs.AbstractCRS`
     :param str grid_abstraction: See keyword argument ``abstraction`` for :class:`~ocgis.Grid`.
     :param str format_time: See keyword argument ``format_time`` for :class:`~ocgis.TemporalVariable`.
     """
@@ -190,7 +190,7 @@ class Field(VariableCollection):
     def crs(self):
         """
         :return: Get the field's coordinate reference system. Return ``None`` if no coordinate system is assigned.
-        :rtype: :class:`~ocgis.variable.crs.AbstractCoordinateReferenceSystem`
+        :rtype: :class:`~ocgis.variable.crs.AbstractCRS`
         """
         crs_name = self.dimension_map.get_crs()
         if crs_name is None:
@@ -755,7 +755,7 @@ class Field(VariableCollection):
         variable.
         
         :param value: The coordinate reference system variable or ``None``.
-        :type value: :class:`~ocgis.variable.crs.AbstractCoordinateReferenceSystem` | ``None``
+        :type value: :class:`~ocgis.variable.crs.AbstractCRS` | ``None``
         """
 
         if self.crs is not None:
@@ -770,7 +770,7 @@ class Field(VariableCollection):
         Set the field's geometry variable. 
 
         :param value: The coordinate reference system variable or ``None``.
-        :type value: :class:`~ocgis.variable.crs.AbstractCoordinateReferenceSystem` | ``None``
+        :type value: :class:`~ocgis.variable.crs.AbstractCRS` | ``None``
         :param bool force: If ``True`` (the default), clobber any existing geometry variable.
         :raises: ValueError
         """
@@ -863,7 +863,7 @@ class Field(VariableCollection):
         Update the field coordinates contained in its grid and/or geometry.
         
         :param to_crs: The destination coordinate reference system.
-        :type to_crs: :class:`~ocgis.variable.crs.AbstractCoordinateReferenceSystem`
+        :type to_crs: :class:`~ocgis.variable.crs.AbstractCRS`
         :raises: :class:`~ocgis.exc.EmptyObjectError`
         """
 

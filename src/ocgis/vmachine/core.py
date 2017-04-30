@@ -9,8 +9,10 @@ from ocgis.vmachine.mpi import MPI_COMM, get_nonempty_ranks, MPI_SIZE, MPI_RANK
 
 class OcgVM(AbstractOcgisObject):
     """
+    Manages communicators for parallel execution. Provides access to a dummy communicator when running in serial.
+    
     :param comm: The default communicator.
-    :type comm: MPI Communicator or :class:`ocgis.vmachine.mpi.DummyMPIComm`
+    :type comm: MPI Communicator or :class:`~ocgis.vmachine.mpi.DummyMPIComm`
     """
 
     def __init__(self, comm=None):

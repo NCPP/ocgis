@@ -19,6 +19,9 @@ from ocgis.variable.geom import GeometryVariable
 
 
 class DriverVector(AbstractTabularDriver):
+    """
+    Driver for vector GIS data.
+    """
     extensions = ('.*\.shp',)
     key = DriverKey.VECTOR
     output_formats = [constants.OutputFormatName.OCGIS, constants.OutputFormatName.SHAPEFILE]

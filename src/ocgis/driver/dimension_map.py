@@ -13,7 +13,8 @@ from ocgis.util.helpers import pprint_dict, get_or_create_dict
 class DimensionMap(AbstractOcgisObject):
     """
     A dimension map is used to link dimensions and variables with an explicit meaning. It is the main mapping produced
-    by a driver and a request dataset's metadata.
+    by a driver and a request dataset's metadata. Dimension maps are used by field to construct grids and geometries,
+    perform subsetting, link bounds to parent variables, and manage coordinate systems.
     """
 
     _allowed_entry_keys = (DMK.REALIZATION, DMK.TIME, DMK.LEVEL, DMK.Y, DMK.X, DMK.GEOM, DMK.CRS, DMK.GROUPS)

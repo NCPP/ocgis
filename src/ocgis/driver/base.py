@@ -26,6 +26,8 @@ from ocgis.vmachine.mpi import find_dimension_in_sequence, OcgDist
 @six.add_metaclass(abc.ABCMeta)
 class AbstractDriver(AbstractOcgisObject):
     """
+    Base class for all drivers.
+    
     :param rd: The input request dataset object.
     :type rd: :class:`~ocgis.RequestDataset`
     """
@@ -582,6 +584,9 @@ class AbstractDriver(AbstractOcgisObject):
 
 @six.add_metaclass(abc.ABCMeta)
 class AbstractTabularDriver(AbstractDriver):
+    """
+    Base class for tabular drivers (no optimal single variable access).
+    """
     def get_distributed_dimension_name(self, dimension_map, dimensions_metadata):
         """Return the preferred distributed dimension name."""
         return list(dimensions_metadata.values())[0]['name']

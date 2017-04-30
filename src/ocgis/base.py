@@ -88,11 +88,11 @@ class AbstractNamedObject(AbstractInterfaceObject):
         """
         return alias in self._aliases
 
-    def set_name(self, value, aliases=None):
+    def set_name(self, name, aliases=None):
         """
         Set the object's name.
         
-        :param str value: The new name.
+        :param str name: The new name.
         :param aliases: New aliases for the object.
         :type aliases: ``sequence(str, ...)``
         """
@@ -101,11 +101,11 @@ class AbstractNamedObject(AbstractInterfaceObject):
 
         if self._source_name == constants.UNINITIALIZED:
             if self._name is None:
-                self._source_name = value
+                self._source_name = name
             else:
                 self._source_name = self._name
 
-        self._name = value
+        self._name = name
 
         aliases.append(self._name)
         self._aliases = aliases

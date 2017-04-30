@@ -454,13 +454,13 @@ def iter_esmf_fields(ofield, regrid_method='auto', value_mask=None, split=True):
 
     The returned tuple elements are:
 
-    ===== ============================== ==================================================================================================
-    Index Type                           Description
-    ===== ============================== ==================================================================================================
-    0     str                            The variable name currently being converted.
+    ===== ================================= ===================================================================================================
+    Index Type                              Description
+    ===== ================================= ===================================================================================================
+    0     str                               The variable name currently being converted.
     1     :class:`~ESMF.driver.field.Field` The ESMF Field object.
-    2     int                            The current time index of the yielded ESMF field. If ``split=False``, This will be ``slice(None)``.
-    ===== ============================== ==================================================================================================
+    2     int                               The current time index of the yielded ESMF field. If ``split=False``, This will be ``slice(None)``.
+    ===== ================================= ===================================================================================================
 
     :raises: AssertionError
     """

@@ -10,6 +10,9 @@ from ocgis.driver.base import driver_scope, AbstractTabularDriver
 
 
 class DriverCSV(AbstractTabularDriver):
+    """
+    Driver for comma separated value files.
+    """
     extensions = ('.*\.csv',)
     key = DriverKey.CSV
     output_formats = 'all'

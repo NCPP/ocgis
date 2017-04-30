@@ -19,7 +19,7 @@ from ocgis.util.units import get_units_object, get_are_units_equivalent
 
 class RequestDataset(AbstractRequestObject):
     """
-    A :class:`ocgis.RequestDataset` contains all the information necessary to find and subset a variable (by time
+    A :class:`~ocgis.RequestDataset` contains all the information necessary to find and subset a variable (by time
     and/or level) contained in a local or OpenDAP-hosted CF dataset.
 
     >>> from ocgis import RequestDataset
@@ -30,11 +30,11 @@ class RequestDataset(AbstractRequestObject):
     >>> rd = RequestDataset(uri, variable)
 
     :param uri: The absolute path (URLs included) to the data's location.
-    :type uri: str or sequence
+    :type uri: :class:`str` | `sequence` of :class:`str`
 
     >>> uri = 'http://some.opendap.dataset'
     >>> uri = '/path/to/local/file.nc'
-    # Multifile datasets are supported for local and remote targets.
+    >>> # Multifile datasets are supported for local and remote targets.
     >>> uri = ['/path/to/local/file1.nc', '/path/to/local/file2.nc']
 
     .. warning:: There is no internal checking on the ordering of the files. If the datasets should be concatenated
@@ -44,52 +44,46 @@ class RequestDataset(AbstractRequestObject):
     :param variable: The target variable. If the argument value is ``None``, then a search on the target data object
      will be performed to find variables having a minimum set of dimensions (i.e. time and space). The value of this
      property will then be updated.
-    :type variable: str or sequence or None
+    :type variable: :class:`str` | `sequence` of :class:`str` | ``None``
 
     >>> variable = 'tas'
     >>> variable = ['tas', 'tasmax']
 
-    :param time_range: Upper and lower bounds for time dimension subsetting. If ``None``, return all time points.
-    :type time_range: [:class:`datetime.datetime`, :class:`datetime.datetime`]
-    :param time_region: A dictionary with keys of ``'month'`` and/or ``'year'`` and values as sequences corresponding to
-     target month and/or year values. Empty region selection for a key may be set to ``None``.
-    :type time_region: dict
+    :param time_range: Lower and upper bounds for time dimension subsetting. If ``None``, return all time points.
+    :type time_range: two-element `sequence` of ``datetime``-like objects
+    :param dict time_region: A dictionary with keys of ``'month'`` and/or ``'year'`` and values as sequences 
+     corresponding to target month and/or year values. Empty region selection for a key may be set to ``None``.
 
     >>> time_region = {'month':[6,7],'year':[2010,2011]}
     >>> time_region = {'year':[2010]}
 
-    :param time_subset_func: See :meth:`ocgis.interface.base.dimension.temporal.TemporalDimension.get_subset_by_function`
-     for usage instructions.
-    :type time_subset_func: :class:`FunctionType`
-    :param level_range: Upper and lower bounds for level dimension subsetting. If ``None``, return all levels.
-    :type level_range: [int, int] or [float, float]
+    :param time_subset_func: See :meth:`~ocgis.TemporalVariable.get_subset_by_function`.
+    :param level_range: Lower and upper bounds for level dimension subsetting. If ``None``, return all levels.
+    :type level_range: two-element `sequence` of :class:`int` or :class:`float`
     :param crs: Overload the autodiscovered coordinate system.
-    :type crs: :class:`ocgis.variable.crs.AbstractCoordinateReferenceSystem`
+    :type crs: :class:`~ocgis.variable.crs.AbstractCoordinateReferenceSystem`
 
     >>> from ocgis.variable.crs import WGS84
     >>> crs = WGS84()
 
-    :param t_units: Overload the `time units`_.
-    :type t_units: str
-    :param t_calendar: Overload the `time calendar`_.
-    :type t_calendar: str
+    :param str t_units: Overload the `time units`_.
+    :param str t_calendar: Overload the `time calendar`_.
     :param str t_conform_units_to: Conform the time dimension to the provided units. The calendar may not be changed.
      The optional dependency ``cf_units`` is required.
 
     >>> t_conform_units_to = 'days since 1949-1-1'
 
-    :param grid_abstraction: Abstract the geometry data to either ``'point'`` or ``'polygon'``. If ``'polygon'`` is not
-     possible due to missing bounds, ``'point'`` will be used instead. If ``'auto'`` (the default), identify the grid
-     abstraction automatically.
-    :type grid_abstraction: str
+    :param str grid_abstraction: Abstract the geometry data to either ``'point'`` or ``'polygon'``. If ``'polygon'`` is 
+     not possible due to missing bounds, ``'point'`` will be used instead. If ``'auto'`` (the default), identify the 
+     grid abstraction automatically.
 
-    .. note:: The ``abstraction`` argument in :class:`ocgis.OcgOperations` will overload this.
+    .. note:: The ``abstraction`` argument in :class:`~ocgis.OcgOperations` will overload this.
 
     :param dimension_map: Maps dimensions to axes in the case of a projection/realization axis or an uncommon axis
      ordering. All axes must be in the dictionary. A fully-specified dimension map for a CF grid file containing time, 
      x, and y axes is below. The file also contains a scalar level axis. At minimum, a ``'variable'`` must be provided
      for each axis.
-    :type dimension_map: :class:`ocgis.DimensionMap` | dict
+    :type dimension_map: :class:`~ocgis.DimensionMap` | dict
 
     >>> {'crs': {'variable': 'latitude_longitude'},
          'groups': {},
@@ -112,10 +106,10 @@ class RequestDataset(AbstractRequestObject):
                'variable': 'lat'}}
 
     :param units: The units of the source variable. This will be read from metadata if this value is ``None``.
-    :type units: str or :class:`cfunits.Units` or sequence
-    :param conform_units_to: Destination units for conversion. If this parameter is set, then the :mod:`cfunits` module
+    :type units: str | :class:`cf_units.Unit` | `sequence` of possible types
+    :param conform_units_to: Destination units for conversion. If this parameter is set, then the :mod:`cf_units` module
      must be installed.
-    :type conform_units_to: str or :class:`cfunits.Units` or sequence
+    :type conform_units_to: :class:`str` | :class:`cfunits.Units` | `sequence` of possible types
     :param str driver: If ``None``, autodiscover the appropriate driver. Acceptable values are listed below.
 
     ============= ================= =============================================
@@ -123,7 +117,7 @@ class RequestDataset(AbstractRequestObject):
     ============= ================= =============================================
     ``'netcdf-cf' ``'nc'``          A netCDF file using a CF metadata convention.
     ``'netcdf' `` ``'nc'``          A netCDF file with no metadata convention.
-    ``'vector'``  ``'shp'``         An ESRI Shapefile.
+    ``'vector'``  ``'shp'``         An ESRI Shapefile or other vector source.
     ``'csv'``     ``'csv'``         A CSV file.
     ============= ================= =============================================
 
@@ -135,7 +129,7 @@ class RequestDataset(AbstractRequestObject):
      Only one :class:`~ocgis.RequestDataset` may be set as the destination grid. Please see :ref:`esmpy-regridding` for
      an overview.
     :param rename_variable: A sequence with the same length as ``variable``. Provides new names for the variables.
-    :type rename_variable: sequence(str, ...)
+    :type rename_variable: `sequence` of :class:`str`
     :param dict metadata: Overload the metadata that would normally be loaded by the driver.
     :param opened: An open file used as a write target for the driver.
     :type opened: varies by ``driver`` class

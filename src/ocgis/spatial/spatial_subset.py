@@ -1,21 +1,22 @@
 from copy import deepcopy, copy
 
 from ocgis import env, vm
-from ocgis.base import raise_if_empty
+from ocgis.base import raise_if_empty, AbstractOcgisObject
 from ocgis.collection.field import Field
 from ocgis.constants import WrappedState
 from ocgis.variable.crs import CFRotatedPole, CFSpherical
 from ocgis.variable.geom import GeometryVariable
 
 
-class SpatialSubsetOperation(object):
+class SpatialSubsetOperation(AbstractOcgisObject):
     """
-    Perform spatial subsets on various types of ``ocgis`` data objects.
+    Perform spatial subsets using :class:`~ocgis.Field` objects.
 
     :param field: The target field to subset.
-    :type field: :class:`ocgis.new_interface.field.Field`
-    :param output_crs: If provided, all output coordinates will be remapped to match.
-    :type output_crs: :class:`ocgis.interface.base.crs.CoordinateReferenceSystem`
+    :type field: :class:`~ocgis.Field`
+    :param output_crs: If provided, all output coordinates will be remapped to match. If ``'input'``, the default,
+     use the coordinate system assigned to ``field``.
+    :type output_crs: :class:`~ocgis.variable.crs.AbstractCoordinateReferenceSystem`
     :param wrap: This is only relevant for spherical coordinate systems on ``field`` or when selected as the
      ``output_crs``. If ``None``, leave the wrapping the same as ``field``. If ``True``, wrap the coordinates. If
      ``False``, unwrap the coordinates. A "wrapped" spherical coordinate system has a longitudinal domain from -180 to

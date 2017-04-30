@@ -236,18 +236,18 @@ class GeometryVariable(AbstractSpatialVariable):
     """
     A variable containing Shapely geometry object arrays.
     
-    .. note:: Accepts all parameters to :class:`ocgis.Variable`.
+    .. note:: Accepts all parameters to :class:`~ocgis.Variable`.
 
     Additional keyword arguments are:
 
     :param crs: (``=None``) The coordinate reference system for the geometries.
-    :type crs: :class:`ocgis.variable.crs.AbstractCoordinateReferenceSystem`
+    :type crs: :class:`~ocgis.variable.crs.AbstractCoordinateReferenceSystem`
     :param str geom_type: (``='auto'``) See http://toblerity.org/shapely/manual.html#object.geom_type. If ``'auto'``,
      the geometry type will be automatically determined from the object array. Providing a default prevents iterating
      over the obejct array to identify the geometry type.
     :param ugid: (``=None``) An integer array with same shape as the geometry variable. This array will be converted to
-     a :class:`ocgis.Variable`.
-    :type ugid: :class:`numpy.ndarray```(..., dtype=int)``
+     a :class:`~ocgis.Variable`.
+    :type ugid: :class:`numpy.ndarray`
     """
 
     def __init__(self, **kwargs):
@@ -267,6 +267,10 @@ class GeometryVariable(AbstractSpatialVariable):
 
     @property
     def area(self):
+        """
+        :return: geometry areas as a float masked array
+        :rtype: :class:`numpy.ma.MaskedArray`
+        """
         if self.is_empty:
             fill = None
         else:
@@ -284,6 +288,10 @@ class GeometryVariable(AbstractSpatialVariable):
 
     @property
     def dtype(self):
+        """
+        :return: geometry variables are always of object type
+        :rtype: type
+        """
         # Geometry arrays are always object arrays.
         return object
 
@@ -294,6 +302,10 @@ class GeometryVariable(AbstractSpatialVariable):
 
     @property
     def geom_type(self):
+        """
+        :return: geometry type for the variable
+        :rtype: str
+        """
         # Geometry objects may change part counts during operations. It is better to scan and update the geometry types
         # to account for these operations.
         if self._geom_type == 'auto':
@@ -302,6 +314,11 @@ class GeometryVariable(AbstractSpatialVariable):
 
     @property
     def geom_type_global(self):
+        """
+        :returns: global geometry type collective across the current :class:`~ocgis.OcgVM`
+        :rtype: str
+        :raises: :class:`~ocgis.exc.EmptyObjectError`
+        """
         raise_if_empty(self)
         geom_types = vm.gather(self.geom_type)
         if vm.rank == 0:
@@ -314,18 +331,43 @@ class GeometryVariable(AbstractSpatialVariable):
 
     @property
     def weights(self):
+        """
+        Weights are defined as:
+        
+        >>> self.area / self.area.max()
+        
+        Any geometries with zero area (points) are given an area of ``1.0`` for the purposes of weight calculation.
+        
+        :return:  weights as a float masked array
+        :rtype: :class:`numpy.ma.MaskedArray`
+        """
+
         area = self.area
         area.data[area.data == 0] = 1.0
         return area / area.max()
 
     @property
     def ugid(self):
+        """
+        :return: unique identifier variable
+        :rtype: :class:`~ocgis.Variable`
+        """
+
         if self._name_ugid is None:
             return None
         else:
             return self.parent[self._name_ugid]
 
     def create_ugid(self, name, start=1):
+        """
+        Create a unique identifier variable for the geometry variable. The returned variable will have the same
+        dimensions.
+        
+        :param str name: The name for the new geometry variable. 
+        :param int start: Starting value for the unique identifier. 
+        :rtype: :class:`~ocgis.Variable`
+        """
+
         if self.is_empty:
             value = None
         else:
@@ -335,7 +377,12 @@ class GeometryVariable(AbstractSpatialVariable):
         return ret
 
     def create_ugid_global(self, name, start=1):
-        """Collective!"""
+        """
+        Same as :meth:`~ocgis.GeometryVariable.create_ugid` but collective across the current :class:`~ocgis.OcgVM`.
+        
+        :raises: :class:`~ocgis.exc.EmptyObjectError`
+        """
+
         raise_if_empty(self)
 
         sizes = vm.gather(self.size)
@@ -355,6 +402,14 @@ class GeometryVariable(AbstractSpatialVariable):
     def get_buffer(self, *args, **kwargs):
         """
         Return a shallow copy of the geometry variable with geometries buffered.
+        
+        .. note:: Accepts all parameters to :meth:`shapely.geometry.base.BaseGeometry.buffer`.
+        
+        An additional keyword argument is:
+        
+        :keyword str geom_type: The geometry type for the new buffered geometry if known in advance.
+        :rtype: :class:`~ocgis.GeometryVariable`
+        :raises: :class:`~ocgis.exc.EmptyObjectError`
         """
 
         raise_if_empty(self)
@@ -379,11 +434,15 @@ class GeometryVariable(AbstractSpatialVariable):
 
     def get_intersects(self, *args, **kwargs):
         """
-        :param bool return_slice: (``='False'``) If ``True``, return the _global_ slice that will guarantee no masked
-         elements outside the subset geometry.
-        :param comm: (``=None``) If ``None``, use the default MPI communicator.
-        :return:
-        :raises: EmptySubsetError
+        Perform an intersects spatial operations on the geometry variable.
+        
+        :keyword bool return_slice: (``=False``) If ``True``, return the _global_ slice that will guarantee no masked
+         elements outside the subset geometry as the second element in the return value.
+        :keyword bool cascade: (``=True``) If ``True`` (the default), set the mask following the spatial operation on
+         all variables in the parent collection.
+        :returns: shallow copy of the geometry variable
+        :rtype: :class:`~ocgis.GeometryVariable` | ``(<geometry variable>, <slice>)``
+        :raises: :class:`~ocgis.exc.EmptySubsetError`
         """
 
         raise_if_empty(self)
@@ -401,7 +460,7 @@ class GeometryVariable(AbstractSpatialVariable):
             for var in list(ret.parent.values()):
                 assert var.is_empty
 
-        # tdk: need to implement fancy index-based slicing for the one-dimensional unstructured case
+        # TODO: need to implement fancy index-based slicing for the one-dimensional unstructured case. Difficult in parallel.
         # if self.ndim == 1:
         #     # For one-dimensional data, assume it is unstructured and compress the returned data.
         #     adjust = np.where(np.invert(ret.get_mask()))
@@ -414,19 +473,15 @@ class GeometryVariable(AbstractSpatialVariable):
 
     def get_intersection(self, *args, **kwargs):
         """
-        Collective!
-
         .. note:: Accepts all parameters to :meth:`~ocgis.new_interface.geom.GeometryVariable.get_intersects`. Same
          return types.
 
         Additional arguments and/or keyword arguments are:
 
-        :param str calendar: (``='standard'``)
-
-        :param bool inplace: (``=False``) If ``False``, deep copy the geometry array on the output before executing an
-         intersection. If ``True``, modify the geometries in-place.
-        :param bool intersects_check: (``=True``) If ``True``, first perform an intersects operation to limit the
-         geometries tests for intersection. If ``False``, perform the intersection as is.
+        :keyword bool inplace: (``=False``) If ``False`` (the default), deep copy the geometry array on the output 
+         before executing an intersection. If ``True``, modify the geometries in-place.
+        :keyword bool intersects_check: (``=True``) If ``True`` (the default), first perform an intersects operation to 
+         limit the geometries tests for intersection. If ``False``, perform the intersection as is.
         """
 
         inplace = kwargs.pop(KeywordArgument.INPLACE, False)
@@ -465,6 +520,9 @@ class GeometryVariable(AbstractSpatialVariable):
         return ret
 
     def get_iter(self, *args, **kwargs):
+        """
+        :rtype: :class:`~ocgis.variable.iterator.Iterator`
+        """
         should_add = kwargs.pop(KeywordArgument.ADD_GEOM_UID, False)
 
         if should_add and self.ugid is not None:
@@ -476,9 +534,17 @@ class GeometryVariable(AbstractSpatialVariable):
 
     def get_mask_from_intersects(self, geometry_or_bounds, use_spatial_index=env.USE_SPATIAL_INDEX, keep_touches=False,
                                  original_mask=None):
-
-        if self.is_empty:
-            raise ValueError('No empty geometry variables allowed.')
+        """
+        :param geometry_or_bounds: A Shapely geometry or bounds tuple used for the masking.
+        :type geometry_or_bounds: :class:`shapely.geometry.base.BaseGeometry` | :class:`tuple`
+        :param bool use_spatial_index: If ``True``, use a spatial index for the operation.
+        :param bool keep_touches: If ``True``, keep geometries that only touch.
+        :param original_mask: A hint mask for the spatial operation. ``True`` values will be skipped.
+        :type original_mask: :class:`numpy.ndarray`
+        :returns: boolean array with non-intersecting values set to ``True``
+        :rtype: :class:`numpy.ndarray`
+        """
+        raise_if_empty(self)
 
         # Transform bounds sequence to a geometry.
         if not isinstance(geometry_or_bounds, BaseGeometry):
@@ -491,6 +557,13 @@ class GeometryVariable(AbstractSpatialVariable):
         return ret
 
     def get_nearest(self, target, return_indices=False):
+        """
+        :param target: The Shapely geometry to use for proximity.
+        :type target: :class:`shapely.geometry.base.BaseGeometry`
+        :param bool return_indices: If ``True``, also return the indices used for slicing the geometry variable. 
+        :return: shallow copy of the geometry variable and optionally slices
+        :rtype: :class:`~ocgis.GeometryVariable` | ``(<geometry variable>, <slice>)``
+        """
         target = target.centroid
         distances = {}
         for select_nearest_index, geom in iter_array(self.get_value(), return_value=True, mask=self.get_mask()):
@@ -520,11 +593,13 @@ class GeometryVariable(AbstractSpatialVariable):
 
     def get_spatial_index(self, target=None):
         """
-        Return a spatial index for the geometry variable.
         :param target: If this is a boolean array, use this as the add target. Otherwise, use the compressed masked
          values.
-        :return:
+        :type target: :class:`numpy.ndarray`
+        :return: spatial index for the geometry variable
+        :rtype: :class:`rtree.index.Index`
         """
+
         # "rtree" is an optional dependency.
         from ocgis.spatial.index import SpatialIndex
         # Fill the spatial index with unmasked values only.
@@ -541,9 +616,9 @@ class GeometryVariable(AbstractSpatialVariable):
 
     def get_unioned(self, dimensions=None, union_dimension=None, spatial_average=None, root=0):
         """
-        Unions _unmasked_ geometry objects. Collective across communicator.
+        Unions _unmasked_ geometry objects. Collective across the current :class:`~ocgis.OcgVM`.
         """
-        # tdk: optimize
+        # TODO: optimize!
 
         # Get dimension names and lengths for the dimensions to union.
         if dimensions is None:
@@ -737,6 +812,13 @@ class GeometryVariable(AbstractSpatialVariable):
             return
 
     def update_crs(self, to_crs):
+        """
+        Update the coordinate system of the geometry variable in-place.
+        
+        :param to_crs: The destination CRS for the transformation.
+        :type to_crs: :class:`~ocgis.variable.crs.AbstractCoordinateReferenceSystem`
+        """
+
         super(GeometryVariable, self).update_crs(to_crs)
 
         members = [self.crs, to_crs]
@@ -778,6 +860,13 @@ class GeometryVariable(AbstractSpatialVariable):
             yield feature
 
     def set_ugid(self, variable):
+        """
+        Set the unique identifier for the geometry variable.
+        
+        :param variable: The unqiue identifier variable.
+        :type variable: :class:`~ocgis.Variable` | ``None``
+        """
+
         if variable is None:
             self._name_ugid = None
             self.attrs.pop(constants.AttributeName.UNIQUE_GEOMETRY_IDENTIFIER, None)

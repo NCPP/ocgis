@@ -25,6 +25,9 @@ from ocgis.variable.temporal import TemporalVariable
 
 
 class DriverNetcdf(AbstractDriver):
+    """
+    Driver for netCDF files that avoids any hint of metadata.
+    """
     extensions = ('.*\.nc', 'http.*')
     key = DriverKey.NETCDF
     output_formats = 'all'
@@ -239,6 +242,9 @@ class DriverNetcdf(AbstractDriver):
 
 
 class DriverNetcdfCF(DriverNetcdf):
+    """
+    Metadata-aware netCDF driver.
+    """
     key = DriverKey.NETCDF_CF
     _default_crs = env.DEFAULT_COORDSYS
     _priority = True

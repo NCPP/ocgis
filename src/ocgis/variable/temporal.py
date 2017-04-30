@@ -18,15 +18,14 @@ from ocgis.variable.base import SourcedVariable, get_attribute_property, set_att
 
 class TemporalVariable(SourcedVariable):
     """
-    .. note:: Accepts all parameters to :class:`~ocgis.interface.base.dimension.base.VectorDimension`.
+    .. note:: Accepts all parameters to :class:`~ocgis.SourcedVariable`.
 
     :keyword str calendar: (``='standard'``) The calendar to use when converting from float to datetime objects. Any of
      the netCDF-CF calendar tyes: http://unidata.github.io/netcdf4-python/netCDF4-module.html#num2date
-    :keyword bool format_time: (``=True``) If ``False``, do not allow access to ``value_datetime``,
-     ``bounds_datetime``, and ``extent_datetime``. If these properties are accessed raise
-     :class:``~ocgis.exc.CannotFormatTimeError``.
     :keyword str units: (``='days since 0000-01-01 00:00:00'``) The units string to use when converting from float to
      datetime objects. See: http://unidata.github.io/netcdf4-python/netCDF4-module.html#num2date
+    :keyword bool format_time: (``=True``) If ``False``, do not allow access to ``datetime``-like objects. If these 
+     properties are accessed, raise :class:``~ocgis.exc.CannotFormatTimeError``.
     """
 
     _date_parts = ('year', 'month', 'day', 'hour', 'minute', 'second')
@@ -62,6 +61,11 @@ class TemporalVariable(SourcedVariable):
 
     @property
     def calendar(self):
+        """
+        Get or set the calendar for the variable. If ``None``, the ``standard`` calendar will be used.
+        
+        :rtype: str 
+        """
         return get_attribute_property(self, 'calendar')
 
     @calendar.setter
@@ -72,12 +76,20 @@ class TemporalVariable(SourcedVariable):
 
     @property
     def cfunits(self):
+        """
+        :return: `cf_units` object with appropriate calendar
+        :rtype: :class:`cf_units.Unit`
+        """
         ret = super(TemporalVariable, self).cfunits
         ret = ret.__class__(str(ret), calendar=self.calendar)
         return ret
 
     @property
     def extent_datetime(self):
+        """
+        :return: lower and upper time bounds as a two-element :class:`datetime.datetime` tuple
+        :rtype: tuple
+        """
         if not self.format_time:
             raise CannotFormatTimeError('extent_datetime')
         extent = self.extent
@@ -87,6 +99,10 @@ class TemporalVariable(SourcedVariable):
 
     @property
     def extent_numtime(self):
+        """
+        :return: lower and upper time bounds as a two-element ``float`` tuple
+        :rtype: tuple
+        """
         extent = self.extent
         if not get_datetime_conversion_state(extent[0]):
             extent = self.get_numtime(extent)
@@ -94,6 +110,10 @@ class TemporalVariable(SourcedVariable):
 
     @property
     def value_datetime(self):
+        """
+        :return: time value as a :class:`datetime.datetime` masked ``object`` array
+        :rtype: :class:`numpy.ma.MaskedArray`
+        """
         if not self.format_time:
             raise CannotFormatTimeError('value_datetime')
         if self._value_datetime is None:
@@ -106,6 +126,10 @@ class TemporalVariable(SourcedVariable):
 
     @property
     def value_numtime(self):
+        """
+        :return: time value as a :class:`datetime.datetime` masked ``float`` array
+        :rtype: :class:`numpy.ma.MaskedArray`
+        """
         if self._value_numtime is None:
             if not get_datetime_conversion_state(self.get_value().flatten()[0]):
                 self._value_numtime = np.ma.array(self.get_numtime(self.get_value()), mask=self.get_mask(), ndmin=1)
@@ -149,6 +173,12 @@ class TemporalVariable(SourcedVariable):
 
     @classmethod
     def from_variable(cls, variable, format_time=True):
+        """
+        :param variable: The source variable to convert to a time variable. 
+        :param bool format_time: See :class:`~ocgis.TemporalVariable`.
+        :return: a standard variable converted to a time variable
+        :rtype: :class:`~ocgis.TemporalVariable`
+        """
         bounds = variable.bounds
         if variable.has_bounds:
             bounds = cls.from_variable(bounds, format_time=format_time)
@@ -172,22 +202,15 @@ class TemporalVariable(SourcedVariable):
 
     def get_datetime(self, arr):
         """
-        :param arr: An array of floats to convert to datetime objects.
+        :param arr: An array of floats to convert ``datetime``-like objects.
         :type arr: :class:`numpy.ndarray`
-        :returns: An object array of the same shape as ``arr`` with float objects converted to datetime objects.
+        :returns: ``object`` array of the same shape as ``arr`` with float objects converted to ``datetime`` objects.
         :rtype: :class:`numpy.ndarray`
         """
 
         # If there are month units, call the special procedure to convert those to datetime objects.
         if not self._has_months_units:
             arr = np.atleast_1d(nc.num2date(arr, str(self.units), calendar=self.calendar))
-
-            # try:
-            #     raise AttributeError
-            #     dt = netcdftime.datetime
-            # except AttributeError:
-            #     # NetCDF4 datetime library changed. Just default to datetimes if the import fails.
-            #     dt = datetime.datetime
             dt = get_datetime_or_netcdftime
 
             for idx, t in iter_array(arr, return_value=True):
@@ -205,12 +228,14 @@ class TemporalVariable(SourcedVariable):
 
     def get_grouping(self, grouping):
         """
-        :param sequence grouping: The temporal grouping to use when creating the temporal group dimension.
+        Create a temporally grouped variable using string group sequences.
+        
+        :param grouping: The temporal grouping to use when creating the temporal group dimension.
 
         >>> grouping = ['month']
 
-        :returns: A temporal group dimension.
-        :rtype: :class:`~ocgis.interface.base.dimension.temporal.TemporalGroupDimension`
+        :type grouping: `sequence` of :class:`str`
+        :rtype: :class:`~ocgis.variable.temporal.TemporalGroupVariable`
         """
 
         # There is no need to go through the process of breaking out datetime parts when the grouping is 'all'.
@@ -251,7 +276,7 @@ class TemporalVariable(SourcedVariable):
 
     def get_numtime(self, arr):
         """
-        :param arr: An array of datetime objects to convert to numeric time.
+        :param arr: An array of ``datetime``-like objects to convert to numeric time.
         :type arr: :class:`numpy.ndarray`
         :returns: An array of numeric values with same shape as ``arr``.
         :rtype: :class:`numpy.ndarray`
@@ -276,6 +301,11 @@ class TemporalVariable(SourcedVariable):
         return ret
 
     def get_report(self):
+        """
+        :return: sequence of descriptive strings about the time variable
+        :rtype: `sequence` of :class:`str`
+        """
+
         lines = super(TemporalVariable, self).get_report()
 
         try:
@@ -325,10 +355,9 @@ class TemporalVariable(SourcedVariable):
 
         :param func: The function to use for subsetting.
         :type func: :class:`FunctionType`
-        :param return_indices: If ``True``, return the index integers used for slicing/subsetting of the target object.
-        :type return_indices: sequence of integers
-        :returns: A temporal dimension object that has been subset using the supplied function.
-        :rtype: :class:`ocgis.interface.base.dimension.temporal.TemporalDimension`
+        :param bool return_indices: If ``True``, return the index integers used for slicing/subsetting of the target 
+         object.
+        :rtype: :class:`~ocgis.TemporalVariable` | :class:`tuple`
         """
 
         if self.has_bounds:
@@ -343,6 +372,16 @@ class TemporalVariable(SourcedVariable):
         return ret
 
     def get_time_region(self, time_region, return_indices=False):
+        """
+        :param dict time_region: A dictionary defining the time region subset.
+         
+        >>> time_region = {'month': [1, 2, 3], 'year': [2000]}
+         
+        :param bool return_indices: If ``True``, also return the indices used to subset the variable.
+        :return: shallow copy of the sliced time variable
+        :rtype: :class:`~ocgis.TemporalVariable`
+        """
+
         assert isinstance(time_region, dict)
 
         # return the values to use for the temporal region subsetting.
@@ -697,6 +736,19 @@ class TemporalVariable(SourcedVariable):
 
 
 class TemporalGroupVariable(TemporalVariable):
+    """
+    Stores temporal grouping information for a time variable. Behaves like a time variable in all other aspects.
+    
+    .. note:: Accepts all parameters to :class:`~ocgis.TemporalVariable`.
+    
+    Additional keyword arguments are:
+    
+    :keyword grouping: (``=None``) See :meth:`~ocgis.TemporalVariable.get_grouping`.
+    :keyword dgroups: (``=None``) Sequence of boolean arrays defining each unique temporal group.
+    :type dgroups: `sequence` of :class:`numpy.ndarray`
+    :keyword date_parts: (``=None``) Sequence of date part tuples.
+    :type date_parts: `sequence` of :class:`tuple`
+    """
     _bounds_attribute_name = 'climatology'
 
     def __init__(self, *args, **kwargs):

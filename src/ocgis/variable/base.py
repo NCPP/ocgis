@@ -27,23 +27,12 @@ from ocgis.variable.iterator import Iterator
 from ocgis.vmachine.mpi import create_nd_slices, get_global_to_local_slice
 
 
-def handle_empty(func):
-    def wrapped(*args, **kwargs):
-        self = args[0]
-        if self.is_empty:
-            return self
-        else:
-            return func(*args, **kwargs)
-
-    return wrapped
-
-
 @six.add_metaclass(abc.ABCMeta)
 class AbstractContainer(AbstractNamedObject):
     """
     Base class for objects with a parent.
     
-    .. note:: Accepts all parameters to :class:`ocgis.base.AbstractNamedObject`.
+    .. note:: Accepts all parameters to :class:`~ocgis.base.AbstractNamedObject`.
 
     Additional keyword arguments are:
 
@@ -61,6 +50,11 @@ class AbstractContainer(AbstractNamedObject):
         super(AbstractContainer, self).__init__(name, aliases=aliases, source_name=source_name, uid=uid)
 
     def __getitem__(self, slc):
+        """
+        :param slc: Standard slicing syntax or a dictionary slice.
+        :return: Slice the object and return a shallow copy. 
+        :rtype: :class:`~ocgis.variable.base.AbstractContainer`
+        """
         ret, slc = self._getitem_initialize_(slc)
         if self._parent is None:
             self._getitem_main_(ret, slc)
@@ -74,10 +68,19 @@ class AbstractContainer(AbstractNamedObject):
 
     @abstractproperty
     def dimensions(self):
+        """
+        :return: A dimension dictionary containing all dimensions on associated with variables in the collection.
+        :rtype: :class:`~collections.OrderedDict`
+        """
         pass
 
     @property
     def group(self):
+        """
+        :return: The group index in the parent/child hierarchy. Returns ``None`` if this collection is the head.
+        :rtype: ``None`` | :class:`list` of :class:`str`
+        """
+
         curr = self.parent
         ret = [curr.source_name]
         while True:
@@ -91,10 +94,19 @@ class AbstractContainer(AbstractNamedObject):
 
     @property
     def has_initialized_parent(self):
+        """
+        :return: ``True`` if the object's parent has not been initialized.
+        :rtype: bool
+        """
         return self._parent is not None
 
     @property
     def parent(self):
+        """
+        Get or set the parent collection.
+        
+        :rtype: :class:`ocgis.VariableCollection`
+        """
         if self._parent is None:
             self._initialize_parent_()
         return self._parent
@@ -104,15 +116,28 @@ class AbstractContainer(AbstractNamedObject):
         self._parent = value
 
     @abstractmethod
-    def get_mask(self):
-        """:rtype: :class:`numpy.ndarray`"""
+    def get_mask(self, *args, **kwarga):
+        """
+        :return: The object's mask as a boolean array with same dimension as the object.
+        :rtype: :class:`numpy.ndarray`
+        """
         raise NotImplementedError
 
     @abstractmethod
-    def set_mask(self, mask):
+    def set_mask(self, mask, **kwargs):
+        """
+        Set the object's mask.
+        
+        :param mask: A boolean mask array or ``None`` to remove the mask.
+        """
         raise NotImplementedError
 
     def set_name(self, name, aliases=None):
+        """
+        Set the name for the object.
+        
+        :param name: See :class:`~ocgis.base.AbstractNamedObject`.
+        """
         if self.name in self.parent:
             self.parent[name] = self.parent.pop(self.name)
         super(AbstractContainer, self).set_name(name, aliases=aliases)
@@ -1311,7 +1336,7 @@ class SourcedVariable(Variable):
         maintained for convenience. Generally, it is a good idea to only provide ``name` and ``request_dataset`` to 
         avoid conflicts.
         
-        .. note:: Accepts all parameters to :class:`ocgis.Variable`.
+        .. note:: Accepts all parameters to :class:`~ocgis.Variable`.
 
         Additional arguments and/or keyword arguments are:
         

@@ -71,6 +71,16 @@ MPI_RANK = MPI_COMM.Get_rank()
 
 
 class OcgDist(AbstractOcgisObject):
+    """
+    Computes the parallel distribution for variable dimensions.
+    
+    :param int size: The number of ranks to use for the distribution. If ``None`` (the default), use the global MPI
+     size.
+    :param ranks: A sequence of integer ranks with length equal to ``size``. Useful if computing a distribution for a
+     rank subset.
+    :type ranks: `sequence` of :class:`int`
+    """
+
     def __init__(self, size=None, ranks=None):
         if size is None:
             size = MPI_SIZE

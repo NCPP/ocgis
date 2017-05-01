@@ -1,10 +1,8 @@
 from contextlib import contextmanager
 
-from mpi4py.MPI import COMM_NULL
-
 from ocgis.base import AbstractOcgisObject
 from ocgis.exc import SubcommNotFoundError, SubcommAlreadyCreatedError
-from ocgis.vmachine.mpi import MPI_COMM, get_nonempty_ranks, MPI_SIZE, MPI_RANK
+from ocgis.vmachine.mpi import MPI_COMM, get_nonempty_ranks, MPI_SIZE, MPI_RANK, COMM_NULL
 
 
 class OcgVM(AbstractOcgisObject):

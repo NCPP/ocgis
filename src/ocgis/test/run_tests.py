@@ -14,11 +14,6 @@ class RunAll(nose.plugins.Plugin):
         self.attrs = kwargs.pop('attrs', self._attrs_standard)
         self.verbose = kwargs.pop('verbose', True)
 
-        dir_shpcabinet = kwargs.pop('dir_shpcabinet', '~/data/ocgis_test_data/shp')
-        dir_test_data = kwargs.pop('dir_test_data', '~/data/ocgis_test_data')
-        os.environ['OCGIS_DIR_GEOMCABINET'] = os.path.expanduser(dir_shpcabinet)
-        os.environ['OCGIS_DIR_TEST_DATA'] = os.path.expanduser(dir_test_data)
-
         super(RunAll, self).__init__(*args, **kwargs)
 
     def get_argv(self):
@@ -64,12 +59,10 @@ class RunSimple(RunAll):
     name = 'test_simple'
     _attrs_standard = 'simple'
 
-    # @property
-    # def target(self):
-    #     path = os.path.realpath(ocgis.__file__)
-    #     path = os.path.split(path)[0]
-    #     path = os.path.join(path, 'test', 'test_simple')
-    #     return path
+
+class RunMPINoData(RunAll):
+    name = 'test_mpi'
+    _attrs_standard = 'mpi,!data,!release'
 
 
 def _run_tests_(nose_plugin):
@@ -85,6 +78,11 @@ def run_more(**kwargs):
 
 def run_all(**kwargs):
     nose_plugin = RunAll(**kwargs)
+    _run_tests_(nose_plugin)
+
+
+def run_mpi_nodata(**kwargs):
+    nose_plugin = RunMPINoData(**kwargs)
     _run_tests_(nose_plugin)
 
 

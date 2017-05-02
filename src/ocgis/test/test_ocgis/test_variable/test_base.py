@@ -1029,6 +1029,7 @@ class TestSourcedVariable(AbstractTestInterface):
         self.assertIsNone(sv._value)
         return sv
 
+    @attr('data')
     def test_init(self):
         sv = self.get_sourcedvariable()
         self.assertIsInstance(sv._request_dataset, RequestDataset)
@@ -1053,6 +1054,7 @@ class TestSourcedVariable(AbstractTestInterface):
             sv.get_value()
         self.assertIsNone(sv._value)
 
+    @attr('data')
     def test_init_bounds(self):
         bv = self.get_boundedvariable()
         self.assertEqual(bv.shape, (3,))
@@ -1136,6 +1138,7 @@ class TestSourcedVariable(AbstractTestInterface):
         invar = SourcedVariable(name='fill', request_dataset=rd, protected=True)
         self.assertEqual(invar.fill_value, 100)
 
+    @attr('data')
     def test_get_scatter_slices(self):
         sv = self.get_sourcedvariable(protected=True)
         actual = sv.get_scatter_slices((1, 2, 2))
@@ -1145,6 +1148,7 @@ class TestSourcedVariable(AbstractTestInterface):
                    (slice(0, 3650, None), slice(32, 64, None), slice(64, 128, None)))
         self.assertEqual(actual, desired)
 
+    @attr('data')
     def test_getitem(self):
         sv = self.get_sourcedvariable()
         sub = sv[10:20, 5, 6]
@@ -1153,10 +1157,12 @@ class TestSourcedVariable(AbstractTestInterface):
         self.assertIsNone(sub.dimensions[0].size)
         self.assertEqual(sub.dimensions[0].size_current, 10)
 
+    @attr('data')
     def test_get_dimensions(self):
         sv = self.get_sourcedvariable()
         self.assertTrue(len(sv.dimensions), 3)
 
+    @attr('data')
     def test_get_iter(self):
         sv = self.get_sourcedvariable()[0:10, 0:2, 2:4]
         sv._request_dataset.uid = 5
@@ -1164,6 +1170,7 @@ class TestSourcedVariable(AbstractTestInterface):
         for row in itr:
             self.assertEqual(row[HeaderName.DATASET_IDENTIFER], sv._request_dataset.uid)
 
+    @attr('data')
     def test_get_value(self):
         sv = self.get_sourcedvariable()
         sub = sv[5:11, 3:6, 5:8]
@@ -1182,6 +1189,7 @@ class TestSourcedVariable(AbstractTestInterface):
         sv.set_value(None)
         self.assertIsNone(sv.get_value())
 
+    @attr('data')
     def test_init_from_source(self):
         sv = self.get_sourcedvariable()
         init_from_source(sv)
@@ -1196,6 +1204,7 @@ class TestSourcedVariable(AbstractTestInterface):
             self.assertIsNotNone(d.__src_idx__)
         self.assertEqual(sv.attrs['standard_name'], 'air_temperature')
 
+    @attr('data')
     def test_load(self):
         sv = self.get_sourcedvariable()
         self.assertIsNone(sv._value)
@@ -1234,6 +1243,7 @@ class TestSourcedVariable(AbstractTestInterface):
         desired = np.logical_or(new_mask, var2_mask)
         self.assertNumpyAll(actual, desired)
 
+    @attr('data')
     def test_value(self):
         sv = self.get_sourcedvariable()
         sub = sv[5:11, 3:6, 5:8]

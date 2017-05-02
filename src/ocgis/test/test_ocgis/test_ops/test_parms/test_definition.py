@@ -600,7 +600,7 @@ class TestGeom(TestBase):
     def test_init_field(self):
         """Test using a field as initial value."""
 
-        field = Field.from_records(GeomCabinetIterator(key='state_boundaries'))
+        field = Field.from_records(GeomCabinetIterator(path=self.path_state_boundaries))
         self.assertIsInstance(field.crs, env.DEFAULT_COORDSYS.__class__)
         g = Geom(field)
         self.assertEqual(len(g.value), 51)

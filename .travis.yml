@@ -4,6 +4,8 @@ sudo: false
 
 env:
   - CONDA_PYTHON="python=2.7"
+#  - CONDA_PYTHON="python=3.5"
+#  - CONDA_PYTHON="python=3.6"
 
 before_install:
   - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh;
@@ -15,14 +17,14 @@ before_install:
   - conda info -a
 
 install:
-  - travis_retry conda create -n test-full -c nesii $CONDA_PYTHON ocgis esmpy nose
-  - source activate test-full
+  - travis_retry conda create -n test-minimal -c nesii/channel/dev-ocgis -c conda-forge $CONDA_PYTHON ocgis nose
+  - source activate test-minimal
   - conda remove ocgis
   - python setup.py install
 
-  - travis_retry conda create -n test-minimal -c nesii $CONDA_PYTHON ocgis nose
-  - source activate test-minimal
-  - conda remove rtree cf_units ocgis icclim
+  - travis_retry conda create -n test-full -c nesii/channel/dev-ocgis -c conda-forge $CONDA_PYTHON ocgis nose icclim rtree cf_units esmpy mpi4py
+  - source activate test-full
+  - conda remove ocgis
   - python setup.py install
 
 script:
@@ -30,4 +32,5 @@ script:
   - python -c "from ocgis.test import run_simple; run_simple(verbose=False)"
 
   - source activate test-full
-  - python -c "from ocgis.test import run_all; run_all(verbose=False)"
+  - python -c "from ocgis.test import run_more; run_more(verbose=False)"
+  - mpirun -n 2 python -c "from ocgis.test import run_mpi_nodata; run_mpi_nodata(verbose=False)"

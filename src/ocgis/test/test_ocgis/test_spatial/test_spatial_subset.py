@@ -157,7 +157,7 @@ class TestSpatialSubsetOperation(TestBase):
         ss = SpatialSubsetOperation(field_360, wrap=None)
         self.assertFalse(ss._get_should_wrap_(ss.field))
 
-    @attr('slow', 'mpi')
+    @attr('slow', 'mpi', 'data')
     def test_get_spatial_subset(self):
 
         ctr_test = 0

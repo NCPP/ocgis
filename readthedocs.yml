@@ -1,2 +1,2 @@
 conda:
-    file: environment-readthedocs.yml
+    file: misc/environment-readthedocs.yml

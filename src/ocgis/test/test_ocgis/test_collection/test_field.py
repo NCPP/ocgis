@@ -421,7 +421,7 @@ class TestField(AbstractTestInterface):
                         geom = GeometryVariable(value=[Point(1, 2), Point(3, 4)], name='geom', dimensions='geom')
                         data = Variable(name='data', value=[10, 20], dimensions='geom')
                         field = Field(geom=geom)
-                        field.add_variable(data, is_data=data)
+                        field.add_variable(data, is_data=True)
                         self.assertFalse(os.path.isdir(path))
                         field.write(path, driver=driver)
                         self.assertFalse(os.path.isdir(path))

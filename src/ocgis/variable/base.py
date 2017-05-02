@@ -1301,6 +1301,30 @@ class Variable(AbstractContainer, Attributes):
         implementations is in :class:`~ocgis.variable.SourcedVariable`
         """
 
+    def reshape(self, *args):
+        assert not self.has_bounds
+
+        new_shape = [len(dimension) for dimension in args[0]]
+
+        original_value = self.get_value()
+        if self.has_mask:
+            original_mask = self.get_mask()
+        else:
+            original_mask = None
+
+        self.set_mask(None)
+        self.set_value(None)
+        self.set_dimensions(None)
+
+        if original_mask is not None:
+            new_mask = original_mask.reshape(*new_shape)
+        else:
+            new_mask = None
+
+        self.set_dimensions(args[0])
+        self.set_value(original_value.reshape(*new_shape))
+        self.set_mask(new_mask)
+
     def _get_iter_value_(self):
         return self.get_value()
 

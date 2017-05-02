@@ -628,7 +628,7 @@ class TestVariable(AbstractTestInterface):
             vdim = Variable('hello', value=data[key]['value'], bounds=bounds, dimensions=['a'])
 
             vdim_between = vdim.get_between(1, 3)
-            self.assertEqual(len(vdim_between), 2)
+            self.assertEqual(vdim_between.size, 2)
 
             actual = vdim_between.bounds.get_value()
 
@@ -642,7 +642,7 @@ class TestVariable(AbstractTestInterface):
             # Preference is given to the lower bound in the case of "ties" where the value could be assumed part of the
             # lower or upper cell.
             vdim_between = vdim.get_between(2.5, 2.5)
-            self.assertEqual(len(vdim_between), 1)
+            self.assertEqual(vdim_between.size, 1)
             actual = vdim_between.bounds.get_masked_value()
             if key == 'original':
                 self.assertNumpyAll(actual, np.ma.array([[2.5, 7.5]]))

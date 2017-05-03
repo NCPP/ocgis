@@ -7,31 +7,38 @@ If you would like to subscribe to the low-volume, OpenClimateGIS mailing list, p
 Anaconda Package
 ----------------
 
-An `Anaconda <https://store.continuum.io/cshop/anaconda/>`_ package is available through `IOOS's Anaconda Channel <https://anaconda.org/IOOS>`_ repository (linux-64, osx-64, and windows). This is the recommended method for installing OpenClimateGIS. IOOS offers numerous scientific computing packages which together provide a valuable default computing environment.
+An `Anaconda <https://store.continuum.io/cshop/anaconda/>`_ package is available through `conda-forge <https://conda-forge.github.io/>`_.
 
-Base installation with spatial index and unit conversion support (``nose`` is used for testing purposes only):
+Using the Package Manager
++++++++++++++++++++++++++
 
-.. code-block:: sh
-
-   conda install -c ioos ocgis
-
-Installation with ESMPy:
+Installation with all optional dependencies:
 
 .. code-block:: sh
 
-   conda install -c ioos ocgis esmpy
+   conda install -c conda-forge -c nesii ocgis esmpy mpi4py cf_units rtree icclim nose
 
-Alternatively, NESII provides linux-64 builds for both OCGIS and ESMPy:
-
-.. code-block:: sh
-
-   conda install -c nesii ocgis
-
-With ESMPy:
+Installation without optional dependencies:
 
 .. code-block:: sh
 
-   conda install -c nesii ocgis esmpy
+   conda install -c conda-forge ocgis
+
+Alternatively, NESII provides linux-64 builds for both OpenClimateGIS and ESMPy:
+
+.. code-block:: sh
+
+   conda install -c nesii -c conda-forge ocgis esmpy
+
+Using an Environment File
++++++++++++++++++++++++++
+
+An Anaconda `environment file <https://conda.io/docs/using/envs.html#use-environment-from-file>`_ installing all OpenClimateGIS dependencies is available in the repository root.
+
+.. code-block:: sh
+
+    cd <OpenClimateGIS source directory>
+    conda env create -f environment.yml
 
 Building from Source
 --------------------
@@ -73,12 +80,31 @@ Optional dependencies may also be tested. If an optional dependency is not insta
 
     python -c "from ocgis.test import run_simple; run_simple(attrs=['simple', 'optional'], verbose=False)"
 
+Tests may also be ran with a setup command:
+
+.. code-block:: sh
+
+    python setup.py test
+
 Please report any errors to the support email address.
 
 Configuring the :class:`~ocgis.GeomCabinet`
 -------------------------------------------
 
-Set the path to the directory containing the shapefiles or shapefile folders in :ref:`env.DIR_GEOMCABINET <env.DIR_GEOMCABINET>`. You may also set the system environment variable ``OCGIS_DIR_GEOMCABINET``.
+Set the path to the directory containing the shapefiles or shapefile folders using :ref:`env.DIR_GEOMCABINET <env.DIR_GEOMCABINET>`. You may also set the system environment variable ``OCGIS_DIR_GEOMCABINET``.
+
+Supported Python Versions
+-------------------------
+
+Python versions 2.7, 3.5, and 3.6 are supported.
+
+============== =====================================================================
+Python Version Notes
+============== =====================================================================
+2.7            All packages supported.
+3.5            ICCLIM and ESMPy not supported. ESMPy supports Python 3 in its trunk.
+3.6            ICCLIM and ESMPy not supported. ESMPy supports Python 3 in its trunk.
+============== =====================================================================
 
 Dependencies
 ------------
@@ -86,62 +112,40 @@ Dependencies
 OpenClimateGIS is tested against the library versions listed below.
 
 Required
-~~~~~~~~
+++++++++
 
-============== ======= =======================================================================
+============== ======= ========================================
 Package Name   Version URL
-============== ======= =======================================================================
-Python         2.7.10  https://www.python.org/downloads/
-``osgeo``      1.11.3  https://pypi.python.org/pypi/GDAL/
-``setuptools`` 19.6.2  https://pypi.python.org/pypi/setuptools
-``shapely``    1.5.13  https://pypi.python.org/pypi/Shapely
-``fiona``      1.6.3   https://pypi.python.org/pypi/Fiona
-``numpy``      1.10.4  http://sourceforge.net/projects/numpy/files/NumPy/1.9.2/
-``netCDF4``    1.2.2   http://unidata.github.io/netcdf4-python/
-============== ======= =======================================================================
+============== ======= ========================================
+``numpy``      1.12.1  http://www.numpy.org/
+``netCDF4``    1.2.7   http://unidata.github.io/netcdf4-python/
+``gdal``       2.1.3   https://pypi.python.org/pypi/GDAL/
+``shapely``    1.5.17  https://pypi.python.org/pypi/Shapely
+``fiona``      1.7.6   https://pypi.python.org/pypi/Fiona
+``six``        1.10.0  https://pypi.python.org/pypi/six
+``setuptools`` 27.2.0  https://pypi.python.org/pypi/setuptools
+============== ======= ========================================
 
 Optional
---------
+++++++++
 
 Optional dependencies are listed below. OpenClimateGIS will still operate without these libraries installed but functionality and performance may change.
 
-============= ======== ====================================================== =================================================================================================================================
+============= ======= ====================================================== =================================================================================================================================
 Package Name  Version  URL                                                    Usage
-============= ======== ====================================================== =================================================================================================================================
-``rtree``     0.8.2    https://pypi.python.org/pypi/Rtree/                    Constructs spatial indexes at runtime. Useful for complicated GIS operations (i.e. large or complex polygons for subsetting)
-``cf_units``  1.1      https://github.com/SciTools/cf_units                   Allows unit transformations.
-``ESMPy``     7.0.0    https://www.earthsystemcog.org/projects/esmpy/releases Supports regridding operations.
-``icclim``    4.1.1    http://icclim.readthedocs.org/en/latest/               Calculation of the full suite of European Climate Assessment (ECA) indices with optimized code implementation.
-``nose``      1.3.7    https://nose.readthedocs.org/en/latest/                Run unit tests.
-============= ======== ====================================================== =================================================================================================================================
+============= ======= ====================================================== =================================================================================================================================
+``ESMF``      7.0.0   https://www.earthsystemcog.org/projects/esmpy/releases Supports regridding operations.
+``mpi4py``    2.0.0   http://mpi4py.readthedocs.io/en/stable/                Required for parallel execution.
+``rtree``     0.8.3   https://pypi.python.org/pypi/Rtree/                    Constructs spatial indexes at runtime. Useful for complicated GIS operations (i.e. large or complex polygons for subsetting)
+``cf_units``  1.1.3   https://github.com/SciTools/cf_units                   Allows unit transformations.
+``icclim``    4.2.5   http://icclim.readthedocs.org/en/latest/               Calculation of the full suite of European Climate Assessment (ECA) indices with optimized code implementation.
+``nose``      1.3.7   https://nose.readthedocs.org/en/latest/                Run unit tests.
+============= ======= ====================================================== =================================================================================================================================
 
 Building from Source
 ~~~~~~~~~~~~~~~~~~~~
 
-Dependencies may be built entirely from source. A `bash script`_ is available on GitHub.
-
-Platform-Specific Notes
------------------------
-
-Ubuntu Linux
-~~~~~~~~~~~~
-
-This method installs all dependencies using hosted packages. This script is available at: https://github.com/NCPP/ocgis/blob/master/doc/sphinx_examples/install_dependencies_ubuntu.sh.
-
-=================== =====================================
-Apt-Package         Why?
-=================== =====================================
-libgdal-dev         ``shapely``, ``osgeo``, and ``fiona``
-libgeos-dev         ``shapely`` speedups
-libhdf5-dev         ``netCDF4``
-libnetcdf-dev       ``netCDF4``
-libproj-dev         ``osgeo`` and ``fiona``
-libspatialindex-dev ``rtree``
-libudunits2-0       ``cfunits``
-python-dev          needed at least for ``numpy``
-python-pip          all ``pip`` installed Python packages
-wget                ``cfunits`` installation
-=================== =====================================
+Dependencies may be built entirely from source. An (outdated) `bash script`_ is available on GitHub.
 
 Uninstalling
 ------------
@@ -152,6 +156,5 @@ The ``uninstall`` command will simply provide you with the directory location of
 
     python setup.py uninstall
 
-.. _Python 2.7: http://www.python.org/download/releases/2.7/
 .. _bash script: https://github.com/NCPP/ocgis/blob/master/sh/install_geospatial.sh
 .. _source: https://github.com/NCPP/ocgis

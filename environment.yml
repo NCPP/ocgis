@@ -1,0 +1,14 @@
+name: ocgis
+
+channels:
+  - nesii/channel/dev-ocgis
+  - conda-forge
+
+dependencies:
+  - ocgis
+  - esmpy
+  - mpi4py
+  - rtree
+  - cf_units
+  - icclim
+  - nose

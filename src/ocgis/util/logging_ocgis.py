@@ -4,11 +4,13 @@ import os
 from warnings import warn
 
 import six
+import sys
 
 import ocgis
 from ocgis import env
 from ocgis.exc import OcgWarning
 from ocgis.vmachine.mpi import get_standard_comm_state
+
 
 fiona_logger = logging.getLogger('Fiona')
 fiona_logger.setLevel(logging.ERROR)
@@ -227,9 +229,21 @@ def get_versions():
     import numpy
     v_numpy = numpy.__version__
     from ocgis import osgeo
-    v_osgeo = osgeo.__version__
-    versions = dict(esmf=v_esmf, cfunits=v_cfunits, rtree=v_rtree, osgeo=v_osgeo, numpy=v_numpy, netcdf4=v_netcdf4,
-                    icclim=v_icclim, fiona=v_fiona, cf_units=v_cf_units, mpi4py=v_mpi4py)
+    v_gdal = osgeo.__version__
+    import six
+    v_six = six.__version__
+    import pyproj
+    v_pyproj = pyproj.__version__
+    try:
+        import nose
+    except ImportError:
+        v_nose = None
+    else:
+        v_nose = nose.__version__
+
+    versions = dict(esmf=v_esmf, cfunits=v_cfunits, rtree=v_rtree, gdal=v_gdal, numpy=v_numpy, netcdf4=v_netcdf4,
+                    icclim=v_icclim, fiona=v_fiona, cf_units=v_cf_units, mpi4py=v_mpi4py, six=v_six, pyproj=v_pyproj,
+                    python=sys.version_info, nose=v_nose)
     return versions
 
 

@@ -751,10 +751,11 @@ class TestBase(unittest.TestCase):
     def tearDown(self):
         comm, rank, size = get_standard_comm_state()
 
+        if self.add_barrier:
+            comm.Barrier()
+
         try:
             if self.create_dir and self.remove_dir:
-                if self.add_barrier:
-                    comm.Barrier()
                 if rank == 0:
                     shutil.rmtree(self.current_dir_output)
         finally:

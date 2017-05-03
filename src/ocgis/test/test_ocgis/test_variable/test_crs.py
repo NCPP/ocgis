@@ -1,5 +1,7 @@
 import os
 from copy import deepcopy
+from unittest import SkipTest
+import sys
 
 import netCDF4 as nc
 import numpy as np
@@ -19,7 +21,7 @@ from ocgis.util.itester import itr_products_keywords
 from ocgis.variable.base import Variable
 from ocgis.variable.crs import CoordinateReferenceSystem, CFAlbersEqualArea, CFLambertConformal, \
     CFRotatedPole, WGS84, Spherical, CFSpherical, Tripole, Cartesian
-from ocgis.vmachine.mpi import OcgDist, MPI_RANK, variable_scatter
+from ocgis.vmachine.mpi import OcgDist, MPI_RANK, variable_scatter, MPI_COMM
 
 
 class TestCoordinateReferenceSystem(TestBase):
@@ -113,6 +115,9 @@ class TestCoordinateReferenceSystem(TestBase):
 
     @attr('mpi')
     def test_get_wrapped_state(self):
+        if sys.version_info.major == 3 and sys.version_info.minor == 5:
+            raise SkipTest('undefined behavior with Python 3.5')
+
         ompi = OcgDist()
         ompi.create_dimension('x', 5, dist=True)
         ompi.create_dimension('y', 1)

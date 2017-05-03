@@ -3,9 +3,9 @@ language: python
 sudo: false
 
 env:
-  - CONDA_PYTHON="python=2.7"
-#  - CONDA_PYTHON="python=3.5"
-#  - CONDA_PYTHON="python=3.6"
+  - CONDA_PYTHON="python=2.7", NESII_CHANNEL="nesii/channel/dev-ocgis", OCGIS_DEPS_ADDS="icclim esmpy"
+  - CONDA_PYTHON="python=3.5", NESII_CHANNEL="nesii/channel/dev-ocgis", OCGIS_DEPS_ADDS=""
+  - CONDA_PYTHON="python=3.6", NESII_CHANNEL="nesii/channel/dev-ocgis", OCGIS_DEPS_ADDS=""
 
 before_install:
   - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh;
@@ -17,12 +17,12 @@ before_install:
   - conda info -a
 
 install:
-  - travis_retry conda create -n test-minimal -c nesii/channel/dev-ocgis -c conda-forge $CONDA_PYTHON ocgis nose
+  - travis_retry conda create -n test-minimal -c $NESII_CHANNEL -c conda-forge $CONDA_PYTHON ocgis nose
   - source activate test-minimal
   - conda remove ocgis
   - python setup.py install
 
-  - travis_retry conda create -n test-full -c nesii/channel/dev-ocgis -c conda-forge $CONDA_PYTHON ocgis nose icclim rtree cf_units esmpy mpi4py
+  - travis_retry conda create -n test-full -c $NESII_CHANNEL -c conda-forge $CONDA_PYTHON ocgis nose rtree cf_units mpi4py $OCGIS_DEPS_ADDS
   - source activate test-full
   - conda remove ocgis
   - python setup.py install
@@ -31,6 +31,12 @@ script:
   - source activate test-minimal
   - python -c "from ocgis.test import run_simple; run_simple(verbose=False)"
 
+  - |
+    # Run all tests for Python 2.7 as this supports the full suite of dependencies.
+    if [[ $CONDA_PYTHON = "python=2.7" ]]; then
+      source activate test-full
+      python -c "from ocgis.test import run_more; run_more(verbose=False)"
+    fi
+
   - source activate test-full
-  - python -c "from ocgis.test import run_more; run_more(verbose=False)"
-  - mpirun -n 2 python -c "from ocgis.test import run_mpi_nodata; run_mpi_nodata(verbose=False)"
+  - mpirun -n 2 python -c "from ocgis.test import run_mpi_nodata; run_mpi_nodata(verbose=True)"

@@ -96,7 +96,7 @@ Set the path to the directory containing the shapefiles or shapefile folders usi
 Supported Python Versions
 -------------------------
 
-Python versions 2.7, 3.5, and 3.6 are supported.
+Python versions 2.7, 3.5, and 3.6 are supported. Versions 2.7 and 3.6 are recommended.
 
 ============== =====================================================================
 Python Version Notes

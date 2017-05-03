@@ -251,7 +251,6 @@ class Test(AbstractTestInterface):
             actual = bcast_ranks([0, 2], 50)
             self.assertEqual(actual, 50)
 
-    # tdk: wtf
     @attr('mpi')
     def test_variable_collection_scatter(self):
         dest_mpi = OcgDist()
@@ -298,7 +297,7 @@ class Test(AbstractTestInterface):
         else:
             self.assertFalse(actual)
 
-    @attr('mpi', 'wtf')
+    @attr('mpi')
     def test_variable_gather(self):
         dist = OcgDist()
         three = dist.create_dimension('three', 3, src_idx=np.arange(3) * 10)

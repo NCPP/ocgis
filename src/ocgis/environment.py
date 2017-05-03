@@ -4,7 +4,7 @@ import sys
 from importlib import import_module
 from warnings import warn
 
-from exc import OcgWarning
+from ocgis.exc import OcgWarning
 
 # HACK!! on some systems, there are issues with loading a parallel ESMF installation if this import occurs in a
 # different location. it is unclear what mechanism causes the import issue. ESMF is not a required package, so a failed
@@ -49,8 +49,8 @@ if 'GDAL_DATA' not in os.environ:
 
 from osgeo import osr, ogr
 import numpy as np
-import constants
-from util.helpers import get_iter
+from ocgis import constants
+from ocgis.util.helpers import get_iter
 
 # tell ogr/osr to raise exceptions
 ogr.UseExceptions()
@@ -91,7 +91,7 @@ class Environment(object):
         if self.PREFER_NETCDFTIME is None:
             self.PREFER_NETCDFTIME = get_netcdftime_preference()
 
-        from variable.crs import CFSpherical
+        from ocgis.variable.crs import CFSpherical
 
         self.DEFAULT_COORDSYS = EnvParm('DEFAULT_COORDSYS', CFSpherical())
 

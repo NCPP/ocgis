@@ -4,6 +4,7 @@ from unittest import SkipTest
 
 import fiona
 import numpy as np
+import sys
 from numpy.testing.utils import assert_equal
 from shapely import wkt
 from shapely.geometry import Point, box, MultiPolygon, shape
@@ -581,8 +582,11 @@ class TestGrid(AbstractTestInterface):
                                     self.assertFalse(grid.has_allocated_point)
                                     self.assertFalse(grid.has_allocated_polygon)
 
-    @attr('mpi')
+    @attr('mpi', 'no-3.5')
     def test_get_intersects_parallel(self):
+        if sys.version_info.major == 3 and sys.version_info.minor == 5:
+            raise SkipTest('undefined behavior with Python 3.5')
+
         grid = self.get_gridxy()
 
         live_ranks = vm.get_live_ranks_from_object(grid)

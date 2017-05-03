@@ -6,6 +6,7 @@ from datetime import datetime as dt
 from unittest import SkipTest
 
 import numpy as np
+import sys
 from shapely.geometry import Point, LineString
 
 import ocgis
@@ -28,7 +29,7 @@ from ocgis.variable.base import Variable
 from ocgis.variable.crs import Spherical, CoordinateReferenceSystem, WGS84
 from ocgis.variable.temporal import TemporalVariable
 from ocgis.vmachine.mpi import OcgDist, MPI_RANK, variable_collection_scatter, MPI_COMM, dgather, \
-    hgather, MPI_SIZE
+    hgather, MPI_SIZE, barrier_print, rank_print
 
 
 class TestOcgOperations(TestBase):
@@ -806,7 +807,7 @@ class TestOcgOperationsNoData(TestBase):
 
         rds = [RequestDataset(uri=uri, variable=var, field_name=field_name) for uri, var, field_name in
                zip(paths, vars, field_names)]
-        ops = OcgOperations(dataset=rds, spatial_operation='clip', aggregate=True, geom='state_boundaries',
+        ops = OcgOperations(dataset=rds, spatial_operation='clip', aggregate=True, geom=self.path_state_boundaries,
                             geom_select_uid=geom_select_uid)
         ret = ops.execute()
 
@@ -1045,8 +1046,11 @@ class TestOcgOperationsNoData(TestBase):
                         self.assertLess(np.max(ares), 0.031)
                         self.assertLess(np.mean(ares), 0.009)
 
-    @attr('mpi')
+    @attr('mpi', 'no-3.5')
     def test_system_spatial_wrapping_and_reorder(self):
+        if sys.version_info.major == 3 and sys.version_info.minor == 5:
+            raise SkipTest('undefined behavior with Python 3.5')
+
         keywords = {'spatial_wrapping': list(SpatialWrapping.iter_possible()),
                     'crs': [None, Spherical(), CoordinateReferenceSystem(epsg=2136)],
                     'unwrapped': [True, False],

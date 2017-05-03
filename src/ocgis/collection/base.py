@@ -59,7 +59,8 @@ class AbstractCollection(AbstractOcgisObject):
         return self._storage.get(*args, **kwargs)
 
     def items(self):
-        return list(self._storage.items())
+        for k, v in self._storage.items():
+            yield k, v
 
     def iteritems(self):
         for k, v in self._storage.items():
@@ -74,7 +75,8 @@ class AbstractCollection(AbstractOcgisObject):
             yield v
 
     def keys(self):
-        return self.iterkeys()
+        for key in self.iterkeys():
+            yield key
 
     def pop(self, *args, **kwargs):
         return self._storage.pop(*args, **kwargs)
@@ -86,4 +88,5 @@ class AbstractCollection(AbstractOcgisObject):
         self._storage.update(dictionary)
 
     def values(self):
-        return self.itervalues()
+        for value in self.itervalues():
+            yield value

@@ -72,6 +72,9 @@ class SpatialCollection(VariableCollection):
             ugid = container.geom.ugid.get_value()[0]
             if ugid not in self.children:
                 self.children[ugid] = container
+            else:
+                # We want to use the reference to the container in the collection.
+                container = self.children[ugid]
             container.add_child(field, force=force)
         else:
             if None not in self.children:

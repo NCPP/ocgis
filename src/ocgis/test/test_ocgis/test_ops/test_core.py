@@ -790,6 +790,37 @@ class TestOcgOperationsNoData(TestBase):
         out_rd = RequestDataset(uri=ret)
         self.assertEqual(out_rd.get().temporal.get_value().tolist(), desired)
 
+    def test_system_multiple_netcdf_files(self):
+        """Test subsetting multiple netCDF files and returning a spatial collection."""
+
+        grid = create_gridxy_global(resolution=3.0)
+        vars = ['ocgis_example_tasmin', 'ocgis_example_tas', 'ocgis_example_tasmax']
+        paths = [self.get_temporary_file_path('{}.nc'.format(ii)) for ii in vars]
+
+        geom_select_uid = [16, 23]
+        field_names = ['tasmin', 'tas', 'tasmax']
+        for ctr, (path, var) in enumerate(zip(paths, vars), start=1):
+            field = create_exact_field(grid.copy(), var, ntime=3)
+            field.data_variables[0].get_value()[:] = 10 * ctr
+            field.write(path)
+
+        rds = [RequestDataset(uri=uri, variable=var, field_name=field_name) for uri, var, field_name in
+               zip(paths, vars, field_names)]
+        ops = OcgOperations(dataset=rds, spatial_operation='clip', aggregate=True, geom='state_boundaries',
+                            geom_select_uid=geom_select_uid)
+        ret = ops.execute()
+
+        self.assertAsSetEqual(ret.children.keys(), geom_select_uid)
+        for geom_uid in geom_select_uid:
+            actual = ret.children[geom_uid].children.keys()
+            self.assertAsSetEqual(actual, field_names)
+
+            for idx, field_name in enumerate(field_names):
+                actual = ret.get_element(container_ugid=geom_uid, field_name=field_names[idx], variable_name=vars[idx])
+                actual = actual.get_value()
+                actual = actual == (idx + 1) * 10
+                self.assertTrue(np.all(actual))
+
     @attr('cfunits')
     def test_system_request_dataset_modifiers(self):
         """

@@ -2,8 +2,7 @@ from ocgis import RequestDataset, OcgOperations
 from ocgis.contrib.library_icclim import IcclimTG90p
 
 ########################################################################################################################
-# Compute a custom percentile basis using ICCLIM. ######################################################################
-########################################################################################################################
+# Compute a custom percentile basis using ICCLIM.
 
 # Path to CF climate dataset. This examples uses the same file for indice and percentile basis calculation.
 in_file = '/path/to/cf_data.nc'
@@ -24,8 +23,7 @@ window_width = 5
 percentile_dict = IcclimTG90p.get_percentile_dict(arr, dt_arr, percentile, window_width)
 
 ########################################################################################################################
-# Calculate indice using custom percentile basis. ######################################################################
-########################################################################################################################
+# Calculate indice using custom percentile basis.
 
 calc = [{'func': 'icclim_TG90p', 'name': 'TG90p', 'kwds': {'percentile_dict': percentile_dict}}]
 calc_grouping = 'month'

@@ -9,7 +9,6 @@ from netCDF4 import date2num, num2date, netcdftime
 from ocgis import RequestDataset
 from ocgis import constants
 from ocgis.constants import HeaderName, KeywordArgument, DimensionMapKey
-from ocgis.driver.dimension_map import DimensionMap
 from ocgis.exc import CannotFormatTimeError, IncompleteSeasonError
 from ocgis.ops.parms.definition import CalcGrouping
 from ocgis.test.base import attr, AbstractTestInterface

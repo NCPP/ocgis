@@ -1,10 +1,9 @@
 import os
 
 import numpy as np
-from netCDF4._netCDF4 import MFDataset, MFTime, num2date
+from netCDF4._netCDF4 import MFDataset, MFTime
 
 from ocgis import CoordinateReferenceSystem, Variable
-from ocgis.driver.request.core import RequestDataset
 from ocgis.test.base import TestBase, attr
 
 

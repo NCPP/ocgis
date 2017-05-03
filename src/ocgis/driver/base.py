@@ -587,6 +587,7 @@ class AbstractTabularDriver(AbstractDriver):
     """
     Base class for tabular drivers (no optimal single variable access).
     """
+
     def get_distributed_dimension_name(self, dimension_map, dimensions_metadata):
         """Return the preferred distributed dimension name."""
         return list(dimensions_metadata.values())[0]['name']

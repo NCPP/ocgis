@@ -338,6 +338,7 @@ class AbstractProj4CRS(AbstractCRS):
     Base class for coordinate systems that may be transformed using PROJ.4.
     """
 
+
 class CoordinateReferenceSystem(AbstractProj4CRS, AbstractInterfaceObject):
     """
     Defines a coordinate system objects. One of ``value``, ``proj4``, or ``epsg`` is required.

@@ -4,6 +4,8 @@ import sys
 from importlib import import_module
 from warnings import warn
 
+from exc import OcgWarning
+
 # HACK!! on some systems, there are issues with loading a parallel ESMF installation if this import occurs in a
 # different location. it is unclear what mechanism causes the import issue. ESMF is not a required package, so a failed
 # import is okay (if it is not installed).
@@ -20,7 +22,7 @@ if 'GDAL_DATA' in os.environ:
     if not os.path.exists(os.environ['GDAL_DATA']):
         msg = 'The GDAL_DATA directory set in environment does not exist!: {}. It will be overloaded.'.format(
             os.environ['GDAL_DATA'])
-        warn(msg)
+        warn(OcgWarning(msg))
         os.environ.pop('GDAL_DATA')
 
 if 'GDAL_DATA' not in os.environ:
@@ -40,15 +42,15 @@ if 'GDAL_DATA' not in os.environ:
         os.environ['GDAL_DATA'] = datadir
         msg = 'Consider setting the system environment variable "GDAL_DATA={0}" to improve load performance'. \
             format(datadir)
-        warn(msg)
+        warn(OcgWarning(msg))
         from osgeo import gdal
 
         gdal.SetConfigOption('GDAL_DATA', str(datadir))
 
 from osgeo import osr, ogr
 import numpy as np
-from ocgis import constants
-from ocgis.util.helpers import get_iter
+import constants
+from util.helpers import get_iter
 
 # tell ogr/osr to raise exceptions
 ogr.UseExceptions()
@@ -89,7 +91,7 @@ class Environment(object):
         if self.PREFER_NETCDFTIME is None:
             self.PREFER_NETCDFTIME = get_netcdftime_preference()
 
-        from ocgis.variable.crs import CFSpherical
+        from variable.crs import CFSpherical
 
         self.DEFAULT_COORDSYS = EnvParm('DEFAULT_COORDSYS', CFSpherical())
 

@@ -991,7 +991,7 @@ class Variable(AbstractContainer, Attributes):
         the_zeros = variable_get_zeros(self.dimensions, self.dtype, fill=fill)
         self.set_value(the_zeros)
 
-    #tdk: remove me or document
+    # tdk: remove me or document
     def as_record(self, add_bounds=True, formatter=None, pytypes=False, allow_masked=True, pytype_primitives=False,
                   clobber_masked=True, bounds_names=None):
         if self.is_empty:

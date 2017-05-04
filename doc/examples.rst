@@ -77,6 +77,8 @@ Now, the directory structure for the temporary directory will look like:
 
    5 directories, 36 files
 
+.. _advanced-subsetting-example:
+
 Advanced Subsetting
 -------------------
 
@@ -103,14 +105,17 @@ For example, the code below will return all data from the year 2000 for the firs
 >>> rd = RequestDataset('/my/leveled/data', 'tas', time_range=tr, level_range=[1, 2])
 >>> ret = OcgOperations(dataset=rd).execute()
 
+Using the Data Interface in Parallel
+------------------------------------
+
+Standard operations scripts may be run in parallel using ``mpirun`` with no special code. See :ref:`parallel-example` for an advanced example using OpenClimateGIS's data interface in parallel.
+
 .. _regridding:
 
 Regridding
 ----------
 
 .. literalinclude:: sphinx_examples/regridding.py
-
-.. _2d-flexible-mesh-example-label:
 
 Calculating TG90p using ``icclim``
 ----------------------------------

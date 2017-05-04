@@ -12,10 +12,10 @@ class SpatialCollection(VariableCollection):
     (nested under the container geometries) are field associated with the parent container. These associations are
     typically defined using a spatial subset.
     
-    Spatial collections are the `ocgis` output object type. It is possible to not provide a subset geometry when a
+    Spatial collections are the ``'ocgis'`` output format. It is possible to not provide a subset geometry when a
     spatial collection is created. In this case, the container geometry is ``None``, but the data is still nested.
     
-    .. note:: Accepts all parameters to :class:`ocgis.VariableCollection`.
+    .. note:: Accepts all parameters to :class:`~ocgis.VariableCollection`.
     """
 
     def __getitem__(self, item_or_slc):
@@ -32,17 +32,35 @@ class SpatialCollection(VariableCollection):
 
     @property
     def archetype_field(self):
+        """
+        Return an archetype field from the spatial collection. This is first field encountered during field iteration.
+        
+        :rtype: :class:`~ocgis.Field`
+        """
+
         for child in list(self.children.values()):
             for grandchild in list(child.children.values()):
                 return grandchild
 
     @property
     def crs(self):
+        """
+        Return the spatial collection's coordinate system. This is the coordinate system of the first encountered field
+        in iteration.
+        
+        :rtype: :class:`~ocgis.variable.crs.AbstractCRS`
+        """
         for child in list(self.children.values()):
             return child.crs
 
     @property
     def geoms(self):
+        """
+        Reformat container geometries into a dictionary. Keys are the child geometries unique identifiers. The values 
+        are Shapely geometries.
+        
+        :rtype: :class:`~collections.OrderedDict` 
+        """
         ret = OrderedDict()
         for k, v in list(self.children.items()):
             if v.geom is not None:
@@ -51,6 +69,11 @@ class SpatialCollection(VariableCollection):
 
     @property
     def has_container_geometries(self):
+        """
+        Return ``True`` if there are container geometries.
+        
+        :rtype: bool 
+        """
         ret = False
         if len(self.children) > 0:
             if list(self.children.keys())[0] is not None:
@@ -59,6 +82,11 @@ class SpatialCollection(VariableCollection):
 
     @property
     def properties(self):
+        """
+        Reformat container geometry values into a properties dictionary.
+        
+        :rtype: :class:`~collections.OrderedDict` 
+        """
         ret = OrderedDict()
         for k, v in list(self.children.items()):
             ret[k] = OrderedDict()
@@ -67,6 +95,16 @@ class SpatialCollection(VariableCollection):
         return ret
 
     def add_field(self, field, container, force=False):
+        """
+        Add a field to the spatial collection.
+        
+        :param field: The field to add.
+        :type field: :class:`~ocgis.Field`
+        :param container: The container geometry. A ``None`` value is allowed.
+        :type container: :class:`~ocgis.Field` | ``None``
+        :param bool force: If ``True``, clobber any field names in the spatial collection. 
+        :return: 
+        """
         # Assume a NoneType container if there is no geometry associated with the container.
         if container is not None and container.geom is not None:
             ugid = container.geom.ugid.get_value()[0]
@@ -83,6 +121,15 @@ class SpatialCollection(VariableCollection):
             container.add_child(field, force=force)
 
     def get_element(self, field_name=None, variable_name=None, container_ugid=None):
+        """
+        Get a field or variable from the spatial collection.
+        
+        :param str field_name: The field name to get from the collection.
+        :param str variable_name: The variable name to get from the collection. If ``None``, a field will be returned.
+        :param container_ugid: The container unique identifier. If ``None``, the first container will be used.
+        :rtype: :class:`~ocgis.Field` | :class:`~ocgis.Variable`
+        """
+
         if container_ugid is None:
             for ret in list(self.children.values()):
                 break
@@ -98,6 +145,8 @@ class SpatialCollection(VariableCollection):
         return ret
 
     def iter_fields(self, yield_container=False):
+        """Iterate field objects in the collection."""
+
         for ugid, container in list(self.children.items()):
             for field in list(container.children.values()):
                 if yield_container:
@@ -107,6 +156,8 @@ class SpatialCollection(VariableCollection):
                 yield yld
 
     def iter_melted(self, tag=None):
+        """Iterate a melted dictionary containing all spatial collection elements."""
+
         for ugid, container in list(self.children.items()):
             for field_name, field in list(container.children.items()):
                 if tag is not None:

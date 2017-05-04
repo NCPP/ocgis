@@ -61,6 +61,14 @@ VariableCollection
     :members:
     :special-members:
 
+SpatialCollection
++++++++++++++++++
+
+.. autoclass:: ocgis.SpatialCollection
+    :show-inheritance:
+    :members:
+    :special-members:
+
 DimensionMap
 ++++++++++++
 

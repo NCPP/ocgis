@@ -8,6 +8,19 @@ Python API Reference
 
 This page provides an overview of OpenClimateGIS's Python interface. A :ref:`class_reference-label` and :ref:`function_reference-label` are also available.
 
+Default Coordinate System
+=========================
+
+The default coordinate system for OpenClimateGIS is :class:`~ocgis.crs.Spherical`. The representative PROJ.4 string is ``{'a': 6370997, 'no_defs': True, 'b': 6370997, 'proj': 'longlat', 'towgs84': '0,0,0,0,0,0,0'}``. Prior to OpenClimateGIS ``v2.x``, the `WGS84` datum was used by default. This default coordinate system also applies to bounding boxes. If a bounding box coordinate system differs from the default, this must be converted to a dictionary representation:
+
+>>> import shapely
+>>> import ocgis
+>>> bbox = [-120, 30, -130, 40]
+>>> bbox = shapely.geometry.box(*bbox)
+>>> geom = {'geom': bbox, 'crs': ocgis.crs.WGS84()}
+
+The correct coordinate system will always be read from file by the driver. The default coordinate system used by OpenClimateGIS may be changed using :ref:`env.DEFAULT_COORDSYS <env.DEFAULT_COORDSYS>`.
+
 Operations
 ==========
 
@@ -338,7 +351,7 @@ output_format
 =============================== ============================================================================================================================================
 Value                           Description
 =============================== ============================================================================================================================================
-``'ocgis'`` (default)           Return a :class:`~ocgis.SpatialCollection` with keys matching `ugid` (see `geom`_). Also see `Data Collections`_ for more information on this output format.
+``'ocgis'`` (default)           Return a :class:`~ocgis.SpatialCollection` with keys matching `ugid` (see `geom`_). Also see `Spatial Collections`_ for more information on this output format.
 ``'shp'``                       A shapefile representation of the data.
 ``'csv'``                       A CSV file representation of the data.
 ``'csv-shp'``                   In addition to a CSV representation, shapefiles with primary key links to the CSV are provided.
@@ -544,37 +557,20 @@ These are global parameters used by OpenClimateGIS. For those familiar with :mod
 :attr:`env.VERBOSE` = ``False``
  Indicate if additional output information should be printed to terminal.
 
+.. _env.DEFAULT_COORDSYS:
+
+:attr:`env.DEFAULT_COORDSYS` = :class:`ocgis.crs.Spherical`
+ The default coordinate system used by OpenClimateGIS.
+
 Inspecting Data
 ===============
 
 The :class:`~ocgis.Inspect` class may be used to dump metadata information for a target data object.
 
-Data Collections
-================
+Spatial Collections
+===================
 
-When the default output format (i.e. ``numpy``) is returned by OpenClimateGIS, the data comes back as a dictionary with keys mapping to the integer unique identifiers of the selection geometries from `geom`_. If ``None`` is used for `geom`_, then the unique identifier defaults to ``1``.
-
->>> from ocgis import OcgOperations, RequestDataset
-...
->>> rd = RequestDataset('/path/to/data', 'tasmax')
->>> ## default return type is NumPy
->>> ops = OcgOperations(rd, snippet=True)
->>> ret = ops.execute()
->>> ## this the dictionary object mapping a Field to its alias
->>> ret[1]
-{'tasmax':<Field object>}
->>> ## this is the field object
->>> tasmax_field = ret[1]['tasmax']
->>> # Dimension and data values are accessed via instance attributes.
->>> tasmax.temporal...
->>> tasmax.level...
->>> tasmax.spatial...
->>> # This is the actual data.
->>> tasmax_field.variables['tasmax']
-
-.. _PROJ4 string: http://trac.osgeo.org/proj/wiki/FAQ
-.. _shapely documentation: http://toblerity.github.com/shapely/manual.html
-
+See the :ref:`advanced-subsetting-example` example for :class:`~ocgis.SpatialCollection` usage. Spatial collections are returned by default from :class:`~ocgis.OcgOperations`.
     
 Shapefile Data
 ==============

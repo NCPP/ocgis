@@ -4,6 +4,7 @@ import sys
 from importlib import import_module
 from warnings import warn
 
+from ocgis.base import AbstractOcgisObject
 from ocgis.exc import OcgWarning
 
 # HACK!! on some systems, there are issues with loading a parallel ESMF installation if this import occurs in a
@@ -57,7 +58,7 @@ ogr.UseExceptions()
 osr.UseExceptions()
 
 
-class Environment(object):
+class Environment(AbstractOcgisObject):
     def __init__(self):
         self.OVERWRITE = EnvParm('OVERWRITE', False, formatter=self._format_bool_)
         self.DIR_OUTPUT = EnvParm('DIR_OUTPUT', os.getcwd())

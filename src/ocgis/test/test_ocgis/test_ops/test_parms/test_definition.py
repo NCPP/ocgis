@@ -515,7 +515,6 @@ class TestGeom(TestBase):
 
         g = Geom(geom)
         self.assertEqual(type(g.value), tuple)
-        self.assertIsInstance(g.value[0], Field)
         g.value = None
         self.assertEqual(None, g.value)
 

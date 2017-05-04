@@ -1,9 +1,6 @@
 Appendix
 --------
 
-Output Formats
-~~~~~~~~~~~~~~
-
 Spatial Operations
 ~~~~~~~~~~~~~~~~~~
 

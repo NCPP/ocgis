@@ -25,6 +25,7 @@ Contents:
    classes
    functions
    computation
+   parallel
    regrid
    examples
    constants

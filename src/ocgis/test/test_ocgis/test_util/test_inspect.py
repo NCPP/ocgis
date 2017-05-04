@@ -60,7 +60,7 @@ class TestInspect1(TestBase):
         rd = self.test_data.get_rd('cancm4_tas')
         fai = Inspect(request_dataset=rd)
         target = fai.get_field_report()
-        self.assertEqual(len(target), 25)
+        self.assertEqual(len(target), 28)
 
     @attr('data')
     def test_get_header(self):
@@ -72,7 +72,7 @@ class TestInspect1(TestBase):
     def test_get_report(self):
         fai = self.get()
         target = fai.get_report()
-        self.assertEqual(len(target), 109)
+        self.assertEqual(len(target), 112)
 
     @attr('data')
     def test_get_report_no_field(self):

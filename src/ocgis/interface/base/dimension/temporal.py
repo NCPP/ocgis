@@ -1,10 +1,10 @@
 import datetime
 import itertools
-import netCDF4 as nc
 from collections import deque
 from copy import deepcopy
 from decimal import Decimal
 
+import netCDF4 as nc
 import netcdftime
 import numpy as np
 

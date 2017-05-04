@@ -27,7 +27,6 @@ from ocgis.util.units import get_units_object, get_conformed_units
 
 
 class Test(TestBase):
-
     def test_get_is_none_false(self):
         possible_false = ['a', ['a', 'b'], ['b', None]]
         for p in possible_false:
@@ -40,7 +39,6 @@ class Test(TestBase):
 
 
 class TestRequestDataset(TestBase):
-
     def setUp(self):
         TestBase.setUp(self)
         rd = self.test_data.get_rd('cancm4_rhs')
@@ -467,14 +465,6 @@ class TestRequestDataset(TestBase):
         self.assertEqual(len(rd), 1)
 
     @attr('data')
-    def test_level_subset_without_level(self):
-        lr = [1, 2]
-        rd = self.test_data.get_rd('cancm4_tas')
-        rd.level_range = lr
-        with self.assertRaises(ValueError):
-            rd.get()
-
-    @attr('data')
     def test_name(self):
         path = GeomCabinet().get_shp_path('state_boundaries')
         rd = RequestDataset(uri=path, driver='vector')
@@ -631,7 +621,6 @@ class TestRequestDataset(TestBase):
 
 
 class TestRequestDatasetCollection(TestBase):
-
     def iter_keywords(self):
         rd1 = self.test_data.get_rd('cancm4_tas')
         rd2 = self.test_data.get_rd('cancm4_rhs')

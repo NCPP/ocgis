@@ -1,6 +1,6 @@
-import netCDF4 as nc
 from copy import deepcopy
 
+import netCDF4 as nc
 import numpy as np
 
 import ocgis
@@ -114,7 +114,7 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
         # get the shape for the tile schema
         if verbose:
             print('getting tile schema shape inputs...')
-        #        if has_multivariate == False:
+        # if has_multivariate == False:
         #            shp_variable = '{0}_{1}'.format(ops.calc[0]['name'],ops.dataset[0].alias)
         #        else:
         #            shp_variable = ops.calc[0]['name']

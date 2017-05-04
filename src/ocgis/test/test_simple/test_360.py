@@ -15,7 +15,6 @@ from ocgis.util.geom_cabinet import GeomCabinetIterator
 
 
 class NcSpatial(object):
-
     def __init__(self, resolution, lat_bnds, lon_bnds):
         self.resolution = resolution
         self.lat_bnds = lat_bnds
@@ -53,7 +52,6 @@ class NcSpatial(object):
 
 @attr('simple')
 class Test360(TestBase):
-
     def test_high_res(self):
         ocgis.env.OVERWRITE = True
         nc_spatial = NcSpatial(0.5, (-90.0, 90.0), (0.0, 360.0))

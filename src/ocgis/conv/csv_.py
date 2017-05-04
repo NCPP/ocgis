@@ -1,8 +1,8 @@
 import csv
-from csv import excel
+import logging
 import os
 from collections import OrderedDict
-import logging
+from csv import excel
 
 import fiona
 from shapely.geometry.geo import mapping

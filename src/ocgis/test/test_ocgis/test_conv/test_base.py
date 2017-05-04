@@ -33,7 +33,6 @@ class AbstractTestConverter(TestBase):
 
 
 class Test(TestBase):
-
     def test_get_converter_map(self):
         cmap = get_converter_map()
         self.assertEqual(cmap[constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH],

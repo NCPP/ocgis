@@ -29,6 +29,7 @@ class Dict(dict):
     while you try to get an item. A lot like a defaultdict.
 
     """
+
     def __init__(self, *args, **kwargs):
         """
         If we're initialized with a dict, make sure we turn all the
@@ -120,7 +121,7 @@ class Dict(dict):
         return dir(Dict)
 
     def _ipython_display_(self):
-        print(str(self))    # pragma: no cover
+        print(str(self))  # pragma: no cover
 
     def _repr_html_(self):
         return str(self)
@@ -213,19 +214,18 @@ class Dict(dict):
         return new_iter
 
     def to_dict(self):
-       """
-       Recursively turn your addict Dicts into dicts.
-
-       """
-       base = dict()
-       for key, value in self.items():
-           if isinstance(value, type(self)):
-               base[key] = value.to_dict()
-           elif isinstance(value, (list, tuple)):
-               base[key] = type(value)(
-                item.to_dict() if isinstance(item, type(self)) else 
-                item for item in value)
-           else:
-               base[key] = value
-       return base
-
+        """
+        Recursively turn your addict Dicts into dicts.
+ 
+        """
+        base = dict()
+        for key, value in self.items():
+            if isinstance(value, type(self)):
+                base[key] = value.to_dict()
+            elif isinstance(value, (list, tuple)):
+                base[key] = type(value)(
+                    item.to_dict() if isinstance(item, type(self)) else
+                    item for item in value)
+            else:
+                base[key] = value
+        return base

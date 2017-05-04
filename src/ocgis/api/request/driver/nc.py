@@ -206,7 +206,7 @@ class DriverNetcdf(AbstractDriver):
                     ref_variable = {'axis': ref_axis, 'name': ref_axis['dimension'], 'attrs': {}}
 
             # Realization axes may not have an associated variable.
-            if k != 'realization'and len(ref_variable['dimensions']) > 1:
+            if k != 'realization' and len(ref_variable['dimensions']) > 1:
                 return ref_variable
 
             # Extract the data length to use when creating the source index arrays.
@@ -474,7 +474,7 @@ def get_dimension_map(variable, metadata):
 
         # the bounds variable was found, but the variable is not actually present in the output file
         if bounds_var not in metadata['variables']:
-            msg = 'Bounds listed for variable "{0}" but the destination bounds variable "{1}" does not exist.'.\
+            msg = 'Bounds listed for variable "{0}" but the destination bounds variable "{1}" does not exist.'. \
                 format(var['name'], bounds_var)
             ocgis_lh(msg, logger='nc.driver', level=logging.WARNING)
             bounds_var = None

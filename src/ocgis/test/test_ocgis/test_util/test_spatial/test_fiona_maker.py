@@ -9,7 +9,6 @@ from ocgis.util.spatial.fiona_maker import FionaMaker
 
 
 class TestFionaMaker(TestBase):
-
     def get(self, **kwargs):
         path = os.path.join(self.current_dir_output, 'test.shp')
         fm = FionaMaker(path, **kwargs)

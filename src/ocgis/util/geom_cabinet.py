@@ -1,10 +1,10 @@
-from collections import OrderedDict
 import os
+from collections import OrderedDict
 from copy import deepcopy
 
+import fiona
 import ogr
 from shapely import wkb
-import fiona
 
 from ocgis import env
 from ocgis.interface.base.dimension.spatial import SpatialDimension

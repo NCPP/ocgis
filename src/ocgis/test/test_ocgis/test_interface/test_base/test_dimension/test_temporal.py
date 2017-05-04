@@ -4,10 +4,10 @@ import os
 from collections import deque
 from copy import deepcopy
 from datetime import datetime as dt
-from netCDF4 import num2date, date2num
 
 import netcdftime
 import numpy as np
+from netCDF4 import num2date, date2num
 
 from ocgis import constants
 from ocgis.api.parms.definition import CalcGrouping

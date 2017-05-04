@@ -8,7 +8,6 @@ from ocgis.test.base import attr
 
 
 class TestQueryInterface(TestBase):
-
     def test_init(self):
         qs = "foo=a&bar=45"
         qi = QueryInterface(qs)
@@ -18,7 +17,8 @@ class TestQueryInterface(TestBase):
     @attr('data')
     def test_get_operations(self):
         rd = self.test_data.get_rd('cancm4_tas')
-        qs = "uri={0}&spatial_operation=intersects&geom=state_boundaries&geom_select_uid=20|30&output_format=shp&snippet=true".format(rd.uri)
+        qs = "uri={0}&spatial_operation=intersects&geom=state_boundaries&geom_select_uid=20|30&output_format=shp&snippet=true".format(
+            rd.uri)
         qi = QueryInterface(qs)
         ops = qi.get_operations()
 

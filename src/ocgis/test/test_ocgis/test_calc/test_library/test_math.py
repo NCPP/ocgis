@@ -15,131 +15,130 @@ from ocgis.test.test_ocgis.test_interface.test_base.test_field import AbstractTe
 
 
 class Test(AbstractTestField):
-    
     def test_NaturalLogarithm(self):
-        field = self.get_field(with_value=True,month_count=2)
+        field = self.get_field(with_value=True, month_count=2)
         ln = NaturalLogarithm(field=field)
         ret = ln.execute()
-        self.assertEqual(ret['ln'].value.shape,(2, 60, 2, 3, 4))
-        self.assertNumpyAllClose(ret['ln'].value,np.log(field.variables['tmax'].value))
-        
-        ln = NaturalLogarithm(field=field,calc_sample_size=True)
+        self.assertEqual(ret['ln'].value.shape, (2, 60, 2, 3, 4))
+        self.assertNumpyAllClose(ret['ln'].value, np.log(field.variables['tmax'].value))
+
+        ln = NaturalLogarithm(field=field, calc_sample_size=True)
         ret = ln.execute()
-        self.assertNotIn('n_ln',ret.keys())
-        
+        self.assertNotIn('n_ln', ret.keys())
+
     def test_NaturalLogarithm_units_dimensionless(self):
-        field = self.get_field(with_value=True,month_count=2)
-        ln = NaturalLogarithm(field=field,alias='ln')
+        field = self.get_field(with_value=True, month_count=2)
+        ln = NaturalLogarithm(field=field, alias='ln')
         dvc = ln.execute()
-        self.assertEqual(dvc['ln'].units,None)
-        
+        self.assertEqual(dvc['ln'].units, None)
+
     def test_NaturalLogarithm_grouped(self):
-        field = self.get_field(with_value=True,month_count=2)
+        field = self.get_field(with_value=True, month_count=2)
         grouping = ['month']
         tgd = field.temporal.get_grouping(grouping)
-        ln = NaturalLogarithm(field=field,tgd=tgd)
+        ln = NaturalLogarithm(field=field, tgd=tgd)
         ret = ln.execute()
-        self.assertEqual(ret['ln'].value.shape,(2, 2, 2, 3, 4))
-        
+        self.assertEqual(ret['ln'].value.shape, (2, 2, 2, 3, 4))
+
         to_test = np.log(field.variables['tmax'].value)
-        to_test = np.ma.mean(to_test[0,tgd.dgroups[0],0,:,:],axis=0)
-        to_test2 = ret['ln'].value[0,0,0,:,:]
-        self.assertNumpyAllClose(to_test,to_test2)
-        
-        ln = NaturalLogarithm(field=field,tgd=tgd,calc_sample_size=True)
+        to_test = np.ma.mean(to_test[0, tgd.dgroups[0], 0, :, :], axis=0)
+        to_test2 = ret['ln'].value[0, 0, 0, :, :]
+        self.assertNumpyAllClose(to_test, to_test2)
+
+        ln = NaturalLogarithm(field=field, tgd=tgd, calc_sample_size=True)
         ret = ln.execute()
-        self.assertEqual(ret['ln'].value.shape,(2, 2, 2, 3, 4))
-        self.assertEqual(ret['n_ln'].value.mean(),30.0)
-        
-        ln = NaturalLogarithm(field=field,tgd=tgd,calc_sample_size=True,use_raw_values=True)
+        self.assertEqual(ret['ln'].value.shape, (2, 2, 2, 3, 4))
+        self.assertEqual(ret['n_ln'].value.mean(), 30.0)
+
+        ln = NaturalLogarithm(field=field, tgd=tgd, calc_sample_size=True, use_raw_values=True)
         ret = ln.execute()
-        self.assertEqual(ret['ln'].value.shape,(2, 2, 2, 3, 4))
-        self.assertEqual(ret['n_ln'].value.mean(),30.0)
-        
+        self.assertEqual(ret['ln'].value.shape, (2, 2, 2, 3, 4))
+        self.assertEqual(ret['n_ln'].value.mean(), 30.0)
+
     def test_Divide(self):
-        field = self.get_field(with_value=True,month_count=2)
-        field.variables.add_variable(Variable(value=field.variables['tmax'].value+5,
-                                              name='tmin',alias='tmin'))
-        dv = Divide(field=field,parms={'arr1':'tmax','arr2':'tmin'})
+        field = self.get_field(with_value=True, month_count=2)
+        field.variables.add_variable(Variable(value=field.variables['tmax'].value + 5,
+                                              name='tmin', alias='tmin'))
+        dv = Divide(field=field, parms={'arr1': 'tmax', 'arr2': 'tmin'})
         ret = dv.execute()
         self.assertNumpyAllClose(ret['divide'].value,
-                                 field.variables['tmax'].value/field.variables['tmin'].value)
-        
+                                 field.variables['tmax'].value / field.variables['tmin'].value)
+
         with self.assertRaises(SampleSizeNotImplemented):
-            Divide(field=field,parms={'arr1':'tmax','arr2':'tmin'},calc_sample_size=True)
-        
+            Divide(field=field, parms={'arr1': 'tmax', 'arr2': 'tmin'}, calc_sample_size=True)
+
     def test_Divide_grouped(self):
-        field = self.get_field(with_value=True,month_count=2)
-        field.variables.add_variable(Variable(value=field.variables['tmax'].value+5,
-                                              name='tmin',alias='tmin'))
+        field = self.get_field(with_value=True, month_count=2)
+        field.variables.add_variable(Variable(value=field.variables['tmax'].value + 5,
+                                              name='tmin', alias='tmin'))
         grouping = ['month']
         tgd = field.temporal.get_grouping(grouping)
-        dv = Divide(field=field,parms={'arr1':'tmax','arr2':'tmin'},tgd=tgd)
+        dv = Divide(field=field, parms={'arr1': 'tmax', 'arr2': 'tmin'}, tgd=tgd)
         ret = dv.execute()
-        self.assertEqual(ret['divide'].value.shape,(2,2,2,3,4))
-        self.assertNumpyAllClose(ret['divide'].value[0,1,1,:,2],
-                                 np.ma.array([0.0833001563436,0.0940192653632,0.0916398919876],
-                                             mask=False,fill_value=1e20))
-        
+        self.assertEqual(ret['divide'].value.shape, (2, 2, 2, 3, 4))
+        self.assertNumpyAllClose(ret['divide'].value[0, 1, 1, :, 2],
+                                 np.ma.array([0.0833001563436, 0.0940192653632, 0.0916398919876],
+                                             mask=False, fill_value=1e20))
+
     def test_Divide_use_raw_values(self):
-        field = self.get_field(with_value=True,month_count=2)
-        field.variables.add_variable(Variable(value=field.variables['tmax'].value+5,
-                                              name='tmin',alias='tmin'))
+        field = self.get_field(with_value=True, month_count=2)
+        field.variables.add_variable(Variable(value=field.variables['tmax'].value + 5,
+                                              name='tmin', alias='tmin'))
         grouping = ['month']
-        
+
         ur = [
-              True,
-              False
-              ]
+            True,
+            False
+        ]
         agg = [
-               True,
-               False
-               ]
+            True,
+            False
+        ]
         with_tgd = [
-                    True,
-                    False
-                    ]
-        
-        for u,a,w in itertools.product(ur,agg,with_tgd):
+            True,
+            False
+        ]
+
+        for u, a, w in itertools.product(ur, agg, with_tgd):
             if w:
                 tgd = field.temporal.get_grouping(grouping)
             else:
                 tgd = None
             if a:
                 cfield = field.get_spatially_aggregated()
-                self.assertNotEqual(cfield.shape,cfield._raw.shape)
-                self.assertEqual(set([r.value.shape for r in cfield.variables.values()]),set([(2, 60, 2, 1, 1)]))
-                self.assertEqual(cfield.shape,(2,60,2,1,1))
+                self.assertNotEqual(cfield.shape, cfield._raw.shape)
+                self.assertEqual(set([r.value.shape for r in cfield.variables.values()]), set([(2, 60, 2, 1, 1)]))
+                self.assertEqual(cfield.shape, (2, 60, 2, 1, 1))
             else:
                 cfield = field
-                self.assertEqual(set([r.value.shape for r in cfield.variables.values()]),set([(2, 60, 2, 3, 4)]))
-                self.assertEqual(cfield.shape,(2,60,2,3,4))
-            div = Divide(dtype=np.float32,field=cfield,parms={'arr1':'tmax','arr2':'tmin'},tgd=tgd,use_raw_values=u)
+                self.assertEqual(set([r.value.shape for r in cfield.variables.values()]), set([(2, 60, 2, 3, 4)]))
+                self.assertEqual(cfield.shape, (2, 60, 2, 3, 4))
+            div = Divide(dtype=np.float32, field=cfield, parms={'arr1': 'tmax', 'arr2': 'tmin'}, tgd=tgd,
+                         use_raw_values=u)
             ret = div.execute()
             if a:
                 if w:
-                    self.assertEqual(set([r.value.shape for r in ret.values()]),set([(2, 2, 2, 1, 1)]))
+                    self.assertEqual(set([r.value.shape for r in ret.values()]), set([(2, 2, 2, 1, 1)]))
                 else:
-                    self.assertEqual(set([r.value.shape for r in ret.values()]),set([(2, 60, 2, 1, 1)]))
+                    self.assertEqual(set([r.value.shape for r in ret.values()]), set([(2, 60, 2, 1, 1)]))
             else:
                 if w:
-                    self.assertEqual(set([r.value.shape for r in ret.values()]),set([(2, 2, 2, 3, 4)]))
+                    self.assertEqual(set([r.value.shape for r in ret.values()]), set([(2, 2, 2, 3, 4)]))
                 else:
-                    self.assertEqual(set([r.value.shape for r in ret.values()]),set([(2, 60, 2, 3, 4)]))
-    
+                    self.assertEqual(set([r.value.shape for r in ret.values()]), set([(2, 60, 2, 3, 4)]))
+
     def test_Treshold(self):
-        field = self.get_field(with_value=True,month_count=2)
+        field = self.get_field(with_value=True, month_count=2)
         grouping = ['month']
         tgd = field.temporal.get_grouping(grouping)
-        dv = Threshold(field=field,parms={'threshold':0.5,'operation':'gte'},tgd=tgd)
+        dv = Threshold(field=field, parms={'threshold': 0.5, 'operation': 'gte'}, tgd=tgd)
         ret = dv.execute()
-        self.assertEqual(ret['threshold'].value.shape,(2,2,2,3,4))
-        self.assertNumpyAllClose(ret['threshold'].value[1,1,1,0,:],
-        np.ma.array([13,16,15,12],mask=False))
+        self.assertEqual(ret['threshold'].value.shape, (2, 2, 2, 3, 4))
+        self.assertNumpyAllClose(ret['threshold'].value[1, 1, 1, 0, :],
+                                 np.ma.array([13, 16, 15, 12], mask=False))
 
 
 class TestSum(AbstractTestField):
-
     def test_calculate(self):
         """Test calculate for the sum function."""
 
@@ -184,7 +183,6 @@ class TestSum(AbstractTestField):
 
 
 class TestConvolve1D(AbstractTestField):
-
     def get_convolve1d_field(self, slice_stop=3):
         field = self.get_field(month_count=1, with_value=True)
         field = field[:, 0:slice_stop, :, :, :]
@@ -218,7 +216,8 @@ class TestConvolve1D(AbstractTestField):
         actual = np.ma.loads(actual).astype(env.NP_FLOAT)
         self.assertNumpyAll(actual.sum(), vc['convolve_1d'].value.sum())
         self.assertEqual(cd.field.shape, (2, 2, 2, 3, 4))
-        actual = np.loads('\x80\x02cnumpy.core.multiarray\n_reconstruct\nq\x01cnumpy\nndarray\nq\x02K\x00\x85U\x01b\x87Rq\x03(K\x01K\x02\x85cnumpy\ndtype\nq\x04U\x02O8K\x00K\x01\x87Rq\x05(K\x03U\x01|NNNJ\xff\xff\xff\xffJ\xff\xff\xff\xffK?tb\x89]q\x06(cdatetime\ndatetime\nq\x07U\n\x07\xd0\x01\x01\x0c\x00\x00\x00\x00\x00\x85Rq\x08h\x07U\n\x07\xd0\x01\x02\x0c\x00\x00\x00\x00\x00\x85Rq\tetb.')
+        actual = np.loads(
+            '\x80\x02cnumpy.core.multiarray\n_reconstruct\nq\x01cnumpy\nndarray\nq\x02K\x00\x85U\x01b\x87Rq\x03(K\x01K\x02\x85cnumpy\ndtype\nq\x04U\x02O8K\x00K\x01\x87Rq\x05(K\x03U\x01|NNNJ\xff\xff\xff\xffJ\xff\xff\xff\xffK?tb\x89]q\x06(cdatetime\ndatetime\nq\x07U\n\x07\xd0\x01\x01\x0c\x00\x00\x00\x00\x00\x85Rq\x08h\x07U\n\x07\xd0\x01\x02\x0c\x00\x00\x00\x00\x00\x85Rq\tetb.')
         self.assertNumpyAll(actual, cd.field.temporal.value)
 
     @attr('data')

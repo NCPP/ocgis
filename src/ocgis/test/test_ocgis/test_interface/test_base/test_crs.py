@@ -10,11 +10,11 @@ import ocgis
 from ocgis import constants
 from ocgis.constants import WrappedState, WrapAction
 from ocgis.exc import SpatialWrappingError
-from ocgis.interface.base.crs import CoordinateReferenceSystem, WGS84,\
+from ocgis.interface.base.crs import CoordinateReferenceSystem, WGS84, \
     CFAlbersEqualArea, CFLambertConformal, CFRotatedPole, CFWGS84, Spherical, WrappableCoordinateReferenceSystem, \
     CFCoordinateReferenceSystem
 from ocgis.interface.base.dimension.base import VectorDimension
-from ocgis.interface.base.dimension.spatial import SpatialGridDimension,\
+from ocgis.interface.base.dimension.spatial import SpatialGridDimension, \
     SpatialDimension
 from ocgis.test.base import TestBase, nc_scope
 from ocgis.test.base import attr
@@ -23,11 +23,11 @@ from ocgis.util.itester import itr_products_keywords
 
 
 class TestCoordinateReferenceSystem(TestBase):
-
     def test_init(self):
-        keywords = dict(value=[None, {'no_defs': True, 'ellps': 'WGS84', 'proj': 'longlat', 'towgs84': '0,0,0,0,0,0,0'}],
-                        epsg=[None, 4326],
-                        proj4=[None, '+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs '])
+        keywords = dict(
+            value=[None, {'no_defs': True, 'ellps': 'WGS84', 'proj': 'longlat', 'towgs84': '0,0,0,0,0,0,0'}],
+            epsg=[None, 4326],
+            proj4=[None, '+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs '])
 
         prev_crs = None
         for k in itr_products_keywords(keywords):
@@ -39,7 +39,8 @@ class TestCoordinateReferenceSystem(TestBase):
                 else:
                     raise
             self.assertEqual(crs.proj4, '+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs ')
-            self.assertDictEqual(crs.value, {'no_defs': True, 'ellps': 'WGS84', 'proj': 'longlat', 'towgs84': '0,0,0,0,0,0,0'})
+            self.assertDictEqual(crs.value,
+                                 {'no_defs': True, 'ellps': 'WGS84', 'proj': 'longlat', 'towgs84': '0,0,0,0,0,0,0'})
             if prev_crs is not None:
                 self.assertEqual(crs, prev_crs)
             prev_crs = deepcopy(crs)
@@ -219,7 +220,6 @@ class TestWrappableCoordinateSystem(TestBase):
 
 
 class TestSpherical(TestBase):
-
     def test_init(self):
         crs = Spherical()
         self.assertDictEqual(crs.value, {'a': 6370997, 'no_defs': True, 'b': 6370997, 'proj': 'longlat',
@@ -274,7 +274,7 @@ class TestSpherical(TestBase):
         self.assertEqual(sdim.wrapped_state, WrappedState.UNKNOWN)
         with self.assertRaises(SpatialWrappingError):
             sdim.crs.wrap(sdim)
-    
+
     def test_wrap_360(self):
         """Test wrapping."""
 
@@ -293,7 +293,7 @@ class TestSpherical(TestBase):
         to_test = ([sdim.grid.value, orig_sdim.grid.value], [sdim.grid.corners, orig_sdim.grid.corners])
         for tt in to_test:
             self.assertNumpyAll(*tt)
-    
+
     def test_wrap_360_prime_meridian(self):
         """Test wrapping with bounds interacting with the prime meridian."""
 
@@ -354,10 +354,9 @@ class TestSpherical(TestBase):
         self.assertEqual(sdim.wrapped_state, WrappedState.WRAPPED)
         sdim.crs.unwrap(sdim)
         self.assertEqual(orig_sdim.geom.polygon.value[0, 0].bounds, sdim.geom.polygon.value[0, 0].bounds)
-            
+
 
 class TestWGS84(TestBase):
-
     def test_init(self):
         self.assertEqual(WGS84(), CoordinateReferenceSystem(epsg=4326))
         self.assertIsInstance(WGS84(), WrappableCoordinateReferenceSystem)
@@ -366,7 +365,6 @@ class TestWGS84(TestBase):
 
 
 class TestCFWGS84(TestBase):
-
     def test_init(self):
         crs = CFWGS84()
         self.assertEqual(crs.map_parameters_values, {})
@@ -375,21 +373,21 @@ class TestCFWGS84(TestBase):
 
 
 class TestCFAlbersEqualArea(TestBase):
-    
     def test_constructor(self):
-        crs = CFAlbersEqualArea(standard_parallel=[29.5,45.5],longitude_of_central_meridian=-96,
-                                latitude_of_projection_origin=37.5,false_easting=0,
+        crs = CFAlbersEqualArea(standard_parallel=[29.5, 45.5], longitude_of_central_meridian=-96,
+                                latitude_of_projection_origin=37.5, false_easting=0,
                                 false_northing=0)
-        self.assertEqual(crs.value,{'lon_0': -96, 'ellps': 'WGS84', 'y_0': 0, 'no_defs': True, 'proj': 'aea', 'x_0': 0, 'units': 'm', 'lat_2': 45.5, 'lat_1': 29.5, 'lat_0': 37.5})
-    
+        self.assertEqual(crs.value, {'lon_0': -96, 'ellps': 'WGS84', 'y_0': 0, 'no_defs': True, 'proj': 'aea', 'x_0': 0,
+                                     'units': 'm', 'lat_2': 45.5, 'lat_1': 29.5, 'lat_0': 37.5})
+
     def test_empty(self):
         with self.assertRaises(KeyError):
             CFAlbersEqualArea()
-            
+
     def test_bad_parms(self):
         with self.assertRaises(KeyError):
-            CFAlbersEqualArea(standard_parallel=[29.5,45.5],longitude_of_central_meridian=-96,
-                              latitude_of_projection_origin=37.5,false_easting=0,
+            CFAlbersEqualArea(standard_parallel=[29.5, 45.5], longitude_of_central_meridian=-96,
+                              latitude_of_projection_origin=37.5, false_easting=0,
                               false_nothing=0)
 
 
@@ -473,13 +471,13 @@ class TestCFLambertConformalConic(TestBase):
         with nc_scope(path2, 'w') as ds:
             crs2.write_to_rootgrp(ds)
 
-        
-class TestCFRotatedPole(TestBase):
 
+class TestCFRotatedPole(TestBase):
     def test_init(self):
         rp = CFRotatedPole(grid_north_pole_latitude=39.25, grid_north_pole_longitude=-162.0)
-        self.assertDictEqual(rp.value, {'lonc': 0, 'ellps': 'WGS84', 'y_0': 0, 'no_defs': True, 'proj': 'omerc', 'x_0': 0,
-                                        'units': 'm', 'alpha': 0, 'k': 1, 'gamma': 0, 'lat_0': 0})
+        self.assertDictEqual(rp.value,
+                             {'lonc': 0, 'ellps': 'WGS84', 'y_0': 0, 'no_defs': True, 'proj': 'omerc', 'x_0': 0,
+                              'units': 'm', 'alpha': 0, 'k': 1, 'gamma': 0, 'lat_0': 0})
 
     @attr('data')
     def test_equal(self):

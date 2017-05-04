@@ -111,7 +111,7 @@ class Field(Attributes):
     @name.setter
     def name(self, value):
         self._name = value
-    
+
     @property
     def shape(self):
         """
@@ -125,7 +125,7 @@ class Field(Attributes):
         shape_spatial = get_default_or_apply(self.spatial, lambda x: x.shape, (1, 1))
         ret = (shape_realization, shape_temporal, shape_level, shape_spatial[0], shape_spatial[1])
         return ret
-    
+
     @property
     def shape_as_dict(self):
         """
@@ -178,11 +178,11 @@ class Field(Attributes):
         slc_field[pos] = slc
         ret = self[slc_field]
         return ret
-    
+
     def get_clip(self, polygon, use_spatial_index=True, select_nearest=False):
-        return(self._get_spatial_operation_('get_clip', polygon, use_spatial_index=use_spatial_index,
-                                            select_nearest=select_nearest))
-    
+        return (self._get_spatial_operation_('get_clip', polygon, use_spatial_index=use_spatial_index,
+                                             select_nearest=select_nearest))
+
     @staticmethod
     def get_fiona_dict(field, arch):
         """
@@ -224,8 +224,9 @@ class Field(Attributes):
         return ret
 
     def get_intersects(self, polygon, use_spatial_index=True, select_nearest=False, optimized_bbox_subset=False):
-        return(self._get_spatial_operation_('get_intersects', polygon, use_spatial_index=use_spatial_index,
-                                            select_nearest=select_nearest, optimized_bbox_subset=optimized_bbox_subset))
+        return (self._get_spatial_operation_('get_intersects', polygon, use_spatial_index=use_spatial_index,
+                                             select_nearest=select_nearest,
+                                             optimized_bbox_subset=optimized_bbox_subset))
 
     def get_iter(self, add_masked_value=True, value_keys=None, melted=True, use_upper_keys=False, headers=None,
                  ugeom=None):
@@ -641,7 +642,7 @@ class Field(Attributes):
 
         yld = {'did': self.uid, 'variable': variable.name, 'alias': variable.alias, 'vid': variable.uid}
         return yld
-                    
+
     def _set_default_names_uids_(self):
 
         def _set_(dim, name, name_uid):
@@ -658,7 +659,6 @@ class Field(Attributes):
 
 
 class DerivedField(Field):
-    
     def _get_variable_iter_yield_(self, variable):
         yld = {'cid': variable.uid, 'calc_key': variable.name, 'calc_alias': variable.alias}
 

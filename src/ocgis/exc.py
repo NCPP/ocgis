@@ -35,7 +35,8 @@ class CannotFormatTimeError(OcgException):
         self.property_name = property_name
 
     def __str__(self):
-        msg = 'Attempted to retrieve datetime values from "{0}" with "format_time" as "False". Set "format_time" to "True".'.format(self.property_name)
+        msg = 'Attempted to retrieve datetime values from "{0}" with "format_time" as "False". Set "format_time" to "True".'.format(
+            self.property_name)
         return msg
 
 
@@ -69,7 +70,6 @@ class SingleElementError(ShapeError):
 
 
 class CalculationException(OcgException):
-
     def __init__(self, function_klass, message=None):
         self.function_klass = function_klass
         OcgException.__init__(self, message=message)
@@ -120,7 +120,6 @@ class ProjectionDoesNotMatch(CFException):
 
 
 class DimensionNotFound(CFException):
-
     def __init__(self, axis):
         self.axis = axis
 

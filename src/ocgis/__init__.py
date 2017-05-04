@@ -1,7 +1,7 @@
-from ocgis.util.environment import env
 import osgeo
 from osgeo import osr
 from osgeo import ogr
+from ocgis.util.environment import env
 from ocgis.interface.base.dimension.base import VectorDimension
 from ocgis.interface.base.dimension.temporal import TemporalDimension
 from ocgis.api.collection import SpatialCollection
@@ -19,5 +19,5 @@ from ocgis.api.request.base import RequestDataset, RequestDatasetCollection
 from ocgis.api.operations import OcgOperations
 
 
-__version__ = '1.4.0.dev1'
-__release__ = '1.4.0.dev1'
+__version__ = '1.3.2'
+__release__ = '1.3.2'

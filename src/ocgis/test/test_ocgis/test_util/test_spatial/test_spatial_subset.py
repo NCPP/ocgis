@@ -18,7 +18,6 @@ from ocgis.util.spatial.spatial_subset import SpatialSubsetOperation
 
 
 class TestSpatialSubsetOperation(TestBase):
-
     def __init__(self, *args, **kwargs):
         self._target = None
         super(TestSpatialSubsetOperation, self).__init__(*args, **kwargs)
@@ -145,7 +144,8 @@ class TestSpatialSubsetOperation(TestBase):
             if buffer_crs is None:
                 self.assertEqual(ref.bounds, (-105.0, 35.0, -94.0, 45.0))
             else:
-                self.assertNumpyAllClose(np.array(ref.bounds), np.array((-104.00013263459613, 35.9999147913708, -94.99986736540386, 44.00008450528758)))
+                self.assertNumpyAllClose(np.array(ref.bounds), np.array(
+                    (-104.00013263459613, 35.9999147913708, -94.99986736540386, 44.00008450528758)))
             self.assertEqual(subset_sdim.crs, ret.crs)
 
             # check deepcopy
@@ -223,7 +223,7 @@ class TestSpatialSubsetOperation(TestBase):
         geoms = TestGeom.get_geometry_dictionaries()
         rd = self.test_data.get_rd('cancm4_tas')
         ss = SpatialSubsetOperation(rd, wrap=True)
-        buffered = [element['geom'].buffer(rd.get().spatial.grid.resolution*2) for element in geoms]
+        buffered = [element['geom'].buffer(rd.get().spatial.grid.resolution * 2) for element in geoms]
         for buff in buffered:
             record = [{'geom': buff, 'properties': {'UGID': 1}}]
             subset_sdim = SpatialDimension.from_records(record)

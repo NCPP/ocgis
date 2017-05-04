@@ -1,13 +1,12 @@
-from ocgis import constants
 import abc
 import datetime
 
 import ocgis
+from ocgis import constants
 from ocgis.api.parms.base import AbstractParameter
 from ocgis.conv.base import AbstractConverter
 from ocgis.exc import DefinitionValidationError
 from ocgis.util.justify import justify_row
-
 
 HEADERS = {
     'ugid': 'User geometry identifier pulled from a provided set of selection geometries. Reduces to "1" for the case of no provided geometry.',
@@ -46,7 +45,6 @@ class AbstractMetaConverter(AbstractConverter):
 
 
 class MetaJSONConverter(AbstractMetaConverter):
-
     @classmethod
     def validate_ops(cls, ops):
         from ocgis.api.parms.definition import OutputFormat

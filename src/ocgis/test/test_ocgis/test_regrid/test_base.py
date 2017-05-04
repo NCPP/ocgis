@@ -127,7 +127,7 @@ class TestRegrid(TestSimpleBase):
 
         gcm = self.test_data.get_rd('cancm4_tas')
         gcm = gcm.get()
-        poly = make_poly([37, 43], [-104+360, -94+360])
+        poly = make_poly([37, 43], [-104 + 360, -94 + 360])
         gcm = gcm.get_intersects(poly)
         gcm.spatial.crs = Spherical()
 
@@ -405,7 +405,15 @@ class TestRegrid(TestSimpleBase):
 
         sdim = get_sdim_from_esmf_grid(egrid)
         self.assertNumpyAll(sdim.get_mask(), field.spatial.get_mask())
-        actual = np.array([[[[True, True, True, True], [True, True, True, True], [False, False, False, False]], [[False, False, False, False], [False, False, False, False], [False, False, False, False]], [[False, False, False, False], [False, False, False, False], [False, False, False, False]], [[False, False, False, False], [False, False, False, False], [False, False, False, False]]], [[[True, True, True, True], [True, True, True, True], [False, False, False, False]], [[False, False, False, False], [False, False, False, False], [False, False, False, False]], [[False, False, False, False], [False, False, False, False], [False, False, False, False]], [[False, False, False, False], [False, False, False, False], [False, False, False, False]]]])
+        actual = np.array([[[[True, True, True, True], [True, True, True, True], [False, False, False, False]],
+                            [[False, False, False, False], [False, False, False, False], [False, False, False, False]],
+                            [[False, False, False, False], [False, False, False, False], [False, False, False, False]],
+                            [[False, False, False, False], [False, False, False, False], [False, False, False, False]]],
+                           [[[True, True, True, True], [True, True, True, True], [False, False, False, False]],
+                            [[False, False, False, False], [False, False, False, False], [False, False, False, False]],
+                            [[False, False, False, False], [False, False, False, False], [False, False, False, False]],
+                            [[False, False, False, False], [False, False, False, False],
+                             [False, False, False, False]]]])
         self.assertNumpyAll(actual, sdim.grid.corners.mask)
 
     @attr('esmf')
@@ -545,12 +553,17 @@ class TestRegrid(TestSimpleBase):
 
         corner = egrid.coords[ESMF.StaggerLoc.CORNER]
         corner_row = corner[1]
-        corner_row_actual = np.array([[40.5, 40.5, 40.5, 40.5, 40.5], [39.5, 39.5, 39.5, 39.5, 39.5], [38.5, 38.5, 38.5, 38.5, 38.5], [37.5, 37.5, 37.5, 37.5, 37.5], [36.5, 36.5, 36.5, 36.5, 36.5]], dtype=field.spatial.grid.value.dtype)
+        corner_row_actual = np.array(
+            [[40.5, 40.5, 40.5, 40.5, 40.5], [39.5, 39.5, 39.5, 39.5, 39.5], [38.5, 38.5, 38.5, 38.5, 38.5],
+             [37.5, 37.5, 37.5, 37.5, 37.5], [36.5, 36.5, 36.5, 36.5, 36.5]], dtype=field.spatial.grid.value.dtype)
         self.assertNumpyAll(corner_row, corner_row_actual)
 
         corner = egrid.coords[ESMF.StaggerLoc.CORNER]
         corner_col = corner[0]
-        corner_col_actual = np.array([[-101.5, -102.5, -103.5, -104.5, -105.5], [-101.5, -102.5, -103.5, -104.5, -105.5], [-101.5, -102.5, -103.5, -104.5, -105.5], [-101.5, -102.5, -103.5, -104.5, -105.5], [-101.5, -102.5, -103.5, -104.5, -105.5]], dtype=field.spatial.grid.value.dtype)
+        corner_col_actual = np.array(
+            [[-101.5, -102.5, -103.5, -104.5, -105.5], [-101.5, -102.5, -103.5, -104.5, -105.5],
+             [-101.5, -102.5, -103.5, -104.5, -105.5], [-101.5, -102.5, -103.5, -104.5, -105.5],
+             [-101.5, -102.5, -103.5, -104.5, -105.5]], dtype=field.spatial.grid.value.dtype)
         self.assertNumpyAll(corner_col, corner_col_actual)
 
     @attr('esmf')

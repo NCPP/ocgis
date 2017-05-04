@@ -11,7 +11,6 @@ from ocgis.util.shp_process import ShpProcess
 
 @attr('data')
 class TestShpProcess(TestBase):
-
     def test_shp_process(self):
         copy_path = os.path.join(self.current_dir_output, 'test_shp_process')
         sc = GeomCabinet()

@@ -117,7 +117,6 @@ class TestDriverNetcdf(TestBase):
         self.assertEqual(len(field.spatial.grid.col.attrs), 5)
 
         with self.nc_scope(uri) as ds:
-            self.assertEqual(field.level, None)
             self.assertEqual(field.spatial.crs, WGS84())
 
             tv = field.temporal.value
@@ -617,7 +616,7 @@ class Test(TestBase):
         dim_map = get_dimension_map('tas', rd.source_metadata)
         self.assertDictEqual(dim_map, {'Y': {'variable': u'lat', 'bounds': u'lat_bnds', 'dimension': u'lat', 'pos': 1},
                                        'X': {'variable': u'lon', 'bounds': u'lon_bnds', 'dimension': u'lon', 'pos': 2},
-                                       'Z': None,
+                                       'Z': {'variable': u'height', 'bounds': None, 'dimension': None, 'pos': None},
                                        'T': {'variable': u'time', 'bounds': u'time_bnds', 'dimension': u'time',
                                              'pos': 0}})
 
@@ -638,106 +637,106 @@ class Test(TestBase):
              (u'SurfSgnConvention', u'Traditional'),
              (u'CDO', u'Climate Data Operators version 1.5.0 (http://code.zmaw.de/projects/cdo)'),
              (u'nco_openmp_thread_number', 1)])), ('file_format', 'NETCDF3_CLASSIC'), ('variables', OrderedDict([(
-                                                                                                                     u'longitude',
-                                                                                                                     {
-                                                                                                                         'dtype': 'float32',
-                                                                                                                         'fill_value': 1e+20,
-                                                                                                                         'dimensions': (
-                                                                                                                             u'longitude',),
-                                                                                                                         'name': u'longitude',
-                                                                                                                         'attrs': OrderedDict(
-                                                                                                                             [
-                                                                                                                                 (
-                                                                                                                                     u'long_name',
-                                                                                                                                     u'Longitude'),
-                                                                                                                                 (
-                                                                                                                                     u'units',
-                                                                                                                                     u'degrees_east'),
-                                                                                                                                 (
-                                                                                                                                     u'standard_name',
-                                                                                                                                     u'longitude'),
-                                                                                                                                 (
-                                                                                                                                     u'axis',
-                                                                                                                                     u'X'),
-                                                                                                                                 (
-                                                                                                                                     u'bounds',
-                                                                                                                                     u'longitude_bnds')])}),
-                                                                                                                 (
-                                                                                                                     u'longitude_bnds',
-                                                                                                                     {
-                                                                                                                         'dtype': 'float32',
-                                                                                                                         'fill_value': 1e+20,
-                                                                                                                         'dimensions': (
-                                                                                                                             u'longitude',
-                                                                                                                             u'nb2'),
-                                                                                                                         'name': u'longitude_bnds',
-                                                                                                                         'attrs': OrderedDict()}),
-                                                                                                                 (
-                                                                                                                     u'latitude',
-                                                                                                                     {
-                                                                                                                         'dtype': 'float32',
-                                                                                                                         'fill_value': 1e+20,
-                                                                                                                         'dimensions': (
-                                                                                                                             u'latitude',),
-                                                                                                                         'name': u'latitude',
-                                                                                                                         'attrs': OrderedDict(
-                                                                                                                             [
-                                                                                                                                 (
-                                                                                                                                     u'long_name',
-                                                                                                                                     u'Latitude'),
-                                                                                                                                 (
-                                                                                                                                     u'units',
-                                                                                                                                     u'degrees_north'),
-                                                                                                                                 (
-                                                                                                                                     u'standard_name',
-                                                                                                                                     u'latitude'),
-                                                                                                                                 (
-                                                                                                                                     u'axis',
-                                                                                                                                     u'Y'),
-                                                                                                                                 (
-                                                                                                                                     u'bounds',
-                                                                                                                                     u'latitude_bnds')])}),
-                                                                                                                 (
-                                                                                                                     u'latitude_bnds',
-                                                                                                                     {
-                                                                                                                         'dtype': 'float32',
-                                                                                                                         'fill_value': 1e+20,
-                                                                                                                         'dimensions': (
-                                                                                                                             u'latitude',
-                                                                                                                             u'nb2'),
-                                                                                                                         'name': u'latitude_bnds',
-                                                                                                                         'attrs': OrderedDict()}),
-                                                                                                                 (
-                                                                                                                     u'time',
-                                                                                                                     {
-                                                                                                                         'dtype': 'float64',
-                                                                                                                         'fill_value': 1e+20,
-                                                                                                                         'dimensions': (
-                                                                                                                             u'time',),
-                                                                                                                         'name': u'time',
-                                                                                                                         'attrs': OrderedDict(
-                                                                                                                             [
-                                                                                                                                 (
-                                                                                                                                     u'units',
-                                                                                                                                     u'days since 1940-01-01 00:00:00'),
-                                                                                                                                 (
-                                                                                                                                     u'calendar',
-                                                                                                                                     u'standard')])}),
-                                                                                                                 (
-                                                                                                                     u'tas',
-                                                                                                                     {
-                                                                                                                         'dtype': 'float32',
-                                                                                                                         'fill_value': 1e+20,
-                                                                                                                         'dimensions': (
-                                                                                                                             u'time',
-                                                                                                                             u'latitude',
-                                                                                                                             u'longitude'),
-                                                                                                                         'name': u'tas',
-                                                                                                                         'attrs': OrderedDict(
-                                                                                                                             [
-                                                                                                                                 (
-                                                                                                                                     u'units',
-                                                                                                                                     u'C')])})])),
+            u'longitude',
+            {
+                'dtype': 'float32',
+                'fill_value': 1e+20,
+                'dimensions': (
+                    u'longitude',),
+                'name': u'longitude',
+                'attrs': OrderedDict(
+                    [
+                        (
+                            u'long_name',
+                            u'Longitude'),
+                        (
+                            u'units',
+                            u'degrees_east'),
+                        (
+                            u'standard_name',
+                            u'longitude'),
+                        (
+                            u'axis',
+                            u'X'),
+                        (
+                            u'bounds',
+                            u'longitude_bnds')])}),
+            (
+                u'longitude_bnds',
+                {
+                    'dtype': 'float32',
+                    'fill_value': 1e+20,
+                    'dimensions': (
+                        u'longitude',
+                        u'nb2'),
+                    'name': u'longitude_bnds',
+                    'attrs': OrderedDict()}),
+            (
+                u'latitude',
+                {
+                    'dtype': 'float32',
+                    'fill_value': 1e+20,
+                    'dimensions': (
+                        u'latitude',),
+                    'name': u'latitude',
+                    'attrs': OrderedDict(
+                        [
+                            (
+                                u'long_name',
+                                u'Latitude'),
+                            (
+                                u'units',
+                                u'degrees_north'),
+                            (
+                                u'standard_name',
+                                u'latitude'),
+                            (
+                                u'axis',
+                                u'Y'),
+                            (
+                                u'bounds',
+                                u'latitude_bnds')])}),
+            (
+                u'latitude_bnds',
+                {
+                    'dtype': 'float32',
+                    'fill_value': 1e+20,
+                    'dimensions': (
+                        u'latitude',
+                        u'nb2'),
+                    'name': u'latitude_bnds',
+                    'attrs': OrderedDict()}),
+            (
+                u'time',
+                {
+                    'dtype': 'float64',
+                    'fill_value': 1e+20,
+                    'dimensions': (
+                        u'time',),
+                    'name': u'time',
+                    'attrs': OrderedDict(
+                        [
+                            (
+                                u'units',
+                                u'days since 1940-01-01 00:00:00'),
+                            (
+                                u'calendar',
+                                u'standard')])}),
+            (
+                u'tas',
+                {
+                    'dtype': 'float32',
+                    'fill_value': 1e+20,
+                    'dimensions': (
+                        u'time',
+                        u'latitude',
+                        u'longitude'),
+                    'name': u'tas',
+                    'attrs': OrderedDict(
+                        [
+                            (
+                                u'units',
+                                u'C')])})])),
                                ('dimensions', OrderedDict([(u'longitude', {'isunlimited': False, 'len': 462}),
                                                            (u'nb2', {'isunlimited': False, 'len': 2}),
                                                            (u'latitude', {'isunlimited': False, 'len': 222}),

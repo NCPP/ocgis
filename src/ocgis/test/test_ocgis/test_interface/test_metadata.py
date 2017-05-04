@@ -7,7 +7,6 @@ from ocgis.test.test_simple.test_simple import nc_scope
 
 
 class TestNcMetadata(TestBase):
-
     @property
     def rd(self):
         return self.test_data.get_rd('cancm4_tasmax_2001')

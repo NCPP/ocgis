@@ -9,7 +9,6 @@ from ocgis.test.base import TestBase, attr
 
 @attr('simple')
 class TestDependencies(TestBase):
-
     def test_netCDF4(self):
         path = os.path.join(self.current_dir_output, 'foo.nc')
         with self.nc_scope(path, 'w') as ds:

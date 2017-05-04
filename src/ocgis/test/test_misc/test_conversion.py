@@ -1,7 +1,7 @@
-import netCDF4 as nc
 import os
 
 import fiona
+import netCDF4 as nc
 
 import ocgis
 from ocgis import constants

@@ -21,11 +21,11 @@ class FooNeedsUnits(AbstractUnivariateFunction):
     required_units = ['K', 'kelvin']
     standard_name = 'foo_needs_units'
     long_name = 'Foo Needs Units'
-    
+
     def calculate(self, values):
         return values
-            
-            
+
+
 class FooNeedsUnitsSet(AbstractUnivariateSetFunction):
     description = 'calculation with units'
     dtype_default = 'int'
@@ -136,7 +136,6 @@ class FakeAbstractMultivariateFunction(AbstractMultivariateFunction):
 
 
 class TestAbstractMultivariateFunction(TestBase):
-
     def test_init(self):
         self.assertEqual(AbstractMultivariateFunction.__bases__, (AbstractFunction,))
 
@@ -221,14 +220,13 @@ class TestAbstractParameterizedFunction(AbstractTestField):
 
 
 class TestAbstractUnivariateFunction(AbstractTestField):
-    
     def test_validate_units(self):
         field = self.get_field(with_value=True)
         fnu = FooNeedsUnits(field=field)
         ret = fnu.execute()
         self.assertNumpyAll(field.variables['tmax'].value.astype(FooNeedsUnits.get_dtype()),
                             ret['fnu'].value)
-        
+
     def test_validate_units_bad_units(self):
         field = self.get_field(with_value=True)
         field.variables['tmax'].units = 'celsius'
@@ -236,21 +234,20 @@ class TestAbstractUnivariateFunction(AbstractTestField):
         fnu = FooNeedsUnits(field=field)
         with self.assertRaises(UnitsValidationError):
             fnu.execute()
-            
-            
+
+
 class TestAbstractUnivariateSetFunction(AbstractTestField):
-    
     def test_validate_units(self):
         field = self.get_field(with_value=True)
         tgd = field.temporal.get_grouping(['month'])
         fnu = FooNeedsUnitsSet(field=field, tgd=tgd)
         fnu.execute()
-        
+
     def test_validate_units_bad_units(self):
         field = self.get_field(with_value=True)
         tgd = field.temporal.get_grouping(['month'])
         field.variables['tmax'].units = 'celsius'
         self.assertEqual(field.variables['tmax'].cfunits, get_units_object('celsius'))
-        fnu = FooNeedsUnitsSet(field=field,tgd=tgd)
+        fnu = FooNeedsUnitsSet(field=field, tgd=tgd)
         with self.assertRaises(UnitsValidationError):
             fnu.execute()

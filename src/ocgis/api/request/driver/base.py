@@ -113,7 +113,8 @@ class AbstractDriver(object):
 
         if cls.output_formats != 'all':
             if ops.output_format not in cls.output_formats:
-                msg = 'Output format not supported for driver "{0}". Supported output formats are: {1}'.format(cls.key, cls.output_formats)
+                msg = 'Output format not supported for driver "{0}". Supported output formats are: {1}'.format(cls.key,
+                                                                                                               cls.output_formats)
                 raise DefinitionValidationError('output_format', msg)
 
     @abc.abstractmethod

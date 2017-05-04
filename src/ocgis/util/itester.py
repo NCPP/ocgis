@@ -1,6 +1,6 @@
+import itertools
 from collections import namedtuple
 from copy import deepcopy
-import itertools
 
 
 def itr_row(key, sequence):

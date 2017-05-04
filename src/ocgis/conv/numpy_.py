@@ -1,5 +1,5 @@
-from ocgis.conv.base import AbstractFileConverter, AbstractCollectionConverter
 from ocgis.api.collection import SpatialCollection
+from ocgis.conv.base import AbstractCollectionConverter
 
 
 class NumpyConverter(AbstractCollectionConverter):

@@ -15,7 +15,6 @@ class FooAbstractParameter(AbstractParameter):
 
 
 class TestAbstractParameter(TestBase):
-
     def test_init(self):
         fp = FooAbstractParameter()
         self.assertEqual(fp.value, FooAbstractParameter.default)
@@ -27,9 +26,7 @@ class TestAbstractParameter(TestBase):
 
 
 class TestIterableParameter(TestBase):
-
     def get_klass(self):
-
         class FooIterable(IterableParameter, AbstractParameter):
             name = 'foo_iterable'
             element_type = str

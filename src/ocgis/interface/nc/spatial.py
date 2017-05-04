@@ -7,7 +7,6 @@ from ocgis.util.helpers import get_formatted_slice
 
 
 class NcSpatialGridDimension(SpatialGridDimension):
-
     def __getitem__(self, item):
         ret = SpatialGridDimension.__getitem__(self, item)
         if ret._src_idx is not None:

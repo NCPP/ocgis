@@ -3,9 +3,9 @@ from copy import deepcopy
 
 import numpy as np
 
+from ocgis import constants
 from ocgis import env
 from ocgis.calc.base import AbstractUnivariateFunction
-from ocgis import constants
 
 
 class EvalFunction(AbstractUnivariateFunction):

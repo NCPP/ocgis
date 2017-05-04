@@ -1305,4 +1305,3 @@ class VectorWrap(base.BooleanParameter):
     default = True
     meta_true = 'Geographic coordinates wrapped from -180 to 180 degrees longitude.'
     meta_false = 'Geographic coordinates match the target dataset coordinate wrapping and may be in the range 0 to 360.'
-

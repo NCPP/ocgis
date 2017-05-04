@@ -102,7 +102,7 @@ class TestOcgOperations(TestBase):
         rd = self.test_data.get_rd('cancm4_tas')
         ops = OcgOperations(dataset=rd)
         size = ops.get_base_request_size()
-        self.assertEqual(size, {'variables': {'tas': {'level': {'kb': 0.0, 'shape': None, 'dtype': None},
+        self.assertEqual(size, {'variables': {'tas': {'level': {'kb': 0.0078125, 'shape': (1,), 'dtype': None},
                                                       'temporal': {'kb': 28.515625, 'shape': (3650,),
                                                                    'dtype': dtype('float64')},
                                                       'value': {'kb': 116800.0, 'shape': (1, 3650, 1, 64, 128),
@@ -110,7 +110,7 @@ class TestOcgOperations(TestBase):
                                                       'realization': {'kb': 0.0, 'shape': None, 'dtype': None},
                                                       'col': {'kb': 1.0, 'shape': (128,), 'dtype': dtype('float64')},
                                                       'row': {'kb': 0.5, 'shape': (64,), 'dtype': dtype('float64')}}},
-                                'total': 116830.015625})
+                                'total': 116830.0234375})
 
         with self.assertRaises(DefinitionValidationError):
             OcgOperations(dataset=rd, regrid_destination=rd).get_base_request_size()
@@ -129,7 +129,7 @@ class TestOcgOperations(TestBase):
                                                'realization': {'kb': 0.0, 'shape': None, 'dtype': None},
                                                'col': {'kb': 1.046875, 'shape': (134,), 'dtype': dtype('float64')},
                                                'row': {'kb': 0.8515625, 'shape': (109,), 'dtype': dtype('float64')}},
-                                        'tas': {'level': {'kb': 0.0, 'shape': None, 'dtype': None},
+                                        'tas': {'level': {'kb': 0.0078125, 'shape': (1,), 'dtype': None},
                                                 'temporal': {'kb': 28.515625, 'shape': (3650,),
                                                              'dtype': dtype('float64')},
                                                 'value': {'kb': 116800.0, 'shape': (1, 3650, 1, 64, 128),
@@ -137,7 +137,7 @@ class TestOcgOperations(TestBase):
                                                 'realization': {'kb': 0.0, 'shape': None, 'dtype': None},
                                                 'col': {'kb': 1.0, 'shape': (128,), 'dtype': dtype('float64')},
                                                 'row': {'kb': 0.5, 'shape': (64,), 'dtype': dtype('float64')}}},
-                          'total': 1783969.9140625}, size)
+                          'total': 1783969.921875}, size)
 
     @attr('data')
     def test_get_base_request_size_multifile_with_geom(self):
@@ -156,7 +156,7 @@ class TestOcgOperations(TestBase):
                                                              'dtype': dtype('float64')},
                                                      'row': {'kb': 0.1328125, 'shape': (17,),
                                                              'dtype': dtype('float64')}},
-                                              'tas': {'level': {'kb': 0.0, 'shape': None, 'dtype': None},
+                                              'tas': {'level': {'kb': 0.0078125, 'shape': (1,), 'dtype': None},
                                                       'temporal': {'kb': 28.515625, 'shape': (3650,),
                                                                    'dtype': dtype('float64')},
                                                       'value': {'kb': 171.09375, 'shape': (1, 3650, 1, 4, 3),
@@ -165,7 +165,7 @@ class TestOcgOperations(TestBase):
                                                       'col': {'kb': 0.0234375, 'shape': (3,),
                                                               'dtype': dtype('float64')},
                                                       'row': {'kb': 0.03125, 'shape': (4,),
-                                                              'dtype': dtype('float64')}}}, 'total': 21769.5078125})
+                                                              'dtype': dtype('float64')}}}, 'total': 21769.515625})
 
     @attr('data')
     def test_get_base_request_size_test_data(self):
@@ -194,7 +194,7 @@ class TestOcgOperations(TestBase):
         rd = self.test_data.get_rd('cancm4_tas')
         ops = OcgOperations(dataset=rd, geom='state_boundaries', select_ugid=[23])
         size = ops.get_base_request_size()
-        self.assertEqual(size, {'variables': {'tas': {'level': {'kb': 0.0, 'shape': None, 'dtype': None},
+        self.assertEqual(size, {'variables': {'tas': {'level': {'kb': 0.0078125, 'shape': (1,), 'dtype': None},
                                                       'temporal': {'kb': 28.515625, 'shape': (3650,),
                                                                    'dtype': dtype('float64')},
                                                       'value': {'kb': 171.09375, 'shape': (1, 3650, 1, 4, 3),
@@ -203,7 +203,7 @@ class TestOcgOperations(TestBase):
                                                       'col': {'kb': 0.0234375, 'shape': (3,),
                                                               'dtype': dtype('float64')},
                                                       'row': {'kb': 0.03125, 'shape': (4,),
-                                                              'dtype': dtype('float64')}}}, 'total': 199.6640625})
+                                                              'dtype': dtype('float64')}}}, 'total': 199.671875})
 
     @attr('data')
     def test_get_meta(self):
@@ -342,8 +342,6 @@ class TestOcgOperations(TestBase):
 
         def callback(perc, msg, append=app):
             append.append((perc, msg))
-
-        # print(perc,msg)
 
         rd = self.test_data.get_rd('cancm4_tas')
         rd2 = self.test_data.get_rd('cancm4_tasmax_2011')

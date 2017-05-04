@@ -285,7 +285,7 @@ class IterableParameter(object):
                     ret[idx] = self.element_type(ret[idx])
                 except TypeError:
                     if type(ret[idx]) not in self.element_type:
-                        raise DefinitionValidationError(self, msg_exc.format( self.element_type))
+                        raise DefinitionValidationError(self, msg_exc.format(self.element_type))
                     else:
                         pass
                 except ValueError:

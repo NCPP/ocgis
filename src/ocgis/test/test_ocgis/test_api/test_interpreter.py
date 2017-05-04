@@ -74,5 +74,3 @@ class TestOcgInterpreter(TestBase):
         self.assertIsInstance(progress, ProgressOcgOperations)
         self.assertFalse(ocgis_lh.null)
         self.assertFalse(logging._warnings_showwarning)
-
-

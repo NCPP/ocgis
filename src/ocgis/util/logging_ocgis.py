@@ -1,12 +1,11 @@
+# try to turn off fiona logging except for errors
+import datetime
 import logging
 import os
 from warnings import warn
 
-
-# try to turn off fiona logging except for errors
-import datetime
-from ocgis import env
 import ocgis
+from ocgis import env
 from ocgis.exc import OcgWarning
 
 fiona_logger = logging.getLogger('Fiona')

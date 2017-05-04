@@ -19,7 +19,7 @@ from ocgis.util.units import get_units_object, get_are_units_equivalent
 
 
 class RequestDataset(object):
-    #todo: document vector format
+    # todo: document vector format
     """
     A :class:`ocgis.RequestDataset` contains all the information necessary to find and subset a variable (by time
     and/or level) contained in a local or OpenDAP-hosted CF dataset.

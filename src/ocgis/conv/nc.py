@@ -1,4 +1,5 @@
 import datetime
+
 import netCDF4 as nc
 
 import ocgis
@@ -156,7 +157,7 @@ class NcConverter(AbstractCollectionConverter):
         unlimited_to_fixedsize = self.options.get('unlimited_to_fixedsize', False)
         arch.write_netcdf(dataset, file_only=is_file_only, unlimited_to_fixedsize=unlimited_to_fixedsize,
                           **variable_kwargs)
-    
+
     def _write_coll_(self, ds, coll):
         """
         Write a spatial collection to an open netCDF4 dataset object.
@@ -189,7 +190,6 @@ class NcConverter(AbstractCollectionConverter):
 
 
 class NcUgrid2DFlexibleMeshConverter(NcConverter):
-
     @classmethod
     def validate_ops(cls, ops):
         from ocgis.api.parms.definition import OutputFormat
@@ -210,7 +210,7 @@ class NcUgrid2DFlexibleMeshConverter(NcConverter):
                     break
 
         if should_raise:
-            msg = 'Only polygons may be written to "{0}"'.\
+            msg = 'Only polygons may be written to "{0}"'. \
                 format(constants.OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH, ops.abstraction)
             raise DefinitionValidationError(OutputFormat, msg)
 

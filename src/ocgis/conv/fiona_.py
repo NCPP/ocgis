@@ -1,9 +1,9 @@
-from types import NoneType
 import abc
 import datetime
+from types import NoneType
 
-import numpy as np
 import fiona
+import numpy as np
 
 from ocgis.conv.base import AbstractTabularConverter
 

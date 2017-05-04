@@ -1,11 +1,12 @@
 # noinspection PyPep8Naming
-import netCDF4 as nc
-from collections import OrderedDict
 import re
+from collections import OrderedDict
 from warnings import warn
 
-from ocgis.exc import NoDimensionedVariablesFound
+import netCDF4 as nc
+
 from ocgis.api.request.base import RequestDataset
+from ocgis.exc import NoDimensionedVariablesFound
 
 
 class Inspect(object):

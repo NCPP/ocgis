@@ -1,11 +1,11 @@
-from collections import OrderedDict
 import os
+from collections import OrderedDict
+
 from ocgis.interface.base.attributes import Attributes
 from ocgis.test.base import TestBase, nc_scope
 
 
 class TestAttributes(TestBase):
-
     def get_attributes(self):
         attrs = {'a': 5, 'b': 6}
         a = Attributes(attrs=attrs)

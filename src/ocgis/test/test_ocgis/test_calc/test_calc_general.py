@@ -15,12 +15,11 @@ from ocgis.test.base import attr
 
 
 class AbstractCalcBase(TestBase):
-    
-    def get_reshaped(self,arr):
-        ret = arr.reshape(arr.shape[0],1,1)
-        ret = np.ma.array(ret,mask=False)
-        assert(len(ret.shape) == 3)
-        return(ret)
+    def get_reshaped(self, arr):
+        ret = arr.reshape(arr.shape[0], 1, 1)
+        ret = np.ma.array(ret, mask=False)
+        assert (len(ret.shape) == 3)
+        return (ret)
 
     def run_standard_operations(self, calc, capture=False, output_format=None):
         _aggregate = [False, True]
@@ -99,41 +98,41 @@ class Test(AbstractCalcBase):
 
     @attr('data')
     def test_time_region(self):
-        kwds = {'time_region':{'year':[2011]}}
-        rd = self.test_data.get_rd('cancm4_tasmax_2011',kwds=kwds)
-        calc = [{'func':'mean','name':'mean'}]
-        calc_grouping = ['year','month']
-        
-        ops = ocgis.OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
-                                  geom='state_boundaries',select_ugid=[25])
+        kwds = {'time_region': {'year': [2011]}}
+        rd = self.test_data.get_rd('cancm4_tasmax_2011', kwds=kwds)
+        calc = [{'func': 'mean', 'name': 'mean'}]
+        calc_grouping = ['year', 'month']
+
+        ops = ocgis.OcgOperations(dataset=rd, calc=calc, calc_grouping=calc_grouping,
+                                  geom='state_boundaries', select_ugid=[25])
         ret = ops.execute()
-        
+
         tgroup = ret[25]['tasmax'].temporal.date_parts
-        self.assertEqual(set([2011]),set(tgroup['year']))
-        self.assertEqual(tgroup['month'][-1],12)
-        
-        kwds = {'time_region':{'year':[2011,2013],'month':[8]}}
-        rd = self.test_data.get_rd('cancm4_tasmax_2011',kwds=kwds)
-        calc = [{'func':'threshold','name':'threshold','kwds':{'threshold':0.0,'operation':'gte'}}]
+        self.assertEqual(set([2011]), set(tgroup['year']))
+        self.assertEqual(tgroup['month'][-1], 12)
+
+        kwds = {'time_region': {'year': [2011, 2013], 'month': [8]}}
+        rd = self.test_data.get_rd('cancm4_tasmax_2011', kwds=kwds)
+        calc = [{'func': 'threshold', 'name': 'threshold', 'kwds': {'threshold': 0.0, 'operation': 'gte'}}]
         calc_grouping = ['month']
         aggregate = True
         calc_raw = True
         geom = 'us_counties'
         select_ugid = [2762]
-        
-        ops = ocgis.OcgOperations(dataset=rd,calc=calc,calc_grouping=calc_grouping,
-                                 aggregate=aggregate,calc_raw=calc_raw,geom=geom,
-                                 select_ugid=select_ugid,output_format='numpy')
+
+        ops = ocgis.OcgOperations(dataset=rd, calc=calc, calc_grouping=calc_grouping,
+                                  aggregate=aggregate, calc_raw=calc_raw, geom=geom,
+                                  select_ugid=select_ugid, output_format='numpy')
         ret = ops.execute()
         threshold = ret[2762]['tasmax'].variables['threshold'].value
-        self.assertEqual(threshold.flatten()[0],62)
+        self.assertEqual(threshold.flatten()[0], 62)
 
     @attr('data')
     def test_computational_nc_output(self):
         """Test writing a computation to netCDF."""
 
         rd = self.test_data.get_rd('cancm4_tasmax_2011', kwds={
-        'time_range': [datetime.datetime(2011, 1, 1), datetime.datetime(2011, 12, 31)]})
+            'time_range': [datetime.datetime(2011, 1, 1), datetime.datetime(2011, 12, 31)]})
         calc = [{'func': 'mean', 'name': 'tasmax_mean'}]
         calc_grouping = ['month', 'year']
 
@@ -160,41 +159,41 @@ class Test(AbstractCalcBase):
 
     def test_frequency_percentiles(self):
         ## data comes in as 4-dimensional array. (time,level,row,column)
-        
+
         perc = 0.95
-        round_method = 'ceil' #floor
-        
+        round_method = 'ceil'  # floor
+
         ## generate gaussian sequence
         np.random.seed(1)
-        seq = np.random.normal(size=(31,1,2,2))
-        seq = np.ma.array(seq,mask=False)
+        seq = np.random.normal(size=(31, 1, 2, 2))
+        seq = np.ma.array(seq, mask=False)
         ## sort the data
         cseq = seq.copy()
         cseq.sort(axis=0)
         ## reference the time vector length
         n = cseq.shape[0]
         ## calculate the index
-        idx = getattr(np,round_method)(perc*n)
+        idx = int(getattr(np, round_method)(perc * n))
         ## get the percentiles
-        ret = cseq[idx,:,:,:]
-        self.assertAlmostEqual(7.2835104624617717,ret.sum())
-        
+        ret = cseq[idx, :, :, :]
+        self.assertAlmostEqual(7.2835104624617717, ret.sum())
+
         ## generate gaussian sequence
         np.random.seed(1)
-        seq = np.random.normal(size=(31,1,2,2))
-        mask = np.zeros((31,1,2,2))
-        mask[:,:,1,1] = True
-        seq = np.ma.array(seq,mask=mask)
+        seq = np.random.normal(size=(31, 1, 2, 2))
+        mask = np.zeros((31, 1, 2, 2))
+        mask[:, :, 1, 1] = True
+        seq = np.ma.array(seq, mask=mask)
         ## sort the data
         cseq = seq.copy()
         cseq.sort(axis=0)
         ## reference the time vector length
         n = cseq.shape[0]
         ## calculate the index
-        idx = getattr(np,round_method)(perc*n)
+        idx = int(getattr(np, round_method)(perc * n))
         ## get the percentiles
-        ret = cseq[idx,:,:,:]
-        self.assertAlmostEqual(5.1832553259829295,ret.sum())
+        ret = cseq[idx, :, :, :]
+        self.assertAlmostEqual(5.1832553259829295, ret.sum())
 
     @attr('data')
     def test_date_groups(self):
@@ -264,17 +263,16 @@ class Test(AbstractCalcBase):
 
 
 class TestOcgCalculationEngine(TestBase):
-    
-    def get_collection(self,aggregate=False):
+    def get_collection(self, aggregate=False):
         if aggregate:
             spatial_operation = 'clip'
         else:
             spatial_operation = 'intersects'
         rd = self.test_data.get_rd('cancm4_tas')
-        ops = OcgOperations(dataset=rd,geom='state_boundaries',select_ugid=[25],
-                            spatial_operation=spatial_operation,aggregate=aggregate)
+        ops = OcgOperations(dataset=rd, geom='state_boundaries', select_ugid=[25],
+                            spatial_operation=spatial_operation, aggregate=aggregate)
         ret = ops.execute()
-        return(ret)
+        return (ret)
 
     @attr('data')
     def test_agg_raw(self):

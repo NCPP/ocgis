@@ -10,7 +10,6 @@ from ocgis.test.base import attr
 
 
 class TestMetaJSONConverter(TestBase):
-
     def get(self):
         ops = self.get_operations()
         return MetaJSONConverter(ops)
@@ -50,6 +49,7 @@ class TestMetaJSONConverter(TestBase):
         mj = self.get()
         ret = mj.write()
         self.assertIsInstance(ret, basestring)
+
 
 class TestMetaOCGISConverter(TestBase):
     @attr('data')

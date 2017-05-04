@@ -4,7 +4,7 @@ import sys
 from setuptools import setup, Command, find_packages
 from setuptools.command.test import test as TestCommand
 
-VERSION = '1.4.0.dev1'
+VERSION = '1.3.2'
 
 
 ########################################################################################################################

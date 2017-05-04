@@ -2,11 +2,11 @@ import logging
 
 import numpy as np
 
-from ocgis.util.logging_ocgis import ocgis_lh
-from ocgis.interface.base.variable import VariableCollection
-from ocgis.interface.base.field import DerivedMultivariateField, DerivedField
 from ocgis.calc.base import AbstractMultivariateFunction
 from ocgis.calc.eval_function import EvalFunction
+from ocgis.interface.base.field import DerivedMultivariateField, DerivedField
+from ocgis.interface.base.variable import VariableCollection
+from ocgis.util.logging_ocgis import ocgis_lh
 
 
 class OcgCalculationEngine(object):

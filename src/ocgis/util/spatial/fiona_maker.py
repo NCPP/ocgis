@@ -1,12 +1,13 @@
 import os
+
 import fiona
 from shapely import wkt
 from shapely.geometry import mapping
+
 from ocgis import CoordinateReferenceSystem
 
 
 class FionaMaker(object):
-
     def __init__(self, path, epsg=4326, driver='ESRI Shapefile', geometry='Polygon'):
         assert (not os.path.exists(path))
         self.path = path

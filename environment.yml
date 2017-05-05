@@ -7,3 +7,5 @@ channels:
 dependencies:
   - ocgis=1.3.2
   - esmpy=7.0.0
+  - icclim=4.2.5
+  - nose

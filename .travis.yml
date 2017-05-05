@@ -4,6 +4,10 @@ sudo: false
 
 env:
   - CONDA_PYTHON="python=2.7"
+  - OCGIS_VER="1.3.2"
+  - ESMPY_VER="7.0.0"
+  - ICCLIM_VER="4.2.5"
+  - CONDA_CHANNEL="-c conda-forge -c nesii"
 
 before_install:
   - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh;
@@ -15,12 +19,12 @@ before_install:
   - conda info -a
 
 install:
-  - travis_retry conda create -n test-full -c nesii $CONDA_PYTHON ocgis esmpy nose
+  - travis_retry conda create -n test-full $CONDA_CHANNEL $CONDA_PYTHON ocgis=$OCGIS_VER esmpy=$ESMPY_VER nose icclim=$ICCLIM_VER
   - source activate test-full
   - conda remove ocgis
   - python setup.py install
 
-  - travis_retry conda create -n test-minimal -c nesii $CONDA_PYTHON ocgis nose
+  - travis_retry conda create -n test-minimal $CONDA_CHANNEL $CONDA_PYTHON ocgis=$OCGIS_VER nose
   - source activate test-minimal
   - conda remove rtree cf_units ocgis icclim
   - python setup.py install

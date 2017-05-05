@@ -16,19 +16,19 @@ Installation with all optional dependencies:
 
 .. code-block:: sh
 
-   conda install -c conda-forge -c nesii ocgis esmpy cf_units rtree icclim nose
+   conda install -c conda-forge -c nesii ocgis=1.3.2 esmpy=7.0.0 icclim=4.2.5 nose
 
 Installation without optional dependencies:
 
 .. code-block:: sh
 
-   conda install -c conda-forge ocgis
+   conda install -c conda-forge ocgis=1.3.2
 
-Alternatively, NESII provides linux-64 builds for both OpenClimateGIS and ESMPy:
+Alternatively, NESII provides ``linux-64`` builds for OpenClimateGIS, ESMPy, and ICCLIM:
 
 .. code-block:: sh
 
-   conda install -c nesii -c conda-forge ocgis esmpy
+   conda install -c nesii -c conda-forge ocgis=1.3.2 esmpy=7.0.0
 
 Using an Environment File
 +++++++++++++++++++++++++

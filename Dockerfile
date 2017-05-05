@@ -9,10 +9,10 @@ RUN apt-get -y upgrade
 RUN apt-get clean
 
 RUN conda update -y --all
-RUN conda install -y -c conda-forge -c nesii ocgis=1.3.2 esmpy=7.0.0 icclim=4.2.5 nose
+RUN conda install -y -c nesii -c conda-forge ocgis esmpy=7.0.0 icclim=4.2.5 nose
 
 RUN conda remove -y ocgis
-RUN git clone -b v1.3.2 --depth=1 https://github.com/NCPP/ocgis.git
+RUN git clone --depth=1 https://github.com/NCPP/ocgis.git
 RUN cd ocgis && python setup.py install
 
 ENV GDAL_DATA /opt/conda/share/gdal

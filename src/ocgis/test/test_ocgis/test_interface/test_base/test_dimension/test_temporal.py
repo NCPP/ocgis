@@ -16,7 +16,8 @@ from ocgis.interface.base.dimension.base import VectorDimension
 from ocgis.interface.base.dimension.temporal import TemporalDimension, get_is_interannual, get_sorted_seasons, \
     get_time_regions, iter_boolean_groups_from_time_regions, get_datetime_conversion_state, \
     get_datetime_from_months_time_units, get_difference_in_months, get_num_from_months_time_units, \
-    get_origin_datetime_from_months_units, get_datetime_from_template_time_units, TemporalGroupDimension
+    get_origin_datetime_from_months_units, get_datetime_from_template_time_units, TemporalGroupDimension, \
+    get_datetime_or_netcdftime
 from ocgis.test.base import TestBase, nc_scope, attr
 from ocgis.util.helpers import get_date_list
 from ocgis.util.itester import itr_products_keywords
@@ -147,6 +148,14 @@ class TestTemporalDimension(AbstractTestTemporal):
             bounds[:, 1] = upper
         else:
             bounds = None
+
+        dates = [get_datetime_or_netcdftime(d.year, d.month, d.day, hour=d.hour) for d in dates]
+        if add_bounds:
+            bounds_shape = bounds.shape
+            bounds = bounds.flatten()
+            bounds = np.array([get_datetime_or_netcdftime(d.year, d.month, d.day, hour=d.hour) for d in bounds])
+            bounds = bounds.reshape(*bounds_shape)
+
         td = TemporalDimension(value=dates, bounds=bounds, name=name, format_time=format_time)
         return td
 
@@ -357,7 +366,10 @@ class TestTemporalDimension(AbstractTestTemporal):
         narr = date2num(ndts, units, calendar=calendar)
         td = TemporalDimension(value=narr, units=units, calendar=calendar)
         res = td.get_datetime(td.value)
-        self.assertTrue(all([isinstance(element, ndt) for element in res.flat]))
+        try:
+            self.assertTrue(all([isinstance(element, ndt) for element in res.flat]))
+        except AssertionError:
+            self.assertTrue(all([isinstance(element, netcdftime._netcdftime.datetime) for element in res.flat]))
 
         # test with template units
         td = self.get_template_units()
@@ -373,7 +385,10 @@ class TestTemporalDimension(AbstractTestTemporal):
                 to_test = (values['day'], values['month'], values['year'])
                 try:
                     self.assertTrue(all([element is not None for element in to_test]))
-                    self.assertIsInstance(values['time'], dt)
+                    try:
+                        self.assertIsInstance(values['time'], dt)
+                    except:
+                        self.assertIsInstance(values['time'], netcdftime._netcdftime.datetime)
                 except AssertionError:
                     self.assertTrue(all([element is None for element in to_test]))
                     self.assertIsInstance(values['time'], float)
@@ -388,7 +403,8 @@ class TestTemporalDimension(AbstractTestTemporal):
 
     def test_get_grouping(self):
         td = self.get_temporal_dimension()
-        td = td.get_between(datetime.datetime(1900, 1, 1), datetime.datetime(1900, 12, 31, 23, 59))
+        lower_upper = [datetime.datetime(1900, 1, 1), datetime.datetime(1900, 12, 31, 23, 59)]
+        td = td.get_between(*lower_upper)
         tgd = td.get_grouping(['year'])
         self.assertEqual(tgd.value, np.array([datetime.datetime(1900, 7, 1)]))
 
@@ -397,6 +413,8 @@ class TestTemporalDimension(AbstractTestTemporal):
         stop = 719.9375
         step = 0.125
         values = np.arange(start, stop + step, step)
+        values = num2date(values, 'days since 1960-01-01', calendar='360_day')
+
         td = TemporalDimension(value=values, calendar='360_day', units='days since 1960-01-01')
         for g in CalcGrouping.iter_possible():
             tgd = td.get_grouping(g)

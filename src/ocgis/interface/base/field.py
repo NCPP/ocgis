@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from copy import copy, deepcopy
 
 import fiona
+import netcdftime
 import numpy as np
 from shapely.geometry import mapping
 from shapely.geometry.multipoint import MultiPoint
@@ -206,7 +207,11 @@ class Field(Attributes):
         fproperties = OrderedDict()
         fconvert = {}
         for k, v in arch.iteritems():
-            ftype = AbstractFionaConverter.get_field_type(type(v))
+            if isinstance(v, netcdftime._netcdftime.datetime):
+                type_v = netcdftime._netcdftime.datetime
+            else:
+                type_v = type(v)
+            ftype = AbstractFionaConverter.get_field_type(type_v)
             fproperties[k] = 'int' if ftype is None else ftype
             if ftype == 'str':
                 fconvert[k] = str

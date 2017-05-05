@@ -806,11 +806,13 @@ class TestSpatialDimension(AbstractTestSpatialDimension):
             sdim.update_crs(to_crs)
 
             if k.with_polygon:
-                self.assertEqual(sdim.geom.polygon.value[2, 2].bounds,
-                                 (130734.585229303, -832179.0855220362, 220974.77455120225, -719113.1357226598))
+                actual = sdim.geom.polygon.value[2, 2].bounds
+                desired = (130734.585229303, -832179.0855220362, 220974.77455120225, -719113.1357226598)
+
             if k.with_point:
-                self.assertEqual(sdim.geom.point.value[2, 2].bounds,
-                                 (175552.29305101855, -775779.6191590576, 175552.29305101855, -775779.6191590576))
+                actual = sdim.geom.point.value[2, 2].bounds
+                desired = (175552.29305101855, -775779.6191590576, 175552.29305101855, -775779.6191590576)
+            self.assertNumpyAllClose(np.array(actual), np.array(desired))
 
     def test_update_crs_grid_combinations(self):
         """Test CRS is updated as expected with different types of grids."""
@@ -859,12 +861,12 @@ class TestSpatialDimension(AbstractTestSpatialDimension):
                 self.assertIsNone(sdim.grid.col)
 
             try:
-                self.assertEqual(sdim.geom.polygon.value[2, 2].bounds,
-                                 (130734.585229303, -832179.0855220362, 220974.77455120225, -719113.1357226598))
+                desired = np.array([130734.585229303, -832179.0855220362, 220974.77455120225, -719113.1357226598])
+                self.assertNumpyAllClose(np.array(sdim.geom.polygon.value[2, 2].bounds), desired)
             except AttributeError:
                 self.assertFalse(k.with_corners)
-            self.assertEqual(sdim.geom.point.value[2, 2].bounds,
-                             (175552.29305101855, -775779.6191590576, 175552.29305101855, -775779.6191590576))
+            desired = np.array([175552.29305101855, -775779.6191590576, 175552.29305101855, -775779.6191590576])
+            self.assertNumpyAllClose(np.array(sdim.geom.point.value[2, 2].bounds), desired)
 
             sdim.update_crs(from_crs)
 

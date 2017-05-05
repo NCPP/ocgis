@@ -42,9 +42,9 @@ class ProcessManager(object):
                 except IndexError:
                     self.join()
                     break
-                #        codes = [bool(p.exitcode) for p in self.procs]
-                #        if any(codes):
-                #            raise(RuntimeError('{0} processes had a non-zero exit status.'.format(sum(codes))))
+                    #        codes = [bool(p.exitcode) for p in self.procs]
+                    #        if any(codes):
+                    #            raise(RuntimeError('{0} processes had a non-zero exit status.'.format(sum(codes))))
 
     def alive(self):
         count = sum([p.is_alive() for p in self.procs])

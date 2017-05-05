@@ -8,7 +8,7 @@ import netCDF4 as nc
 import netcdftime
 import numpy as np
 
-from ocgis import constants, VectorDimension
+from ocgis import constants, VectorDimension, env
 from ocgis.exc import EmptySubsetError, IncompleteSeasonError, CannotFormatTimeError, ResolutionError
 from ocgis.util.helpers import get_is_date_between, iter_array, get_none_or_slice
 
@@ -132,7 +132,7 @@ class TemporalDimension(VectorDimension):
         # If there are month units, call the special procedure to convert those to datetime objects.
         if not self._has_months_units:
             arr = np.atleast_1d(nc.num2date(arr, str(self.units), calendar=self.calendar))
-            dt = datetime.datetime
+            dt = get_datetime_or_netcdftime
             for idx, t in iter_array(arr, return_value=True):
                 # Attempt to convert times to datetime objects.
                 try:
@@ -499,6 +499,7 @@ class TemporalDimension(VectorDimension):
                 except TypeError:
                     new_value[idx]['months'] = grouping[idx][0]
             sel = value[dgrp][:, (0, 2)]
+
             new_bounds[idx, :] = [sel.min(), sel.max()]
 
         new_bounds = np.atleast_2d(new_bounds).reshape(-1, 2)
@@ -683,7 +684,7 @@ def get_datetime_conversion_state(archetype):
     :rtype: bool
     """
 
-    if isinstance(archetype, (datetime.datetime, netcdftime.datetime)):
+    if isinstance(archetype, (datetime.datetime, netcdftime.datetime, netcdftime._netcdftime.datetime)):
         ret = False
     else:
         ret = True
@@ -750,12 +751,18 @@ def get_datetime_from_template_time_units(vec):
     return fill
 
 
-def get_datetime_or_netcdftime(year, month, day, **kwargs):
-    try:
-        ret = datetime.datetime(year, month, day, **kwargs)
-    except ValueError:
-        # Assume the datetime object is not compatible with the arguments. Return a netcdftime object.
-        ret = netcdftime.datetime(year, month, day, **kwargs)
+def get_datetime_or_netcdftime(*args, **kwargs):
+    if env.PREFER_NETCDFTIME:
+        try:
+            ret = netcdftime.datetime(*args, **kwargs)
+        except ValueError:
+            # Assume the datetime object is not compatible with the arguments. Return a netcdftime object.
+            ret = datetime.datetime(*args, **kwargs)
+    else:
+        try:
+            ret = datetime.datetime(*args, **kwargs)
+        except ValueError:
+            ret = netcdftime.datetime(*args, **kwargs)
     return ret
 
 

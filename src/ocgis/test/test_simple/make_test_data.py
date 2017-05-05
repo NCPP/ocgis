@@ -84,7 +84,7 @@ class SimpleNcNoLevel(NcFactory):
             timevec_bnds[idx, 0] = tv - delta
             timevec_bnds[idx, 1] = tv + delta
 
-        #        ## make the level vector
+        # ## make the level vector
         #        levelvec = np.array([50,150])
         #        levelvec_bounds = np.array([[0,100],[100,200]])
 

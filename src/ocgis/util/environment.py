@@ -72,6 +72,7 @@ class Environment(object):
         self.NETCDF_FILE_FORMAT = EnvParm('NETCDF_FILE_FORMAT', constants.NETCDF_DEFAULT_DATA_MODEL, formatter=str)
         self.NP_INT = EnvParm('NP_INT', constants.DEFAULT_NP_INT)
         self.NP_FLOAT = EnvParm('NP_FLOAT', constants.DEFAULT_NP_FLOAT)
+        self.PREFER_NETCDFTIME = EnvParm('PREFER_NETCDFTIME', True, formatter=self._format_bool_)
 
         from ocgis.interface.base.crs import CFWGS84
 

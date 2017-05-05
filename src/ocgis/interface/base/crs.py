@@ -65,7 +65,7 @@ class CoordinateReferenceSystem(object):
 
         sr = SpatialReference()
         sr.ImportFromProj4(to_string(value))
-        self.value = from_string(sr.ExportToProj4())
+        self.value = from_string(get_proj4_from_spatial_reference(sr))
 
         try:
             assert self.value != {}
@@ -95,7 +95,8 @@ class CoordinateReferenceSystem(object):
 
     @property
     def proj4(self):
-        return self.sr.ExportToProj4()
+        ret = get_proj4_from_spatial_reference(self.sr)
+        return ret
 
     @property
     def sr(self):
@@ -781,3 +782,15 @@ class CFRotatedPole(CFCoordinateReferenceSystem):
             else:
                 raise
         return {'meta': meta, 'name': name, 'attrs': attrs}
+
+
+def get_proj4_from_spatial_reference(sr):
+    """
+    :type sr: :class:`osgeo.osr.SpatialReference` 
+    """
+
+    ret = sr.ExportToProj4()
+    # Sometimes (for unknown reasons) datum transformations are not returned by PROJ.4.
+    if ret == '+proj=longlat +datum=WGS84 +no_defs ':
+        ret = '+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs '
+    return ret

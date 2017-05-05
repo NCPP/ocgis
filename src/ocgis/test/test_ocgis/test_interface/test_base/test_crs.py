@@ -39,8 +39,12 @@ class TestCoordinateReferenceSystem(TestBase):
                 else:
                     raise
             self.assertEqual(crs.proj4, '+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs ')
-            self.assertDictEqual(crs.value,
-                                 {'no_defs': True, 'ellps': 'WGS84', 'proj': 'longlat', 'towgs84': '0,0,0,0,0,0,0'})
+            try:
+                self.assertDictEqual(crs.value,
+                                     {'no_defs': True, 'ellps': 'WGS84', 'proj': 'longlat', 'towgs84': '0,0,0,0,0,0,0'})
+            except AssertionError:
+                self.assertDictEqual(crs.value,
+                                     {'no_defs': True, 'datum': 'WGS84', 'proj': 'longlat', 'towgs84': '0,0,0,0,0,0,0'})
             if prev_crs is not None:
                 self.assertEqual(crs, prev_crs)
             prev_crs = deepcopy(crs)

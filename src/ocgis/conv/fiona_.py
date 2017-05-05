@@ -3,6 +3,7 @@ import datetime
 from types import NoneType
 
 import fiona
+import netcdftime
 import numpy as np
 
 from ocgis.conv.base import AbstractTabularConverter
@@ -23,6 +24,7 @@ class AbstractFionaConverter(AbstractTabularConverter):
                          datetime.date: str}
     _fiona_type_mapping = {datetime.date: 'str',
                            datetime.datetime: 'str',
+                           netcdftime._netcdftime.datetime: 'str',
                            np.int64: 'int',
                            NoneType: None,
                            np.int32: 'int',

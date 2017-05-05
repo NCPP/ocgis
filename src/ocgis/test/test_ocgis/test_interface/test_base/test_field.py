@@ -895,7 +895,4 @@ class TestDerivedField(AbstractTestField):
         df = DerivedField(variables=mu, temporal=tgd, spatial=field.spatial,
                           level=field.level, realization=field.realization)
         self.assertIsInstance(df, Field)
-        self.assertIsInstance(df.temporal.value[0], datetime.datetime)
-        self.assertEqual(df.temporal.value.tolist(),
-                         [datetime.datetime(2000, 1, 16, 0, 0), datetime.datetime(2000, 2, 16, 0, 0)])
-        self.assertEqual(df.temporal.bounds[1, 1], datetime.datetime(2000, 3, 1, 0, 0))
+        self.assertEqual(df.temporal.value_numtime.tolist(), [730136.0, 730167.0])

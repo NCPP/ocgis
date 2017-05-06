@@ -86,6 +86,24 @@ class DimensionMap(AbstractOcgisObject):
 
         return curr
 
+    @classmethod
+    def from_old_style_dimension_map(cls, odmap):
+        """
+        Convert an old-style dimension map (pre-v2.x) to a new-style dimension map.
+        
+        :param dict odmap: The old-style dimension map to convert. 
+        :rtype: :class:`~ocgis.DimensionMap`
+        """
+
+        ret = cls()
+        for k, v in odmap.items():
+            entry_key = DMK.get_axis_mapping()[k]
+            bounds = v.get(DMK.BOUNDS)
+            dimension = v.get(DMK.DIMS)
+            variable = v.get(DMK.VARIABLE)
+            ret.set_variable(entry_key, variable, dimension=dimension, bounds=bounds)
+        return ret
+
     def get_attrs(self, entry_key):
         """
         Get attributes for the dimension map entry ``entry_key``.
@@ -113,7 +131,7 @@ class DimensionMap(AbstractOcgisObject):
         entry = self._get_entry_(DMK.CRS)
         return get_or_create_dict(entry, DMK.VARIABLE, None)
 
-    def get_dimensions(self, entry_key):
+    def get_dimension(self, entry_key):
         """
         Get the dimension names for the dimension map entry ``entry_key``.
 
@@ -190,18 +208,22 @@ class DimensionMap(AbstractOcgisObject):
         """
         _ = _get_dmap_group_(self, group_key, create=True, last=dimension_map)
 
-    def set_variable(self, entry_key, variable, dimensions=None, bounds=None, attrs=None):
+    def set_variable(self, entry_key, variable, dimension=None, bounds=None, attrs=None, pos=None, dimensionless=False):
         """
         Set coordinate variable information for ``entry_key``.
         
         :param str entry_key: See :class:`ocgis.constants.DimensionMapKey` for valid entry keys.
         :param variable: The variable to set. Use a variable object to auto-fill additional fields if they are ``None``.
         :type variable: :class:`str` | :class:`~ocgis.Variable`
-        :param dimensions: A sequence of dimension names. If ``None``, they will be pulled from ``variable`` if it is a
+        :param dimension: A sequence of dimension names. If ``None``, they will be pulled from ``variable`` if it is a
          variable object.
         :param bounds: See :meth:`~ocgis.DimensionMap.set_bounds`.
         :param dict attrs: Default attributes for the coordinate variables. If ``None``, they will be pulled from 
          ``variable`` if it is a variable object.
+        :param int pos: The representative dimension position in ``variable`` if ``variable`` has more than one
+         dimension. For example, a latitude variable may have two dimensions ``(lon, lat)``. The mapper must determine
+         which dimension position is representative for the latitude variable when slicing.
+        :param bool dimensionless: If ``True``, this variable has no canonical dimension.
         """
         if entry_key == DMK.CRS:
             raise DimensionMapError(entry_key, "Use 'set_crs' to set CRS variable.")
@@ -215,8 +237,19 @@ class DimensionMap(AbstractOcgisObject):
         try:
             if bounds is None:
                 bounds = variable.bounds
-            if dimensions is None:
-                dimensions = variable.dimensions
+            if dimension is None:
+                if variable.ndim > 1:
+                    if pos is None and not dimensionless:
+                        msg = "A position (pos) is required if no dimension is provided and target variable has " \
+                              "greater than 1 one dimension."
+                        raise DimensionMapError(entry_key, msg)
+                elif variable.ndim == 1:
+                    pos = 0
+                else:
+                    pos = None
+                # We can have scalar dimensions.
+                if pos is not None and not dimensionless:
+                    dimension = variable.dimensions[pos]
         except AttributeError:
             # Assume string type.
             pass
@@ -224,16 +257,16 @@ class DimensionMap(AbstractOcgisObject):
         value = get_variable_names(variable)[0]
         if bounds is not None:
             bounds = get_variable_names(bounds)[0]
-        if dimensions is None:
-            dimensions = []
+        if dimension is None:
+            dimension = []
         else:
-            dimensions = list(get_dimension_names(dimensions))
+            dimension = list(get_dimension_names(dimension))
 
         if attrs is None:
             attrs = self._storage.__class__(deepcopy(DIMENSION_MAP_TEMPLATE[entry_key][DMK.ATTRS]))
         entry[DMK.VARIABLE] = value
         entry[DMK.BOUNDS] = bounds
-        entry[DMK.DIMS] = dimensions
+        entry[DMK.DIMS] = dimension
         entry[DMK.ATTRS] = attrs
 
     def update_dimensions_from_field(self, field):
@@ -247,7 +280,7 @@ class DimensionMap(AbstractOcgisObject):
         to_update = (DMK.REALIZATION, DMK.TIME, DMK.LEVEL, DMK.Y, DMK.X)
         for k in to_update:
             variable_name = self.get_variable(k)
-            dimension_names = self.get_dimensions(k)
+            dimension_names = self.get_dimension(k)
             if variable_name is not None and len(dimension_names) == 0:
                 try:
                     vc_var = get_variables(variable_name, field)[0]
@@ -267,11 +300,11 @@ class DimensionMap(AbstractOcgisObject):
         to_update = (DMK.REALIZATION, DMK.TIME, DMK.LEVEL, DMK.Y, DMK.X)
         for k in to_update:
             variable_name = self.get_variable(k)
-            dimension_names = self.get_dimensions(k)
+            dimension_names = self.get_dimension(k)
             if variable_name is not None and len(dimension_names) == 0:
                 metadata_dimensions = metadata.get('variables', {}).get(variable_name, {}).get('dimensions', [])
                 if len(metadata_dimensions) > 0:
-                    self.set_variable(k, variable_name, dimensions=metadata_dimensions)
+                    self.set_variable(k, variable_name, dimension=metadata_dimensions)
 
     def _get_element_(self, entry_key, element_key, default):
         if entry_key == DMK.CRS:

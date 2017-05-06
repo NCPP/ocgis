@@ -178,8 +178,8 @@ def get_ocgis_grid_from_esmf_grid(egrid, crs=None, dimension_map=None):
     if grid_corners is not None:
         grid_corners = np.ma.array(grid_corners)
 
-    grid_dimensions = [dimension_map.get_dimensions(DimensionMapKey.Y)[0],
-                       dimension_map.get_dimensions(DimensionMapKey.X)[0]]
+    grid_dimensions = [dimension_map.get_dimension(DimensionMapKey.Y)[0],
+                       dimension_map.get_dimension(DimensionMapKey.X)[0]]
     if grid_corners is not None:
         grid_bounds_dimensions = deepcopy(grid_dimensions)
         grid_bounds_dimensions.append(constants.DEFAULT_NAME_CORNERS_DIMENSION)

@@ -100,7 +100,12 @@ class Field(VariableCollection):
         # Add the geometry variable.
         geom = kwargs.pop('geom', None)
         if geom is not None:
-            update_dimension_map_with_variable(self.dimension_map, DimensionMapKey.GEOM, geom, None)
+            if geom.ndim > 1:
+                dimensionless = True
+            else:
+                dimensionless = False
+            update_dimension_map_with_variable(self.dimension_map, DimensionMapKey.GEOM, geom, None,
+                                               dimensionless=dimensionless)
             if geom.crs is not None:
                 if crs == 'auto':
                     crs = geom.crs
@@ -765,17 +770,24 @@ class Field(VariableCollection):
             value.format_field(self)
         self.dimension_map.set_crs(value)
 
-    def set_geom(self, variable, force=True):
+    def set_geom(self, variable, force=True, dimensionless='auto'):
         """
         Set the field's geometry variable. 
 
         :param value: The coordinate reference system variable or ``None``.
         :type value: :class:`~ocgis.variable.crs.AbstractCRS` | ``None``
         :param bool force: If ``True`` (the default), clobber any existing geometry variable.
+        :param bool dimensionless: If ``'auto'``, automatically determine dimensionless state for the variable. See
+         :meth:`~ocgis.Dimension.set_variable`.
         :raises: ValueError
         """
+        if dimensionless == 'auto':
+            if variable.ndim > 1:
+                dimensionless = True
+            else:
+                dimensionless = False
 
-        self.dimension_map.set_variable(DimensionMapKey.GEOM, variable)
+        self.dimension_map.set_variable(DimensionMapKey.GEOM, variable, dimensionless=dimensionless)
         if variable.crs != self.crs and not self.is_empty:
             raise ValueError('Geometry and field do not have matching coordinate reference systems.')
         self.add_variable(variable, force=force)
@@ -930,12 +942,12 @@ def get_name_mapping(dimension_map):
     name_mapping = {}
     to_slice = [DimensionMapKey.REALIZATION, DimensionMapKey.TIME, DimensionMapKey.LEVEL, DimensionMapKey.Y,
                 DimensionMapKey.X]
-    if len(dimension_map.get_dimensions(DimensionMapKey.GEOM)) == 1:
+    if len(dimension_map.get_dimension(DimensionMapKey.GEOM)) == 1:
         to_slice.append(DimensionMapKey.GEOM)
     for k in to_slice:
         variable_name = dimension_map.get_variable(k)
         if variable_name is not None:
-            dimension_names = dimension_map.get_dimensions(k)
+            dimension_names = dimension_map.get_dimension(k)
             # Use the variable name if there are no dimension names available.
             if len(dimension_names) == 0:
                 dimension_name = variable_name
@@ -948,8 +960,8 @@ def get_name_mapping(dimension_map):
     return name_mapping
 
 
-def update_dimension_map_with_variable(dimension_map, key, variable, dimension):
-    dimension_map.set_variable(key, variable, dimensions=dimension)
+def update_dimension_map_with_variable(dimension_map, key, variable, dimension, dimensionless=False):
+    dimension_map.set_variable(key, variable, dimension=dimension, dimensionless=dimensionless)
 
 
 def update_header_rename_bounds_names(bounds_name_desired, header_rename, variable):

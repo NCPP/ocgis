@@ -66,7 +66,7 @@ class TestField(AbstractTestInterface):
         # Test dimension names are automatically added to dimension map.
         g = GeometryVariable(name='geom', value=[Point(1, 2)], dimensions='the_geom_dim')
         f = Field(geom=g)
-        actual = f.dimension_map.get_dimensions(DimensionMapKey.GEOM)
+        actual = f.dimension_map.get_dimension(DimensionMapKey.GEOM)
         self.assertEqual(actual, ['the_geom_dim'])
 
     def test_system_crs_and_grid_abstraction(self):
@@ -92,7 +92,7 @@ class TestField(AbstractTestInterface):
         dmap = {'time': {'variable': 'time'}}
         time = TemporalVariable(name='time', value=[1, 2, 3], dimensions='the_time')
         field = Field(time=time, dimension_map=dmap)
-        actual = field.dimension_map.get_dimensions('time')
+        actual = field.dimension_map.get_dimension('time')
         self.assertEqual(actual, ['the_time'])
 
     def test_system_properties(self):
@@ -119,7 +119,7 @@ class TestField(AbstractTestInterface):
         self.assertNumpyAll(f.time.bounds.get_value(), time_bounds.get_value())
         self.assertIn('other', f.time.parent)
 
-        dims = f.dimension_map.get_dimensions('time')
+        dims = f.dimension_map.get_dimension('time')
         dims += ['times', 'times_again', 'the_time']
         sub = f.get_field_slice({'time': slice(1, 2)})
         desired = OrderedDict([('time', (1,)), ('time_bounds', (1, 2)), ('other', (1,)), ('xc', (3,)), ('yc', (4,))])

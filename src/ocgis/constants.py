@@ -187,9 +187,6 @@ class WrapAction(IntEnum):
     UNWRAP = 2
 
 
-########################################################################################################################
-
-
 # Dimension map key names.
 class DimensionMapKey(object):
     ATTRS = 'attrs'
@@ -201,9 +198,13 @@ class DimensionMapKey(object):
     CRS = 'crs'
     BOUNDS = 'bounds'
     VARIABLE = 'variable'
-    DIMS = 'dimensions'
+    DIMS = 'dimension'
     LEVEL = 'level'
     GEOM = 'geom'
+
+    @classmethod
+    def get_axis_mapping(cls):
+        return dict(R=cls.REALIZATION, T=cls.TIME, Z=cls.LEVEL, Y=cls.Y, X=cls.X)
 
 
 class DMK(DimensionMapKey):

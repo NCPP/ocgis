@@ -484,14 +484,13 @@ class TestDriverNetcdfCF(TestBase):
         dmap = {DimensionMapKey.TIME: {DimensionMapKey.VARIABLE: 'time', DimensionMapKey.DIMS: 'time'}}
         d = self.get_drivernetcdf(dimension_map=dmap)
         f = d.get_field()
-        actual = f.dimension_map.get_dimensions(DimensionMapKey.TIME)
+        actual = f.dimension_map.get_dimension(DimensionMapKey.TIME)
         self.assertEqual(actual, ['time'])
 
     def test_get_dimension_map_no_time_axis(self):
         metadata = {'variables': {'time': {'name': 'time', 'attrs': {}, 'dimensions': ['time']}},
                     'dimensions': {}}
         d = self.get_drivernetcdf()
-        self.pprint_dict(metadata)
         dmap = d.get_dimension_map(metadata)
         self.assertEqual(dmap.get_variable(DimensionMapKey.TIME), 'time')
 
@@ -506,10 +505,10 @@ class TestDriverNetcdfCF(TestBase):
         sub = field.get_field_slice({'y': 10, 'x': 5})
         self.assertEqual(sub.grid.x.shape, (1, 1))
 
-        actual = f.dimension_map.get_dimensions(DimensionMapKey.Y)
+        actual = f.dimension_map.get_dimension(DimensionMapKey.Y)
         self.assertEqual(actual, ['y'])
 
-        actual = f.dimension_map.get_dimensions(DimensionMapKey.X)
+        actual = f.dimension_map.get_dimension(DimensionMapKey.X)
         self.assertEqual(actual, ['x'])
 
     def test_get_dump_report(self):

@@ -130,7 +130,7 @@ class TestGeometryVariable(AbstractTestInterface):
 
         actual = field_shp.dimension_map.get_variable(DMK.GEOM)
         self.assertIsNotNone(actual)
-        actual = field_shp.dimension_map.get_dimensions(DMK.GEOM)
+        actual = field_shp.dimension_map.get_dimension(DMK.GEOM)
         self.assertEqual(len(actual), 1)
 
         self.assertEqual(field_shp.crs, WGS84())

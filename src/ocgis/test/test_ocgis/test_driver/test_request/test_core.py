@@ -150,7 +150,7 @@ class TestRequestDataset(TestSimpleBase):
             tvar[0:3] = [1, 2, 3]
         dmap = {'time': {'variable': 'time'}}
         rd = RequestDataset(path, dimension_map=dmap)
-        self.assertEqual(rd.dimension_map.get_dimensions(DimensionMapKey.TIME), ['the_time'])
+        self.assertEqual(rd.dimension_map.get_dimension(DimensionMapKey.TIME), ['the_time'])
 
     def test_field_name(self):
         for name in [None, 'morning']:

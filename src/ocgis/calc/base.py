@@ -410,7 +410,7 @@ class AbstractFunction(AbstractOcgisObject):
             for k in STANDARD_DIMENSIONS:
                 dmap_variable = self.field.dimension_map.get_variable(k)
                 if dmap_variable is not None:
-                    dmap_variable_dimensions = self.field.dimension_map.get_dimensions(k)
+                    dmap_variable_dimensions = self.field.dimension_map.get_dimension(k)
                     if dim.name in dmap_variable_dimensions:
                         crosswalk.append(k)
                         found = True

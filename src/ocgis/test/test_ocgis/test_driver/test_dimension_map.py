@@ -1,3 +1,5 @@
+import numpy as np
+
 from ocgis import Variable
 from ocgis.constants import DMK
 from ocgis.driver.dimension_map import DimensionMap
@@ -10,21 +12,21 @@ class TestDimensionMap(TestBase):
         dmap = DimensionMap()
 
         _ = dmap.get_variable('x')
-        _ = dmap.get_dimensions('x')
+        _ = dmap.get_dimension('x')
         _ = dmap.get_attrs('x')
         _ = dmap.get_bounds('x')
 
-        dmap.set_variable('y', 'latitude', dimensions='ache', bounds='lat_bounds')
+        dmap.set_variable('y', 'latitude', dimension='ache', bounds='lat_bounds')
 
         _ = dmap.get_crs()
 
         dmap.set_crs('latitude_longitude')
 
         desired = {'crs': {'variable': 'latitude_longitude'},
-                   'x': {'attrs': {}, 'bounds': None, 'dimensions': [], 'variable': None},
+                   'x': {'attrs': {}, 'bounds': None, 'dimension': [], 'variable': None},
                    'y': {'attrs': {'axis': 'Y'},
                          'bounds': 'lat_bounds',
-                         'dimensions': ['ache'],
+                         'dimension': ['ache'],
                          'variable': 'latitude'}}
 
         self.assertDictEqual(dmap._storage, desired)
@@ -45,6 +47,31 @@ class TestDimensionMap(TestBase):
         self.assertIsNone(dmap.get_variable(DMK.Y))
         self.assertEqual(dmap.get_group([None, 'nested', 'nested_in_nested']).get_crs(), 'coord_sys')
 
+    def test_from_old_style_dimension_map(self):
+        old_style = {'Y': {'variable': u'lat', 'bounds': u'lat_bnds', 'dimension': u'lat', 'pos': 1},
+                     'X': {'variable': u'lon', 'bounds': u'lon_bnds', 'dimension': u'lon', 'pos': 2},
+                     'Z': {'variable': u'height', 'bounds': None, 'dimension': None, 'pos': None},
+                     'T': {'variable': u'time', 'bounds': u'time_bnds', 'dimension': u'time', 'pos': 0}}
+        new_style = DimensionMap.from_old_style_dimension_map(old_style)
+
+        desired = {'level': {'attrs': {'axis': 'Z'},
+                             'bounds': None,
+                             'dimension': [],
+                             'variable': u'height'},
+                   'time': {'attrs': {'axis': 'T'},
+                            'bounds': u'time_bnds',
+                            'dimension': [u'time'],
+                            'variable': u'time'},
+                   'x': {'attrs': {'axis': 'X'},
+                         'bounds': u'lon_bnds',
+                         'dimension': [u'lon'],
+                         'variable': u'lon'},
+                   'y': {'attrs': {'axis': 'Y'},
+                         'bounds': u'lat_bnds',
+                         'dimension': [u'lat'],
+                         'variable': u'lat'}}
+        self.assertEqual(new_style.as_dict(), desired)
+
     def test_get_group(self):
         dmap = DimensionMap()
         dmap.set_crs('who')
@@ -62,7 +89,7 @@ class TestDimensionMap(TestBase):
         desired = {'crs': {'variable': 'what'},
                    'groups': {'level_1': {'level': {'attrs': {'axis': 'Z'},
                                                     'bounds': None,
-                                                    'dimensions': [],
+                                                    'dimension': [],
                                                     'variable': 'level_1'}}}}
         actual = dmap.as_dict()
         self.assertEqual(actual, desired)
@@ -73,11 +100,11 @@ class TestDimensionMap(TestBase):
         desired = {'crs': {'variable': 'what'},
                    'groups': {'level_1': {'groups': {'level_1_1': {'x': {'attrs': {'axis': 'X'},
                                                                          'bounds': None,
-                                                                         'dimensions': [],
+                                                                         'dimension': [],
                                                                          'variable': 'longitude'}}},
                                           'level': {'attrs': {'axis': 'Z'},
                                                     'bounds': None,
-                                                    'dimensions': [],
+                                                    'dimension': [],
                                                     'variable': 'level_1'}}}}
         actual = dmap.as_dict()
         self.assertEqual(actual, desired)
@@ -94,8 +121,8 @@ class TestDimensionMap(TestBase):
     def test_set_variable(self):
         var = Variable(name='test', value=[1, 2], dimensions='two')
         dmap = DimensionMap()
-        dmap.set_variable(DMK.X, var, dimensions='not_two')
-        actual = dmap.get_dimensions(DMK.X)
+        dmap.set_variable(DMK.X, var, dimension='not_two')
+        actual = dmap.get_dimension(DMK.X)
         desired = ['not_two']
         self.assertEqual(actual, desired)
 
@@ -108,3 +135,25 @@ class TestDimensionMap(TestBase):
         new_var = Variable(name='new_center', value=[1, 2, 3], dtype=float, dimensions='one')
         dmap.set_variable(DMK.Y, new_var)
         self.assertIsNone(dmap.get_bounds(DMK.Y))
+
+        # Test a dimension position argument is needed if the variable has more than one dimension.
+        var = Variable(name='two_dims', value=np.zeros((4, 5)), dimensions=['one', 'two'])
+        dmap = DimensionMap()
+        with self.assertRaises(DimensionMapError):
+            dmap.set_variable(DMK.X, var)
+        dmap.set_variable(DMK.X, var, pos=1)
+        self.assertEqual(dmap.get_dimension(DMK.X), ['two'])
+
+        # Test a scalar dimension.
+        var = Variable(name='scalar_dimension', dimensions=[])
+        dmap = DimensionMap()
+        dmap.set_variable(DMK.LEVEL, var)
+        self.assertEqual(dmap.get_variable(DMK.LEVEL), 'scalar_dimension')
+        self.assertIsNone(dmap.get_bounds(DMK.LEVEL))
+        self.assertEqual(dmap.get_dimension(DMK.LEVEL), [])
+
+        # Test dimensionless variable.
+        var = Variable(name='two_dims', value=np.zeros((4, 5)), dimensions=['one', 'two'])
+        dmap = DimensionMap()
+        dmap.set_variable(DMK.X, var, dimensionless=True)
+        self.assertEqual(dmap.get_dimension(DMK.X), [])

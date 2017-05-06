@@ -300,7 +300,7 @@ class DriverNetcdfCF(DriverNetcdf):
                 # group.
                 return tuple()
             else:
-                dimension_names_needed += group_dimension_map.get_dimensions(axis)
+                dimension_names_needed += group_dimension_map.get_dimension(axis)
         dimension_names_needed = set(dimension_names_needed)
 
         for vk, vv in list(group_metadata['variables'].items()):
@@ -317,10 +317,8 @@ class DriverNetcdfCF(DriverNetcdf):
         if x_variable and y_variable:
             sizes = np.zeros(2, dtype={'names': ['dim', 'size'], 'formats': [object, int]})
 
-            dimension_name_x = dimension_map.get_dimensions(DimensionMapKey.X)[0]
-            # dimension_name_x = dimension_map[DimensionMapKey.X][DimensionMapKey.DIMS][0]
-            dimension_name_y = dimension_map.get_dimensions(DimensionMapKey.Y)[0]
-            # dimension_name_y = dimension_map[DimensionMapKey.Y][DimensionMapKey.DIMS][0]
+            dimension_name_x = dimension_map.get_dimension(DimensionMapKey.X)[0]
+            dimension_name_y = dimension_map.get_dimension(DimensionMapKey.Y)[0]
 
             sizes[0] = (dimension_name_x, dimensions_metadata[dimension_name_x]['size'])
             sizes[1] = (dimension_name_y, dimensions_metadata[dimension_name_y]['size'])

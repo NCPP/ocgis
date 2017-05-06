@@ -297,7 +297,7 @@ class TestTemporalVariable(AbstractTestTemporal):
         paths = create_mftime_nc_files(self, units_on_time_bounds=True)
         dmap = {'time': {'attrs': {'axis': 'T'},
                          'bounds': None,
-                         'dimensions': [u'time'],
+                         'dimension': [u'time'],
                          'variable': u'time'}}
         rd = RequestDataset(paths, dimension_map=dmap)
         field = rd.get()

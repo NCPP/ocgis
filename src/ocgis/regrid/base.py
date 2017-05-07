@@ -132,8 +132,8 @@ def get_ocgis_grid_from_esmf_grid(egrid, crs=None, dimension_map=None):
     """
 
     if dimension_map is None:
-        dimension_map = {DimensionMapKey.X: {'variable': 'x', 'bounds': 'x_bounds', DimensionMapKey.DIMS: ['x']},
-                         DimensionMapKey.Y: {'variable': 'y', 'bounds': 'y_bounds', DimensionMapKey.DIMS: ['y']}}
+        dimension_map = {DimensionMapKey.X: {'variable': 'x', 'bounds': 'x_bounds', DimensionMapKey.DIMENSION: ['x']},
+                         DimensionMapKey.Y: {'variable': 'y', 'bounds': 'y_bounds', DimensionMapKey.DIMENSION: ['y']}}
         dimension_map = DimensionMap.from_dict(dimension_map)
     else:
         assert isinstance(dimension_map, DimensionMap)

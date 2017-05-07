@@ -85,9 +85,9 @@ class TestSpatialSubsetOperation(TestBase):
 
         # 4: field with lambert conformal coordinate system
         lambert_dmap = {'crs': {'variable': 'Lambert_Conformal'}, 'groups': {},
-                        'time': {'variable': 'time', DimensionMapKey.DIMS: ['time'], 'bounds': 'time_bnds'},
-                        'x': {'variable': 'xc', DimensionMapKey.DIMS: ['xc']},
-                        'y': {'variable': 'yc', DimensionMapKey.DIMS: ['yc']}}
+                        'time': {'variable': 'time', DimensionMapKey.DIMENSION: ['time'], 'bounds': 'time_bnds'},
+                        'x': {'variable': 'xc', DimensionMapKey.DIMENSION: ['xc']},
+                        'y': {'variable': 'yc', DimensionMapKey.DIMENSION: ['yc']}}
         rd = self.test_data.get_rd('narccap_lambert_conformal', kwds={'dimension_map': lambert_dmap})
         field_lambert = rd.get()
 

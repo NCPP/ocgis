@@ -21,7 +21,7 @@ Contents:
 
    contact
    install
-   api
+   operations
    classes
    functions
    computation

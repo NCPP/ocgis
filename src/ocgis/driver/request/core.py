@@ -82,28 +82,8 @@ class RequestDataset(AbstractRequestObject):
     :param dimension_map: Maps dimensions to axes in the case of a projection/realization axis or an uncommon axis
      ordering. All axes must be in the dictionary. A fully-specified dimension map for a CF grid file containing time, 
      x, and y axes is below. The file also contains a scalar level axis. At minimum, a ``'variable'`` must be provided
-     for each axis.
+     for each axis. See :ref:`configuring-a-dimension-map` for a usage example.
     :type dimension_map: :class:`~ocgis.DimensionMap` | dict
-
-    >>> {'crs': {'variable': 'latitude_longitude'},
-         'groups': {},
-         'level': {'attrs': {'axis': 'Z'},
-                   'bounds': None,
-                   'dimension': [],
-                   'variable': 'height'},
-         'realization': {'dimension': [], 'variable': None},
-         'time': {'attrs': {'axis': 'T'},
-                  'bounds': 'time_bnds',
-                  'dimension': ['time'],
-                  'variable': 'time'},
-         'x': {'attrs': {'axis': 'X'},
-               'bounds': 'lon_bnds',
-               'dimension': ['lon'],
-               'variable': 'lon'},
-         'y': {'attrs': {'axis': 'Y'},
-               'bounds': 'lat_bnds',
-               'dimension': ['lat'],
-               'variable': 'lat'}}
 
     :param units: The units of the source variable. This will be read from metadata if this value is ``None``.
     :type units: str | :class:`cf_units.Unit` | `sequence` of possible types

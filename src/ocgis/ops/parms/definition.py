@@ -479,8 +479,8 @@ class Dataset(base.AbstractParameter):
 
             if env.USE_ESMF and isinstance(element, ESMF.Field):
                 from ocgis.regrid.base import get_ocgis_field_from_esmf_field
-                dimension_map = {DimensionMapKey.X: {DimensionMapKey.VARIABLE: 'x', DimensionMapKey.DIMS: ['x']},
-                                 DimensionMapKey.Y: {DimensionMapKey.VARIABLE: 'y', DimensionMapKey.DIMS: ['y']}}
+                dimension_map = {DimensionMapKey.X: {DimensionMapKey.VARIABLE: 'x', DimensionMapKey.DIMENSION: ['x']},
+                                 DimensionMapKey.Y: {DimensionMapKey.VARIABLE: 'y', DimensionMapKey.DIMENSION: ['y']}}
                 dimension_map = DimensionMap.from_dict(dimension_map)
                 element = get_ocgis_field_from_esmf_field(element, dimensions=self.esmf_field_dimensions,
                                                           dimension_map=dimension_map)

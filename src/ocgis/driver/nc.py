@@ -591,7 +591,7 @@ def get_dimension_map_entry(axis, variables, dimensions, strict=False):
                 elif axis == 'X':
                     dims = [dims[1]]
 
-        ret = {'variable': var_name, DimensionMapKey.DIMS: dims}
+        ret = {'variable': var_name, DimensionMapKey.DIMENSION: dims}
     elif len(axis_vars) > 1:
         msg = 'Multiple axis (axis="{}") possibilities found using variable(s) "{}". Use a dimension map to specify ' \
               'the appropriate coordinate dimensions.'

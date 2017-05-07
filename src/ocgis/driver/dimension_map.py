@@ -18,7 +18,7 @@ class DimensionMap(AbstractOcgisObject):
     """
 
     _allowed_entry_keys = (DMK.REALIZATION, DMK.TIME, DMK.LEVEL, DMK.Y, DMK.X, DMK.GEOM, DMK.CRS, DMK.GROUPS)
-    _allowed_element_keys = (DMK.VARIABLE, DMK.DIMS, DMK.BOUNDS, DMK.ATTRS)
+    _allowed_element_keys = (DMK.VARIABLE, DMK.DIMENSION, DMK.BOUNDS, DMK.ATTRS)
 
     def __init__(self):
         self._storage = {}
@@ -99,7 +99,7 @@ class DimensionMap(AbstractOcgisObject):
         for k, v in odmap.items():
             entry_key = DMK.get_axis_mapping()[k]
             bounds = v.get(DMK.BOUNDS)
-            dimension = v.get(DMK.DIMS)
+            dimension = v.get(DMK.DIMENSION)
             variable = v.get(DMK.VARIABLE)
             ret.set_variable(entry_key, variable, dimension=dimension, bounds=bounds)
         return ret
@@ -138,7 +138,7 @@ class DimensionMap(AbstractOcgisObject):
         :param str entry_key: See :class:`ocgis.constants.DimensionMapKey` for valid entry keys.
         :rtype: :class:`list` of :class:`str`
         """
-        return self._get_element_(entry_key, DMK.DIMS, [])
+        return self._get_element_(entry_key, DMK.DIMENSION, [])
 
     def get_group(self, group_key):
         """
@@ -266,7 +266,7 @@ class DimensionMap(AbstractOcgisObject):
             attrs = self._storage.__class__(deepcopy(DIMENSION_MAP_TEMPLATE[entry_key][DMK.ATTRS]))
         entry[DMK.VARIABLE] = value
         entry[DMK.BOUNDS] = bounds
-        entry[DMK.DIMS] = dimension
+        entry[DMK.DIMENSION] = dimension
         entry[DMK.ATTRS] = attrs
 
     def update_dimensions_from_field(self, field):

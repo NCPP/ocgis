@@ -198,7 +198,7 @@ class DimensionMapKey(object):
     CRS = 'crs'
     BOUNDS = 'bounds'
     VARIABLE = 'variable'
-    DIMS = 'dimension'
+    DIMENSION = 'dimension'
     LEVEL = 'level'
     GEOM = 'geom'
 
@@ -355,17 +355,17 @@ DEFAULT_DRIVER = DriverKey.NETCDF_CF
 
 DIMENSION_MAP_TEMPLATE = OrderedDict()
 DIMENSION_MAP_TEMPLATE[DimensionMapKey.REALIZATION] = {DimensionMapKey.ATTRS: {CFName.AXIS: 'R'},
-                                                       DimensionMapKey.VARIABLE: None, DimensionMapKey.DIMS: []}
+                                                       DimensionMapKey.VARIABLE: None, DimensionMapKey.DIMENSION: []}
 DIMENSION_MAP_TEMPLATE[DimensionMapKey.TIME] = {DimensionMapKey.ATTRS: {CFName.AXIS: 'T'},
                                                 DimensionMapKey.VARIABLE: None, DimensionMapKey.BOUNDS: None,
-                                                DimensionMapKey.DIMS: []}
+                                                DimensionMapKey.DIMENSION: []}
 DIMENSION_MAP_TEMPLATE[DimensionMapKey.LEVEL] = {DimensionMapKey.ATTRS: {CFName.AXIS: 'Z'},
                                                  DimensionMapKey.VARIABLE: None, DimensionMapKey.BOUNDS: None,
-                                                 DimensionMapKey.DIMS: []}
+                                                 DimensionMapKey.DIMENSION: []}
 DIMENSION_MAP_TEMPLATE[DimensionMapKey.Y] = {DimensionMapKey.ATTRS: {CFName.AXIS: 'Y'}, DimensionMapKey.VARIABLE: None,
-                                             DimensionMapKey.BOUNDS: None, DimensionMapKey.DIMS: []}
+                                             DimensionMapKey.BOUNDS: None, DimensionMapKey.DIMENSION: []}
 DIMENSION_MAP_TEMPLATE[DimensionMapKey.X] = {DimensionMapKey.ATTRS: {CFName.AXIS: 'X'}, DimensionMapKey.VARIABLE: None,
-                                             DimensionMapKey.BOUNDS: None, DimensionMapKey.DIMS: []}
+                                             DimensionMapKey.BOUNDS: None, DimensionMapKey.DIMENSION: []}
 DIMENSION_MAP_TEMPLATE[DimensionMapKey.GEOM] = {DimensionMapKey.ATTRS: {CFName.AXIS: 'ocgis_geom'},
-                                                DimensionMapKey.VARIABLE: None, DimensionMapKey.DIMS: []}
+                                                DimensionMapKey.VARIABLE: None, DimensionMapKey.DIMENSION: []}
 DIMENSION_MAP_TEMPLATE[DimensionMapKey.CRS] = {DimensionMapKey.VARIABLE: None}

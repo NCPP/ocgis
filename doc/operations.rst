@@ -1,12 +1,14 @@
 :tocdepth: 4
 
-.. _python_api:
+.. _operations-api:
 
-====================
-Python API Reference
-====================
+==============
+Operations API
+==============
 
-This page provides an overview of OpenClimateGIS's Python interface. A :ref:`class_reference-label` and :ref:`function_reference-label` are also available.
+This page provides an overview of OpenClimateGIS's operations interface. A :ref:`class_reference-label` and :ref:`function_reference-label` are also available. OpenClimateGIS's combined functionality is generally accessed using the operations interface (:class:`~ocgis.OcgOperations`). Potential keyword arguments are described below in `Keyword Arguments`_. Please see :ref:`examples-label` for an overview of using operations with real data.
+
+.. _default-coordinate-system:
 
 Default Coordinate System
 =========================
@@ -21,10 +23,8 @@ The default coordinate system for OpenClimateGIS is :class:`~ocgis.crs.Spherical
 
 The correct coordinate system will always be read from file by the driver. The default coordinate system used by OpenClimateGIS may be changed using :ref:`env.DEFAULT_COORDSYS <env.DEFAULT_COORDSYS>`.
 
-Operations
-==========
-
-OpenClimateGIS's combined functionality is generally accessed using the operations interface (:class:`~ocgis.OcgOperations`). Potential keyword arguments are described below in `Keyword Arguments`_. Please see :ref:`examples-label` for an overview of how this object is used with real data.
+``OcgOperations`` Reference
+===========================
 
 The basic operations syntax is:
 
@@ -34,12 +34,15 @@ The basic operations syntax is:
 
 Some notable features of the operations object:
  1. The only required keyword argument is `dataset`_.
- 2. All keyword arguments are exposed as public attributes which may be  arbitrarily set using standard syntax:
+ 2. All keyword arguments are exposed as public attributes which may be arbitrarily set using standard syntax:
 
->>> ops = OcgOperations(RequestDataset('/path/to/some/dataset','foo'))
+>>> import ocgis
+>>> rd = ocgis.RequestDataset(uri='/path/to/some/dataset', variable='foo')
+>>> ops = OcgOperations(dataset=rd)
 >>> ops.aggregate = True
 
- 3. The object SHOULD NOT be reused following an execution as the software may add/modify attribute contents. Instantiate a new object following an execution.
+ 3. Operations may be run in parallel using MPI. See :ref:`parallel-operations` for guidance.
+ 4. The object **SHOULD NOT** be reused following an execution as the software may add/modify attribute contents. Instantiate a new object following an execution or copy the object appropriately.
 
 Keyword Arguments
 -----------------
@@ -49,19 +52,19 @@ Additional information on arguments are found in their respective sections.
 abstraction
 ~~~~~~~~~~~
 
-.. note:: OpenClimateGIS uses the `bounds` attribute of NetCDF file to construct polygon representations of datasets. If no `bounds` attribute is found, the software defaults to the `point` geometry abstraction.
+.. note:: OpenClimateGIS uses the ``bounds`` attribute of a NetCDF variable to construct ``'polygon'`` representations of regular grids. If no ``bounds`` attribute is found, the software defaults to the ``'point'`` geometry abstraction.
 
-====================== =============================================================
-Value                  Description
-====================== =============================================================
-`polygon` (default)    Represent cells as :class:`shapely.geometry.Polygon` objects.
-`point`                Represent cells as :class:`shapely.geometry.Point` objects.
-====================== =============================================================
+======================= =============================================================
+Value                   Description
+======================= =============================================================
+``'polygon'`` (default) Represent cells as :class:`shapely.geometry.Polygon` objects.
+``'point'``             Represent cells as :class:`shapely.geometry.Point` objects.
+======================= =============================================================
 
 add_auxiliary_files
 ~~~~~~~~~~~~~~~~~~~
 
-If ``True``, create a new directory and add metadata and other informational files in addition to the converted file. If ``False``, write the target file only to :attr:`dir_output` and do not create a new directory.
+If ``True`` (the default), create a new directory and add metadata and other informational files in addition to the converted file. If ``False``, write the target file only to :ref:`dir_output` and do not create a new directory.
 
 aggregate
 ~~~~~~~~~
@@ -157,25 +160,25 @@ For example, this returns a calculation based on values with date coordinates in
 calc_raw
 ~~~~~~~~
 
-====================== =====================================================================================================
-Value                  Description
-====================== =====================================================================================================
-`True`                 If :attr:`ocgis.OcgOperations.aggregate` is `True`, perform computations on raw, unaggregated values.
-`False` (default)      Use aggregated values during computation.
-====================== =====================================================================================================
+=================== =======================================================================================================
+Value               Description
+=================== =======================================================================================================
+``True``            If :attr:`ocgis.OcgOperations.aggregate` is ``True``, perform computations on raw, unaggregated values.
+``False`` (default) Use aggregated values during computation.
+=================== =======================================================================================================
 
 callback
 ~~~~~~~~
 
 A callback function that may be used for custom messaging. This function integrates with the log handler and will receive messages at or above the :attr:`logging.INFO` level.
 
->>> def callback(percent,message):
->>>     print(percent,message)
+>>> def callback(percent, message):
+>>>     print(percent, message)
 
 conform_units_to
 ~~~~~~~~~~~~~~~~
 
-Destination units for conversion. If this parameter is set, then the :mod:`cfunits` module must be installed. Setting this parameter will override conformed units set on ``dataset`` objects.
+Destination units for conversion. If this parameter is set, then the :mod:`cf_units` module must be installed. Setting this parameter will override conformed units set on ``dataset`` objects.
 
 dataset
 ~~~~~~~
@@ -183,9 +186,9 @@ dataset
 This is the only required parameter. All elements of ``dataset`` will be processed.
 
 A ``dataset`` is the target file(s) or object(s) containing data to process. A ``dataset`` may be:
- 1. A file on the local machine or network location accessible by the software (use :class:`~ocgis.RequestDataset` or :class:`~ocgis.RequestDatasetCollection`).
- 2. A URL to an unsecured OpenDAP dataset (use :class:`~ocgis.RequestDataset` or :class:`~ocgis.RequestDatasetCollection`).
- 3. An OpenClimateGIS field object (use :class:`~Field` or :class:`~ocgis.RequestDatasetCollection`). If a :class:`~ocgis.Field` object is used, be aware operations may modify the object inplace.
+ 1. A file on the local machine or network location accessible by the software (use :class:`~ocgis.RequestDataset`).
+ 2. A URL to an unsecured OpenDAP dataset (use :class:`~ocgis.RequestDataset`).
+ 3. An OpenClimateGIS field object (use :class:`~ocgis.Field`). If a :class:`~ocgis.Field` object is used, be aware operations may modify the object inplace.
 
 >>> # A keyword argument dictionary can be used in place of an actual request object.
 >>> dataset = {'uri': '/path/to/my/data.nc'}
@@ -195,52 +198,56 @@ A ``dataset`` is the target file(s) or object(s) containing data to process. A `
 >>> # Specify the target variable directly.
 >>> dataset = RequestDataset(uri='/path/to/my/data.nc', variable='tas')
 
+In version ``v2.x`` the :class:`RequestDatasetCollection` was removed. Use sequences of request dataset or field objects in their place.
+
+.. _dir_output:
+
 dir_output
 ~~~~~~~~~~
 
-This sets the output folder for any disk formats. If this is ``None`` and ``env.DIR_OUTPUT`` is ``None``, then output will be written to the current working directory.
+This sets the output folder for any disk formats. If this is ``None`` and :attr:``ocgis.env.DIR_OUTPUT`` is ``None``, then output will be written to the current working directory.
 
 .. _geom:
 
 geom
 ~~~~
 
-.. warning:: Subsetting with multiple geometries to netCDF will result in :ref:`agg_selection` being set to ``True``. Indexing multiple geometries using netCDF-CF convention is currently not possible.
+.. warning:: Subsetting with multiple geometries to netCDF will result in :ref:`agg_selection` being set to ``True``.
 
-If a geometry(s) is provided, it is used to subset `every` :class:`ocgis.RequestDataset` object. Supplying a value of ``None`` (the default) results in the return of the entire spatial domain. Any shapefiles used for subsetting must have a WGS84 latitude/longitude geographic coordinate system.
+If a geometry(s) is provided, it is used to subset `every` :class:`~ocgis.RequestDataset` or :class:`~ocgis.Field` object. Supplying a value of ``None`` (the default) results in the return of the entire spatial domain.
 
 There are a number of ways to parameterize the ``geom`` keyword argument:
 
 1. Bounding Box
 
-This is a list of floats corresponding to: `[min x, min y, max x, max y]`. The coordinates should be WGS84 geographic.
+This is a list of floats corresponding to: ``[min_x, min_y, max_x, max_y]``. See :ref:`default-coordinate-system` for guidance on coordinate system defaults and usages.
 
 >>> geom = [-120.4, 30.0, -110.3, 41.4]
 
 2. Point
 
-This is a list of floats corresponding to: `[longitude,latitude]`. The coordinates should be WGS84 geographic. For point geometries, the geometry is actually buffered by `search_radius_mult` * (data resolution). Hence, output geometries are in fact polygons.
+This is a list of floats corresponding to: ``[longitude, latitude]``. See :ref:`default-coordinate-system` for guidance on coordinate system defaults and usages.
 
->>> geom = [-120.4,36.5]
+>>> geom = [-120.4, 36.5]
 
-3. Using :class:`ocgis.GeomCabinetIterator`
+3. Using :class:`~ocgis.GeomCabinetIterator`
 
 >>> from ocgis import GeomCabinetIterator
->>> geom = GeomCabinetIterator('state_boundaries',geom_select_uid=[16])
+>>> geom = GeomCabinetIterator('state_boundaries', geom_select_uid=[16])
 
 .. _geom key:
 
-4. Using a :class:`ocgis.GeomCabinet` Key
+4. Using a :class:`~ocgis.GeomCabinet` key
 
 >>> geom = 'state_boundaries'
 
 5. Custom Sequence of Shapely Geometry Dictionaries
 
-The `crs` key is optional. If it is not included, WGS84 is assumed. The `properties` key is also optional.
+The ``'crs'`` key is optional. If it is not included, WGS84 is assumed. The ``'properties'`` key is also optional. See :ref:`default-coordinate-system` for guidance on coordinate system defaults and usages.
 
 >>> geom = [{'geom': Point(x,y), 'properties': {'UGID': 23, 'NAME': 'geometry23'}, 'crs': CoordinateReferenceSystem(epsg=4326)} ,...]
 
-6. Path to a Shapefile
+6. Path to a GIS file
 
 >>> geom = '/path/to/shapefile.shp'
 
@@ -249,9 +256,9 @@ The `crs` key is optional. If it is not included, WGS84 is assumed. The `propert
 geom_select_sql_where
 ~~~~~~~~~~~~~~~~~~~~~
 
-.. warning:: Single quotes must be used inside double quotes for Python 3!
+.. warning:: Single quotes must be used inside double quotes!
 
-If provided, this string will be used as part of a SQL WHERE statement to select geometries from the source. See the section titled "WHERE" for documentation on supported statements: http://www.gdal.org/ogr_sql.html. This works only for geometries read from file.
+If provided, this string will be used as part of a ``SQL WHERE`` clause to select geometries from the source. See the section titled "WHERE" for documentation on supported statements: http://www.gdal.org/ogr_sql.html. This works only for geometries read from file.
 
 >>> geom_select_sql_where = "STATE_NAME = 'Wisconsin'"
 >>> geom_select_sql_where = "STATE_NAME in ('Wisconsin', 'Nebraska')"
@@ -260,13 +267,13 @@ If provided, this string will be used as part of a SQL WHERE statement to select
 geom_select_uid
 ~~~~~~~~~~~~~~~
 
-Select specific geometries from the target shapefile chosen using "`geom`_". The integer sequence selects matching UGID values from the shapefiles. For more information on adding new shapefiles or the requirements of input shapefiles, please see the section titled `Shapefile Data`_.
+Select specific geometries from the target shapefile chosen using :ref:`geom`. The integer sequence selects matching UGID values from the shapefiles. For more information on adding new shapefiles or the requirements of input shapefiles, please see the section titled `Shapefile Data`_.
 
 >>> geom_select_uid = [1, 2, 3]
 >>> geom_select_uid = [4, 55]
 >>> geom_select_uid = [1]
 
-As clarification, suppose there is a shapefile called "basins.shp" (this assumes the folder containing the shapefile has been set as the value for `env.DIR_GEOMCABINET`_) with the following attribute table:
+As clarification, suppose there is a shapefile called ``basins.shp`` (this assumes the folder containing the shapefile has been set as the value for :attr:`ocgis.env.DIR_GEOMCABINET`) with the following attribute table:
 
 ==== =======
 UGID Name
@@ -276,7 +283,7 @@ UGID Name
 3    Basin C
 ==== =======
 
-If the goal is to subset the data by the boundary of "Basin A" and write the resulting data to netCDF, a call to OCGIS looks like:
+If the goal is to subset the data by the boundary of "Basin A" and write the resulting data to netCDF, a call to OpenClimateGIS operations looks like:
 
 >>> import ocgis
 >>> rd = ocgis.RequestDataset(uri='/path/to/data.nc', variable='tas')
@@ -285,7 +292,7 @@ If the goal is to subset the data by the boundary of "Basin A" and write the res
 geom_uid
 ~~~~~~~~
 
-All subset geometries must have a unique identifier. The unique identifier allows subsetted data to be linked to the selection geometry. Passing a string value to ``geom_uid`` will overload the default unique identifier :attr:`~env.DEFAULT_GEOM_UID`. If no unique identifier is available, a one-based unique identifier will be generated having a name with value :attr:`~env.DEFAULT_GEOM_UID`.
+All subset geometries must have a unique identifier. The unique identifier allows subsetted data to be linked to the selection geometry. Passing a string value to ``geom_uid`` will overload the default unique identifier :attr:`ocgis.env.DEFAULT_GEOM_UID`. If no unique identifier is available, a one-based unique identifier will be generated having a name with value :attr:`ocgis.env.DEFAULT_GEOM_UID`.
 
 interpolate_spatial_bounds
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -323,41 +330,31 @@ TIME NAME   VALUE
 optimized_bbox_subset
 ~~~~~~~~~~~~~~~~~~~~~
 
-If ``True``, only perform the bounding box subset ignoring other subsetting procedures such as spatial operations on geometry objects using a spatial index. Using this option should result in lower memory requirements and shorter processing times for subsets. Note this assumes the bounding box aligns appropriately with the target grid.
+If ``True``, only perform the bounding box subset ignoring other subsetting procedures like masking within the bounding coordinates. Using this option should result in lower memory requirements and shorter processing times for subsets. Note this assumes the bounding box aligns appropriately with the target grid.
 
 output_crs
 ~~~~~~~~~~
 
-By default, the coordinate reference system (CRS) is the CRS of the input :class:`ocgis.RequestDataset` object. If multiple :class:`ocgis.RequestDataset` objects are part of an :class:`ocgis.OcgOperations` call, then ``output_crs`` must be provided if the input CRS values of the :class:`ocgis.RequestDataset` objects differ. The value for ``output_crs`` is an instance of :class:`ocgis.crs.CoordinateReferenceSystem`.
+By default, the output coordinate reference system (CRS) is the CRS of the input :class:`~ocgis.RequestDataset` object. If multiple :class:`~ocgis.RequestDataset` objects are part of an :class:`~ocgis.OcgOperations` call, then ``output_crs`` must be provided if the input CRS values of the :class:`~ocgis.RequestDataset` objects differ. The value for ``output_crs`` is an instance of :class:`~ocgis.crs.CRS`.
 
 >>> import ocgis
->>> output_crs = ocgis.variable.crs.WGS84()
-
-
-
->>> import ocgis
->>> output_crs = ocgis.variable.crs.WGS84()
-
-
-
->>> import ocgis
->>> output_crs = ocgis.crs.WGS84()
+>>> output_crs = ocgis.crs.Spherical()
 
 .. _output_format_headline:
 
 output_format
 ~~~~~~~~~~~~~
 
-=============================== ============================================================================================================================================
-Value                           Description
-=============================== ============================================================================================================================================
-``'ocgis'`` (default)           Return a :class:`~ocgis.SpatialCollection` with keys matching `ugid` (see `geom`_). Also see `Spatial Collections`_ for more information on this output format.
-``'shp'``                       A shapefile representation of the data.
-``'csv'``                       A CSV file representation of the data.
-``'csv-shp'``                   In addition to a CSV representation, shapefiles with primary key links to the CSV are provided.
-``'nc'``                        A NetCDF4-CF file.
-``'geojson'``                   A GeoJSON representation of the data.
-=============================== ============================================================================================================================================
+===================== ===============================================================================================================================================================
+Value                 Description
+===================== ===============================================================================================================================================================
+``'ocgis'`` (default) Return a :class:`~ocgis.SpatialCollection` with keys matching `ugid` (see `geom`_). Also see `Spatial Collections`_ for more information on this output format.
+``'shp'``             A shapefile representation of the data.
+``'csv'``             A CSV file representation of the data.
+``'csv-shp'``         In addition to a CSV representation, shapefiles with primary key links to the CSV are provided.
+``'nc'``              A NetCDF4-CF file.
+``'geojson'``         A GeoJSON representation of the data.
+===================== ===============================================================================================================================================================
 
 output_format_options
 ~~~~~~~~~~~~~~~~~~~~~
@@ -382,33 +379,36 @@ regrid_destination
 
 Please see :ref:`esmpy-regridding` for an overview and limitations.
 
-If provided, all :class:`~ocgis.RequestDataset` objects in ``dataset`` will be regridded to match the grid provided in the argument’s object. This argument may be one of three types: :class:`~ocgis.RequestDataset`, :class:`~ocgis.interface.base.dimension.spatial.SpatialDimension`, or :class:`~ocgis.interface.base.field.Field`.
+If provided, all :class:`~ocgis.RequestDataset` objects in ``dataset`` will be regridded to match the grid provided in the argument’s object. This argument must be a :class:`~ocgis.RequestDataset` or :class:`~ocgis.Field`.
 
 >>> regrid_destination = ocgis.RequestDataset(uri='/path/to/destination.nc')
 
 regrid_options
 ~~~~~~~~~~~~~~
 
-A dictionary with regridding options. Please see the documentation for :func:`~ocgis.regrid.base.iter_regridded_fields`. Dictionary elements of ``regrid_options`` correspond to the keyword arguments of this function.
+A dictionary with regridding options. Please see the documentation for :func:`~ocgis.regrid.base.regrid_field`. Dictionary elements of ``regrid_options`` correspond to the keyword arguments of this function.
 
->>> regrid_options = {'with_corners': True}
+>>> import ESMF
+>>> regrid_options = {'regrid_method': ESMF.RegridMethod.CONSERVE}
 
 .. _search_radius_mult key:
 
 search_radius_mult
 ~~~~~~~~~~~~~~~~~~
 
-This is a scalar float value multiplied by the target data's resolution to determine the buffer radius for the point. The default is ``2.0``.
+This is a scalar float value multiplied by the target data's resolution to determine the buffer radius for the point. This is only applicable when subsetting against gridded datasets.
+
+.. note:: Prior to ``v2.x``, this was a float value by default. This was changed to ``None`` in current versions. Hence, point geometries will be used for subsetting and not a buffered point.
 
 select_nearest
 ~~~~~~~~~~~~~~
 
-If ``True``, the nearest geometry to the centroid of the current selection geometry is returned. This is useful when subsetting by a point, and it is preferred to not return all geometries within the selection radius.
+If ``True``, the nearest geometry to the centroid of the current selection geometry is returned.
 
 slice
 ~~~~~
 
-This is a list of integers, ``None``, or lists of integers. The values composing the list will be converted to slice objects. For example, to return the first ten time steps:
+This is a list of integers, ``None``, or *lists* of integers. The values composing the list will be converted to slice objects. For example, to return the first ten time steps:
 
 >>> slc = [None, [0, 10], None, None, None]
 
@@ -433,16 +433,16 @@ To select the last time step:
 snippet
 ~~~~~~~
 
-.. note:: The entire spatial domain is returned unless `geom` is specified.
+.. note:: The entire spatial domain is returned unless :ref:`geom` is specified.
 
 .. note:: Only applies for pure subsetting for limiting computations use ``time_range`` and/or ``time_region``.
 
-====================== ===========================================================================
-Value                  Description
-====================== ===========================================================================
-``True``               Return only the first time point and the first level slice (if applicable).
-``False`` (default)    Return all data.
-====================== ===========================================================================
+=================== ===========================================================================
+Value               Description
+=================== ===========================================================================
+``True``            Return only the first time point and the first level slice (if applicable).
+``False`` (default) Return all data.
+=================== ===========================================================================
 
 spatial_operation
 ~~~~~~~~~~~~~~~~~
@@ -461,7 +461,7 @@ If ``True``, reorder wrapped coordinates such that the longitude values are in a
 
 If ``False`` (the default), do not attempt to reorder wrapped spherical longitude coordinates.
 
-.. note:: If ``aggregate=True``, no spatial reordering is ever done.
+.. note:: If ``aggregate=True``, spatial reordering is not possible.
 
 spatial_wrapping
 ~~~~~~~~~~~~~~~~
@@ -479,20 +479,20 @@ Value              Description
 time_range
 ~~~~~~~~~~
 
-Upper and lower bounds for time dimension subsetting composed to a two-element sequence of :class:`datetime.datetime` objects. If ``None``, return all time points. Using this argument will overload all :class:`~ocgis.RequestDataset` ``time_range`` values.
+Upper and lower bounds for the time dimension subset composed of a two-element sequence of :class:`datetime.datetime`-like objects. If ``None``, return all time points. Using this argument will overload all :class:`~ocgis.RequestDataset` ``time_range`` values.
 
 time_region
 ~~~~~~~~~~~
 
-A dictionary with keys of 'month' and/or 'year' and values as sequences corresponding to target month and/or year values. Empty region selection for a key may be set to `None`. Using this argument will overload all :class:`~ocgis.RequestDataset` ``time_region`` values.
+A dictionary with keys of 'month' and/or 'year' and values as sequences corresponding to target month and/or year values. Empty region selection for a key may be set to ``None``. Using this argument will overload all :class:`~ocgis.RequestDataset` ``time_region`` values.
 
->>> time_region = {'month':[6,7],'year':[2010,2011]}
->>> time_region = {'year':[2010]}
+>>> time_region = {'month': [6, 7], 'year': [2010, 2011]}
+>>> time_region = {'year': [2010]}
 
 time_subset_func
 ~~~~~~~~~~~~~~~~
 
-Subset the time dimension by an arbitrary function. The functions must take one argument and one keyword. The argument is a vector of ``datetime`` objects. The keyword argument should be called "bounds" and may be ``None``. If the bounds value is not ``None``, it should expect a n-by-2 array of ``datetime`` objects. The function must return an integer sequence suitable for indexing. For example:
+Subset the time dimension by an arbitrary function. The functions must take one argument and one keyword. The argument is a vector of :class:`datetime.datetime`-like objects. The keyword argument should be called "bounds" and may be ``None``. If the bounds value is not ``None``, it should expect a n-by-2 array of ``datetime`` objects. The function must return an integer sequence suitable for indexing. For example:
 
 >>> def subset_func(value, bounds=None):
 >>>     indices = []
@@ -506,14 +506,14 @@ Subset the time dimension by an arbitrary function. The functions must take one 
 vector_wrap
 ~~~~~~~~~~~
 
-.. note:: Only applicable for WGS84 spatial references.
+.. note:: Only applicable for spherical, geographic coordinate systems.
 
-================= ====================================================================================================
-Value             Description
-================= ====================================================================================================
-`True` (default)  For vector geometry outputs (e.g. `shp`,`keyed`) , ensure output longitudinal domain is -180 to 180.
-`False`           Maintain the :class:`~ocgis.RequestDataset`'s longitudinal domain.
-================= ====================================================================================================
+================== =============================================================================================
+Value              Description
+================== =============================================================================================
+``True`` (default) For vector geometry outputs (e.g. ``shp``), ensure output longitudinal domain is -180 to 180.
+``False``          Maintain the :class:`~ocgis.RequestDataset`'s longitudinal domain.
+================== =============================================================================================
 
 Environment
 ===========
@@ -565,7 +565,7 @@ These are global parameters used by OpenClimateGIS. For those familiar with :mod
 Inspecting Data
 ===============
 
-The :class:`~ocgis.Inspect` class may be used to dump metadata information for a target data object.
+See :ref:`inspection` for guidance on inspecing datasets.
 
 Spatial Collections
 ===================

@@ -6,6 +6,8 @@ Examples
 
 These examples will introduce basic subsetting, formatting, and computation in OpenClimateGIS.
 
+.. _inspection:
+
 Inspection
 ----------
 
@@ -13,8 +15,8 @@ First, it is always a good idea to ensure a dataset is readable by OpenClimateGI
 
 .. literalinclude:: sphinx_examples/inspect_request_dataset.py
 
-Use of `snippet`
-----------------
+Use of ``snippet``
+------------------
 
 The :ref:`snippet_headline` argument is important when testing and developing an OpenClimateGIS call. It should generally be set to ``True`` until the final data request is ready. This is for your benefit (requests are faster) as well as for the benefit of any remote storage server (not transferring excessive data).
 
@@ -82,9 +84,7 @@ Now, the directory structure for the temporary directory will look like:
 Advanced Subsetting
 -------------------
 
-In this example, a U.S. state boundary shapefile will be used to subset and aggregate three climate datasets. The aggregation will occur on a per-geometry + dataset basis. Hence, we will end up with daily aggregated "statewide" temperatures for the three climate variables. We also want to clip the climate data cells to the boundary of the selection geometry to take advantage of area-weighting and avoid data duplication.
-
-.. note:: With no output directory specified, data is written to the current working directory.
+In this example, a U.S. state boundary shapefile will be used to subset and aggregate three example climate datasets. The aggregation will occur on a per-geometry + dataset basis. Hence, we will end up with daily aggregated "statewide" temperatures for the three climate variables. We also want to clip the climate data cells to the boundary of the selection geometry to take advantage of area-weighting and avoid repeated grid cells.
 
 .. literalinclude:: sphinx_examples/advanced_subset.py
 
@@ -104,6 +104,17 @@ For example, the code below will return all data from the year 2000 for the firs
 >>> tr = [datetime.datetime(2000, 1, 1),datetime.datetime(2000, 12, 31, 23, 59, 59)]
 >>> rd = RequestDataset('/my/leveled/data', 'tas', time_range=tr, level_range=[1, 2])
 >>> ret = OcgOperations(dataset=rd).execute()
+
+.. _configuring-a-dimension-map:
+
+Configuring a Dimension Map
+---------------------------
+
+Dimension maps (:class:`~ocgis.DimensionMap`) are used to overload default metadata interpretations. If provided to a request (:class:`~ocgis.RequestDataset`) or field (:class:`~ocgis.Field`), it will be used to intepret a variable collection when converting the collection to a field.
+
+This example shows how to pass a dimension map to a request when working with non-standard metadata:
+
+.. literalinclude:: sphinx_examples/dimension_map.py
 
 Using the Data Interface in Parallel
 ------------------------------------

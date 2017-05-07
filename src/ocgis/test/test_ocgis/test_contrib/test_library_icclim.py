@@ -14,8 +14,7 @@ from ocgis.calc.temporal_groups import SeasonalTemporalGroup
 from ocgis.constants import TagName
 from ocgis.exc import DefinitionValidationError, UnitsValidationError
 from ocgis.ops.core import OcgOperations
-from ocgis.ops.parms.definition import Calc, CalcGrouping
-from ocgis.test import strings
+from ocgis.ops.parms.definition import Calc
 from ocgis.test.base import TestBase, nc_scope, attr
 from ocgis.util.helpers import itersubclasses
 from ocgis.util.large_array import compute
@@ -23,11 +22,9 @@ from ocgis.util.units import get_units_object, get_are_units_equivalent
 from ocgis.variable.base import VariableCollection
 
 if env.USE_ICCLIM:
-    from ocgis.contrib.library_icclim import IcclimTG, IcclimSU, AbstractIcclimFunction, IcclimDTR, IcclimETR, IcclimTN, \
-        IcclimTX, AbstractIcclimUnivariateSetFunction, AbstractIcclimMultivariateFunction, IcclimTG10p, \
-        AbstractIcclimPercentileArrayIndice, IcclimR75pTOT
+    from ocgis.contrib.library_icclim import IcclimTG, IcclimSU, AbstractIcclimFunction, IcclimDTR, IcclimETR, \
+        IcclimTN, IcclimTX, IcclimTG10p, AbstractIcclimPercentileArrayIndice, IcclimR75pTOT
     from ocgis.test.test_ocgis.test_contrib.base_library_icclim import MockAbstractIcclimFunction
-    from ocgis.contrib import library_icclim
 
 
 @attr('icclim')

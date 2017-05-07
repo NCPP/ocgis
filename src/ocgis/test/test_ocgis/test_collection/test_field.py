@@ -44,8 +44,8 @@ class TestField(AbstractTestInterface):
         time_related = Variable(value=[7, 8, 9, 10], name='time_related', dimensions=dtime)
         garbage1 = Variable(value=[66, 67, 68], dimensions='three', name='garbage1')
         dmap = {'time': {'variable': t.name},
-                'x': {'variable': lon.name, DimensionMapKey.DIMS: [lon.dimensions[0].name]},
-                'y': {'variable': lat.name, DimensionMapKey.DIMS: [lat.dimensions[0].name]}}
+                'x': {'variable': lon.name, DimensionMapKey.DIMENSION: [lon.dimensions[0].name]},
+                'y': {'variable': lat.name, DimensionMapKey.DIMENSION: [lat.dimensions[0].name]}}
         field = Field(variables=[t, lon, lat, tas, garbage1, time_related], dimension_map=dmap, is_data=tas.name)
         return field
 

@@ -438,9 +438,9 @@ class TestDriverNetcdfCF(TestBase):
         self.assertEqual(len(dvars), 0)
 
         # Test a found variable.
-        dimension_map = {'time': {'variable': 'the_time', DimensionMapKey.DIMS: ['tt', 'ttt']},
-                         'x': {'variable': 'xx', DimensionMapKey.DIMS: ['xx', 'xxx']},
-                         'y': {'variable': 'yy', DimensionMapKey.DIMS: ['yy', 'yyy']}}
+        dimension_map = {'time': {'variable': 'the_time', DimensionMapKey.DIMENSION: ['tt', 'ttt']},
+                         'x': {'variable': 'xx', DimensionMapKey.DIMENSION: ['xx', 'xxx']},
+                         'y': {'variable': 'yy', DimensionMapKey.DIMENSION: ['yy', 'yyy']}}
         metadata = {'variables': {'tas': {'dimensions': ('xx', 'ttt', 'yyy')},
                                   'pr': {'dimensions': ('foo',)}}}
         dimension_map = DimensionMap.from_dict(dimension_map)
@@ -456,7 +456,7 @@ class TestDriverNetcdfCF(TestBase):
         d = self.get_drivernetcdf()
         dmap = d.get_dimension_map(d.metadata_source, strict=True)
         desired = {'crs': {'variable': 'latitude_longitude'},
-                   'time': {'variable': 'time', 'bounds': 'time_bounds', DimensionMapKey.DIMS: ['time'],
+                   'time': {'variable': 'time', 'bounds': 'time_bounds', DimensionMapKey.DIMENSION: ['time'],
                             DimensionMapKey.ATTRS: {'axis': 'T'}}}
         self.assertEqual(dmap.as_dict(), desired)
 
@@ -471,7 +471,7 @@ class TestDriverNetcdfCF(TestBase):
         self.assertWarns(OcgWarning, _run_)
 
         # Test overloaded dimension map from request dataset is used.
-        dm = {'level': {'variable': 'does_not_exist', DimensionMapKey.DIMS: []}}
+        dm = {'level': {'variable': 'does_not_exist', DimensionMapKey.DIMENSION: []}}
         driver = self.get_drivernetcdf(dimension_map=dm)
         actual = driver.rd.dimension_map
         self.assertEqual(actual.get_variable(DimensionMapKey.LEVEL), 'does_not_exist')
@@ -481,7 +481,7 @@ class TestDriverNetcdfCF(TestBase):
             driver.get_field()
 
         # Test a dimension name is converted to a list.
-        dmap = {DimensionMapKey.TIME: {DimensionMapKey.VARIABLE: 'time', DimensionMapKey.DIMS: 'time'}}
+        dmap = {DimensionMapKey.TIME: {DimensionMapKey.VARIABLE: 'time', DimensionMapKey.DIMENSION: 'time'}}
         d = self.get_drivernetcdf(dimension_map=dmap)
         f = d.get_field()
         actual = f.dimension_map.get_dimension(DimensionMapKey.TIME)

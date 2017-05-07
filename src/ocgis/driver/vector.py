@@ -64,7 +64,7 @@ class DriverVector(AbstractTabularDriver):
 
     def get_dimension_map(self, group_metadata):
         ret = {DMK.GEOM: {DMK.VARIABLE: DimensionName.GEOMETRY_DIMENSION,
-                          DMK.DIMS: DimensionName.GEOMETRY_DIMENSION}}
+                          DMK.DIMENSION: DimensionName.GEOMETRY_DIMENSION}}
         ret = DimensionMap.from_dict(ret)
         crs = self.get_crs(group_metadata)
         if crs is not None:

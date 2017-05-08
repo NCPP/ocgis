@@ -60,7 +60,7 @@ Building from Source
 Testing the Installation
 ------------------------
 
-It is recommended that a simple suite of tests are run to verify the new installation. Testing requires the Python ``nose`` library (https://nose.readthedocs.org/en/latest/):
+It is recommended that a simple suite of tests are run to verify the new installation. Testing requires the Python ``nose`` library (https://nose.readthedocs.io/en/latest/):
 
 .. code-block:: sh
 
@@ -138,8 +138,8 @@ Package Name  Version  URL                                                    Us
 ``mpi4py``    2.0.0   http://mpi4py.readthedocs.io/en/stable/                Required for parallel execution.
 ``rtree``     0.8.3   https://pypi.python.org/pypi/Rtree/                    Constructs spatial indexes at runtime. Useful for complicated GIS operations (i.e. large or complex polygons for subsetting)
 ``cf_units``  1.1.3   https://github.com/SciTools/cf_units                   Allows unit transformations.
-``icclim``    4.2.5   http://icclim.readthedocs.org/en/latest/               Calculation of the full suite of European Climate Assessment (ECA) indices with optimized code implementation.
-``nose``      1.3.7   https://nose.readthedocs.org/en/latest/                Run unit tests.
+``icclim``    4.2.5   http://icclim.readthedocs.io/en/latest/                Calculation of the full suite of European Climate Assessment (ECA) indices with optimized code implementation.
+``nose``      1.3.7   https://nose.readthedocs.io/en/latest/                 Run unit tests.
 ============= ======= ====================================================== =================================================================================================================================
 
 Building from Source

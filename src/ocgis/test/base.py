@@ -888,7 +888,7 @@ def attr(*args, **kwargs):
     """
     Decorator that adds attributes to classes or functions for use with the Attribute (-a) plugin.
 
-    http://nose.readthedocs.org/en/latest/plugins/attrib.html
+    http://nose.readthedocs.io/en/latest/plugins/attrib.html
     """
 
     def wrap_ob(ob):

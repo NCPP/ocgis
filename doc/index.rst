@@ -31,6 +31,7 @@ Contents:
    constants
    exc
    appendix
+   changelog
 
 .. Indices and tables
 ..  ==================

@@ -4,6 +4,8 @@
 Class Reference
 ===============
 
+.. _request-dataset:
+
 RequestDataset
 --------------
 

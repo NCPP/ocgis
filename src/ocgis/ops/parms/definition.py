@@ -50,7 +50,6 @@ class Abstraction(base.StringOptionParameter):
 
 class AddAuxiliaryFiles(base.BooleanParameter):
     name = 'add_auxiliary_files'
-    # tdk: This default needs to be changed to False.
     default = True
     meta_true = 'Auxiliary metadata files added. A new directory was created.'
     meta_false = 'Auxiliary metadata files not added. Output file created in the output directory.'

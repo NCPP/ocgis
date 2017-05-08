@@ -12,24 +12,21 @@ from ocgis.ops.parms.base import AbstractParameter
 from ocgis.util.justify import justify_row
 
 HEADERS = {
-    'ugid': 'User geometry identifier pulled from a provided set of selection geometries. Reduces to "1" for the case of no provided geometry.',
+    'ugid': 'User geometry identifier pulled from a provided set of selection geometries. Reduces to "None" for the case of no provided geometry.',
     'gid': 'Geometry identifier assigned by OpenClimateGIS to a dataset geometry. In the case of "aggregate=True" this is equivalent to "UGID".',
-    'tid': 'Unique time identifier.',
-    'vid': 'Unique variable identifier.',
-    'lid': 'Level identifier unique within a variable.',
     'name': 'Name of the requested variable.',
-    'calc_alias': 'User-supplied name for a calculation.',
     'calc_key': 'The unique key name assigned to a calculation.',
+    'src_var': "The calculation's source variable.",
     'level': 'Level name.',
     'time': 'Time string.',
     'year': 'Year extracted from time string.',
     'month': 'Month extracted from time string.',
     'day': 'Day extracted from time string.',
-    'cid': 'Unique identifier for a calculation name.',
     'value': 'Value associated with a variable or calculation.',
     'did': 'Dataset identifier see *_did.csv file for additional information on dataset requests.',
     'uri': 'Path to input data at execution time.',
-    'alias': 'If not assigned, this will be the same as the variable name.'
+    'lb_*': 'Lower bounds value.',
+    'ub_*': 'Upper bounds value.',
 }
 
 

@@ -17,7 +17,7 @@ from ocgis.constants import HeaderName, KeywordArgument, DriverKey, DimensionMap
 from ocgis.driver.csv_ import DriverCSV
 from ocgis.driver.nc import DriverNetcdf
 from ocgis.driver.vector import DriverVector
-from ocgis.spatial.grid import Grid
+from ocgis.spatial.grid import Grid, create_grid_mask_variable
 from ocgis.test.base import attr, AbstractTestInterface
 from ocgis.util.helpers import reduce_multiply
 from ocgis.variable.base import Variable
@@ -211,6 +211,19 @@ class TestField(AbstractTestInterface):
         field = Field(variables=[v1, v2, v3], tags=tags)
         t = field.get_by_tag('other')
         self.assertAsSetEqual([ii.name for ii in t], tags['other'])
+
+    def test_grid(self):
+        # Test mask variable information is propagated through property.
+        grid = self.get_gridxy()
+        np.random.seed(1)
+        value = np.random.rand(*grid.shape)
+        select = value > 0.4
+        mask_var = create_grid_mask_variable('nonstandard', select, grid.dimensions)
+        grid.set_mask(mask_var)
+        field = Field(grid=grid)
+        self.assertEqual(field.dimension_map.get_spatial_mask(), mask_var.name)
+        # field.dimension_map.pprint()
+        self.assertNumpyAll(field.grid.get_mask(), mask_var.get_mask())
 
     def test_iter(self):
         field = self.get_ocgfield_example()

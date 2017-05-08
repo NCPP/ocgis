@@ -201,10 +201,15 @@ class DimensionMapKey(object):
     DIMENSION = 'dimension'
     LEVEL = 'level'
     GEOM = 'geom'
+    SPATIAL_MASK = 'spatial_mask'
 
     @classmethod
     def get_axis_mapping(cls):
         return dict(R=cls.REALIZATION, T=cls.TIME, Z=cls.LEVEL, Y=cls.Y, X=cls.X)
+
+    @classmethod
+    def get_entry_keys(cls):
+        return cls.REALIZATION, cls.TIME, cls.LEVEL, cls.X, cls.Y, cls.GEOM, cls.CRS, cls.GROUPS, cls.SPATIAL_MASK
 
 
 class DMK(DimensionMapKey):
@@ -369,3 +374,6 @@ DIMENSION_MAP_TEMPLATE[DimensionMapKey.X] = {DimensionMapKey.ATTRS: {CFName.AXIS
 DIMENSION_MAP_TEMPLATE[DimensionMapKey.GEOM] = {DimensionMapKey.ATTRS: {CFName.AXIS: 'ocgis_geom'},
                                                 DimensionMapKey.VARIABLE: None, DimensionMapKey.DIMENSION: []}
 DIMENSION_MAP_TEMPLATE[DimensionMapKey.CRS] = {DimensionMapKey.VARIABLE: None}
+DIMENSION_MAP_TEMPLATE[DimensionMapKey.SPATIAL_MASK] = {DimensionMapKey.VARIABLE: None,
+                                                        DimensionMapKey.ATTRS: {'ocgis_role': 'spatial_mask',
+                                                                                'description': 'values matching fill value are spatially masked'}}

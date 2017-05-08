@@ -78,6 +78,8 @@ class Field(VariableCollection):
         if grid is not None:
             update_dimension_map_with_variable(self.dimension_map, DimensionMapKey.X, grid.x, grid.dimensions[1])
             update_dimension_map_with_variable(self.dimension_map, DimensionMapKey.Y, grid.y, grid.dimensions[0])
+            if grid.mask_variable is not None:
+                self.dimension_map.set_spatial_mask(grid.mask_variable)
             if grid.crs is not None:
                 if crs == 'auto':
                     crs = grid.crs
@@ -304,7 +306,11 @@ class Field(VariableCollection):
         if x is None or y is None:
             ret = None
         else:
-            ret = Grid(self.x, self.y, parent=self, crs=self.crs, abstraction=self.grid_abstraction, z=self.level)
+            spatial_mask_variable = self.dimension_map.get_spatial_mask()
+            if spatial_mask_variable is not None:
+                spatial_mask_variable = self[spatial_mask_variable]
+            ret = Grid(self.x, self.y, parent=self, crs=self.crs, abstraction=self.grid_abstraction, z=self.level,
+                       mask=spatial_mask_variable)
         return ret
 
     @property
@@ -896,6 +902,10 @@ class Field(VariableCollection):
         """
 
         wrap_or_unwrap(self, WrapAction.WRAP, inplace=inplace)
+
+    @classmethod
+    def read(cls, *args, **kwargs):
+        raise NotImplementedError("Use request dataset 'get' method.")
 
     def write(self, *args, **kwargs):
         """See :meth:`ocgis.VariableCollection.write`"""

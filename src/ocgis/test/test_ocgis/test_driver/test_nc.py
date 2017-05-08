@@ -511,6 +511,28 @@ class TestDriverNetcdfCF(TestBase):
         actual = f.dimension_map.get_dimension(DimensionMapKey.X)
         self.assertEqual(actual, ['x'])
 
+    def test_get_dimension_map_with_spatial_mask(self):
+        path = self.get_temporary_file_path('foo.nc')
+        grid = create_gridxy_global()
+        gmask = grid.get_mask(create=True)
+        gmask[1, 1] = True
+        grid.set_mask(gmask)
+        grid.parent.write(path)
+        rd = RequestDataset(path)
+        driver = DriverNetcdfCF(rd)
+        dmap = driver.get_dimension_map(driver.metadata_source)
+        self.assertIsNotNone(dmap.get_spatial_mask())
+        field = rd.get()
+        self.assertEqual(field.grid.get_mask().sum(), 1)
+
+        # Test mask variable is blown away if set to None during a read.
+        rd = RequestDataset(path)
+        rd.dimension_map.set_spatial_mask(None)
+        self.assertIsNone(rd.dimension_map.get_spatial_mask())
+        # rd.dimension_map.pprint()
+        field = rd.get()
+        self.assertIsNone(field.grid.get_mask())
+
     def test_get_dump_report(self):
         d = self.get_drivernetcdf()
         r = d.get_dump_report()

@@ -17,7 +17,7 @@ class DimensionMap(AbstractOcgisObject):
     perform subsetting, link bounds to parent variables, and manage coordinate systems.
     """
 
-    _allowed_entry_keys = (DMK.REALIZATION, DMK.TIME, DMK.LEVEL, DMK.Y, DMK.X, DMK.GEOM, DMK.CRS, DMK.GROUPS)
+    _allowed_entry_keys = DMK.get_entry_keys()
     _allowed_element_keys = (DMK.VARIABLE, DMK.DIMENSION, DMK.BOUNDS, DMK.ATTRS)
 
     def __init__(self):
@@ -154,6 +154,16 @@ class DimensionMap(AbstractOcgisObject):
         except KeyError:
             raise DimensionMapError(DMK.GROUPS, "Group key not found: {}".format(group_key))
 
+    def get_spatial_mask(self):
+        """
+        Get the spatial mask variable name.
+        
+        :rtype: str
+        """
+
+        entry = self._get_entry_(DMK.SPATIAL_MASK)
+        return get_or_create_dict(entry, DMK.VARIABLE, None)
+
     def get_variable(self, entry_key):
         """
         Get the coordinate variable name for the dimension map entry ``entry_key``.
@@ -208,6 +218,31 @@ class DimensionMap(AbstractOcgisObject):
         """
         _ = _get_dmap_group_(self, group_key, create=True, last=dimension_map)
 
+    def set_spatial_mask(self, variable, attrs=None):
+        """
+        Set the spatial mask variable for the dimension map.
+        
+        :param variable: The spatial mask variable.
+        :param dict attrs: Attribute associated with the spatial mask variable.
+        :type variable: :class:`~ocgis.Variable` | :class:`str`
+        """
+
+        default_attrs = DIMENSION_MAP_TEMPLATE[DMK.SPATIAL_MASK][DMK.ATTRS]
+        if attrs is None:
+            attrs = default_attrs
+        else:
+            try:
+                attrs = deepcopy(variable.attrs)
+            except AttributeError:
+                attrs = default_attrs
+            else:
+                attrs.update(default_attrs)
+
+        variable = get_variable_names(variable)[0]
+        entry = self._get_entry_(DMK.SPATIAL_MASK)
+        entry[DMK.VARIABLE] = variable
+        entry[DMK.ATTRS] = attrs
+
     def set_variable(self, entry_key, variable, dimension=None, bounds=None, attrs=None, pos=None, dimensionless=False):
         """
         Set coordinate variable information for ``entry_key``.
@@ -227,6 +262,8 @@ class DimensionMap(AbstractOcgisObject):
         """
         if entry_key == DMK.CRS:
             raise DimensionMapError(entry_key, "Use 'set_crs' to set CRS variable.")
+        elif entry_key == DMK.SPATIAL_MASK:
+            raise DimensionMapError(entry_key, "Use 'set_spatial_mask' to set the spatial mask variable.")
 
         entry = self._get_entry_(entry_key)
 

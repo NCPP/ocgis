@@ -285,6 +285,13 @@ class DriverNetcdfCF(DriverNetcdf):
             ret[DimensionMapKey.CRS] = {DimensionMapKey.VARIABLE: crs_name}
 
         ret = DimensionMap.from_dict(ret)
+
+        # Check for a spatial mask.
+        for varname, var in group_metadata['variables'].items():
+            if 'ocgis_role' in var.get('attrs', {}):
+                if var['attrs']['ocgis_role'] == 'spatial_mask':
+                    ret.set_spatial_mask(varname, attrs=var['attrs'])
+
         return ret
 
     @staticmethod

@@ -135,6 +135,11 @@ class Grid(AbstractSpatialContainer):
             raise ValueError('Grid variables must have dimensions.')
         if abstraction is None:
             raise ValueError('"abstraction" may not be None.')
+        if parent is not None:
+            from ocgis import Field
+            if not isinstance(parent, Field):
+                raise ValueError("'parent' objects must be fields")
+
 
         self._abstraction = None
 
@@ -156,14 +161,16 @@ class Grid(AbstractSpatialContainer):
             self._mask_name = VariableName.SPATIAL_MASK
         else:
             self._mask_name = mask.name
-            self.parent.add_variable(mask)
 
         self._point_name = VariableName.GEOMETRY_POINT
         self._polygon_name = VariableName.GEOMETRY_POLYGON
 
         new_variables = [x, y]
+
         if z is not None:
             new_variables.append(z)
+        if mask is not None:
+            new_variables.append(mask)
         if parent is None:
             from ocgis import Field
             parent = Field(variables=new_variables)
@@ -551,7 +558,7 @@ class Grid(AbstractSpatialContainer):
         if mask_variable is None:
             if create:
                 mask_variable = create_grid_mask_variable(self._mask_name, None, self.dimensions)
-                self.parent.add_variable(mask_variable)
+                self.set_mask(mask_variable)
         if mask_variable is not None:
             ret = mask_variable.get_mask(*args, **kwargs)
             if mask_variable.attrs.get('ocgis_role') != 'spatial_mask':
@@ -581,22 +588,30 @@ class Grid(AbstractSpatialContainer):
 
     def set_mask(self, value, cascade=False):
         """
-        Set the grid's mask from boolean array.
+        Set the grid's mask from boolean array or variable.
         
-        :param value: A mask array having the same shape as the grid.
-        :type value: :class:`numpy.ndarray`
+        :param value: A mask array having the same shape as the grid. This may also be a variable with the same 
+         dimensions.
+        :type value: :class:`numpy.ndarray` | :class:`~ocgis.Variable`
         :param cascade: 
         :return: 
         """
-        mask_variable = self.mask_variable
-        if mask_variable is None:
-            mask_variable = create_grid_mask_variable(self._mask_name, value, self.dimensions)
-            self.parent.add_variable(mask_variable)
+
+        if isinstance(value, Variable):
+            self.parent.add_variable(value, force=True)
+            self._mask_name = value.name
         else:
-            mask_variable.set_mask(value)
+            mask_variable = self.mask_variable
+            if mask_variable is None:
+                mask_variable = create_grid_mask_variable(self._mask_name, value, self.dimensions)
+                self.parent.add_variable(mask_variable)
+            else:
+                mask_variable.set_mask(value)
 
         if cascade:
             grid_set_mask_cascade(self)
+
+        self.parent.dimension_map.set_spatial_mask(self.mask_variable)
 
     def copy(self):
         """

@@ -238,6 +238,10 @@ class AbstractDriver(AbstractOcgisObject):
             # dimension_map[DimensionMapKey.CRS][DimensionMapKey.VARIABLE] = to_add.name
             dimension_map.set_crs(to_add.name)
 
+        # Remove the mask variable if present in the raw dimension map and the source dimension map is set to None.
+        if self.rd.dimension_map.get_spatial_mask() is None and self.dimension_map_raw.get_spatial_mask() is not None:
+            vc.pop(self.dimension_map_raw.get_spatial_mask())
+
         # Convert the raw variable collection to a field.
         kwargs['dimension_map'] = dimension_map
         kwargs[KeywordArgument.FORMAT_TIME] = format_time
@@ -271,6 +275,7 @@ class AbstractDriver(AbstractOcgisObject):
         for dvn in data_variable_names:
             field.append_to_tags(TagName.DATA_VARIABLES, dvn, create=True)
 
+        # Load child fields.
         for child in list(field.children.values()):
             kwargs['vc'] = child
             field.children[child.name] = self.get_field(*args, **kwargs)

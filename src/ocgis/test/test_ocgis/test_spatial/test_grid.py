@@ -132,6 +132,10 @@ class TestGrid(AbstractTestInterface):
             yield ret
 
     def test_init(self):
+        # Test a field is always the parent of a grid.
+        grid = self.get_gridxy()
+        self.assertIsInstance(grid.parent, Field)
+
         crs = WGS84()
         grid = self.get_gridxy(crs=crs)
         self.assertIsInstance(grid, Grid)
@@ -320,7 +324,8 @@ class TestGrid(AbstractTestInterface):
         self.assertEqual(mask.ndim, 2)
         self.assertFalse(np.any(mask))
         self.assertTrue(grid.is_vectorized)
-
+        # grid.parent.dimension_map.pprint()
+        self.assertEqual(grid.parent.dimension_map.get_spatial_mask(), grid.mask_variable.name)
         grid = self.get_gridxy()
         self.assertIsNone(grid.get_mask())
 
@@ -871,7 +876,7 @@ class TestGrid(AbstractTestInterface):
         data_mask[:, :, 3:x.shape[0]] = 1
         data.set_mask(data_mask)
 
-        parent = VariableCollection(variables=[x, y, t, data])
+        parent = Field(variables=[x, y, t, data])
 
         grid = Grid(parent['lon'], parent['lat'], crs=Spherical(), parent=parent)
         desired_y = grid.y.get_value().copy()
@@ -984,8 +989,8 @@ class TestGrid(AbstractTestInterface):
 
         path = self.get_temporary_file_path('foo.nc')
         grid.write(path)
-        # self.ncdump(path)
-        nvc = VariableCollection.read(path)
+        nvc = RequestDataset(path).get()
+        self.assertIsInstance(nvc, Field)
         ngrid = Grid(nvc['x'], nvc['y'], parent=nvc)
         # Mask is not written to coordinate variables.
         for mvar in ngrid.get_member_variables():

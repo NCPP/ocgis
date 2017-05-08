@@ -1011,7 +1011,7 @@ class AbstractTestInterface(TestBase):
                 rhs = np.random.rand(4, 3, 10) * 100
                 rhs = Variable(name='rhs', value=rhs, dimensions=['ydim', 'xdim', 'time'])
 
-                parent = VariableCollection(variables=[tas, rhs])
+                parent = Field(variables=[tas, rhs])
             else:
                 parent = None
 

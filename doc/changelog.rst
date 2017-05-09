@@ -17,7 +17,6 @@ Some changes in ``v2.x`` will break backwards compatbility with ``v1.3.x``. Thes
 * Removed unique dimension identifers (``TID``, ``LID``, etc.) from tabular outputs. Unique geometry identifiers are maintained for foreign key file relationships.
 * Removed ``alias`` parameters and attributes. Aliases are replaced by explicit name parameters (see :ref:`rename_variable <request-dataset>` for example).
 * Changed default unique identifier for no geometry from ``1`` to ``None``.
-* Metadata files no longer written by default. These can be enabled by setting ``add_auxiliary_files`` to ``True``. <tdk:implement or remove from backwards compatibility document>
 * Changed default coordinate system to :class:`~ocgis.crs.Spherical` from :class:`~ocgis.crs.WGS84`. See :ref:`default-coordinate-system` for guidance on OpenClimateGIS coordinate systems.
 * Removed ``headers`` argument from operations. The tabular structure has been streamlined in ``v2.x`` by removing extraneous identifier variables.
 * Removed global unique identifier as a default property of all variable objects. Dataset geometry identifers are now unique within a subset operation.

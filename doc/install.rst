@@ -120,6 +120,7 @@ Package Name   Version URL
 ``numpy``      1.12.1  http://www.numpy.org/
 ``netCDF4``    1.2.7   http://unidata.github.io/netcdf4-python/
 ``gdal``       2.1.3   https://pypi.python.org/pypi/GDAL/
+``pyproj``     1.9.5.1 https://github.com/jswhit/pyproj
 ``shapely``    1.5.17  https://pypi.python.org/pypi/Shapely
 ``fiona``      1.7.6   https://pypi.python.org/pypi/Fiona
 ``six``        1.10.0  https://pypi.python.org/pypi/six

@@ -1679,15 +1679,7 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
         """
 
         to_append = get_variable_names(to_append)
-        try:
-            names = self.get_by_tag(tag)
-        except KeyError:
-            if create:
-                self.create_tag(tag)
-                names = self.get_by_tag(tag)
-            else:
-                raise
-        names = list(get_variable_names(names))
+        names = list(self.get_by_tag(tag, create=create, names_only=True))
 
         for t in to_append:
             if t in names:
@@ -1733,29 +1725,33 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
         else:
             self._tags[tag] = []
 
-    def get_by_tag(self, tag, create=False, strict=False):
+    def get_by_tag(self, tag, create=False, strict=False, names_only=False):
         """
+        Tuple of variable objects that have the ``tag``.
+        
         :param str tag: The tag to retrieve.
         :param bool create: If ``True``, create the tag if it does not exist.
         :param bool strict: If ``True``, raise exception if variable name is not found in collection.
-        :return: Tuple of variable objects that have the ``tag``.
+        :param bool names_only: If ``True``, return names and not variable objects.
         :rtype: tuple(:class:`ocgis.Variable`, ...)
         """
-        try:
-            names = self._tags[tag]
-        except KeyError:
+
+        if tag not in self._tags and create:
             if create:
                 self.create_tag(tag)
-                names = self._tags[tag]
             else:
-                raise
+                raise KeyError("Tag '{}' not found and 'create' is False.".format(tag))
+        names = self._tags[tag]
         ret = []
         for n in names:
-            try:
-                ret.append(self[n])
-            except KeyError:
-                if strict:
-                    raise
+            if names_only:
+                ret.append(n)
+            else:
+                try:
+                    ret.append(self[n])
+                except KeyError:
+                    if strict:
+                        raise
         ret = tuple(ret)
         return ret
 

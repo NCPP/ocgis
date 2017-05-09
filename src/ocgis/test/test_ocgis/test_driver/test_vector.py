@@ -328,6 +328,17 @@ class TestDriverVector(TestBase):
             sub.write(path, write_mode=write_mode, driver=DriverVector)
             self.assertOGRFileLength(path, idx + 1)
 
+    def test_write_variable_collection_different_data_types(self):
+        """Test multiple data types are handled by the shapefile write when melted is True."""
+
+        v_int = Variable(name='an_int', value=[1, 2, 3], dtype=int, dimensions='three')
+        v_flt = Variable(name='a_float', value=[10., 20., 30.], dtype=float, dimensions='three')
+        g = GeometryVariable(name='points', value=[Point(1, 2), Point(3, 4), Point(5, 6)], dimensions='three')
+        field = Field(is_data=[v_int, v_flt], geom=g)
+        self.assertEqual(len(field.data_variables), 2)
+        path = self.get_temporary_file_path('foo.shp')
+        field.write(path, driver='vector', iter_kwargs=dict(melted=True))
+
     @attr('mpi')
     def test_write_variable_collection_parallel(self):
         if MPI_RANK == 0:

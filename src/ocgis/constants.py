@@ -1,8 +1,10 @@
+from collections import OrderedDict
+
 import numpy as np
 
-from ocgis.util.enum import IntEnum
+from ocgis.util.enum import Enum, IntEnum
 
-# : Standard bounds name used when none is available from the input data.
+UNINITIALIZED = -999
 OCGIS_BOUNDS = 'bounds'
 
 #: Default netCDF4 output file type
@@ -14,8 +16,11 @@ DEFAULT_TEMPORAL_CALENDAR = 'standard'
 #: Default temporal units.
 DEFAULT_TEMPORAL_UNITS = 'days since 0001-01-01 00:00:00'
 
+#: Default name for the time dimension.
+DEFAULT_TEMPORAL_NAME = 'time'
+
 #: Default name for coordinate systems in netCDF file if none is provided.
-DEFAULT_COORDINATE_SYSTEM_NAME = 'coordinate_system'
+DEFAULT_COORDINATE_SYSTEM_NAME = 'ocgis_coordinate_system'
 
 #: Default sample size variable standard name.
 DEFAULT_SAMPLE_SIZE_STANDARD_NAME = 'sample_size'
@@ -30,75 +35,56 @@ DEFAULT_NAME_ROW_COORDINATES = 'yc'
 DEFAULT_NAME_COL_COORDINATES = 'xc'
 
 #: Default corners dimension name.
-DEFAULT_NAME_CORNERS_DIMENSION = 'ncorners'
+DEFAULT_NAME_CORNERS_DIMENSION = 'corners'
 
 #: Default rotated pole ellipse for transformation.
 PROJ4_ROTATED_POLE_ELLPS = 'sphere'
 
 
-class HEADERS(object):
-    ID_DATASET = 'did'
-    ID_VARIABLE = 'vid'
-    ID_SELECTION_GEOMETRY = 'ugid'
-    ID_TEMPORAL = 'tid'
-    ID_LEVEL = 'lid'
-    ID_GEOMETRY = 'gid'
-    ID_CALCULATION = 'cid'
+class HeaderName(object):
+    ID_SELECTION_GEOMETRY = 'UGID'
+    ID_GEOMETRY = 'GID'
 
-    VARIABLE = 'variable'
-    VARIABLE_ALIAS = 'alias'
+    REALIZATION = 'RLZ'
 
-    TEMPORAL = 'time'
-    TEMPORAL_YEAR = 'year'
-    TEMPORAL_MONTH = 'month'
-    TEMPORAL_DAY = 'day'
+    VARIABLE = 'VARIABLE'
 
-    LEVEL = 'level'
+    TEMPORAL = 'TIME'
+    TEMPORAL_BOUNDS = ['LB_TIME', 'UB_TIME']
+    TEMPORAL_YEAR = 'YEAR'
+    TEMPORAL_MONTH = 'MONTH'
+    TEMPORAL_DAY = 'DAY'
 
-    VALUE = 'value'
+    LEVEL = 'LEVEL'
+    LEVEL_BOUNDS = ['LB_LEVEL', 'UB_LEVEL']
 
-    CALCULATION_KEY = 'calc_key'
-    CALCULATION_ALIAS = 'calc_alias'
+    VALUE = 'VALUE'
 
+    CALCULATION_KEY = 'CALC_KEY'
+    CALCULATION_SOURCE_VARIABLE = 'SRC_VAR'
 
-#: Standard headers for subset operations.
-HEADERS_RAW = [HEADERS.ID_DATASET, HEADERS.ID_VARIABLE, HEADERS.ID_SELECTION_GEOMETRY, HEADERS.ID_TEMPORAL,
-               HEADERS.ID_LEVEL, HEADERS.ID_GEOMETRY, HEADERS.VARIABLE, HEADERS.VARIABLE_ALIAS, HEADERS.TEMPORAL,
-               HEADERS.TEMPORAL_YEAR, HEADERS.TEMPORAL_MONTH, HEADERS.TEMPORAL_DAY, HEADERS.LEVEL, HEADERS.VALUE]
+    DATASET_IDENTIFER = 'DID'
 
-#: Standard headers for computation.
-HEADERS_CALC = [HEADERS.ID_DATASET, HEADERS.ID_VARIABLE, HEADERS.ID_CALCULATION, HEADERS.ID_SELECTION_GEOMETRY,
-                HEADERS.ID_TEMPORAL, HEADERS.ID_LEVEL, HEADERS.ID_GEOMETRY, HEADERS.VARIABLE, HEADERS.VARIABLE_ALIAS,
-                HEADERS.CALCULATION_KEY, HEADERS.CALCULATION_ALIAS, HEADERS.TEMPORAL, HEADERS.TEMPORAL_YEAR,
-                HEADERS.TEMPORAL_MONTH, HEADERS.TEMPORAL_DAY, HEADERS.LEVEL, HEADERS.VALUE]
-
-#: Standard headers for multivariate calculation.
-HEADERS_MULTI = [HEADERS.ID_DATASET, HEADERS.ID_CALCULATION, HEADERS.ID_SELECTION_GEOMETRY,
-                 HEADERS.ID_TEMPORAL, HEADERS.ID_LEVEL, HEADERS.ID_GEOMETRY, HEADERS.CALCULATION_KEY,
-                 HEADERS.CALCULATION_ALIAS, HEADERS.TEMPORAL, HEADERS.TEMPORAL_YEAR, HEADERS.TEMPORAL_MONTH,
-                 HEADERS.TEMPORAL_DAY, HEADERS.LEVEL, HEADERS.VALUE]
-
-#: Required headers for every request.
-HEADERS_REQUIRED = [HEADERS.ID_DATASET, HEADERS.ID_SELECTION_GEOMETRY, HEADERS.ID_GEOMETRY]
 
 #: Standard name for the unique identifier in GIS files.
-OCGIS_UNIQUE_GEOMETRY_IDENTIFIER = HEADERS.ID_SELECTION_GEOMETRY.upper()
+OCGIS_UNIQUE_GEOMETRY_IDENTIFIER = HeaderName.ID_SELECTION_GEOMETRY.upper()
 
-OUTPUT_FORMAT_CSV = 'csv'
-OUTPUT_FORMAT_CSV_SHAPEFILE = 'csv-shp'
-OUTPUT_FORMAT_CSV_SHAPEFILE_OLD = 'csv+'
-OUTPUT_FORMAT_ESMPY_GRID = 'esmpy'
-OUTPUT_FORMAT_GEOJSON = 'geojson'
-OUTPUT_FORMAT_METADATA_JSON = 'meta-json'
-OUTPUT_FORMAT_METADATA_OCGIS = 'meta-ocgis'
-OUTPUT_FORMAT_NETCDF = 'nc'
-OUTPUT_FORMAT_NETCDF_UGRID_2D_FLEXIBLE_MESH = 'nc-ugrid-2d-flexible-mesh'
-OUTPUT_FORMAT_NUMPY = 'numpy'
-OUTPUT_FORMAT_SHAPEFILE = 'shp'
+
+class OutputFormatName(object):
+    CSV = 'csv'
+    CSV_SHAPEFILE = 'csv-shp'
+    ESMPY_GRID = 'esmpy'
+    GEOJSON = 'geojson'
+    METADATA_JSON = 'meta-json'
+    METADATA_OCGIS = 'meta-ocgis'
+    NETCDF = 'nc'
+    SHAPEFILE = 'shp'
+    OCGIS = 'ocgis'
+
 
 #: These output formats are considered vector output formats affected by operations manipulation vector GIS data. For
 #: example, vector GIS outputs are always wrapped to -180 to 180 if there is a spherical coordinate system.
-VECTOR_OUTPUT_FORMATS = [OUTPUT_FORMAT_GEOJSON, OUTPUT_FORMAT_SHAPEFILE]
+VECTOR_OUTPUT_FORMATS = [OutputFormatName.GEOJSON, OutputFormatName.SHAPEFILE, OutputFormatName.CSV_SHAPEFILE]
 
 # Download URL for test datasets.
 TEST_DATA_DOWNLOAD_PREFIX = None
@@ -131,6 +117,9 @@ MERIDIAN_180TH = 180.
 # The standard key used to identify geometries in a dictionary.
 DEFAULT_GEOMETRY_KEY = 'geom'
 
+# The default string width for Fiona output.
+FIONA_STRING_LENGTH = 50
+
 # Attributes to remove when a value is changed if they are present in the attributes dictionary. These attributes are
 # tuned to specific value ranges and will not apply when a value is changed.
 NETCDF_ATTRIBUTES_TO_REMOVE_ON_VALUE_CHANGE = ('scale_value', 'add_offset', 'actual_range', 'valid_range')
@@ -150,7 +139,34 @@ NAME_UID_FIELD = 'fid'
 # calculation dictionary key defaults
 CALC_KEY_KEYWORDS = 'kwds'
 CALC_KEY_CLASS_REFERENCE = 'ref'
-NAME_UID_FIELD = 'fid'
+
+# Default unique identifier start value.
+DEFAULT_UID_START = 1
+
+
+class DataType(object):
+    DIMENSION_SRC_INDEX = np.int32
+
+
+class AttributeName(object):
+    UNIQUE_GEOMETRY_IDENTIFIER = 'ocgis_geom_uid'
+    ORIGINAL_SPATIAL_BOUNDS = '_ocgis_original_bounds_name'
+
+
+class DimensionName(object):
+    UNIONED_GEOMETRY = 'ocgis_geom_union'
+    GEOMETRY_DIMENSION = 'ocgis_geom'
+    TEMPORAL = 'time'
+
+
+class MiscName(object):
+    DEFAULT_FIELD_NAME = 'ocgis_field'
+
+
+class VariableName(object):
+    SPATIAL_MASK = 'ocgis_spatial_mask'
+    GEOMETRY_POINT = 'ocgis_point'
+    GEOMETRY_POLYGON = 'ocgis_polygon'
 
 
 # Enumerations for wrapped states and actions. #########################################################################
@@ -170,4 +186,194 @@ class WrapAction(IntEnum):
     # Unwrap the data 0 to 360.
     UNWRAP = 2
 
-########################################################################################################################
+
+# Dimension map key names.
+class DimensionMapKey(object):
+    ATTRS = 'attrs'
+    GROUPS = 'groups'
+    X = 'x'
+    Y = 'y'
+    TIME = 'time'
+    REALIZATION = 'realization'
+    CRS = 'crs'
+    BOUNDS = 'bounds'
+    VARIABLE = 'variable'
+    DIMENSION = 'dimension'
+    LEVEL = 'level'
+    GEOM = 'geom'
+    SPATIAL_MASK = 'spatial_mask'
+
+    @classmethod
+    def get_axis_mapping(cls):
+        return dict(R=cls.REALIZATION, T=cls.TIME, Z=cls.LEVEL, Y=cls.Y, X=cls.X)
+
+    @classmethod
+    def get_entry_keys(cls):
+        return cls.REALIZATION, cls.TIME, cls.LEVEL, cls.X, cls.Y, cls.GEOM, cls.CRS, cls.GROUPS, cls.SPATIAL_MASK
+
+
+class DMK(DimensionMapKey):
+    """Here for convenience."""
+
+
+# MPI Writing flags.
+class MPIWriteMode(Enum):
+    NORMAL = 0
+    TEMPLATE = 1
+    FILL = 2
+    WRITE = 0
+    APPEND = 2
+
+
+class TagName(object):
+    DATA_VARIABLES = '_ocgis_data_variables'
+
+
+class KeywordArgument(object):
+    ADD_BOUNDS = 'add_bounds'
+    ADD_GEOM_UID = 'add_geom_uid'
+    ALLOW_MASKED = 'allow_masked'
+    BOUNDS_NAMES = 'bounds_names'
+    CASCADE = 'cascade'
+    COMM = 'comm'
+    CREATE = 'create'
+    CRS = 'crs'
+    DATASET = 'dataset'
+    DIMENSION_MAP = 'dimension_map'
+    DIMENSIONS = 'dimensions'
+    DIR_OUTPUT = 'dir_output'
+    DRIVER = 'driver'
+    EAGER = 'eager'
+    EXCLUDE = 'exclude'
+    FIELD_NAME = 'field_name'
+    FILE_ONLY = 'file_only'
+    FOLLOWERS = 'followers'
+    FORMAT_TIME = 'format_time'
+    GEOM = 'geom'
+    GEOM_TYPE = 'geom_type'
+    GRID = 'grid'
+    GRID_ABSTRACTION = 'grid_abstraction'
+    HEADER_MAP = 'header_map'
+    INIT_VALUE = 'init_value'
+    INPLACE = 'inplace'
+    INTERSECTS_CHECK = 'intersects_check'
+    INVERSE = 'inverse'
+    IS_DATA = 'is_data'
+    IS_EMPTY = 'is_empty'
+    ITER_KWARGS = 'iter_kwargs'
+    KEEP_TOUCHES = 'keep_touches'
+    MASK = 'mask'
+    MELTED = 'melted'
+    NAME = 'name'
+    OPTIMIZED_BBOX_SUBSET = 'optimized_bbox_subset'
+    ORIGINAL_MASK = 'original_mask'
+    OUTPUT_FORMAT = 'output_format'
+    PARENT = 'parent'
+    PATH = 'path'
+    PREFIX = 'prefix'
+    PRIMARY_MASK = 'primary_mask'
+    REPEATERS = 'repeaters'
+    RANKS_TO_WRITE = 'ranks_to_write'
+    REGRID_DESTINATION = 'regrid_destination'
+    REGRID_SOURCE = 'regrid_source'
+    RENAME_VARIABLE = 'rename_variable'
+    RETURN_SLICE = 'return_slice'
+    SNIPPET = 'snippet'
+    STANDARDIZE = 'standardize'
+    STRICT = 'strict'
+    TAG = 'tag'
+    UGID = 'ugid'
+    UID = 'uid'
+    UNLIMITED_TO_FIXED_SIZE = 'unlimited_to_fixedsize'
+    UNION = 'union'
+    UPDATE = 'update'
+    URI = 'uri'
+    USE_BOUNDS = 'use_bounds'
+    VALUE = 'value'
+    VARIABLE = 'variable'
+    VARIABLE_KWARGS = 'variable_kwargs'
+    WITH_PROJ4 = 'with_proj4'
+    # WRAPPED_BBOX = 'wrapped_bbox'
+    WRITE_MODE = 'write_mode'
+    YIELD_BASE = 'yield_base'
+
+    class Defaults(object):
+        IS_DATA = False
+        STANDARDIZE = True
+
+
+class DriverKey(object):
+    BASE = 'base'
+    CSV = 'csv'
+    NETCDF = 'netcdf'
+    NETCDF_CF = 'netcdf-cf'
+    VECTOR = 'vector'
+
+
+class MPITag(IntEnum):
+    BARRIER = 0
+    SCATTER = 1
+    BCAST = 2
+    GATHER = 3
+
+
+class CFName(object):
+    TIME = ('time',)
+    X = ['x', 'xc', 'longitude', 'lon']
+    Y = ['y', 'yc', 'latitude', 'lat']
+    Z = ['z', 'zc', 'level', 'lvl', 'height']
+    UNITS = 'units'
+    STANDARD_NAME = 'standard_name'
+    GRID_MAPPING = 'grid_mapping'
+    AXIS = 'axis'
+
+    @classmethod
+    def get_name_mapping(cls):
+        return {'T': cls.TIME, 'X': cls.X, 'Y': cls.Y, 'Z': cls.Z}
+
+
+class SubcommName(Enum):
+    FIELD_GET = '__ocgis_field_get__'
+    FIELD_SUBSET = '__ocgis_field_subset__'
+    UGEOM_WRITE = '__ocgis_ugeom_write__'
+    NONSPATIAL_SUBSET = '__ocgis_nonspatial_subset__'
+    SPATIAL_AVERAGE = '__ocgis_spatial_average__'
+
+
+class BackTransform(Enum):
+    ROTATED_POLE = 'rotated pole'
+
+
+class OcgisUnits(Enum):
+    DEGREES = 'degrees'
+    RADIANS = 'radians'
+
+
+class ConversionFactor(object):
+    DEG_TO_RAD = np.pi / 180.
+    RAD_TO_DEG = 180. / np.pi
+
+
+MPI_COMM_NULL_VALUE = 8675309
+
+DEFAULT_DRIVER = DriverKey.NETCDF_CF
+
+DIMENSION_MAP_TEMPLATE = OrderedDict()
+DIMENSION_MAP_TEMPLATE[DimensionMapKey.REALIZATION] = {DimensionMapKey.ATTRS: {CFName.AXIS: 'R'},
+                                                       DimensionMapKey.VARIABLE: None, DimensionMapKey.DIMENSION: []}
+DIMENSION_MAP_TEMPLATE[DimensionMapKey.TIME] = {DimensionMapKey.ATTRS: {CFName.AXIS: 'T'},
+                                                DimensionMapKey.VARIABLE: None, DimensionMapKey.BOUNDS: None,
+                                                DimensionMapKey.DIMENSION: []}
+DIMENSION_MAP_TEMPLATE[DimensionMapKey.LEVEL] = {DimensionMapKey.ATTRS: {CFName.AXIS: 'Z'},
+                                                 DimensionMapKey.VARIABLE: None, DimensionMapKey.BOUNDS: None,
+                                                 DimensionMapKey.DIMENSION: []}
+DIMENSION_MAP_TEMPLATE[DimensionMapKey.Y] = {DimensionMapKey.ATTRS: {CFName.AXIS: 'Y'}, DimensionMapKey.VARIABLE: None,
+                                             DimensionMapKey.BOUNDS: None, DimensionMapKey.DIMENSION: []}
+DIMENSION_MAP_TEMPLATE[DimensionMapKey.X] = {DimensionMapKey.ATTRS: {CFName.AXIS: 'X'}, DimensionMapKey.VARIABLE: None,
+                                             DimensionMapKey.BOUNDS: None, DimensionMapKey.DIMENSION: []}
+DIMENSION_MAP_TEMPLATE[DimensionMapKey.GEOM] = {DimensionMapKey.ATTRS: {CFName.AXIS: 'ocgis_geom'},
+                                                DimensionMapKey.VARIABLE: None, DimensionMapKey.DIMENSION: []}
+DIMENSION_MAP_TEMPLATE[DimensionMapKey.CRS] = {DimensionMapKey.VARIABLE: None}
+DIMENSION_MAP_TEMPLATE[DimensionMapKey.SPATIAL_MASK] = {DimensionMapKey.VARIABLE: None,
+                                                        DimensionMapKey.ATTRS: {'ocgis_role': 'spatial_mask',
+                                                                                'description': 'values matching fill value are spatially masked'}}

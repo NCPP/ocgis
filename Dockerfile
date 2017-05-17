@@ -4,15 +4,13 @@ MAINTAINER ben.koziol@gmail.com
 
 RUN apt-get -y update
 RUN apt-get -y upgrade
-#RUN apt-get -y install build-essential \
-#                       gfortran
 RUN apt-get clean
 
 RUN conda update -y --all
-RUN conda install -y -c nesii -c conda-forge ocgis esmpy=7.0.0 icclim=4.2.5 nose
 
+RUN conda install -y -c nesii/channel/dev-ocgis -c conda-forge ocgis=2.0.0 esmpy=7.0.0 icclim=4.2.5 nose
 RUN conda remove -y ocgis
-RUN git clone --depth=1 https://github.com/NCPP/ocgis.git
+RUN git clone -b v-2.0.0.dev1 --depth=1 https://github.com/NCPP/ocgis.git
 RUN cd ocgis && python setup.py install
 
 ENV GDAL_DATA /opt/conda/share/gdal

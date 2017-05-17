@@ -5,17 +5,27 @@ from collections import OrderedDict
 from copy import deepcopy
 
 import numpy as np
+import six
+from six.moves import zip_longest
 
 from ocgis import constants
 from ocgis import env
+from ocgis.base import get_variables, get_dimension_names, AbstractOcgisObject
+from ocgis.constants import TagName, DimensionMapKey, HeaderName
 from ocgis.exc import SampleSizeNotImplemented, DefinitionValidationError, UnitsValidationError
-from ocgis.interface.base.variable import DerivedVariable, VariableCollection
-from ocgis.util.helpers import get_default_or_apply
+from ocgis.util.conformer import conform_array_by_dimension_names
+from ocgis.util.helpers import get_default_or_apply, get_iter
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.util.units import get_are_units_equal_by_string_or_cfunits
+from ocgis.variable.base import Variable, VariableCollection
+
+# Standard dimension order for data arrays.
+STANDARD_DIMENSIONS = (DimensionMapKey.REALIZATION, DimensionMapKey.TIME, DimensionMapKey.LEVEL,
+                       DimensionMapKey.Y, DimensionMapKey.X)
 
 
-class AbstractFunction(object):
+@six.add_metaclass(abc.ABCMeta)
+class AbstractFunction(AbstractOcgisObject):
     """
     Required class attributes to overload:
 
@@ -41,18 +51,12 @@ class AbstractFunction(object):
     :type parms: dict
     :param tgd: An instance of :class:`ocgis.interface.base.dimension.temporal.TemporalGroupDimension`.
     :type tgd: :class:`ocgis.interface.base.dimension.temporal.TemporalGroupDimension`
-    :param use_raw_values: If ``True``, calculation is performed on raw values from an aggregated data request. This
-     requires the execution of :func:`ocgis.calc.base.OcgFunction.aggregate_spatial` to aggregate the calculations on
-     individual data cells.
-    :type agg: bool
     :param calc_sample_size: If ``True``, also compute sample sizes for the calculation.
     :type calc_sample_size: bool
     :param meta_attrs: Contains overloads for variable and/or field attribute values.
-    :type meta_attrs: :class:`ocgis.api.parms.definition_helpers.MetadataAttributes`
-    :param bool add_parents: If ``True``, maintain parent variables following a calculation.
+    :type meta_attrs: :class:`ocgis.driver.parms.definition_helpers.MetadataAttributes`
+    :param str tag: The tag to use for variable iteration on the source field (the source variables for calculation).
     """
-
-    __metaclass__ = abc.ABCMeta
 
     @abc.abstractproperty
     def description(self):
@@ -64,7 +68,7 @@ class AbstractFunction(object):
     def key(self):
         pass
 
-    # : The calculation's long name.
+    #: The calculation's long name.
     @abc.abstractproperty
     def long_name(self):
         pass
@@ -78,7 +82,7 @@ class AbstractFunction(object):
     dtype_default = 'float'
 
     #: The calculation's output units. Modify :meth:`get_output_units` for more complex units calculations. If the units
-    #: are left as the default '_input' then the input variable units are maintained. Otherwise, they will be set to
+    #: are left as the default '_input_' then the input variable units are maintained. Otherwise, they will be set to
     #: units attribute value. The string flag is used to allow ``None`` units to be applied.
     units = '_input_'
 
@@ -86,9 +90,13 @@ class AbstractFunction(object):
     _empty_fill = {'fill': None, 'sample_size': None}
 
     def __init__(self, alias=None, dtype=None, field=None, file_only=False, vc=None, parms=None, tgd=None,
-                 use_raw_values=False, calc_sample_size=False, fill_value=None, meta_attrs=None, add_parents=False):
+                 calc_sample_size=False, fill_value=None, meta_attrs=None, tag=TagName.DATA_VARIABLES,
+                 spatial_aggregation=False):
 
-        self._dtype = self.get_dtype(overload=dtype)
+        self._curr_variable = None
+        self._current_conformed_array = None
+        self._dtype = dtype
+
         self.alias = alias or self.key
         self.fill_value = fill_value
         self.vc = vc or VariableCollection()
@@ -96,10 +104,10 @@ class AbstractFunction(object):
         self.file_only = file_only
         self.parms = get_default_or_apply(parms, self._format_parms_, default={})
         self.tgd = tgd
-        self.use_raw_values = use_raw_values
         self.calc_sample_size = calc_sample_size
         self.meta_attrs = deepcopy(meta_attrs)
-        self.add_parents = add_parents
+        self.tag = tag
+        self.spatial_aggregation = spatial_aggregation
 
     @property
     def dtype(self):
@@ -107,8 +115,7 @@ class AbstractFunction(object):
 
     def aggregate_spatial(self, values, weights):
         """
-        Optional method to overload the method for spatial aggregation.
-
+        Optional method overload for spatial aggregation.
         :param values: The input array with dimensions `(m, n)`.
         :type values: :class:`numpy.ma.core.MaskedArray`
         :param weights: The input weights array with dimension matching ``value``.
@@ -157,25 +164,84 @@ class AbstractFunction(object):
         return self.vc
 
     @classmethod
-    def get_dtype(cls, overload=None):
+    def get_default_dtype(cls):
         """
-        :param overload: The overload is always returned by the function if it is provided.
-        :type overload: type
         :returns: The data type for the calculation.
         :rtype: type
         """
 
-        if overload is None:
-            cls_dtype = cls.dtype_default
-            if cls_dtype == 'int':
-                ret = env.NP_INT
-            elif cls_dtype == 'float':
-                ret = env.NP_FLOAT
-            else:
-                ret = cls_dtype
+        cls_dtype = cls.dtype_default
+        if cls_dtype == 'int':
+            ret = env.NP_INT
+        elif cls_dtype == 'float':
+            ret = env.NP_FLOAT
         else:
-            ret = overload
+            ret = cls_dtype
+
         return ret
+
+    def get_fill_variable(self, archetype, name, dimensions, file_only=False, dtype=None, add_repeat_record=True,
+                          add_repeat_record_archetype_name=True, variable_value=None):
+        """
+        Initialize a return variable for a calculation.
+
+        :param archetype: An archetypical variable to use for the creation of the output variable.
+        :type archetype: :class:`ocgis.Variable`
+        :param str name: Name of the output variable.
+        :param dimensions: Dimension tuple for the variable creation. The dimensions from `archetype` or not used
+         because output dimensions are often different. Temporal grouping is an example of this.
+        :type dimensions: tuple(:class:`ocgis.Dimension`, ...)
+        :param bool file_only: If `True`, this is a file-only operation and no value should be allocated.
+        :param type dtype: The data type for the output variable.
+        :param bool add_repeat_record: If `True`, add a repeat record to the variable containing the calculation key.
+        :param add_repeat_record_archetype_name: If `True`, add the `archetype` name repeat record.
+        :param variable_value: If not `None`, use this as the variable value during initialization.
+        :return: :class:`ocgis.Variable`
+        """
+        # If a default data type was provided at initialization, use this value otherwise use the data type from the
+        # input value.
+        if dtype is None:
+            if self.dtype is None:
+                dtype = archetype.dtype
+            else:
+                dtype = self.get_default_dtype()
+
+        if self.fill_value is None:
+            fill_value = archetype.fill_value
+        else:
+            fill_value = self.fill_value
+
+        attrs = OrderedDict()
+        attrs['standard_name'] = self.standard_name
+        attrs['long_name'] = self.long_name
+        units = self.get_output_units(archetype)
+
+        if add_repeat_record:
+            repeat_record = [(HeaderName.CALCULATION_KEY, self.key)]
+            if add_repeat_record_archetype_name:
+                repeat_record.append((HeaderName.CALCULATION_SOURCE_VARIABLE, archetype.name))
+        else:
+            repeat_record = None
+
+        fill = Variable(name=name, dimensions=dimensions, dtype=dtype, fill_value=fill_value, attrs=attrs, units=units,
+                        repeat_record=repeat_record, value=variable_value)
+
+        if not file_only and variable_value is None:
+            fill.allocate_value()
+
+        return fill
+
+    @staticmethod
+    def get_fill_sample_size_variable(archetype, file_only):
+        attrs = OrderedDict()
+        attrs['standard_name'] = constants.DEFAULT_SAMPLE_SIZE_STANDARD_NAME
+        attrs['long_name'] = constants.DEFAULT_SAMPLE_SIZE_LONG_NAME
+        fill_sample_size = Variable(name='n_{}'.format(archetype.name), dimensions=archetype.dimensions,
+                                    attrs=attrs, dtype=np.int32)
+        if not file_only:
+            fill_sample_size.allocate_value()
+
+        return fill_sample_size
 
     def get_function_definition(self):
         """
@@ -211,9 +277,12 @@ class AbstractFunction(object):
         """
 
         to_sum = np.invert(values.mask)
-        return np.ma.sum(to_sum, axis=0)
+        ret = np.ma.sum(to_sum, axis=0)
+        ret = np.ma.array(ret, mask=values.mask[0, :, :])
+        return ret
 
-    def get_variable_value(self, variable):
+    @staticmethod
+    def get_variable_value(variable):
         """
         Select the appropriate value to use for the calculation. This will return the raw or aggregated values. If the
         data is not spatially aggregated, then this will have no effect.
@@ -222,16 +291,34 @@ class AbstractFunction(object):
         :rtype: :class:`numpy.ma.core.MaskedArray`
         """
 
-        # raw values are to be used by the calculation. if this is True, and no raw field is associated with the input
-        # field, then use the standard value.
-        if self.use_raw_values:
-            if self.field._raw is None:
-                ret = variable.value
-            else:
-                ret = self.field._raw.variables[variable.alias].value
+        return variable.get_masked_value()
+
+    def iter_calculation_targets(self, variable_names=None, yield_calculation_name=True, validate_units=True):
+        if variable_names is None:
+            seq = list(self.field.get_by_tag(self.tag))
         else:
-            ret = variable.value
-        return ret
+            seq = get_variables(variable_names, self.field)
+
+        if len(seq) == 0:
+            raise ValueError('No data variables available on the field.')
+
+        for variable in seq:
+            if validate_units:
+                self.validate_units(variable)
+            self._curr_variable = variable
+            if yield_calculation_name:
+                # Append the variable to the calculation if there are more than one to calculate across.
+                if len(seq) > 1:
+                    calculation_name = '{}_{}'.format(self.alias, variable.name)
+                else:
+                    calculation_name = self.alias
+            else:
+                calculation_name = None
+
+            if yield_calculation_name:
+                yield variable, calculation_name
+            else:
+                yield variable
 
     def set_field_metadata(self):
         """
@@ -252,7 +339,7 @@ class AbstractFunction(object):
         """
         Optional method to overload that validates the input :class:`ocgis.OcgOperations`.
 
-        :type ops: :class:`ocgis.api.operations.OcgOperations`
+        :type ops: :class:`ocgis.driver.operations.OcgOperations`
         :raises: :class:`ocgis.exc.DefinitionValidationError`
         """
 
@@ -262,15 +349,14 @@ class AbstractFunction(object):
         Method to validate calculation definitions passed to operations.
 
         :param dict definition: The dictionary definition for the function as returned from
-         :attr:`~ocgis.api.parms.definition.Calc.value`.
+         :attr:`~ocgis.driver.parms.definition.Calc.value`.
         :raises: :class:`ocgis.exc.DefinitionValidationError`
         """
 
     def validate_units(self, *args, **kwargs):
         """Optional method to overload for units validation at the calculation level."""
 
-    def _add_to_collection_(self, units=None, value=None, parent_variables=None, alias=None, dtype=None,
-                            fill_value=None):
+    def _add_to_collection_(self, value):
         """
         :param str units: The units for the derived variable.
 
@@ -295,43 +381,8 @@ class AbstractFunction(object):
         :param type dtype: The type of the derived variable.
         :param fill_value: The mask fill value of the derived variable.
         """
-
-        # dtype should come in with each new variable
-        assert dtype is not None
-        # if there is no fill value, use the default for the data type
-        if fill_value is None:
-            fill_value = np.ma.array([], dtype=dtype).fill_value
-
-        # the value parameters should come in as a dictionary with two keys
-        if isinstance(value, dict):
-            fill = value['fill']
-            sample_size = value['sample_size']
-        # some computations will just pass the array without the sample size if _get_temporal_agg_fill_ is bypassed.
-        else:
-            fill = value
-            sample_size = None
-
-        alias = alias or self.alias
-        fdef = self.get_function_definition()
-
-        attrs = OrderedDict()
-        attrs['standard_name'] = self.standard_name
-        attrs['long_name'] = self.long_name
-
-        if self.add_parents:
-            parents = VariableCollection(variables=parent_variables)
-        else:
-            parents = None
-
-        # if the operation is file only, creating a variable with an empty value will raise an exception. pass a dummy
-        # data source because even if the value is trying to be loaded it should not be accessible!
-        if self.file_only:
-            data = 'foo_data_source'
-        else:
-            data = None
-
-        dv = DerivedVariable(name=self.key, alias=alias, units=units, value=fill, fdef=fdef, parents=parents,
-                             request_dataset=data, dtype=dtype, fill_value=fill_value, attrs=attrs)
+        dv = value['fill']
+        sample_size = value.get('sample_size', None)
 
         # allow more complex manipulations of metadata
         self.set_variable_metadata(dv)
@@ -339,18 +390,11 @@ class AbstractFunction(object):
         if self.meta_attrs is not None:
             dv.attrs.update(self.meta_attrs.value['variable'])
             self.field.attrs.update(self.meta_attrs.value['field'])
-        # add the variable to the variable collection
-        self._set_derived_variable_alias_(dv, parent_variables)
         self.vc.add_variable(dv)
 
         # add the sample size if it is present in the fill dictionary
         if sample_size is not None:
-            attrs = OrderedDict()
-            attrs['standard_name'] = constants.DEFAULT_SAMPLE_SIZE_STANDARD_NAME
-            attrs['long_name'] = constants.DEFAULT_SAMPLE_SIZE_LONG_NAME
-            dv = DerivedVariable(name=None, alias='n_' + dv.alias, units=None, value=sample_size, fdef=None,
-                                 parents=parents, dtype=np.int32, fill_value=fill_value, attrs=attrs)
-            self.vc.add_variable(dv)
+            self.vc.add_variable(sample_size)
 
     @abc.abstractmethod
     def _execute_(self):
@@ -359,100 +403,157 @@ class AbstractFunction(object):
     def _format_parms_(self, values):
         return values
 
+    def _get_dimension_crosswalk_(self, variable):
+        crosswalk = []
+        for dim in variable.dimensions:
+            found = False
+            for k in STANDARD_DIMENSIONS:
+                dmap_variable = self.field.dimension_map.get_variable(k)
+                if dmap_variable is not None:
+                    dmap_variable_dimensions = self.field.dimension_map.get_dimension(k)
+                    if dim.name in dmap_variable_dimensions:
+                        crosswalk.append(k)
+                        found = True
+                        break
+            if not found:
+                crosswalk.append(dim.name)
+
+        return crosswalk
+
+    def _get_extra_indices_itr_and_src_names_(self, crosswalk, variable_shape):
+        extra = [dn for dn in crosswalk if dn not in STANDARD_DIMENSIONS]
+        extra = {e: {'index': crosswalk.index(e)} for e in extra}
+        for v in list(extra.values()):
+            v['size'] = variable_shape[v['index']]
+
+        # Remove the extra dimensions. The only dimension names remaining are standard field names.
+        src_names_extra_removed = [dn for dn in crosswalk if dn not in extra]
+        # Handles extra dimensions in the outer loop.
+        izl = [zip_longest([v['index']], list(range(v['size'])), fillvalue=v['index']) for v in
+               list(extra.values())]
+        itr = itertools.product(*izl)
+        return itr, src_names_extra_removed
+
     def _get_parms_(self):
         return self.parms
 
-    def _get_slice_and_calculation_(self, f, ir, il, parms, value=None):
-        # subset the values by the current temporal group
-        values = value[ir, self._curr_group, il, :, :]
-        # only 3-d data should be sent to the temporal aggregation method
-        assert len(values.shape) == 3
-        # execute the temporal aggregation or calculation
-        cc = f(values, **parms)
-        return cc, values
+    def _get_temporal_agg_fill_(self, variable, name, file_only, f=None, parms=None,
+                                add_repeat_record_archetype_name=True):
+        # Depending on the computational class we may be just aggregating temporally or actually executing the
+        # calculation.
+        f = f or self.calculate
 
-    def _get_temporal_agg_fill_(self, value=None, f=None, parms=None, shp_fill=None):
-        # if a default data type was provided at initialization, use this value otherwise use the data type from the
-        # input value.
-        if self.dtype is None:
-            dtype = value.dtype
-        else:
-            dtype = self.dtype
+        # Allow parameter overloading.
+        parms = parms or self.parms
 
-        # if no shape is provided for the fill array, create it.
-        if shp_fill is None:
-            shp_fill = list(self.field.shape)
-            shp_fill[1] = len(self.tgd.dgroups)
-        fill = np.ma.array(np.zeros(shp_fill, dtype=dtype))
+        # Variable dimension names remapped to standard field dimension names.
+        crosswalk = self._get_dimension_crosswalk_(variable)
 
-        # this array holds output from the sample size computations
+        # Create the fill variable.
+        time_axis = crosswalk.index(DimensionMapKey.TIME)
+        fill_dimensions = list(variable.dimensions)
+        fill_dimensions[time_axis] = self.tgd.dimensions[0]
+        fill = self.get_fill_variable(variable, name, fill_dimensions, file_only,
+                                      add_repeat_record_archetype_name=add_repeat_record_archetype_name)
+
+        # Create the sample size variable.
         if self.calc_sample_size:
-            fill_sample_size = np.ma.zeros(fill.shape, dtype=np.int32)
+            fill_sample_size = self.get_fill_sample_size_variable(fill, file_only)
         else:
             fill_sample_size = None
 
-        # reference the weights if we are using raw values for the calculations and the data is spatially aggregated.
-        if self.use_raw_values and self.field._raw is not None:
-            weights = self.field._raw.spatial.weights
-
-        # this is a bit confusing. depending on the computational class we may be just aggregating temporally or
-        # actually executing the calculation.
-        f = f or self.calculate
-
-        # choose the constructor parms or those passed to the method directly.
-        parms = parms or self.parms
-
-        for ir, it, il in itertools.product(*(range(s) for s in fill.shape[0:3])):
-
-            # reference for the current iteration group used by some computations
-            self._curr_group = self.tgd.dgroups[it]
-
-            cc, values = self._get_slice_and_calculation_(f, ir, il, parms, value=value)
-
-            # compute the sample size of the computation if requested
+        if not file_only:
+            # Get value arrays.
+            arr = self.get_variable_value(variable)
+            arr_fill = self.get_variable_value(fill)
             if self.calc_sample_size:
-                sample_size = self.get_sample_size(values)
-                assert (len(sample_size.shape) == 2)
-                sample_size = sample_size.reshape(1, 1, 1, sample_size.shape[0], sample_size.shape[1])
+                arr_fill_sample_size = self.get_variable_value(fill_sample_size)
             else:
-                sample_size = None
+                arr_fill_sample_size = None
 
-            # temporal aggregation / calculation should reduce the data to only its spatial dimensions
-            assert (len(cc.shape) == 2)
-            # resize the data back to 5 dimensions
-            cc = cc.reshape(1, 1, 1, cc.shape[0], cc.shape[1])
-
-            # put the data in the fill array
-            try:
-                fill[ir, it, il, :, :] = cc
-                if self.calc_sample_size:
-                    fill_sample_size[ir, it, il, :, :] = sample_size
-            # if it doesn't fit, check if we need to spatially aggregate
-            except ValueError as e:
-                if self.use_raw_values:
-                    fill[ir, it, il, :, :] = self.aggregate_spatial(cc, weights)
-                    if self.calc_sample_size:
-                        fill_sample_size[ir, it, il, :, :] = self.aggregate_spatial(sample_size, weights)
+            # Extra dimensions are not standard field dimensions.
+            for yld in self._iter_conformed_arrays_(crosswalk, variable.shape, arr, arr_fill, arr_fill_sample_size):
+                if not self.calc_sample_size:
+                    carr, carr_fill = yld
+                    carr_fill_sample_size = None
                 else:
-                    ocgis_lh(exc=e, logger='calc.base')
+                    carr, carr_fill, carr_fill_sample_size = yld
 
-        # we need to transfer the data mask from the fill to the sample size
-        if self.calc_sample_size:
-            fill_sample_size.mask = fill.mask.copy()
+                # Some variables need access to the entire 5d conformed array.
+                self._current_conformed_array = carr
+
+                # Standard field dimension iterators.
+                standard_itrs = [list(range(carr.shape[ii])) for ii in [0, 2]]
+                standard_itrs.append(list(range(self.tgd.shape[0])))
+
+                # Execute the calculation.
+                for ir, il, it in itertools.product(*standard_itrs):
+                    self._curr_group = self.tgd.dgroups[it]
+                    calculation_value = carr[ir, self._curr_group, il, :, :]
+                    assert calculation_value.ndim == 3
+                    res = f(calculation_value, **parms)
+                    if self.spatial_aggregation:
+                        # Weights are not currently conformed so should not be used.
+                        res = self.aggregate_spatial(res, None)
+                        carr_fill.data[ir, it, il, :, :] = res
+                    else:
+                        try:
+                            carr_fill.data[ir, it, il, :, :] = res.data
+                        except ValueError:
+                            if not hasattr(res, 'mask'):
+                                raise ValueError('Array return from calculation is not a masked array.')
+                        else:
+                            carr_fill.mask[ir, it, il, :, :] = res.mask
+
+                    if self.calc_sample_size:
+                        ss = self.get_sample_size(calculation_value)
+                        carr_fill_sample_size.data[ir, it, il, :, :] = ss.data
+                        carr_fill_sample_size.mask[ir, it, il, :, :] = ss.mask
+
+            # Setting the values ensures the mask is updated on the output variables.
+            fill.set_value(arr_fill)
+            if self.calc_sample_size:
+                fill_sample_size.set_value(arr_fill_sample_size)
+                fill_sample_size.set_mask(fill.get_mask())
 
         return {'fill': fill, 'sample_size': fill_sample_size}
 
-    def _get_or_pass_spatial_agg_fill_(self, values):
-        # determine if the output data needs to be spatially aggregated
-        if self.use_raw_values and values.shape != self.field.shape:
-            ret = np.ma.array(np.zeros(self.field.shape, dtype=values.dtype), mask=False, fill_value=values.fill_value)
-            weights = self.field._raw.spatial.weights
-            r_aggregate_spatial = self.aggregate_spatial
-            for ir, it, il in itertools.product(*[range(i) for i in self.field.shape[0:3]]):
-                ret[ir, it, il, 0, 0] = r_aggregate_spatial(values[ir, it, il, :, :], weights=weights)
+    def _iter_conformed_arrays_(self, crosswalk, variable_shape, arr, arr_fill, arr_fill_sample_size):
+        # Allow sample size array to be set to None.
+        if arr_fill_sample_size is None:
+            calc_sample_size = False
         else:
-            ret = values
-        return ret
+            calc_sample_size = self.calc_sample_size
+
+        itr_extra_indices, src_names_extra_removed = self._get_extra_indices_itr_and_src_names_(crosswalk,
+                                                                                                variable_shape)
+
+        # Loop for the extra dimensions.
+        for indices in itr_extra_indices:
+            # Slice for the extra dimensions.
+            slc = [slice(None)] * arr.ndim
+            for ii in indices:
+                slc[ii[0]] = ii[1]
+            extras_removed = arr.__getitem__(slc)
+            extras_removed_fill = arr_fill.__getitem__(slc)
+            if calc_sample_size:
+                extras_removed_fill_sample_size = arr_fill_sample_size.__getitem__(slc)
+
+            # Swap axes for the calculation values, the fill array for the calculation result, and (potentially) the
+            # sample size.
+            carr, carr_fill = [conform_array_by_dimension_names(t, src_names_extra_removed, STANDARD_DIMENSIONS)
+                               for t in [extras_removed, extras_removed_fill]]
+            if calc_sample_size:
+                carr_fill_sample_size = conform_array_by_dimension_names(extras_removed_fill_sample_size,
+                                                                         src_names_extra_removed,
+                                                                         STANDARD_DIMENSIONS)
+
+            if not calc_sample_size:
+                yld = (carr, carr_fill)
+            else:
+                yld = (carr, carr_fill, carr_fill_sample_size)
+
+            yield yld
 
     def _set_derived_variable_alias_(self, dv, parent_variables):
         """
@@ -466,62 +567,100 @@ class AbstractFunction(object):
             ocgis_lh(logger='calc.base', level=logging.WARNING, msg=msg)
 
 
+@six.add_metaclass(abc.ABCMeta)
+class AbstractFieldFunction(AbstractFunction):
+    @abc.abstractmethod
+    def calculate(self, **kwargs):
+        """
+        Add variables to the internal variable collection. These variables will be treated as data variables in the
+        output field. Clients are responsible for creating well-formed variables with appropriate units, etc. as this
+        function type bypasses most output variable preparation steps.
+
+        :param kwargs: Typically keyword arguments to multivariate and/or parameterized functions.
+        """
+
+    def _execute_(self):
+        return self.calculate(**self.parms)
+
+
+@six.add_metaclass(abc.ABCMeta)
 class AbstractUnivariateFunction(AbstractFunction):
     """
     Base class for functions accepting a single univariate input.
     """
 
-    __metaclass__ = abc.ABCMeta
+    # Some calculations use a temporal group dimension but do not want any temporal aggregation to occur after the
+    # calculation.
+    should_temporally_aggregate = True
     #: Optional sequence of acceptable string units definitions for input variables. If this is set to ``None``, no unit
     #: validation will occur.
     required_units = None
 
+    def __init__(self, *args, **kwargs):
+        super(AbstractUnivariateFunction, self).__init__(*args, **kwargs)
+
+        if self.calc_sample_size and self.tgd is None:
+            msg = 'Sample sizes not relevant for scalar transforms with no temporal grouping. Setting to False.'
+            ocgis_lh(msg=msg, logger='calc.base', level=logging.WARN)
+            self.calc_sample_size = False
+
     def validate_units(self, variable):
         if self.required_units is not None:
-            matches = [get_are_units_equal_by_string_or_cfunits(variable.units, target, try_cfunits=True) \
+            matches = [get_are_units_equal_by_string_or_cfunits(variable.units, target, try_cfunits=env.USE_CFUNITS) \
                        for target in self.required_units]
             if not any(matches):
-                raise (UnitsValidationError(variable, self.required_units, self.key))
+                raise UnitsValidationError(variable, self.required_units, self.key)
 
     def _execute_(self):
-        for variable in self.field.variables.itervalues():
+        for variable, calculation_name in self.iter_calculation_targets():
+            crosswalk = self._get_dimension_crosswalk_(variable)
 
-            self.validate_units(variable)
+            fill_dimensions = variable.dimensions
+            # Some calculations introduce a temporal group dimension during initialization and perform the temporal
+            # aggregation implicit to the function.
+            if self.tgd is not None and not self.should_temporally_aggregate:
+                time_dimension_name = self.field.time.dimensions[0].name
+                dimension_name = get_dimension_names(fill_dimensions)
+                time_index = dimension_name.index(time_dimension_name)
+                fill_dimensions = list(variable.dimensions)
+                fill_dimensions[time_index] = self.tgd.dimensions[0]
 
-            if self.file_only:
-                fill = self._empty_fill
+            fill = self.get_fill_variable(variable, calculation_name, fill_dimensions, self.file_only)
+
+            if not self.file_only:
+                arr = self.get_variable_value(variable)
+                arr_fill = self.get_variable_value(fill)
+
+                for yld in self._iter_conformed_arrays_(crosswalk, variable.shape, arr, arr_fill, None):
+                    carr, carr_fill = yld
+                    res_calculation = self.calculate(carr, **self.parms)
+                    carr_fill.data[:] = res_calculation.data
+                    carr_fill.mask[:] = res_calculation.mask
+
+                # Setting the values ensures the mask is updated on the output variables.
+                fill.set_value(arr_fill)
+
+            if self.tgd is not None and self.should_temporally_aggregate:
+                fill = self._get_temporal_agg_fill_(fill, calculation_name, self.file_only, f=self.aggregate_temporal,
+                                                    parms={})
             else:
-                fill = self.calculate(variable.value, **self.parms)
+                fill = {'fill': fill}
 
-            dtype = self.dtype or variable.dtype
-            if not self.file_only:
-                if dtype != fill.dtype:
-                    fill = fill.astype(dtype)
-                assert (fill.shape == self.field.shape)
-
-            if not self.file_only:
-                if self.tgd is not None:
-                    fill = self._get_temporal_agg_fill_(fill, f=self.aggregate_temporal, parms={})
-                else:
-                    if self.calc_sample_size:
-                        msg = 'Sample sizes not relevant for scalar transforms.'
-                        ocgis_lh(msg=msg, logger='calc.base', level=logging.WARN)
-                    fill = self._get_or_pass_spatial_agg_fill_(fill)
-
-            units = self.get_output_units(variable)
-
-            self._add_to_collection_(value=fill, parent_variables=[variable], dtype=self.dtype,
-                                     fill_value=self.fill_value, units=units)
+            self._add_to_collection_(fill)
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractParameterizedFunction(AbstractFunction):
     """
     Base class for functions accepting parameters.
     """
-    __metaclass__ = abc.ABCMeta
 
     #: Set to a tuple containing keys of required parameters. The keys correspond to keys in ``parms_definition``.
     parms_required = None
+
+    def __init__(self, **kwargs):
+        super(AbstractParameterizedFunction, self).__init__(**kwargs)
+        self.parms = self._format_parms_(self.parms)
 
     @abc.abstractproperty
     def parms_definition(self):
@@ -538,7 +677,7 @@ class AbstractParameterizedFunction(AbstractFunction):
         AbstractFunction.validate_definition(definition)
 
         assert isinstance(definition, dict)
-        from ocgis.api.parms.definition import Calc
+        from ocgis.ops.parms.definition import Calc
 
         key = constants.CALC_KEY_KEYWORDS
         if key not in definition:
@@ -556,7 +695,7 @@ class AbstractParameterizedFunction(AbstractFunction):
                 for r in required:
                     kwds.pop(r, None)
 
-            if not set(kwds.keys()).issubset(cls.parms_definition.keys()):
+            if not set(kwds.keys()).issubset(list(cls.parms_definition.keys())):
                 msg = 'Keyword arguments incorrect. Correct keyword arguments are: {0}'.format(cls.parms_definition)
                 raise DefinitionValidationError(Calc, msg)
 
@@ -573,7 +712,7 @@ class AbstractParameterizedFunction(AbstractFunction):
         """
 
         ret = {}
-        for k, v in values.iteritems():
+        for k, v in values.items():
             try:
                 if isinstance(v, self.parms_definition[k]):
                     formatted = v
@@ -595,12 +734,11 @@ class AbstractParameterizedFunction(AbstractFunction):
         return ret
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractUnivariateSetFunction(AbstractUnivariateFunction):
     """
     Base class for functions operating on a single variable but always reducing input data along the time dimension.
     """
-
-    __metaclass__ = abc.ABCMeta
 
     def aggregate_temporal(self, *args, **kwargs):
         """
@@ -610,42 +748,26 @@ class AbstractUnivariateSetFunction(AbstractUnivariateFunction):
         raise NotImplementedError('aggregation implicit to calculate method')
 
     def _execute_(self):
-        shp_fill = list(self.field.shape)
-        shp_fill[1] = len(self.tgd.dgroups)
-        for variable in self.field.variables.itervalues():
-
-            self.validate_units(variable)
-
-            if self.file_only:
-                fill = self._empty_fill
-            else:
-                # some calculations need information from the current variable iteration
-                self._curr_variable = variable
-                # return the value from the variable
-                value = self.get_variable_value(variable)
-                # execute the calculations
-                fill = self._get_temporal_agg_fill_(value, shp_fill=shp_fill)
-            # get the variable's output units
-            units = self.get_output_units(variable)
-            # add the output to the variable collection
-            self._add_to_collection_(value=fill, parent_variables=[variable], dtype=self.dtype,
-                                     fill_value=self.fill_value, units=units)
+        for variable, calculation_name in self.iter_calculation_targets():
+            # These executes a calculation with a temporal aggregation.
+            fill = self._get_temporal_agg_fill_(variable, calculation_name, self.file_only)
+            # Add the output to the variable collection
+            self._add_to_collection_(value=fill)
 
     @classmethod
     def validate(cls, ops):
         if ops.calc_grouping is None:
-            from ocgis.api.parms.definition import Calc
+            from ocgis.ops.parms.definition import Calc
 
             msg = 'Set functions must have a temporal grouping.'
             ocgis_lh(exc=DefinitionValidationError(Calc, msg), logger='calc.base')
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractMultivariateFunction(AbstractFunction):
     """
     Base class for functions operating on multivariate inputs.
     """
-
-    __metaclass__ = abc.ABCMeta
     # : Optional dictionary mapping unit definitions for required variables.
     #: For example: required_units = {'tas':'fahrenheit','rhs':'percent'}
     required_units = None
@@ -677,7 +799,7 @@ class AbstractMultivariateFunction(AbstractFunction):
             ret = AbstractFunction._get_slice_and_calculation_(self, f, ir, il, parms, value=value)
         else:
             new_parms = {}
-            for k, v in parms.iteritems():
+            for k, v in parms.items():
                 if k in self.required_variables:
                     new_parms[k] = v[ir, self._curr_group, il, :, :]
                 else:
@@ -687,47 +809,64 @@ class AbstractMultivariateFunction(AbstractFunction):
         return ret
 
     def _execute_(self):
-
+        # Multivariate unit validation requires both variables as opposed to individual unit validation that typically
+        # occurs in the calculation target iteration.
         self.validate_units()
 
         try:
-            parms = {k: self.get_variable_value(self.field.variables[self.parms[k]]) for k in self.required_variables}
-        # try again without the parms dictionary
+            variable_names = [self.parms[r] for r in self.required_variables]
+        # Try again without the parms dictionary assuming the variables are named appropriately with the parameter
+        # dictionary.
         except KeyError:
-            parms = {k: self.get_variable_value(self.field.variables[k]) for k in self.required_variables}
+            variable_names = self.required_variables
 
-        for k, v in self.parms.iteritems():
-            if k not in self.required_variables:
-                parms.update({k: v})
+        # Get the variable calculation targets out of the field.
+        itr = self.iter_calculation_targets(variable_names=variable_names, yield_calculation_name=False,
+                                            validate_units=False)
+        calculation_targets = {self.required_variables[idx]: var for idx, var in enumerate(itr)}
 
-        if self.file_only:
-            fill = self._empty_fill
+        # Synchronize the parameters that only contain the variable mappings with the other parameters passed in at
+        # calculation initialization.
+        keys = list(calculation_targets.keys())
+        crosswalks = [self._get_dimension_crosswalk_(calculation_targets[k]) for k in keys]
+        variable_shapes = [calculation_targets[k].shape for k in keys]
+        arrs = [self.get_variable_value(calculation_targets[k]) for k in keys]
+        archetype = calculation_targets[keys[0]]
+        fill = self.get_fill_variable(archetype, self.alias, archetype.dimensions, self.file_only,
+                                      add_repeat_record_archetype_name=False)
+        fill.units = self.get_output_units()
+        arr_fill = self.get_variable_value(fill)
+
+        itrs = [self._iter_conformed_arrays_(crosswalks[idx], variable_shapes[idx], arrs[idx], arr_fill, None)
+                for idx in range(len(crosswalks))]
+
+        for yld in zip(*itrs):
+            parms = {}
+            for idx in range(len(keys)):
+                parms[keys[idx]] = yld[idx][0]
+            for k, v in self.parms.items():
+                if k not in self.required_variables:
+                    parms.update({k: v})
+            res = self.calculate(**parms)
+            carr_fill = yld[0][1]
+            carr_fill.data[:] = res.data
+            carr_fill.mask[:] = res.mask
+
+        if not self.file_only:
+            fill.set_value(arr_fill)
+
+        if self.tgd is not None:
+            fill = self._get_temporal_agg_fill_(fill, fill.name, self.file_only, f=self.aggregate_temporal, parms={},
+                                                add_repeat_record_archetype_name=False)
         else:
-            if self.time_aggregation_external:
-                fill = self.calculate(**parms)
+            fill = {'fill': fill}
 
-                if self.dtype is not None:
-                    fill = fill.astype(self.dtype)
-                if not self.use_raw_values:
-                    assert (fill.shape == self.field.shape)
-                else:
-                    assert (fill.shape[0:3] == self.field.shape[0:3])
-                if self.tgd is not None:
-                    fill = self._get_temporal_agg_fill_(fill, f=self.aggregate_temporal, parms={})
-                else:
-                    fill = self._get_or_pass_spatial_agg_fill_(fill)
-            else:
-                fill = self._get_temporal_agg_fill_(parms=parms)
-
-        units = self.get_output_units()
-
-        self._add_to_collection_(value=fill, parent_variables=self.field.variables.values(), alias=self.alias,
-                                 dtype=self.dtype, fill_value=self.fill_value, units=units)
+        self._add_to_collection_(fill)
 
     @classmethod
     def validate(cls, ops):
         if ops.calc_sample_size:
-            from ocgis.api.parms.definition import CalcSampleSize
+            from ocgis.ops.parms.definition import CalcSampleSize
 
             exc = DefinitionValidationError(CalcSampleSize,
                                             'Multivariate functions do not calculate sample size at this time.')
@@ -739,44 +878,47 @@ class AbstractMultivariateFunction(AbstractFunction):
             if c['func'] == cls.key:
                 kwds = c['kwds']
 
-                # check the required variables are keyword arguments
+                # Check the required variables are keyword arguments.
                 if not len(set(kwds.keys()).intersection(set(cls.required_variables))) >= 2:
                     should_raise = True
                     break
 
-                # ensure the mapped aliases exist
+                # Ensure the mapped aliases exist.
+                fnames = []
+
+                for d in ops.dataset:
+                    try:
+                        for r in get_iter(d.rename_variable):
+                            fnames.append(r)
+                    except AttributeError:
+                        # Fields do not have a rename variable attribute.
+                        fnames += list(d.keys())
                 for xx in cls.required_variables:
                     to_check = kwds[xx]
-                    if to_check not in ops.dataset:
+                    if to_check not in fnames:
                         should_raise = True
-
                 break
         if should_raise:
-            from ocgis.api.parms.definition import Calc
+            from ocgis.ops.parms.definition import Calc
 
-            exc = DefinitionValidationError(Calc,
-                                            'Variable aliases are missing for multivariate function "{0}". Required variable aliases are: {1}.'.format(
-                                                cls.__name__, cls.required_variables))
+            msg = 'These field names are missing for multivariate function "{0}": {1}.'
+            exc = DefinitionValidationError(Calc, msg.format(cls.__name__, cls.required_variables))
             ocgis_lh(exc=exc, logger='calc.base')
 
     def validate_units(self):
         if self.required_units is not None:
             for required_variable in self.required_variables:
                 alias_variable = self.parms[required_variable]
-                variable = self.field.variables[alias_variable]
+                variable = self.field[alias_variable]
                 source = variable.units
                 target = self.required_units[required_variable]
-                match = get_are_units_equal_by_string_or_cfunits(source, target, try_cfunits=True)
-                if match == False:
+                match = get_are_units_equal_by_string_or_cfunits(source, target, try_cfunits=env.USE_CFUNITS)
+                if not match:
                     raise UnitsValidationError(variable, target, self.key)
 
-    def _set_derived_variable_alias_(self, dv, parent_variables):
-        pass
 
-
-class AbstractKeyedOutputFunction(object):
-    __metaclass__ = abc.ABCMeta
-
+@six.add_metaclass(abc.ABCMeta)
+class AbstractKeyedOutputFunction(AbstractOcgisObject):
     @abc.abstractproperty
     def structure_dtype(self):
         dict

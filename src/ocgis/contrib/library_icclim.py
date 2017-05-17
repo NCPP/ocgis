@@ -4,6 +4,7 @@ from collections import OrderedDict
 from copy import deepcopy
 
 import numpy as np
+import six
 from icclim import calc_indice
 from icclim import set_globattr
 from icclim import set_longname_units as slu
@@ -77,8 +78,8 @@ class NcAttributesSimulator(object):
         self.attrs[key] = value
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractIcclimFunction(object):
-    __metaclass__ = abc.ABCMeta
     description = None
     standard_name = 'ECA_indice'
     long_name = ''
@@ -118,7 +119,14 @@ class AbstractIcclimFunction(object):
 
         # update global attributes using ICCLIM functions
         indice_name = self.key.split('_')[1]
-        time_range = [self.field.temporal.value_datetime.min(), self.field.temporal.value_datetime.max()]
+
+        # Find the minimum and maximum numeric times using those indices to extract the datetime value min and max time
+        # ranges.
+        # time_range = [self.field.temporal.value_datetime.min(), self.field.temporal.value_datetime.max()]
+        min_idx = np.argmin(self.field.temporal.value_numtime)
+        max_idx = np.argmax(self.field.temporal.value_numtime)
+        time_range = [self.field.temporal.value_datetime[min_idx], self.field.temporal.value_datetime[max_idx]]
+
         args = [sim, self.tgd.grouping, indice_name, time_range]
         try:
             set_globattr.history(*args)
@@ -152,7 +160,7 @@ class AbstractIcclimFunction(object):
         """
 
         dct = deepcopy(dct)
-        for k, v in dct.iteritems():
+        for k, v in dct.items():
             try:
                 v = v.tolist()
             except AttributeError:
@@ -161,9 +169,8 @@ class AbstractIcclimFunction(object):
         return json.dumps(dct)
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractIcclimUnivariateSetFunction(AbstractIcclimFunction, AbstractUnivariateSetFunction):
-    __metaclass__ = abc.ABCMeta
-
     def calculate(self, values):
         return self._get_icclim_func_()(values, values.fill_value)
 
@@ -176,26 +183,25 @@ class AbstractIcclimUnivariateSetFunction(AbstractIcclimFunction, AbstractUnivar
         return _icclim_function_map[self.key]['func']
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractIcclimMultivariateFunction(AbstractIcclimFunction, AbstractMultivariateFunction):
-    __metaclass__ = abc.ABCMeta
-
     @classmethod
     def validate(cls, ops):
         cls.validate_icclim(ops)
         super(AbstractIcclimMultivariateFunction, cls).validate(ops)
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractIcclimPercentileIndice(AbstractIcclimUnivariateSetFunction, AbstractParameterizedFunction):
-    __metaclass__ = abc.ABCMeta
     window_width = 5
 
     def __init__(self, *args, **kwargs):
         self._storage_percentile = {}
         AbstractIcclimUnivariateSetFunction.__init__(self, *args, **kwargs)
 
-        if self.field is not None:
-            assert self.field.shape[0] == 1
-            assert self.field.shape[2] == 1
+        # if self.field is not None:
+        #     assert self.field.shape[0] == 1
+        #     assert self.field.shape[2] == 1
 
     @abc.abstractproperty
     def percentile(self):
@@ -211,13 +217,12 @@ class AbstractIcclimPercentileIndice(AbstractIcclimUnivariateSetFunction, Abstra
             try:
                 # Make an attempt to find the previous computation. We do not want to recompute the basis for every time
                 # grouping.
-                percentile_basis = self._storage_percentile[self._curr_variable.alias]
+                percentile_basis = self._storage_percentile[self._curr_variable.name]
             except KeyError:
-                variable = self.field.variables[self._curr_variable.alias]
-                value = variable.value[0, :, 0, :, :]
+                value = self._current_conformed_array[0, :, 0, :, :]
                 assert value.ndim == 3
                 percentile_basis = self._get_percentile_basis_(value)
-                self._storage_percentile[self._curr_variable.alias] = percentile_basis
+                self._storage_percentile[self._curr_variable.name] = percentile_basis
 
         ret = self._get_icclim_function_return_(values, percentile_basis)
         return ret
@@ -231,8 +236,8 @@ class AbstractIcclimPercentileIndice(AbstractIcclimUnivariateSetFunction, Abstra
         """Return the percentile basis for the subclass."""
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractIcclimPercentileDictionaryIndice(AbstractIcclimPercentileIndice):
-    __metaclass__ = abc.ABCMeta
     parms_definition = {'percentile_dict': dict}
     only_leap_years = False
 
@@ -251,13 +256,13 @@ class AbstractIcclimPercentileDictionaryIndice(AbstractIcclimPercentileIndice):
 
     def _get_percentile_basis_(self, value):
         percentile_basis = get_percentile_dict(value, self.field.temporal.value_datetime, self.percentile,
-                                               self.window_width, self.field.temporal.calendar,
-                                               self.field.temporal.units, only_leap_years=self.only_leap_years)
+                                               self.window_width, self.field.time.calendar, self.field.time.units,
+                                               only_leap_years=self.only_leap_years)
         return percentile_basis
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractIcclimPercentileArrayIndice(AbstractIcclimPercentileIndice):
-    __metaclass__ = abc.ABCMeta
     parms_definition = {'percentile_arr': ndarray}
 
     def calculate(self, values, percentile_arr=None):

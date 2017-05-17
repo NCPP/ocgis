@@ -2,47 +2,36 @@ import logging
 
 import numpy as np
 
+from ocgis.base import get_variable_names, orphaned
 from ocgis.calc.base import AbstractMultivariateFunction
-from ocgis.calc.eval_function import EvalFunction
-from ocgis.interface.base.field import DerivedMultivariateField, DerivedField
-from ocgis.interface.base.variable import VariableCollection
+from ocgis.calc.eval_function import EvalFunction, MultivariateEvalFunction
 from ocgis.util.logging_ocgis import ocgis_lh
 
 
-class OcgCalculationEngine(object):
+class CalculationEngine(object):
     """
+    Manages calculation execution.
+    
     :type grouping: list of temporal groupings (e.g. ['month','year'])
-    :type funcs: list of function dictionaries
-    :param raw: If True, perform calculations on raw data values.
-    :type raw: bool
-    :param agg: If True, data needs to be spatially aggregated (using weights) following a calculation.
-    :type agg: bool
-    :param bool calc_sample_size:
-    :param :class:`ocgis.util.logging_ocgis.ProgressOcgOperations` progress:
+    :type funcs: :class:`list` of `function dictionaries`
+    :param bool calc_sample_size: If ``True``, calculation sample sizes for the calculations.
+    :param progress:  A progress object to update.
+    :type progress: :class:`~ocgis.util.logging_ocgis.ProgressOcgOperations`
     """
 
-    def __init__(self, grouping, funcs, raw=False, agg=False, calc_sample_size=False,
-                 progress=None):
-        self.raw = raw
-        self.agg = agg
+    def __init__(self, grouping, funcs, calc_sample_size=False, spatial_aggregation=False, progress=None):
         self.grouping = grouping
         self.funcs = funcs
         self.calc_sample_size = calc_sample_size
-
-        # select which value data to pull based on raw and agg arguments
-        if self.raw and self.agg is False:
-            self.use_raw_values = False
-        elif self.raw is False and self.agg is True:
-            self.use_raw_values = False
-        elif self.raw and self.agg:
-            self.use_raw_values = True
-        elif not self.raw and not self.agg:
-            self.use_raw_values = False
-        else:
-            raise NotImplementedError
+        self.spatial_aggregation = spatial_aggregation
 
         self._tgds = {}
         self._progress = progress
+
+    @property
+    def has_multivariate_functions(self):
+        multivariate_classes = [AbstractMultivariateFunction, MultivariateEvalFunction]
+        return any([self._check_calculation_members_(self.funcs, k) for k in multivariate_classes])
 
     @staticmethod
     def _check_calculation_members_(funcs, klass):
@@ -63,22 +52,9 @@ class OcgCalculationEngine(object):
         :param bool file_only:
         :param dict tgds: {'field_alias': :class:`ocgis.interface.base.dimension.temporal.TemporalGroupDimension`,...}
         """
+        from ocgis import VariableCollection
 
-        # switch field type based on the types of calculations present
-        if self._check_calculation_members_(self.funcs, AbstractMultivariateFunction):
-            klass = DerivedMultivariateField
-        elif self._check_calculation_members_(self.funcs, EvalFunction):
-            # if the input field has more than one variable, assumed this is a multivariate calculation
-            klass = DerivedField
-            for field_container in coll.itervalues():
-                for field in field_container.itervalues():
-                    if len(field.variables.keys()) > 1:
-                        klass = DerivedMultivariateField
-                        break
-        else:
-            klass = DerivedField
-
-        # select which dictionary will hold the temporal group dimensions
+        # Select which dictionary will hold the temporal group dimensions.
         if tgds is None:
             tgds_to_use = self._tgds
             tgds_overloaded = False
@@ -86,79 +62,109 @@ class OcgCalculationEngine(object):
             tgds_to_use = tgds
             tgds_overloaded = True
 
-        # group the variables. if grouping is None, calculations are performed on each element. array computations are
-        # taken advantage of.
+        # Group the variables. If grouping is None, calculations are performed on each element.
         if self.grouping is not None:
             ocgis_lh('Setting temporal groups: {0}'.format(self.grouping), 'calc.engine')
-            for v in coll.itervalues():
-                for k2, v2 in v.iteritems():
-                    if tgds_overloaded:
-                        assert (k2 in tgds_to_use)
-                    else:
-                        if k2 not in tgds_to_use:
-                            tgds_to_use[k2] = v2.temporal.get_grouping(self.grouping)
+            for field in coll.iter_fields():
+                if tgds_overloaded:
+                    assert field.name in tgds_to_use
+                else:
+                    if field.name not in tgds_to_use:
+                        tgds_to_use[field.name] = field.time.get_grouping(self.grouping)
 
-        # iterate over functions
-        for ugid, dct in coll.iteritems():
-            for alias_field, field in dct.iteritems():
-                # choose a representative data type based on the first variable
-                dtype = field.variables.values()[0].dtype
-
-                new_temporal = tgds_to_use.get(alias_field)
-                # if the engine has a grouping, ensure it is equivalent to the new temporal dimension.
+        # Iterate over functions.
+        for ugid, container in list(coll.children.items()):
+            for field_name, field in list(container.children.items()):
+                new_temporal = tgds_to_use.get(field_name)
+                if new_temporal is not None:
+                    new_temporal = new_temporal.copy()
+                # If the engine has a grouping, ensure it is equivalent to the new temporal dimension.
                 if self.grouping is not None:
                     try:
                         compare = set(new_temporal.grouping) == set(self.grouping)
-                    # types may be unhashable, compare directly
+                    # Types may be unhashable, compare directly.
                     except TypeError:
                         compare = new_temporal.grouping == self.grouping
-                    if compare == False:
-                        msg = 'Engine temporal grouping and field temporal grouping are not equivalent. Perhaps optimizations are incorrect?'
+                    if not compare:
+                        msg = 'Engine temporal grouping and field temporal grouping are not equivalent. Perhaps ' \
+                              'optimizations are incorrect?'
                         ocgis_lh(logger='calc.engine', exc=ValueError(msg))
 
                 out_vc = VariableCollection()
-                for f in self.funcs:
 
+                for f in self.funcs:
                     try:
                         ocgis_lh('Calculating: {0}'.format(f['func']), logger='calc.engine')
-                        # initialize the function
-                        function = f['ref'](alias=f['name'], dtype=dtype, field=field, file_only=file_only, vc=out_vc,
-                                            parms=f['kwds'], tgd=new_temporal, use_raw_values=self.use_raw_values,
-                                            calc_sample_size=self.calc_sample_size, meta_attrs=f.get('meta_attrs'),
-                                            add_parents=True)
+                        # Initialize the function.
+                        function = f['ref'](alias=f['name'], dtype=None, field=field, file_only=file_only, vc=out_vc,
+                                            parms=f['kwds'], tgd=new_temporal, calc_sample_size=self.calc_sample_size,
+                                            meta_attrs=f.get('meta_attrs'),
+                                            spatial_aggregation=self.spatial_aggregation)
+                        # Allow a calculation to create a temporal aggregation after initialization.
+                        if new_temporal is None and function.tgd is not None:
+                            new_temporal = function.tgd.extract()
                     except KeyError:
-                        # likely an eval function which does not have the name key
+                        # Likely an eval function which does not have the name key.
                         function = EvalFunction(field=field, file_only=file_only, vc=out_vc,
-                                                expr=self.funcs[0]['func'], meta_attrs=self.funcs[0].get('meta_attrs'),
-                                                add_parents=True)
+                                                expr=self.funcs[0]['func'], meta_attrs=self.funcs[0].get('meta_attrs'))
 
                     ocgis_lh('calculation initialized', logger='calc.engine', level=logging.DEBUG)
 
-                    # return the variable collection from the calculations
+                    # Return the variable collection from the calculations.
                     out_vc = function.execute()
 
-                    for dv in out_vc.itervalues():
-                        # any outgoing variables from a calculation must have a data type associated with it
+                    for dv in out_vc.values():
+                        # Any outgoing variables from a calculation must have an associated data type.
                         try:
                             assert dv.dtype is not None
                         except AssertionError:
                             assert isinstance(dv.dtype, np.dtype)
-                        # if this is a file only operation, then there should be no values.
+                        # If this is a file only operation, there should be no computed values.
                         if file_only:
                             assert dv._value is None
 
                     ocgis_lh('calculation finished', logger='calc.engine', level=logging.DEBUG)
 
-                    # try to mark progress
+                    # Try to mark progress. Okay if it is not there.
                     try:
                         self._progress.mark()
                     except AttributeError:
                         pass
 
-                out_field = function.field
-                new_temporal = new_temporal or out_field.temporal
-                new_field = klass(variables=out_vc, temporal=new_temporal, spatial=out_field.spatial,
-                                  level=out_field.level, realization=out_field.realization, meta=out_field.meta,
-                                  uid=out_field.uid, name=out_field.name, attrs=out_field.attrs)
-                coll[ugid][alias_field] = new_field
+                out_field = function.field.copy()
+                function_tag = function.tag
+
+                # Format the returned field. Doing things like removing original data variables and modifying the
+                # time dimension if necessary. Field functions handle all field modifications on their own, so bypass
+                # in that case.
+                if new_temporal is not None:
+                    new_temporal = new_temporal.extract()
+                format_return_field(function_tag, out_field, new_temporal=new_temporal)
+
+                # Add the calculation variables.
+                for variable in list(out_vc.values()):
+                    with orphaned(variable):
+                        out_field.add_variable(variable)
+                # Tag the calculation data as data variables.
+                out_field.append_to_tags(function_tag, list(out_vc.keys()))
+
+                coll.children[ugid].children[field_name] = out_field
         return coll
+
+
+def format_return_field(function_tag, out_field, new_temporal=None):
+    # Remove the variables used by the calculation.
+    try:
+        to_remove = get_variable_names(out_field.get_by_tag(function_tag))
+    except KeyError:
+        # Let this fail quietly as the tag may not exist on incoming fields.
+        pass
+    else:
+        for tr in to_remove:
+            out_field.pop(tr)
+
+    # Remove the original time variable and replace with the new one if there is a new time dimension. New
+    # time dimensions may not be present for calculations that do not compute one.
+    if new_temporal is not None:
+        out_field.remove_variable(out_field.time)
+        out_field.set_time(new_temporal, force=True)

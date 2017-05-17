@@ -1,8 +1,13 @@
-from abc import ABCMeta
+import abc
+
+import six
+
+from ocgis.base import AbstractOcgisObject
 
 
-class AbstractTemporalGroup(object):
-    __metaclass__ = ABCMeta
+@six.add_metaclass(abc.ABCMeta)
+class AbstractTemporalGroup(AbstractOcgisObject):
+    pass
 
 
 class SeasonalTemporalGroup(list, AbstractTemporalGroup):

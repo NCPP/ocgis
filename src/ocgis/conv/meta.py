@@ -1,44 +1,43 @@
 import abc
 import datetime
 
+import six
+
 import ocgis
 from ocgis import constants
-from ocgis.api.parms.base import AbstractParameter
+from ocgis.collection.field import Field
 from ocgis.conv.base import AbstractConverter
 from ocgis.exc import DefinitionValidationError
+from ocgis.ops.parms.base import AbstractParameter
 from ocgis.util.justify import justify_row
 
 HEADERS = {
-    'ugid': 'User geometry identifier pulled from a provided set of selection geometries. Reduces to "1" for the case of no provided geometry.',
+    'ugid': 'User geometry identifier pulled from a provided set of selection geometries. Reduces to "None" for the case of no provided geometry.',
     'gid': 'Geometry identifier assigned by OpenClimateGIS to a dataset geometry. In the case of "aggregate=True" this is equivalent to "UGID".',
-    'tid': 'Unique time identifier.',
-    'vid': 'Unique variable identifier.',
-    'lid': 'Level identifier unique within a variable.',
     'name': 'Name of the requested variable.',
-    'calc_alias': 'User-supplied name for a calculation.',
     'calc_key': 'The unique key name assigned to a calculation.',
+    'src_var': "The calculation's source variable.",
     'level': 'Level name.',
     'time': 'Time string.',
     'year': 'Year extracted from time string.',
     'month': 'Month extracted from time string.',
     'day': 'Day extracted from time string.',
-    'cid': 'Unique identifier for a calculation name.',
     'value': 'Value associated with a variable or calculation.',
     'did': 'Dataset identifier see *_did.csv file for additional information on dataset requests.',
     'uri': 'Path to input data at execution time.',
-    'alias': 'If not assigned, this will be the same as the variable name.'
+    'lb_*': 'Lower bounds value.',
+    'ub_*': 'Upper bounds value.',
 }
 
 
+@six.add_metaclass(abc.ABCMeta)
 class AbstractMetaConverter(AbstractConverter):
     """
     Base class for all metadata converters.
 
     :param ops: An OpenClimateGIS operations object.
-    :type ops: :class:`ocgis.api.operations.OcgOperations`
+    :type ops: :class:`ocgis.driver.operations.OcgOperations`
     """
-
-    __metaclass__ = abc.ABCMeta
 
     def __init__(self, ops):
         self.ops = ops
@@ -47,22 +46,21 @@ class AbstractMetaConverter(AbstractConverter):
 class MetaJSONConverter(AbstractMetaConverter):
     @classmethod
     def validate_ops(cls, ops):
-        from ocgis.api.parms.definition import OutputFormat
-        from ocgis import Field
+        from ocgis.ops.parms.definition import OutputFormat
 
-        if len(ops.dataset) > 1:
-            msg = 'Only one request dataset allowed for "{0}".'.format(constants.OUTPUT_FORMAT_METADATA_JSON)
+        if len(list(ops.dataset)) > 1:
+            msg = 'Only one request dataset allowed for "{0}".'.format(constants.OutputFormatName.METADATA_JSON)
             raise DefinitionValidationError(OutputFormat, msg)
         else:
-            for element in ops.dataset.itervalues():
+            for element in ops.dataset:
                 if isinstance(element, Field):
-                    msg = 'Fields may not be converted to "{0}".'.format(constants.OUTPUT_FORMAT_METADATA_JSON)
+                    msg = 'Fields may not be converted to "{0}".'.format(constants.OutputFormatName.METADATA_JSON)
                     raise DefinitionValidationError(OutputFormat, msg)
 
     def write(self):
-        driver = self.ops.dataset.first().driver
-        """:type driver: :class:`ocgis.api.request.driver.base.AbstractDriver`"""
-        return driver.get_source_metadata_as_json()
+        for dataset in self.ops.dataset:
+            """:type driver: :class:`ocgis.driver.request.driver.base.AbstractDriver`"""
+            return dataset.driver.get_source_metadata_as_json()
 
 
 class MetaOCGISConverter(AbstractMetaConverter):
@@ -86,14 +84,17 @@ class MetaOCGISConverter(AbstractMetaConverter):
         lines.append('')
         lines.append('== Argument Definitions and Content Descriptions ==')
         lines.append('')
-        for v in sorted(self.ops.__dict__.itervalues()):
-            if isinstance(v, AbstractParameter):
-                lines.append(v.get_meta())
+
+        sorted_keys = sorted(self.ops.__dict__)
+        for key in sorted_keys:
+            curr = self.ops.__dict__[key]
+            if isinstance(curr, AbstractParameter):
+                lines.append(curr.get_meta())
 
         # collapse lists
         ret = []
         for line in lines:
-            if not isinstance(line, basestring):
+            if not isinstance(line, six.string_types):
                 for item in line:
                     ret.append(item)
             else:

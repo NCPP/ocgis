@@ -1,5 +1,4 @@
-import ESMF
-
+from ocgis.constants import TagName
 from ocgis.conv.base import AbstractCollectionConverter
 from ocgis.exc import DefinitionValidationError
 
@@ -10,14 +9,14 @@ class ESMPyConverter(AbstractCollectionConverter):
 
     .. note:: Accepts all parameters to :class:`~ocgis.conv.base.AbstractCollectionConverter`.
 
-    :param with_corners: (``=True``) See :func:`~ocgis.regrid.base.get_esmf_grid_from_sdim`.
-    :param value_mask: (``=None``) See :func:`~ocgis.regrid.base.get_esmf_grid_from_sdim`.
+    :param regrid_method: (``='auto'``) See :func:`~ocgis.regrid.base.get_esmf_grid`.
+    :param value_mask: (``=None``) See :func:`~ocgis.regrid.base.get_esmf_grid`.
     :param esmf_field_name: (``=None``) Optional name for the returned ESMF field.
     :type esmf_field_name: str
     """
 
     def __init__(self, *args, **kwargs):
-        self.with_corners = kwargs.pop('with_corners', True)
+        self.regrid_method = kwargs.pop('regrid_method', True)
         self.value_mask = kwargs.pop('value_mask', None)
         self.esmf_field_name = kwargs.pop('esmf_field_name', None)
         super(ESMPyConverter, self).__init__(*args, **kwargs)
@@ -29,7 +28,7 @@ class ESMPyConverter(AbstractCollectionConverter):
     @classmethod
     def validate_ops(cls, ops):
         msg = None
-        if len(ops.dataset) > 1:
+        if len(list(ops.dataset)) > 1:
             msg = 'Only one requested dataset may be written for "esmpy" output.'
             target = 'dataset'
         elif ops.spatial_operation == 'clip':
@@ -46,18 +45,15 @@ class ESMPyConverter(AbstractCollectionConverter):
             raise DefinitionValidationError(target, msg)
 
     def write(self):
+        from ocgis.regrid.base import get_esmf_field_from_ocgis_field
+
         for coll in self.colls:
-            """:type coll: :class:`ocgis.api.collection.SpatialCollection`"""
-            from ocgis.regrid.base import get_esmf_grid_from_sdim
-
-            for row in coll.get_iter_melted():
+            for row in coll.iter_melted(tag=TagName.DATA_VARIABLES):
                 field = row['field']
-                variable = row['variable']
-                egrid = get_esmf_grid_from_sdim(field.spatial, with_corners=self.with_corners,
-                                                value_mask=self.value_mask)
 
-                esmf_field_name = self.esmf_field_name or variable.alias
-                efield = ESMF.Field(egrid, name=esmf_field_name, ndbounds=field.shape[0:-2])
-                efield.data[:] = variable.value
+                efield = get_esmf_field_from_ocgis_field(field,
+                                                         esmf_field_name=self.esmf_field_name,
+                                                         regrid_method=self.regrid_method,
+                                                         value_mask=self.value_mask)
 
                 return efield

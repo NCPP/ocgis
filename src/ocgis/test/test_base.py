@@ -4,7 +4,7 @@ import os
 import numpy as np
 from netCDF4 import Dataset
 
-from ocgis.interface.base.field import Field
+from ocgis.collection.field import Field
 from ocgis.test.base import TestBase
 from ocgis.test.base import attr
 
@@ -12,11 +12,11 @@ from ocgis.test.base import attr
 class TestTestBase(TestBase):
     def test_assertFionaMetaEqual(self):
         fiona_meta = {'crs': {'init': 'epsg:4326'},
-                      'driver': u'ESRI Shapefile',
+                      'driver': 'ESRI Shapefile',
                       'schema': {'geometry': 'Polygon',
                                  'properties': {'UGID': 'int:9'}}}
         fiona_meta_actual = {'crs': {'init': 'epsg:4326'},
-                             'driver': u'ESRI Shapefile',
+                             'driver': 'ESRI Shapefile',
                              'schema': {'geometry': 'Polygon',
                                         'properties': {'UGID': 'int:10'}}}
         with self.assertRaises(AssertionError):

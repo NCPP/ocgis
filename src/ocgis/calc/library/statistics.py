@@ -40,9 +40,9 @@ class MovingWindow(AbstractUnivariateFunction, AbstractParameterizedFunction):
         """
 
         # 'full' is not supported as this would add dates to the temporal dimension
-        assert (mode in ('same', 'valid'))
-        assert (values.ndim == 5)
-        assert (operation in self._potential_operations)
+        assert mode in ('same', 'valid')
+        assert values.ndim == 5
+        assert operation in self._potential_operations
 
         operation = getattr(np, operation)
 
@@ -50,7 +50,7 @@ class MovingWindow(AbstractUnivariateFunction, AbstractParameterizedFunction):
 
         # perform the moving average on the time axis
         axes = [0, 2]
-        itrs = [range(values.shape[axis]) for axis in axes]
+        itrs = [list(range(values.shape[axis])) for axis in axes]
         for ie, il in itertools.product(*itrs):
             values_slice = values[ie, :, il, :, :]
             build = True
@@ -64,8 +64,11 @@ class MovingWindow(AbstractUnivariateFunction, AbstractParameterizedFunction):
 
         if mode == 'valid':
             # slice the field and fill arrays
-            self.field = self.field[:, idx_start:origin + 1, :, :, :]
-            fill = fill[:, idx_start:origin + 1, :, :, :]
+            # self.field = self.field[:, idx_start:origin + 1, :, :, :]
+            # Mask the invalid regions.
+            fill.mask[:] = True
+            fill.mask[:, idx_start:origin + 1, :, :, :] = False
+            # self._finalize_slice = [slice(None), slice(idx_start, origin + 1), slice(None), slice(None), slice(None)]
         elif mode == 'same':
             pass
         else:
@@ -76,7 +79,7 @@ class MovingWindow(AbstractUnivariateFunction, AbstractParameterizedFunction):
     @classmethod
     def validate(cls, ops):
         if ops.calc_grouping is not None:
-            from ocgis.api.parms.definition import CalcGrouping
+            from ocgis.ops.parms.definition import CalcGrouping
             msg = 'Moving window calculations may not have a temporal grouping.'
             raise DefinitionValidationError(CalcGrouping, msg)
 
@@ -92,14 +95,14 @@ class MovingWindow(AbstractUnivariateFunction, AbstractParameterizedFunction):
         :raises: AssertionError, NotImplementedError
         """
 
-        assert (k % 2 != 0)
-        assert (k >= 3)
-        assert (values.ndim == 3)
+        assert k % 2 != 0
+        assert k >= 3
+        assert values.ndim == 3
 
         # used to track the current value for the centered window.
         origin = 0
         # size of one side of the window used to determine the slice for the kernel
-        shift = (k - 1) / 2
+        shift = int((k - 1) / 2)
         # reference for the length of the value array
         shape_values = values.shape[0]
 
@@ -141,18 +144,18 @@ class DailyPercentile(base.AbstractUnivariateFunction, base.AbstractParameterize
     standard_name = 'daily_percentile'
     long_name = 'Daily Percentile'
 
+    should_temporally_aggregate = False
+
     def __init__(self, *args, **kwargs):
         super(DailyPercentile, self).__init__(*args, **kwargs)
 
-        if self.file_only:
-            self.tgd = self.field.temporal.get_grouping(['month', 'day'])
-            self.field.temporal = self.tgd
+        # The temporal group is always month + day. Any overload will not be compliant with the calculation output.
+        assert self.tgd is None
+        self.tgd = self.field.temporal.get_grouping(['month', 'day'])
 
     def calculate(self, values, percentile=None, window_width=None, only_leap_years=False):
         assert (values.shape[0] == 1)
         assert (values.shape[2] == 1)
-        # assert(self.tgd is not None)
-        # dtype = [('month', int), ('day', int), ('value', object)]
         arr = values[0, :, 0, :, :]
         assert (arr.ndim == 3)
         dt_arr = self.field.temporal.value_datetime
@@ -161,11 +164,9 @@ class DailyPercentile(base.AbstractUnivariateFunction, base.AbstractParameterize
         shape_fill[1] = len(dp)
         fill = np.zeros(shape_fill, dtype=self.dtype)
         fill = np.ma.array(fill, mask=False)
-        tgd = self.field.temporal.get_grouping(['month', 'day'])
-        month_day_map = {(dt.month, dt.day): ii for ii, dt in enumerate(tgd.value_datetime)}
-        for key, value in dp.iteritems():
+        month_day_map = {(dt.month, dt.day): ii for ii, dt in enumerate(self.tgd.value_datetime)}
+        for key, value in dp.items():
             fill[0, month_day_map[key], 0, :, :] = value
-        self.field.temporal = tgd
         for idx in range(fill.shape[1]):
             fill.mask[0, idx, 0, :, :] = values.mask[0, 0, 0, :, :]
         return fill
@@ -173,13 +174,13 @@ class DailyPercentile(base.AbstractUnivariateFunction, base.AbstractParameterize
     @staticmethod
     def get_daily_percentile_from_request_dataset(rd, alias=None):
         ret = {}
-        alias = alias or rd.alias
+        alias = alias or rd.variable
         field = rd.get()
         dt = field.temporal.value_datetime
-        value = field.variables[alias].value
+        value = field[alias].get_masked_value()
         for idx in range(len(dt)):
             curr = dt[idx]
-            ret[(curr.month, curr.day)] = value[0, idx, 0, :, :]
+            ret[(curr.month, curr.day)] = value[idx, :, :]
         return ret
 
     def get_daily_percentile(self, arr, dt_arr, percentile, window_width, only_leap_years=False):
@@ -217,7 +218,7 @@ class DailyPercentile(base.AbstractUnivariateFunction, base.AbstractParameterize
         dt_hour = dt_arr[
             0].hour  # (we get hour of a date only one time, because usually the hour is the same for all dates in input dt_arr)
 
-        for month in dic_caldays.keys():
+        for month in list(dic_caldays.keys()):
             for day in dic_caldays[month]:
                 # step2: we do a mask for the datetime vector for current calendar day (day/month)
                 dt_arr_mask = self.get_mask_dt_arr(dt_arr, month, day, dt_hour, window_width, only_leap_years)
@@ -258,7 +259,7 @@ class DailyPercentile(base.AbstractUnivariateFunction, base.AbstractParameterize
         for dt in dt_arr:
             dic[dt.month].append(dt.day)
 
-        for key in dic.keys():
+        for key in list(dic.keys()):
             dic[key] = list(set(dic[key]))
 
         return dic
@@ -287,7 +288,7 @@ class DailyPercentile(base.AbstractUnivariateFunction, base.AbstractParameterize
 
         yyyy = current_date.year
 
-        if day == 29 and month == 02:
+        if day == 29 and month == 0o2:
             if calendar.isleap(yyyy):
                 dt1 = datetime(yyyy, month, day, hour)
                 diff = abs(current_date - dt1).days
@@ -296,7 +297,7 @@ class DailyPercentile(base.AbstractUnivariateFunction, base.AbstractParameterize
                 if only_leap_years:
                     toReturn = True
                 else:
-                    dt1 = datetime(yyyy, 02, 28, hour)
+                    dt1 = datetime(yyyy, 0o2, 28, hour)
                     diff = (current_date - dt1).days
                     toReturn = (diff < (-(window_width / 2) + 1)) or (diff > window_width / 2)
         else:
@@ -367,6 +368,7 @@ class FrequencyPercentile(base.AbstractUnivariateSetFunction, base.AbstractParam
         """
 
         ret = np.percentile(values, percentile, axis=0)
+        ret = np.ma.array(ret, mask=values.mask[0, :, :])
         return ret
 
 
@@ -410,7 +412,7 @@ class Median(base.AbstractUnivariateSetFunction):
     long_name = 'median'
 
     def calculate(self, values):
-        return (np.ma.median(values, axis=0))
+        return np.ma.median(values, axis=0)
 
 
 class StandardDeviation(base.AbstractUnivariateSetFunction):
@@ -421,4 +423,4 @@ class StandardDeviation(base.AbstractUnivariateSetFunction):
     long_name = 'Standard Deviation'
 
     def calculate(self, values):
-        return (np.ma.std(values, axis=0))
+        return np.ma.std(values, axis=0)

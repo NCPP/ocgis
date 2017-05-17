@@ -1,31 +1,29 @@
 import abc
 
+import six
+
+from ocgis.base import AbstractOcgisObject
 from ocgis.util.helpers import itersubclasses
 
 
-class OcgFunctionGroup(object):
-    __metaclass__ = abc.ABCMeta
-
+@six.add_metaclass(abc.ABCMeta)
+class OcgFunctionGroup(AbstractOcgisObject):
     @abc.abstractproperty
     def name(self):
         str
 
     def __init__(self):
-        from base import OcgFunction
-
-        assert (self.name)
+        from .base import AbstractFunction
 
         self.Children = []
-        for sc in itersubclasses(OcgFunction):
+        for sc in itersubclasses(AbstractFunction):
             if sc.Group == self.__class__:
                 self.Children.append(sc)
 
     def format(self):
         children = [Child().format() for Child in self.Children]
-        ret = dict(text=self.name,
-                   expanded=True,
-                   children=children)
-        return (ret)
+        ret = dict(text=self.name, expanded=True, children=children)
+        return ret
 
 
 class MathematicalOperations(OcgFunctionGroup):

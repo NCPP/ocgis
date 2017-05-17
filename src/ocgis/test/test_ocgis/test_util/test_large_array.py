@@ -5,8 +5,8 @@ import netCDF4 as nc
 import numpy as np
 
 import ocgis
+from ocgis import RequestDataset
 from ocgis import Variable
-from ocgis.api.request.base import RequestDatasetCollection, RequestDataset
 from ocgis.calc import tile
 from ocgis.test.base import TestBase, attr
 from ocgis.util.large_array import compute, set_variable_spatial_mask
@@ -15,18 +15,14 @@ from ocgis.util.large_array import compute, set_variable_spatial_mask
 class Test(TestBase):
     def get_path_to_2d_grid_netcdf(self):
         rd = self.test_data.get_rd('cancm4_tas')
-        field = rd.get()[:, 0:100, :, 0:50, 0:50]
-        field.spatial.grid.value
-        field.spatial.grid.corners
-        field.variables['tas'].value
-        field.spatial.grid.row = None
-        field.spatial.grid.col = None
+        field = rd.get().get_field_slice({'time': slice(0, 100), 'x': slice(0, 50), 'y': slice(0, 50)})
         path = self.get_temporary_file_path('2d_netcdf.nc')
         with self.nc_scope(path, 'w') as ds:
-            field.write_netcdf(ds)
+            field.write(ds)
         return path
 
-    def get_random_integer(self, low=1, high=100):
+    @staticmethod
+    def get_random_integer(low=1, high=100):
         return int(np.random.random_integers(low, high))
 
     @attr('data')
@@ -39,7 +35,7 @@ class Test(TestBase):
         ret = compute(ops, 3, verbose=False)
 
         field = RequestDataset(ret).get()
-        self.assertEqual(field.shape, (1, 4, 1, 16, 27))
+        self.assertEqual(field['mean'].shape, (4, 17, 28))
 
     @attr('data')
     def test_with_callback(self):
@@ -64,7 +60,7 @@ class Test(TestBase):
 
     @attr('slow')
     def test_timing_use_optimizations(self):
-        n = range(10)
+        n = list(range(10))
         t = {True: [], False: []}
 
         for use_optimizations in [True, False]:
@@ -80,17 +76,17 @@ class Test(TestBase):
                 compute(ops, 5, verbose=False, use_optimizations=use_optimizations)
                 t2 = time.time()
                 t[use_optimizations].append(t2 - t1)
-        tmean = {k: {'mean': np.array(v).mean(), 'stdev': np.array(v).std()} for k, v in t.iteritems()}
+        tmean = {k: {'mean': np.array(v).mean(), 'stdev': np.array(v).std()} for k, v in t.items()}
         self.assertTrue(tmean[True]['mean'] < tmean[False]['mean'])
 
     @attr('data')
     def test_multivariate_computation(self):
         rd = self.test_data.get_rd('cancm4_tas', kwds={'time_region': {'month': [3]}})
         rd2 = deepcopy(rd)
-        rd2.alias = 'tas2'
+        rd2.field_name = 'tas2'
+        rd2.rename_variable = 'tas2'
         calc = [{'func': 'divide', 'name': 'ln', 'kwds': {'arr1': 'tas', 'arr2': 'tas2'}}]
-        ops = ocgis.OcgOperations(dataset=[rd, rd2], calc=calc,
-                                  calc_grouping=['month'], output_format='nc',
+        ops = ocgis.OcgOperations(dataset=[rd, rd2], calc=calc, calc_grouping=['month'], output_format='nc',
                                   geom='state_boundaries',
                                   select_ugid=[2, 9, 12, 23, 25],
                                   add_auxiliary_files=False)
@@ -98,7 +94,9 @@ class Test(TestBase):
 
         ops.prefix = 'ocgis'
         ret_ocgis = ops.execute()
-        self.assertNcEqual(ret, ret_ocgis, ignore_attributes={'global': ['history']})
+
+        self.assertNcEqual(ret, ret_ocgis, check_fill_value=False, ignore_attributes={'global': ['history'],
+                                                                                      'ln': ['_FillValue']})
 
     @attr('data')
     def test_with_no_calc_grouping(self):
@@ -112,7 +110,8 @@ class Test(TestBase):
 
         ops.prefix = 'ocgis'
         ret_ocgis = ops.execute()
-        self.assertNcEqual(ret, ret_ocgis, ignore_attributes={'global': ['history']})
+        self.assertNcEqual(ret, ret_ocgis, check_fill_value=False, ignore_attributes={'global': ['history'],
+                                                                                      'ln': ['_FillValue']})
 
     @attr('data')
     def test_compute_with_time_region(self):
@@ -126,7 +125,8 @@ class Test(TestBase):
 
         ops.prefix = 'ocgis'
         ret_ocgis = ops.execute()
-        self.assertNcEqual(ret, ret_ocgis, ignore_attributes={'global': ['history']})
+        self.assertNcEqual(ret, ret_ocgis, check_fill_value=False, ignore_attributes={'global': ['history'],
+                                                                                      'mean': ['_FillValue']})
 
     @attr('data')
     def test_compute_with_geom(self):
@@ -140,7 +140,8 @@ class Test(TestBase):
 
         ops.prefix = 'ocgis'
         ret_ocgis = ops.execute()
-        self.assertNcEqual(ret, ret_ocgis, ignore_attributes={'global': ['history']})
+        self.assertNcEqual(ret, ret_ocgis, check_fill_value=False, ignore_attributes={'global': ['history'],
+                                                                                      'mean': ['_FillValue']})
 
     @attr('data')
     def test_compute_small(self):
@@ -166,57 +167,8 @@ class Test(TestBase):
         ops.prefix = 'ocgis_compare'
         ops.add_auxiliary_files = False
         ret_ocgis = ops.execute()
-        self.assertNcEqual(ret_compute, ret_ocgis, ignore_attributes={'global': ['history']})
-
-    @attr('slow')
-    def test_compute_large(self):
-        """Test calculations using compute are equivalent with standard calculations."""
-
-        #        ocgis.env.VERBOSE = True
-        #        ocgis.env.DEBUG = True
-
-        verbose = False
-        n_tile_dimensions = 1
-        tile_range = [100, 100]
-
-        rd = RequestDatasetCollection(self.test_data.get_rd('cancm4_tasmax_2011'))
-
-        calc = [{'func': 'mean', 'name': 'my_mean'},
-                {'func': 'freq_perc', 'name': 'perc_90', 'kwds': {'percentile': 90}},
-                {'func': 'freq_perc', 'name': 'perc_95', 'kwds': {'percentile': 95}},
-                {'func': 'freq_perc', 'name': 'perc_99', 'kwds': {'percentile': 99}}]
-        calc_grouping = ['month']
-
-        # construct the operational arguments to compute
-        ops_compute = ocgis.OcgOperations(dataset=rd, calc=calc, calc_grouping=calc_grouping, output_format='nc',
-                                          prefix='tile')
-
-        # perform computations the standard way
-        if verbose:
-            print('computing standard file...')
-        ops = ocgis.OcgOperations(dataset=rd, output_format='nc', calc=calc, calc_grouping=calc_grouping, prefix='std')
-        std_file = ops.execute()
-        if verbose:
-            print('standard file is: {0}'.format(std_file))
-        std_ds = nc.Dataset(std_file, 'r')
-
-        for ii in range(n_tile_dimensions):
-            tile_dimension = np.random.random_integers(tile_range[0], tile_range[1])
-            if verbose:
-                print('tile dimension: {0}'.format(tile_dimension))
-            # perform computations using tiling
-            tile_file = compute(ops_compute, tile_dimension, verbose=verbose)
-
-            # ensure output paths are different
-            self.assertNotEqual(tile_file, std_file)
-
-            self.assertNcEqual(std_file, tile_file, ignore_attributes={'global': ['history']})
-
-            # confirm each variable is identical
-            tile_ds = nc.Dataset(tile_file, 'r')
-
-            tile_ds.close()
-        std_ds.close()
+        self.assertNcEqual(ret_compute, ret_ocgis, check_fill_value=False, ignore_attributes={'global': ['history'],
+                                                                                              'mean': ['_FillValue']})
 
     def test_set_variable_spatial_mask(self):
         value = np.random.rand(10, 3, 4)
@@ -224,16 +176,19 @@ class Test(TestBase):
         mask_spatial = np.zeros((3, 4), dtype=bool)
         mask_spatial[2, 3] = True
         value.mask[:, 1, 1] = True
-        var = Variable(value=value)
+        var = Variable(name='var', value=value, dimensions=['time', 'y', 'x'])
         slice_row = slice(None)
         slice_col = slice(None)
-        self.assertFalse(var.value.mask[:, 2, 3].any())
+        self.assertFalse(var.get_mask()[:, 2, 3].any())
         set_variable_spatial_mask(var, mask_spatial, slice_row, slice_col)
-        self.assertTrue(var.value.mask.any())
-        self.assertTrue(var.value.mask[:, 1, 1].all())
-        var.value.mask[:, 1, 1] = False
-        var.value.mask[:, 2, 3] = False
-        self.assertFalse(var.value.mask.any())
+        self.assertTrue(var.get_mask().any())
+        self.assertTrue(var.get_mask()[:, 1, 1].all())
+
+        vmask = var.get_mask()
+        vmask[:, 1, 1] = False
+        vmask[:, 2, 3] = False
+        var.set_mask(vmask)
+        self.assertFalse(var.get_mask().any())
 
     def test_tile_get_tile_schema(self):
         schema = tile.get_tile_schema(5, 5, 2)
@@ -254,7 +209,7 @@ class Test(TestBase):
             col = tidx['col']
             self.assertTrue(np.all(x[row[0]:row[1], col[0]:col[1]] == x[0:tdim, 0:tdim]))
             running_sum = 0.0
-            for value in schema.itervalues():
+            for value in schema.values():
                 row, col = value['row'], value['col']
                 slice = x[row[0]:row[1], col[0]:col[1]]
                 y[row[0]:row[1], col[0]:col[1]] = slice

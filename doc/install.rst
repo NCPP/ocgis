@@ -16,19 +16,19 @@ Installation with all optional dependencies:
 
 .. code-block:: sh
 
-   conda install -c conda-forge -c nesii ocgis=1.3.2 esmpy=7.0.0 icclim=4.2.5 nose
+   conda install -c conda-forge -c nesii ocgis esmpy mpi4py cf_units rtree icclim nose
 
 Installation without optional dependencies:
 
 .. code-block:: sh
 
-   conda install -c conda-forge ocgis=1.3.2
+   conda install -c conda-forge ocgis
 
-Alternatively, NESII provides ``linux-64`` builds for OpenClimateGIS, ESMPy, and ICCLIM:
+Alternatively, NESII provides linux-64 builds for both OpenClimateGIS and ESMPy:
 
 .. code-block:: sh
 
-   conda install -c nesii -c conda-forge ocgis=1.3.2 esmpy=7.0.0
+   conda install -c nesii -c conda-forge ocgis esmpy
 
 Using an Environment File
 +++++++++++++++++++++++++
@@ -60,7 +60,7 @@ Building from Source
 Testing the Installation
 ------------------------
 
-It is recommended that a simple suite of tests are run to verify the new installation. Testing requires the Python ``nose`` library (https://nose.readthedocs.org/en/latest/):
+It is recommended that a simple suite of tests are run to verify the new installation. Testing requires the Python ``nose`` library (https://nose.readthedocs.io/en/latest/):
 
 .. code-block:: sh
 
@@ -96,7 +96,15 @@ Set the path to the directory containing the shapefiles or shapefile folders usi
 Supported Python Versions
 -------------------------
 
-Python version 2.7 is supported for OpenClimateGIS ``v1.3.2`` and lower. Python versions 3.5 and up are supported in ``v2.x``.
+Python versions 2.7, 3.5, and 3.6 are supported. Versions 2.7 and 3.6 are recommended.
+
+============== =====================================================================
+Python Version Notes
+============== =====================================================================
+2.7            All packages supported.
+3.5            ICCLIM and ESMPy not supported. ESMPy supports Python 3 in its trunk.
+3.6            ICCLIM and ESMPy not supported. ESMPy supports Python 3 in its trunk.
+============== =====================================================================
 
 Dependencies
 ------------
@@ -112,6 +120,7 @@ Package Name   Version URL
 ``numpy``      1.12.1  http://www.numpy.org/
 ``netCDF4``    1.2.7   http://unidata.github.io/netcdf4-python/
 ``gdal``       2.1.3   https://pypi.python.org/pypi/GDAL/
+``pyproj``     1.9.5.1 https://github.com/jswhit/pyproj
 ``shapely``    1.5.17  https://pypi.python.org/pypi/Shapely
 ``fiona``      1.7.6   https://pypi.python.org/pypi/Fiona
 ``six``        1.10.0  https://pypi.python.org/pypi/six
@@ -127,10 +136,11 @@ Optional dependencies are listed below. OpenClimateGIS will still operate withou
 Package Name  Version  URL                                                    Usage
 ============= ======= ====================================================== =================================================================================================================================
 ``ESMF``      7.0.0   https://www.earthsystemcog.org/projects/esmpy/releases Supports regridding operations.
+``mpi4py``    2.0.0   http://mpi4py.readthedocs.io/en/stable/                Required for parallel execution.
 ``rtree``     0.8.3   https://pypi.python.org/pypi/Rtree/                    Constructs spatial indexes at runtime. Useful for complicated GIS operations (i.e. large or complex polygons for subsetting)
 ``cf_units``  1.1.3   https://github.com/SciTools/cf_units                   Allows unit transformations.
-``icclim``    4.2.5   http://icclim.readthedocs.org/en/latest/               Calculation of the full suite of European Climate Assessment (ECA) indices with optimized code implementation.
-``nose``      1.3.7   https://nose.readthedocs.org/en/latest/                Run unit tests.
+``icclim``    4.2.5   http://icclim.readthedocs.io/en/latest/                Calculation of the full suite of European Climate Assessment (ECA) indices with optimized code implementation.
+``nose``      1.3.7   https://nose.readthedocs.io/en/latest/                 Run unit tests.
 ============= ======= ====================================================== =================================================================================================================================
 
 Building from Source

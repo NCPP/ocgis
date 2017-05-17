@@ -4,7 +4,6 @@ from copy import deepcopy
 import numpy as np
 
 from ocgis import constants
-from ocgis import env
 from ocgis.calc.base import AbstractUnivariateFunction
 
 
@@ -27,6 +26,9 @@ class EvalFunction(AbstractUnivariateFunction):
     long_name = ''
 
     def __init__(self, **kwargs):
+        # Tricks PyCharm into not removing the import on import optimizations.
+        assert np
+
         self.expr = kwargs.pop('expr')
         AbstractUnivariateFunction.__init__(self, **kwargs)
 
@@ -34,34 +36,46 @@ class EvalFunction(AbstractUnivariateFunction):
         raise NotImplementedError
 
     def _execute_(self):
+
         # get the variable aliases that will map to variables in the string expresssion
         map_vars = {}
-        for variable in self.field.variables.itervalues():
-            map_vars[variable.alias] = '_exec_' + variable.alias + '.value'
+        calculation_targets = {}
+        for variable in self.iter_calculation_targets(yield_calculation_name=False, validate_units=False):
+            # for variable in self.field.variables.itervalues():
+            map_vars[variable.name] = '_exec_' + variable.name
+            calculation_targets[variable.name] = variable
+            # map_vars[variable.name] = '_exec_' + variable.name + '.value'
+            # map_vars[variable.alias] = '_exec_' + variable.alias + '.value'
         # parse the string filling in the local variable names
         expr, out_variable_name = self._get_eval_string_(self.expr, map_vars)
         # update the output alias and key used to create the variable collection later
         self.alias, self.key = out_variable_name, out_variable_name
-        # update the local variable dictionary so when the string expression is evaluated they will be available
-        for k, v in map_vars.iteritems():
-            locals()[v.split('.')[0]] = self.field.variables[k]
 
-        # if the output is file only, do no perform any calculations.
-        if self.file_only:
-            fill = self._empty_fill
-            dtype = self.dtype or env.NP_FLOAT
-            fill_value = np.ma.array([1], dtype=dtype).fill_value
-        # evaluate the expression and update the data type.
+        # Construct conformed array iterator.
+        keys = list(map_vars.keys())
+        crosswalks = [self._get_dimension_crosswalk_(calculation_targets[k]) for k in keys]
+        variable_shapes = [calculation_targets[k].shape for k in keys]
+        arrs = [self.get_variable_value(calculation_targets[k]) for k in keys]
+        archetype = calculation_targets[keys[0]]
+        fill = self.get_fill_variable(archetype, self.alias, archetype.dimensions, self.file_only,
+                                      dtype=archetype.dtype)
+        fill.units = None
 
-        # todo: with numpy 1.8.+ you can do the type modification inplace. this
-        # will make the type conversion operation less memory intensive.
-        else:
-            fill = eval(expr)
-            dtype = fill.dtype
-            fill_value = fill.fill_value
+        if not self.file_only:
+            arr_fill = self.get_variable_value(fill)
 
-        self._add_to_collection_(value=fill, parent_variables=self.field.variables.values(), units=None,
-                                 dtype=dtype, alias=self.alias, fill_value=fill_value)
+            itrs = [self._iter_conformed_arrays_(crosswalks[idx], variable_shapes[idx], arrs[idx], arr_fill, None)
+                    for idx in range(len(crosswalks))]
+
+            for yld in zip(*itrs):
+                for idx in range(len(keys)):
+                    locals()[map_vars[keys[idx]]] = yld[idx][0]
+                res = eval(expr)
+                carr_fill = yld[0][1]
+                carr_fill.data[:] = res.data
+                carr_fill.mask[:] = res.mask
+
+        self._add_to_collection_({'fill': fill})
 
     @staticmethod
     def is_multivariate(expr):
@@ -123,7 +137,7 @@ class EvalFunction(AbstractUnivariateFunction):
         # "strings" must be entirely composed of enabled numpy functions and the variable aliases originating from the
         # keys in "map_vars"
         for s in strings:
-            if s not in constants.ENABLED_NUMPY_UFUNCS and s not in map_vars.keys():
+            if s not in constants.ENABLED_NUMPY_UFUNCS and s not in list(map_vars.keys()):
                 raise ValueError('Unable to parse expression string: "{0}". '
                                  'Ensure the NumPy functions are enabled and appropriate '
                                  'variables have been requested. The problem string value is "{1}".'.format(expr, s))
@@ -132,7 +146,7 @@ class EvalFunction(AbstractUnivariateFunction):
             expr = expr.replace(np_func, 'np.' + np_func)
         # update the variable aliases to match the key-value relationship in "map_vars"
         max_ctr = len(expr)
-        for k, v in map_vars.iteritems():
+        for k, v in map_vars.items():
             for r in re_expr_base:
                 re_expr = r.format(k, math_set)
                 ctr = 0

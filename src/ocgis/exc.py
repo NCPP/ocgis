@@ -40,6 +40,14 @@ class CannotFormatTimeError(OcgException):
         return msg
 
 
+class MaskedDataFound(OcgException):
+    """Raised when data is masked."""
+
+    def __str__(self):
+        msg = 'Data is masked.'
+        return msg
+
+
 class MultipleElementsFound(OcgException):
     """
     Raised when multiple elements are encountered in a :class:`ocgis.interface.base.dimension.spatial.SpatialDimension`
@@ -81,12 +89,28 @@ class CalculationException(OcgException):
 
 
 class VariableInCollectionError(OcgException):
-    def __init__(self, variable):
-        self.variable = variable
+    def __init__(self, variable_or_name):
+        try:
+            name = variable_or_name.name
+        except AttributeError:
+            name = variable_or_name
+        self.name = name
 
     def __str__(self):
-        msg = 'Variable alias already in collection: {0}'.format(self.variable.alias)
-        return (msg)
+        msg = 'Variable name already in collection: {0}'.format(self.name)
+        return msg
+
+
+class VariableShapeMismatch(OcgException):
+    def __init__(self, variable, collection_shape):
+        self.variable = variable
+        self.collection_shape = collection_shape
+
+    def __str__(self):
+        msg = 'Variable with alias "{0}" has shape {1}. Collection shape is {2}'.format(self.variable.alias,
+                                                                                        self.variable.shape,
+                                                                                        self.collection_shape)
+        return msg
 
 
 class SampleSizeNotImplemented(CalculationException):
@@ -132,7 +156,7 @@ class DefinitionValidationError(OcgException):
     """Raised when validation fails on :class:`~ocgis.OcgOperations`.
     
     :param ocg_argument: The origin of the exception.
-    :type ocg_argument: :class:`ocgis.api.definition.AbstractParameter`, str
+    :type ocg_argument: :class:`ocgis.driver.definition.AbstractParameter`, str
     :param msg: The message related to the exception to display in the exception's template.
     :type msg: str
     """
@@ -224,8 +248,24 @@ class EmptySubsetError(SubsetException):
         self.origin = origin
 
     def __str__(self):
-        msg = 'A subset operation on dimension "{0}" returned empty.'.format(self.origin)
-        return (msg)
+        msg = 'A subset operation on variable "{0}" returned empty.'.format(self.origin)
+        return msg
+
+
+class AllElementsMaskedError(OcgException):
+    """Raised when all elements are masked."""
+
+    def __str__(self):
+        return "All elements are masked."
+
+
+class PayloadProtectedError(OcgException):
+    def __init__(self, name):
+        self.name = name
+        super(PayloadProtectedError, self).__init__()
+
+    def __str__(self):
+        return 'Payload with name "{}" may not be loaded from source until "protected" is False.'.format(self.name)
 
 
 class NoUnitsError(OcgException):
@@ -308,8 +348,77 @@ class RequestValidationError(OcgException):
         return message
 
 
-class NoDimensionedVariablesFound(RequestValidationError):
-    """Raised when no dimensioned variables are found in the target dataset."""
+class NoDataVariablesFound(RequestValidationError):
+    """Raised when no data variables are found in the target dataset."""
 
     def __init__(self):
-        super(NoDimensionedVariablesFound, self).__init__('variable', messages.M1)
+        super(NoDataVariablesFound, self).__init__('variable', messages.M1)
+
+
+class GridDeficientError(OcgException):
+    """Raised when a grid is missing parameters necessary to create a geometry array."""
+
+
+class DimensionMismatchError(OcgException):
+    """Raised when a variable's dimensions do not match those in the existing collection."""
+
+    def __init__(self, dim_name, vc_name, message=None):
+        self.dim_name = dim_name
+        self.vc_name = vc_name
+
+        super(DimensionMismatchError, self).__init__(message)
+
+    def __str__(self):
+        msg = 'The dimension "{}" does not match the dimension in variable collection "{}".'.format(self.dim_name,
+                                                                                                    self.vc_name)
+        return msg
+
+
+class DimensionsRequiredError(OcgException):
+    """Raised when a variable requires dimensions."""
+
+    def __init__(self, message=None):
+        if message is None:
+            message = "Variables with dimension count greater than 0 (ndim > 0) require dimensions. Initialize the " \
+                      "variable with dimensions or call 'create_dimensions' before size inquiries (i.e. ndim, shape)."
+        super(DimensionsRequiredError, self).__init__(message=message)
+
+
+class OcgDistError(OcgException):
+    """Raised for MPI-related exceptions."""
+
+
+class EmptyObjectError(OcgException):
+    """Raised when an empty object is not allowed."""
+
+
+class SubcommNotFoundError(OcgDistError):
+    """Raised when a subcommunicator is not found."""
+
+    def __init__(self, name):
+        message = "Subcommunicator '{}' not found.".format(name)
+        super(SubcommNotFoundError, self).__init__(message=message)
+
+
+class SubcommAlreadyCreatedError(OcgDistError):
+    """Raised when a subcommunicator name already exists."""
+
+    def __init__(self, name):
+        message = "Subcommunicator '{}' already created.".format(name)
+        super(SubcommAlreadyCreatedError, self).__init__(message=message)
+
+
+class CRSNotEquivalenError(OcgException):
+    """Raised when coordinate systems are not equivalent (not compatible for transform)."""
+
+    def __init__(self, lhs, rhs):
+        msg = '{} is not equivalent to {}.'.format(lhs, rhs)
+        super(CRSNotEquivalenError, self).__init__(message=msg)
+
+
+class DimensionMapError(OcgException):
+    """Raised when there is an issue with a dimension map entry."""
+
+    def __init__(self, entry_key, message):
+        msg = "Error with entry key '{}': {}".format(entry_key, message)
+        super(DimensionMapError, self).__init__(message=msg)

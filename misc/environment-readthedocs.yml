@@ -1,0 +1,9 @@
+name: rtd
+
+channels:
+- nesii/channel/dev-ocgis
+- conda-forge
+
+dependencies:
+- ocgis
+- esmpy

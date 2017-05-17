@@ -1,10 +1,11 @@
 import numpy as np
 
-from ocgis.test.base import TestBase
+from ocgis.test.base import TestBase, attr
 from ocgis.util.units import get_are_units_equivalent, get_are_units_equal, get_are_units_equal_by_string_or_cfunits, \
     get_units_object, get_conformed_units
 
 
+@attr('cfunits')
 class Test(TestBase):
     _create_dir = False
 

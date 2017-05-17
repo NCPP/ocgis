@@ -1,19 +1,20 @@
+import abc
 import datetime
 import os.path
-from abc import ABCMeta, abstractproperty, abstractmethod
+from abc import abstractproperty, abstractmethod
 
 import netCDF4 as nc
 import numpy as np
+import six
 from shapely.geometry.point import Point
 
 from ocgis import env
-from ocgis.interface.base.crs import CoordinateReferenceSystem
 from ocgis.util.helpers import iter_array, project_shapely_geometry
+from ocgis.variable.crs import CoordinateReferenceSystem
 
 
+@six.add_metaclass(abc.ABCMeta)
 class NcFactory(object):
-    __metaclass__ = ABCMeta
-
     @abstractproperty
     def filename(self): pass
 
@@ -435,7 +436,7 @@ class SimpleNcProjection(NcFactory):
 class SimpleNc(NcFactory):
     @property
     def filename(self):
-        return ('test_simple_spatial_01.nc')
+        return 'test_simple_spatial_01.nc'
 
     def write2(self):
         rootgrp = nc.Dataset(os.path.join(self.outdir, self.filename), 'w', format='NETCDF4')
@@ -548,12 +549,16 @@ class SimpleNc(NcFactory):
         ## fill variables
         times.units = TIME['units']
         times.calendar = TIME['calendar']
+        times.axis = 'T'
         times[:] = nc.date2num(timevec, units=times.units, calendar=times.calendar)
         bounds_times[:] = nc.date2num(timevec_bnds, units=times.units, calendar=times.calendar)
         levels[:] = levelvec
+        levels.axis = 'Z'
         bounds_levels[:] = levelvec_bounds
         cols[:] = col_coords
+        cols.axis = 'X'
         rows[:] = row_coords
+        rows.axis = 'Y'
         bounds_col[:, :] = col_bnds
         bounds_row[:, :] = row_bnds
         value[:, :, :, :] = val
@@ -680,12 +685,16 @@ class SimpleNcNoSpatialBounds(NcFactory):
         ## fill variables
         times.units = TIME['units']
         times.calendar = TIME['calendar']
+        times.axis = 'T'
         times[:] = nc.date2num(timevec, units=times.units, calendar=times.calendar)
         bounds_times[:] = nc.date2num(timevec_bnds, units=times.units, calendar=times.calendar)
         levels[:] = levelvec
+        levels.axis = 'Z'
         bounds_levels[:] = levelvec_bounds
         cols[:] = col_coords
+        cols.axis = 'X'
         rows[:] = row_coords
+        rows.axis = 'Y'
         #        bounds_col[:,:] = col_bnds
         #        bounds_row[:,:] = row_bnds
         value[:, :, :, :] = val
@@ -799,10 +808,14 @@ class SimpleMaskNc(NcFactory):
         ## fill variables
         times.units = TIME['units']
         times.calendar = TIME['calendar']
+        times.axis = 'T'
         times[:] = nc.date2num(timevec, units=times.units, calendar=times.calendar)
         levels[:] = levelvec
+        levels.axis = 'Z'
         cols[:] = col_coords
+        cols.axis = 'X'
         rows[:] = row_coords
+        rows.axis = 'Y'
         bounds_col[:, :] = col_bnds
         bounds_row[:, :] = row_bnds
         value[:, :, :, :] = val
@@ -924,12 +937,16 @@ class SimpleNcMultivariate(NcFactory):
         ## fill variables
         times.units = TIME['units']
         times.calendar = TIME['calendar']
+        times.axis = 'T'
         times[:] = nc.date2num(timevec, units=times.units, calendar=times.calendar)
         bounds_times[:] = nc.date2num(timevec_bnds, units=times.units, calendar=times.calendar)
         levels[:] = levelvec
+        levels.axis = 'Z'
         bounds_levels[:] = levelvec_bounds
         cols[:] = col_coords
+        cols.axis = 'X'
         rows[:] = row_coords
+        rows.axis = 'Y'
         bounds_col[:, :] = col_bnds
         bounds_row[:, :] = row_bnds
         value[:, :, :, :] = val
@@ -1050,10 +1067,14 @@ class SimpleNc360(NcFactory):
         ## fill variables
         times.units = TIME['units']
         times.calendar = TIME['calendar']
+        times.axis = 'T'
         times[:] = nc.date2num(timevec, units=times.units, calendar=times.calendar)
         levels[:] = levelvec
+        levels.axis = 'Z'
         cols[:] = col_coords
+        cols.axis = 'X'
         rows[:] = row_coords
+        rows.axis = 'Y'
         bounds_col[:, :] = col_bnds
         bounds_row[:, :] = row_bnds
         value[:, :, :, :] = val

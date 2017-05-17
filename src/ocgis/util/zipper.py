@@ -2,6 +2,8 @@ import io
 import os
 import zipfile
 
+from ocgis.constants import OutputFormatName
+
 
 class Zipper(object):
     def __init__(self, base_path=None):
@@ -55,7 +57,7 @@ def get_zipped_path(path_zip, folder):
 
 
 def format_return(ret_path, ops, with_auxiliary_files=False):
-    '''
+    """
     Format an OpenClimateGIS path returning an absolute path to a zip file or simply passing `ret_path` through.
     
     >>> import ocgis
@@ -71,23 +73,24 @@ def format_return(ret_path, ops, with_auxiliary_files=False):
     :type with_auxiliary_files: bool
     :raises: NotImplementedError
     :returns: str
-    '''
-    ## can do nothing with numpy returns
-    if ops.output_format == 'numpy':
-        raise (NotImplementedError('numpy formats have no use here - only disk outputs.'))
-    ## the folder containing all output files
+    """
+
+    # can do nothing with numpy returns
+    if ops.output_format == OutputFormatName.OCGIS:
+        raise NotImplementedError
+    # the folder containing all output files
     folder = os.path.split(ret_path)[0]
-    ## name for output zipfile
+    # name for output zipfile
     path_zip = os.path.join(folder, ops.prefix + '.zip')
     if ops.output_format in ['csv', 'nc']:
-        ## add all files
+        # add all files
         if with_auxiliary_files:
             ret = get_zipped_path(path_zip, folder)
-        ## only interested in the file.
+        # only interested in the file.
         else:
             ret = ret_path
-    ## otherwise return all files
+    # otherwise return all files
     else:
         ret = get_zipped_path(path_zip, folder)
 
-    return (ret)
+    return ret

@@ -14,6 +14,13 @@ class TestOptionalDependencies(TestSimpleBase):
     nc_factory = SimpleNcNoLevel
     fn = 'test_simple_spatial_no_level_01.nc'
 
+    @attr('mpi-only', 'mpi')
+    def test_mpi4py(self):
+        from mpi4py.MPI import COMM_WORLD
+
+        self.assertGreaterEqual(COMM_WORLD.Get_size(), 1)
+
+    @attr('cfunits')
     def test_cfunits(self):
         units = get_units_object('K')
         self.assertEqual(str(units), 'K')
@@ -24,9 +31,10 @@ class TestOptionalDependencies(TestSimpleBase):
         rd2 = deepcopy(rd1)
         ops = OcgOperations(dataset=rd1, regrid_destination=rd2, output_format='nc')
         ret = ops.execute()
-        ignore_attributes = {'time_bnds': ['units', 'calendar'], 'global': ['history'], 'foo': ['grid_mapping']}
-        ignore_variables = ['latitude_longitude']
-        self.assertNcEqual(ret, rd1.uri, ignore_attributes=ignore_attributes, ignore_variables=ignore_variables)
+
+        actual_value = RequestDataset(ret).get().data_variables[0].get_value()
+        desired_value = rd1.get().data_variables[0].get_value()
+        self.assertNumpyAllClose(actual_value, desired_value)
 
     @attr('icclim')
     def test_icclim(self):
@@ -34,10 +42,11 @@ class TestOptionalDependencies(TestSimpleBase):
         calc = [{'func': 'icclim_TG', 'name': 'TG'}]
         calc_grouping = ['month', 'year']
         ret = OcgOperations(dataset=rd, calc=calc, calc_grouping=calc_grouping).execute()
-        self.assertEqual(ret[1]['foo'].variables['TG'].value.mean(), 2.5)
+        self.assertEqual(ret.get_element(variable_name='TG').get_value().mean(), 2.5)
 
+    @attr('rtree')
     def test_rtree(self):
-        from ocgis.util.spatial.index import SpatialIndex
+        from ocgis.spatial.index import SpatialIndex
 
         geom_mapping = {1: Point(1, 2)}
         si = SpatialIndex()

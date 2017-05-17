@@ -1,12 +1,14 @@
 name: ocgis
 
 channels:
+  - nesii/channel/dev-ocgis
   - conda-forge
-  - nesii
 
 dependencies:
-  - python=2.7
-  - ocgis=1.3.2
-  - esmpy=7.0.0
-  - icclim=4.2.5
+  - ocgis
+  - esmpy
+  - mpi4py
+  - rtree
+  - cf_units
+  - icclim
   - nose

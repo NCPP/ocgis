@@ -23,7 +23,7 @@ rds = [
 for rd in rds:
     print rd.alias
     ops = ocgis.OcgOperations(dataset=rd, output_format='shp', snippet=True, prefix=rd.alias,
-                              output_crs=ocgis.crs.WGS84())
+                              output_crs=ocgis.variable.crs.WGS84())
     ops.execute()
 
 # #######################################################################################################################
@@ -33,6 +33,7 @@ for rd in rds:
 calc_grouping = ['month']
 calc = [{'func': 'mean', 'name': 'mean'}, {'func': 'std', 'name': 'stdev'}]
 ops = ocgis.OcgOperations(dataset=rds, geom='state_boundaries', select_ugid=[16], snippet=False, prefix='nebraska',
-                          abstraction='point', aggregate=True, output_format='csv-shp', output_crs=ocgis.crs.WGS84(),
+                          abstraction='point', aggregate=True, output_format='csv-shp',
+                          output_crs=ocgis.variable.crs.WGS84(),
                           calc=calc, calc_grouping=calc_grouping, spatial_operation='clip')
 ops.execute()

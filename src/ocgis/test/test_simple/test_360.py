@@ -8,10 +8,10 @@ from shapely.geometry.polygon import Polygon
 
 import ocgis
 from ocgis import env
-from ocgis.api.interpreter import OcgInterpreter
-from ocgis.api.operations import OcgOperations
+from ocgis.ops.core import OcgOperations
+from ocgis.ops.interpreter import OcgInterpreter
+from ocgis.spatial.geom_cabinet import GeomCabinetIterator
 from ocgis.test.base import TestBase, attr
-from ocgis.util.geom_cabinet import GeomCabinetIterator
 
 
 class NcSpatial(object):
@@ -105,7 +105,7 @@ class Test360(TestBase):
                 lon += 360
             return [lon, ctup[1]]
 
-        transformed = map(_transform_lon_, polygon.exterior.coords)
+        transformed = list(map(_transform_lon_, polygon.exterior.coords))
         new_polygon = Polygon(transformed)
         return new_polygon
 
@@ -144,16 +144,20 @@ class Test360(TestBase):
         ds.createDimension('d_level', size=len(level_values))
         ds.createDimension('d_time', size=len(time_values))
 
-        self.make_variable('lat', nc_spatial.lat_values, 'd_lat', bounds='lat_bnds')
-        self.make_variable('lon', nc_spatial.lon_values, 'd_lon', bounds='lon_bnds')
+        lat = self.make_variable('lat', nc_spatial.lat_values, 'd_lat', bounds='lat_bnds')
+        lat.axis = 'Y'
+        lon = self.make_variable('lon', nc_spatial.lon_values, 'd_lon', bounds='lon_bnds')
+        lon.axis = 'X'
         self.make_variable('lat_bnds', nc_spatial.latb_values, ('d_lat', 'd_bnds'))
         self.make_variable('lon_bnds', nc_spatial.lonb_values, ('d_lon', 'd_bnds'))
 
         v_time = self.make_variable('time', time_values, 'd_time')
+        v_time.axi = 'T'
         v_time.calendar = calendar
         v_time.units = units
 
-        self.make_variable('level', level_values, 'd_level')
+        level = self.make_variable('level', level_values, 'd_level')
+        level.axis = 'Z'
 
         self.make_variable('foo', values, ('d_time', 'd_level', 'd_lat', 'd_lon'))
 

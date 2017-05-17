@@ -13,7 +13,7 @@ class Divide(base.AbstractMultivariateFunction):
     long_name = 'Divide'
 
     def calculate(self, arr1=None, arr2=None):
-        return (arr1 / arr2)
+        return arr1 / arr2
 
 
 class NaturalLogarithm(base.AbstractUnivariateFunction):
@@ -24,10 +24,10 @@ class NaturalLogarithm(base.AbstractUnivariateFunction):
     long_name = 'Natural Logarithm'
 
     def calculate(self, values):
-        return (np.ma.log(values))
+        return np.ma.log(values)
 
     def get_output_units(self, *args, **kwds):
-        return (None)
+        return None
 
 
 class Sum(base.AbstractUnivariateSetFunction):
@@ -74,15 +74,21 @@ class Convolve1D(base.AbstractUnivariateFunction, base.AbstractParameterizedFunc
 
         # valid will have less values than the input as this checks if the two convolved arrays completely overlap
         shape_fill = list(values.shape)
-        if mode == 'valid':
-            shape_fill[1] = max(values.shape[1], v.shape[0]) - min(values.shape[1], v.shape[0]) + 1
-        fill = np.zeros(shape_fill)
+        # if mode == 'valid':
+        #     shape_fill[1] = max(values.shape[1], v.shape[0]) - min(values.shape[1], v.shape[0]) + 1
+        fill = np.zeros(shape_fill, dtype=self.dtype)
 
         # perform the convolution on the time axis
         itr = iter_array(values)
         for ie, it, il, ir, ic in itr:
             a = values[ie, :, il, ir, ic]
-            fill[ie, :, il, ir, ic] = np.convolve(a, v, mode=mode)
+            res_convolve = np.convolve(a, v, mode=mode)
+            if mode == 'valid':
+                time_slice = slice(0, max(values.shape[1], v.shape[0]) - min(values.shape[1], v.shape[0]) + 1)
+                # fill[ie, :, il, ir, ic] = res_convolve
+            else:
+                time_slice = slice(None)
+            fill[ie, time_slice, il, ir, ic] = res_convolve
 
         if mode == 'valid':
             # generate the mask for the output data and convert the output to a masked array
@@ -92,7 +98,10 @@ class Convolve1D(base.AbstractUnivariateFunction, base.AbstractParameterizedFunc
 
             # identify where the two arrays completely overlap and collect the indices to subset the field object
             # attached to the calculation object
-            self.field = self.field[:, slice(0, 0 - (v.shape[0] - 1)), :, :, :]
+            overlap_mask = np.ones(mask.shape, dtype=bool)
+            overlap_mask[:, slice(0, 0 - (v.shape[0] - 1)), :, :, :] = False
+            fill.mask[:] = np.logical_or(fill.mask, overlap_mask)
+            # self.field = self.field[:, slice(0, 0-(v.shape[0]-1)), :, :, :]
         else:
             # same does not modify the output array size
             fill = np.ma.array(fill, mask=values.mask)

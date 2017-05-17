@@ -1,55 +1,55 @@
-import itertools
-import pickle
-import unittest
-
 import numpy as np
 
 import ocgis
-from ocgis.api.parms.definition import Calc
 from ocgis.calc.library.statistics import Mean, FrequencyPercentile, MovingWindow, DailyPercentile
+from ocgis.collection.field import Field
+from ocgis.constants import OutputFormatName
 from ocgis.exc import DefinitionValidationError
-from ocgis.interface.base.variable import DerivedVariable, Variable
-from ocgis.test.base import attr
+from ocgis.ops.parms.definition import Calc
+from ocgis.test.base import attr, AbstractTestField
 from ocgis.test.base import nc_scope
-from ocgis.test.test_ocgis.test_interface.test_base.test_field import AbstractTestField
 from ocgis.util.itester import itr_products_keywords
 from ocgis.util.large_array import compute
 from ocgis.util.units import get_units_object
+from ocgis.variable.base import Variable
 
 
 class TestDailyPercentile(AbstractTestField):
-    def test_calculate(self):
-        field = self.get_field(with_value=True, month_count=2)
-        field = field[0, :, 0, :, :]
-        # field = self.test_data.get_rd('cancm4_tas').get()
-        tgd = field.temporal.get_grouping(['month', 'day'])
-        parms = {'percentile': 90, 'window_width': 5}
-        dp = DailyPercentile(field=field, tgd=tgd, parms=parms)
-        vc = dp.execute()
-        self.assertAlmostEqual(vc['daily_perc'].value.mean(), 0.76756388346354165)
-
-    @attr('data')
-    def test_operations(self):
-        rd = self.test_data.get_rd('cancm4_tas')
-        kwds = {'percentile': 90, 'window_width': 5}
-        calc = [{'func': 'daily_perc', 'name': 'dp', 'kwds': kwds}]
-        for output_format in ['numpy', 'nc']:
-            ops = ocgis.OcgOperations(dataset=rd, geom='state_boundaries', select_ugid=[23], calc=calc,
-                                      output_format=output_format, time_region={'year': [2002, 2003]})
-            ret = ops.execute()
-            if output_format == 'numpy':
-                self.assertEqual(ret[23]['tas'].variables['dp'].value.mask.sum(), 730)
-
-    @attr('data')
-    def test_compute(self):
+    @attr('data', 'slow')
+    def test_system_compute(self):
         rd = self.test_data.get_rd('cancm4_tas')
         kwds = {'percentile': 90, 'window_width': 5}
         calc = [{'func': 'daily_perc', 'name': 'dp', 'kwds': kwds}]
         ops = ocgis.OcgOperations(dataset=rd, geom='state_boundaries', select_ugid=[23], calc=calc,
                                   output_format='nc', time_region={'year': [2002, 2003]})
         ret = compute(ops, 2, verbose=False)
+
         rd = ocgis.RequestDataset(uri=ret)
-        self.assertEqual(rd.get().shape, (1, 365, 1, 4, 3))
+        actual_field = rd.get()
+        self.assertEqual(actual_field.data_variables[0].shape, (365, 3, 3))
+
+    @attr('data', 'slow')
+    def test_system_operations(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        kwds = {'percentile': 90, 'window_width': 5}
+        calc = [{'func': 'daily_perc', 'name': 'dp', 'kwds': kwds}]
+        for output_format in [OutputFormatName.OCGIS, 'nc']:
+            ops = ocgis.OcgOperations(dataset=rd, geom='state_boundaries', select_ugid=[23], calc=calc,
+                                      output_format=output_format, time_region={'year': [2002, 2003]})
+            self.assertIsNone(ops.calc_grouping)
+            ret = ops.execute()
+            if output_format == OutputFormatName.OCGIS:
+                actual = ret.get_element(container_ugid=23, variable_name='dp').get_mask().sum()
+                self.assertEqual(actual, 730)
+
+    def test_execute(self):
+        field = self.get_field(with_value=True, month_count=2)
+        field = field.get_field_slice({'realization': 0, 'level': 0})
+        parms = {'percentile': 90, 'window_width': 5}
+        dp = DailyPercentile(field=field, parms=parms)
+        vc = dp.execute()
+
+        self.assertAlmostEqual(vc['daily_perc'].get_value().mean(), 0.76756388346354165)
 
     @attr('data')
     def test_get_daily_percentile_from_request_dataset(self):
@@ -59,11 +59,12 @@ class TestDailyPercentile(AbstractTestField):
         ops = ocgis.OcgOperations(dataset=rd, geom='state_boundaries', select_ugid=[23], calc=calc,
                                   output_format='nc', time_region={'year': [2002, 2003]})
         ret = ops.execute()
+
         new_rd = ocgis.RequestDataset(ret)
         for alias in [None, 'dp']:
             dp = DailyPercentile.get_daily_percentile_from_request_dataset(new_rd, alias=alias)
-            self.assertEqual(len(dp.keys()), 365)
-            self.assertAlmostEqual(dp[(4, 15)].mean(), 280.7369384765625)
+            self.assertEqual(len(list(dp.keys())), 365)
+            self.assertAlmostEqual(dp[(4, 15)].mean(), 281.68076869419644)
 
 
 class TestMovingWindow(AbstractTestField):
@@ -73,29 +74,39 @@ class TestMovingWindow(AbstractTestField):
         values = np.ma.array(np.random.rand(10), dtype=float).reshape(1, -1, 1, 1, 1)
         k = 5
         ret = ma.calculate(values, k=k, mode='same', operation='mean')
+
         self.assertEqual(ret.shape, values.shape)
-        actual = pickle.loads(
-            'cnumpy.ma.core\n_mareconstruct\np0\n(cnumpy.ma.core\nMaskedArray\np1\ncnumpy\nndarray\np2\n(I0\ntp3\nS\'b\'\np4\ntp5\nRp6\n(I1\n(I1\nI10\nI1\nI1\nI1\ntp7\ncnumpy\ndtype\np8\n(S\'f8\'\np9\nI0\nI1\ntp10\nRp11\n(I3\nS\'<\'\np12\nNNNI-1\nI-1\nI0\ntp13\nbI00\nS\'\\xec\\x80\\\'\\x90\\rD\\xd8?\\xee"\\x1d\\xdad\\t\\xd7?\\x126\\xab\\x0b\\xceN\\xd4?\\xc4\\xcdN\\xdc\\xe1&\\xd0?\\x0e\\xa2\\x12\\x8a\\xb8\\xa1\\xc2?#!\\x9bX\\xa3y\\xcb?\\x83\\xb5\\x00\\xd2\\x86\\xe4\\xcd?*M\\xfa\\xe1\\xf7\\xf6\\xd3?\\xd4\\xd3\\xad\\xd1}z\\xd7? J4q\\xc2T\\xdb?\'\np14\nS\'\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\'\np15\ncnumpy.core.multiarray\n_reconstruct\np16\n(g2\n(I0\ntp17\ng4\ntp18\nRp19\n(I1\n(tg11\nI00\nS\'@\\x8c\\xb5x\\x1d\\xaf\\x15D\'\np20\ntp21\nbtp22\nb.')
-        self.assertNumpyAllClose(ret, actual)
+        desired = [
+            [[[[0.37915362432069233]]], [[[0.3599483613984792]]], [[[0.317309867282206]]], [[[0.2523731852954507]]],
+             [[[0.14556032888255327]]], [[[0.21464959932769387]]], [[[0.23353657964745986]]], [[[0.31194874828470864]]],
+             [[[0.3668512866636864]]], [[[0.4270483117590249]]]]]
+        desired = np.array(desired)
+        self.assertNumpyAllClose(ret, desired)
         ret = ret.squeeze()
         values = values.squeeze()
         self.assertEqual(ret[4], np.mean(values[2:7]))
 
     def test_execute(self):
         field = self.get_field(month_count=1, with_value=True)
-        field = field[:, 0:4, :, :, :]
-        field.variables['tmax'].value[:] = 1
-        field.variables['tmax'].value.mask[:, :, :, 1, 1] = True
+        field = field.get_field_slice({'time': slice(0, 4)})
+        field['tmax'].get_value()[:] = 1
+
+        mask = field['tmax'].get_mask(create=True)
+        mask[:, :, :, 1, 1] = True
+        field['tmax'].set_mask(mask)
+
         for mode in ['same', 'valid']:
             for operation in ('mean', 'min', 'max', 'median', 'var', 'std'):
                 parms = {'k': 3, 'mode': mode, 'operation': operation}
                 ma = MovingWindow(field=field, parms=parms)
                 vc = ma.execute()
                 if mode == 'same':
-                    self.assertEqual(vc['moving_window'].value.shape, field.shape)
+                    self.assertEqual(vc['moving_window'].get_value().shape, field['tmax'].shape)
                 else:
-                    self.assertEqual(vc['moving_window'].value.shape, (2, 2, 2, 3, 4))
-                    self.assertEqual(ma.field.shape, (2, 2, 2, 3, 4))
+                    actual_mask = vc['moving_window'].get_mask()
+                    self.assertTrue(np.all(actual_mask[:, 0, :, :, :]))
+                    self.assertTrue(np.all(actual_mask[:, -1, :, :, :]))
+                    self.assertEqual(vc['moving_window'].get_value().shape, (2, 4, 2, 3, 4))
 
     @attr('data')
     def test_execute_valid_through_operations(self):
@@ -105,8 +116,10 @@ class TestMovingWindow(AbstractTestField):
         calc = [{'func': 'moving_window', 'name': 'ma', 'kwds': {'k': 5, 'mode': 'valid', 'operation': 'mean'}}]
         ops = ocgis.OcgOperations(dataset=rd, calc=calc, slice=[None, [0, 365], None, [0, 10], [0, 10]])
         ret = ops.execute()
-        self.assertEqual(ret[1]['tas'].shape, (1, 361, 1, 10, 10))
-        self.assertAlmostEqual(ret[1]['tas'].variables['ma'].value.mean(), 240.08149584487535)
+        actual = ret.get_element().data_variables[0].shape
+        self.assertEqual(actual, (365, 10, 10))
+        actual = ret.get_element()['ma'].get_masked_value().mean()
+        self.assertAlmostEqual(actual, 240.08149584487535)
 
     def test_registry(self):
         Calc([{'func': 'moving_window', 'name': 'ma'}])
@@ -119,12 +132,16 @@ class TestMovingWindow(AbstractTestField):
         mode = 'same'
         itr = MovingWindow._iter_kernel_values_(values, k, mode=mode)
         to_test = list(itr)
-        actual = pickle.loads(
-            "(lp0\n(I0\ncnumpy.core.multiarray\n_reconstruct\np1\n(cnumpy\nndarray\np2\n(I0\ntp3\nS'b'\np4\ntp5\nRp6\n(I1\n(I3\nI1\nI1\ntp7\ncnumpy\ndtype\np8\n(S'i8'\np9\nI0\nI1\ntp10\nRp11\n(I3\nS'<'\np12\nNNNI-1\nI-1\nI0\ntp13\nbI00\nS'\\x02\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x03\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x04\\x00\\x00\\x00\\x00\\x00\\x00\\x00'\np14\ntp15\nbtp16\na(I1\ng1\n(g2\n(I0\ntp17\ng4\ntp18\nRp19\n(I1\n(I4\nI1\nI1\ntp20\ng11\nI00\nS'\\x02\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x03\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x04\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x05\\x00\\x00\\x00\\x00\\x00\\x00\\x00'\np21\ntp22\nbtp23\na(I2\ng1\n(g2\n(I0\ntp24\ng4\ntp25\nRp26\n(I1\n(I5\nI1\nI1\ntp27\ng11\nI00\nS'\\x02\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x03\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x04\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x05\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x06\\x00\\x00\\x00\\x00\\x00\\x00\\x00'\np28\ntp29\nbtp30\na(I3\ng1\n(g2\n(I0\ntp31\ng4\ntp32\nRp33\n(I1\n(I5\nI1\nI1\ntp34\ng11\nI00\nS'\\x03\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x04\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x05\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x06\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x07\\x00\\x00\\x00\\x00\\x00\\x00\\x00'\np35\ntp36\nbtp37\na(I4\ng1\n(g2\n(I0\ntp38\ng4\ntp39\nRp40\n(I1\n(I5\nI1\nI1\ntp41\ng11\nI00\nS'\\x04\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x05\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x06\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x07\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x08\\x00\\x00\\x00\\x00\\x00\\x00\\x00'\np42\ntp43\nbtp44\na(I5\ng1\n(g2\n(I0\ntp45\ng4\ntp46\nRp47\n(I1\n(I5\nI1\nI1\ntp48\ng11\nI00\nS'\\x05\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x06\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x07\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x08\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\t\\x00\\x00\\x00\\x00\\x00\\x00\\x00'\np49\ntp50\nbtp51\na(I6\ng1\n(g2\n(I0\ntp52\ng4\ntp53\nRp54\n(I1\n(I5\nI1\nI1\ntp55\ng11\nI00\nS'\\x06\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x07\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x08\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\t\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\n\\x00\\x00\\x00\\x00\\x00\\x00\\x00'\np56\ntp57\nbtp58\na(I7\ng1\n(g2\n(I0\ntp59\ng4\ntp60\nRp61\n(I1\n(I4\nI1\nI1\ntp62\ng11\nI00\nS'\\x07\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x08\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\t\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\n\\x00\\x00\\x00\\x00\\x00\\x00\\x00'\np63\ntp64\nbtp65\na(I8\ng1\n(g2\n(I0\ntp66\ng4\ntp67\nRp68\n(I1\n(I3\nI1\nI1\ntp69\ng11\nI00\nS'\\x08\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\t\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\n\\x00\\x00\\x00\\x00\\x00\\x00\\x00'\np70\ntp71\nbtp72\na.")
+
+        desired = [[0, [[[2]], [[3]], [[4]]]], [1, [[[2]], [[3]], [[4]], [[5]]]],
+                   [2, [[[2]], [[3]], [[4]], [[5]], [[6]]]], [3, [[[3]], [[4]], [[5]], [[6]], [[7]]]],
+                   [4, [[[4]], [[5]], [[6]], [[7]], [[8]]]], [5, [[[5]], [[6]], [[7]], [[8]], [[9]]]],
+                   [6, [[[6]], [[7]], [[8]], [[9]], [[10]]]], [7, [[[7]], [[8]], [[9]], [[10]]]],
+                   [8, [[[8]], [[9]], [[10]]]]]
         for idx in range(len(to_test)):
             self.assertEqual(to_test[idx][1].ndim, 3)
-            self.assertEqual(to_test[idx][0], actual[idx][0])
-            self.assertNumpyAll(to_test[idx][1], actual[idx][1])
+            self.assertEqual(to_test[idx][0], desired[idx][0])
+            self.assertEqual(to_test[idx][1].tolist(), desired[idx][1])
 
     def test_iter_kernel_values_valid(self):
         """Test returning kernel values with the 'valid' mode."""
@@ -134,12 +151,15 @@ class TestMovingWindow(AbstractTestField):
         mode = 'valid'
         itr = MovingWindow._iter_kernel_values_(values, k, mode=mode)
         to_test = list(itr)
-        actual = pickle.loads(
-            "(lp0\n(I2\ncnumpy.core.multiarray\n_reconstruct\np1\n(cnumpy\nndarray\np2\n(I0\ntp3\nS'b'\np4\ntp5\nRp6\n(I1\n(I5\nI1\nI1\ntp7\ncnumpy\ndtype\np8\n(S'i8'\np9\nI0\nI1\ntp10\nRp11\n(I3\nS'<'\np12\nNNNI-1\nI-1\nI0\ntp13\nbI00\nS'\\x02\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x03\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x04\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x05\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x06\\x00\\x00\\x00\\x00\\x00\\x00\\x00'\np14\ntp15\nbtp16\na(I3\ng1\n(g2\n(I0\ntp17\ng4\ntp18\nRp19\n(I1\n(I5\nI1\nI1\ntp20\ng11\nI00\nS'\\x03\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x04\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x05\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x06\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x07\\x00\\x00\\x00\\x00\\x00\\x00\\x00'\np21\ntp22\nbtp23\na(I4\ng1\n(g2\n(I0\ntp24\ng4\ntp25\nRp26\n(I1\n(I5\nI1\nI1\ntp27\ng11\nI00\nS'\\x04\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x05\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x06\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x07\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x08\\x00\\x00\\x00\\x00\\x00\\x00\\x00'\np28\ntp29\nbtp30\na(I5\ng1\n(g2\n(I0\ntp31\ng4\ntp32\nRp33\n(I1\n(I5\nI1\nI1\ntp34\ng11\nI00\nS'\\x05\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x06\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x07\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x08\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\t\\x00\\x00\\x00\\x00\\x00\\x00\\x00'\np35\ntp36\nbtp37\na(I6\ng1\n(g2\n(I0\ntp38\ng4\ntp39\nRp40\n(I1\n(I5\nI1\nI1\ntp41\ng11\nI00\nS'\\x06\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x07\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x08\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\t\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\n\\x00\\x00\\x00\\x00\\x00\\x00\\x00'\np42\ntp43\nbtp44\na.")
+
+        desired = [[2, [[[2]], [[3]], [[4]], [[5]], [[6]]]], [3, [[[3]], [[4]], [[5]], [[6]], [[7]]]],
+                   [4, [[[4]], [[5]], [[6]], [[7]], [[8]]]], [5, [[[5]], [[6]], [[7]], [[8]], [[9]]]],
+                   [6, [[[6]], [[7]], [[8]], [[9]], [[10]]]]]
+
         for idx in range(len(to_test)):
             self.assertEqual(to_test[idx][1].ndim, 3)
-            self.assertEqual(to_test[idx][0], actual[idx][0])
-            self.assertNumpyAll(to_test[idx][1], actual[idx][1])
+            self.assertEqual(to_test[idx][0], desired[idx][0])
+            self.assertEqual(to_test[idx][1].tolist(), desired[idx][1])
 
     def test_iter_kernel_values_asserts(self):
         """Test assert statements."""
@@ -173,49 +193,85 @@ class TestMovingWindow(AbstractTestField):
 
 
 class TestFrequencyPercentile(AbstractTestField):
-    def test(self):
+    def test_execute(self):
         field = self.get_field(with_value=True, month_count=2)
         grouping = ['month']
         tgd = field.temporal.get_grouping(grouping)
         fp = FrequencyPercentile(field=field, tgd=tgd, parms={'percentile': 99})
         ret = fp.execute()
-        self.assertNumpyAllClose(ret['freq_perc'].value[0, 1, 1, 0, :],
+        self.assertNumpyAllClose(ret['freq_perc'].get_masked_value()[0, 1, 1, 0, :],
                                  np.ma.array(data=[0.92864656, 0.98615474, 0.95269281, 0.98542988],
                                              mask=False, fill_value=1e+20))
 
 
 class TestMean(AbstractTestField):
-    def test(self):
+    @attr('data')
+    def test_system_file_only_through_operations(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        ops = ocgis.OcgOperations(dataset=rd, calc=[{'func': 'mean', 'name': 'mean'}], calc_grouping=['month'],
+                                  geom='state_boundaries', select_ugid=[27], file_only=True, output_format='nc')
+        ret = ops.execute()
+        with nc_scope(ret) as ds:
+            var = ds.variables['mean']
+            # All data should be masked since this is file only.
+            self.assertTrue(var[:].mask.all())
+
+    @attr('data')
+    def test_system_output_datatype(self):
+        """Test the output data type is the same as the input data type of the variable."""
+
+        rd = self.test_data.get_rd('cancm4_tas')
+        ops = ocgis.OcgOperations(dataset=rd, calc=[{'func': 'mean', 'name': 'mean'}], calc_grouping=['month'],
+                                  geom='state_boundaries', select_ugid=[27])
+        ret = ops.execute()
+        with nc_scope(rd.uri) as ds:
+            var_dtype = ds.variables['tas'].dtype
+        actual = ret.get_element(variable_name='mean').dtype
+        self.assertEqual(actual, var_dtype)
+
+    def test_execute(self):
         field = self.get_field(with_value=True, month_count=2)
+        self.assertIsInstance(field, Field)
         grouping = ['month']
         tgd = field.temporal.get_grouping(grouping)
         mu = Mean(field=field, tgd=tgd, alias='my_mean', dtype=np.float64)
         dvc = mu.execute()
         dv = dvc['my_mean']
-        self.assertEqual(dv.name, 'mean')
-        self.assertEqual(dv.alias, 'my_mean')
-        self.assertIsInstance(dv, DerivedVariable)
-        self.assertEqual(dv.value.shape, (2, 2, 2, 3, 4))
-        self.assertNumpyAll(np.ma.mean(field.variables['tmax'].value[1, tgd.dgroups[1], 0, :, :], axis=0),
-                            dv.value[1, 1, 0, :, :])
+        self.assertEqual(dv.name, 'my_mean')
+        self.assertEqual(dv.get_value().shape, (2, 2, 2, 3, 4))
+        self.assertNumpyAll(np.mean(field['tmax'].get_value()[1, tgd.dgroups[1], 0, :, :], axis=0),
+                            dv.get_value()[1, 1, 0, :, :])
 
-    def test_sample_size(self):
+    @attr('data')
+    def test_execute_file_only(self):
+        rd = self.test_data.get_rd('cancm4_tas')
+        field = rd.get()
+        field = field.get_field_slice({'time': slice(10, 20), 'y': slice(20, 30), 'x': slice(40, 50)})
+        grouping = ['month']
+        tgd = field.temporal.get_grouping(grouping)
+        # Value should not be loaded at this point.
+        self.assertEqual(field['tas']._value, None)
+        mu = Mean(field=field, tgd=tgd, alias='my_mean', file_only=True)
+        ret = mu.execute()
+        # Value should still not be loaded.
+        self.assertIsNone(field['tas']._value)
+        # No value should be calculated for the calculation.
+        self.assertIsNone(ret['my_mean']._value)
+
+    def test_execute_sample_size(self):
         field = self.get_field(with_value=True, month_count=2)
         grouping = ['month']
         tgd = field.temporal.get_grouping(grouping)
-        mu = Mean(field=field, tgd=tgd, alias='my_mean', calc_sample_size=True,
-                  dtype=np.float64)
+        mu = Mean(field=field, tgd=tgd, alias='my_mean', calc_sample_size=True, dtype=np.float64)
         dvc = mu.execute()
         dv = dvc['my_mean']
-        self.assertEqual(dv.name, 'mean')
-        self.assertEqual(dv.alias, 'my_mean')
-        self.assertIsInstance(dv, DerivedVariable)
-        self.assertEqual(dv.value.shape, (2, 2, 2, 3, 4))
-        self.assertNumpyAll(np.ma.mean(field.variables['tmax'].value[1, tgd.dgroups[1], 0, :, :], axis=0),
-                            dv.value[1, 1, 0, :, :])
+        self.assertEqual(dv.name, 'my_mean')
+        self.assertEqual(dv.get_value().shape, (2, 2, 2, 3, 4))
+        self.assertNumpyAll(np.mean(field['tmax'].get_value()[1, tgd.dgroups[1], 0, :, :], axis=0),
+                            dv.get_value()[1, 1, 0, :, :])
 
         ret = dvc['n_my_mean']
-        self.assertNumpyAll(ret.value[0, 0, 0],
+        self.assertNumpyAll(ret.get_masked_value()[0, 0, 0],
                             np.ma.array(data=[[31, 31, 31, 31], [31, 31, 31, 31], [31, 31, 31, 31]],
                                         mask=[[False, False, False, False], [False, False, False, False],
                                               [False, False, False, False]],
@@ -224,112 +280,45 @@ class TestMean(AbstractTestField):
 
         mu = Mean(field=field, tgd=tgd, alias='my_mean', calc_sample_size=False)
         dvc = mu.execute()
-        self.assertNotIn('n_my_mean', dvc.keys())
+        self.assertNotIn('n_my_mean', list(dvc.keys()))
 
-    def test_two_variables(self):
+    def test_execute_two_variables(self):
+        """Test running a field with two variables through the mean calculation."""
+
         field = self.get_field(with_value=True, month_count=2)
-        field.variables.add_variable(Variable(value=field.variables['tmax'].value + 5, name='tmin', alias='tmin'))
+        field.add_variable(
+            Variable(value=field['tmax'].get_value() + 5, name='tmin', dimensions=field['tmax'].dimensions),
+            is_data=True)
         grouping = ['month']
         tgd = field.temporal.get_grouping(grouping)
         mu = Mean(field=field, tgd=tgd, alias='my_mean', dtype=np.float64)
         ret = mu.execute()
         self.assertEqual(len(ret), 2)
-        self.assertAlmostEqual(5.0, abs(ret['my_mean_tmax'].value.mean() - ret['my_mean_tmin'].value.mean()))
+        self.assertAlmostEqual(5.0,
+                               abs(ret['my_mean_tmax'].get_value().mean() - ret['my_mean_tmin'].get_value().mean()))
 
-    def test_two_variables_sample_size(self):
+    def test_execute_two_variables_sample_size(self):
         field = self.get_field(with_value=True, month_count=2)
-        field.variables.add_variable(Variable(value=field.variables['tmax'].value + 5, name='tmin', alias='tmin'))
+        field.add_variable(
+            Variable(value=field['tmax'].get_value() + 5, name='tmin', dimensions=field['tmax'].dimensions),
+            is_data=True)
         grouping = ['month']
         tgd = field.temporal.get_grouping(grouping)
         mu = Mean(field=field, tgd=tgd, alias='my_mean', dtype=np.float64, calc_sample_size=True)
         ret = mu.execute()
         self.assertEqual(len(ret), 4)
-        self.assertAlmostEqual(5.0, abs(ret['my_mean_tmax'].value.mean() - ret['my_mean_tmin'].value.mean()))
-        self.assertEqual(set(['my_mean_tmax', 'n_my_mean_tmax', 'my_mean_tmin', 'n_my_mean_tmin']),
+        self.assertAlmostEqual(5.0,
+                               abs(ret['my_mean_tmax'].get_value().mean() - ret['my_mean_tmin'].get_value().mean()))
+        self.assertEqual({'my_mean_tmax', 'n_my_mean_tmax', 'my_mean_tmin', 'n_my_mean_tmin'},
                          set(ret.keys()))
 
-    def test_units_are_maintained(self):
+    @attr('cfunits')
+    def test_execute_units_are_maintained(self):
         field = self.get_field(with_value=True, month_count=2)
         units_kelvin = get_units_object('kelvin')
-        self.assertEqual(field.variables['tmax'].cfunits, units_kelvin)
+        self.assertEqual(field['tmax'].cfunits, units_kelvin)
         grouping = ['month']
         tgd = field.temporal.get_grouping(grouping)
-        mu = Mean(field=field, tgd=tgd, alias='my_mean', calc_sample_size=False,
-                  dtype=np.float64)
+        mu = Mean(field=field, tgd=tgd, alias='my_mean', calc_sample_size=False, dtype=np.float64)
         dvc = mu.execute()
         self.assertEqual(dvc['my_mean'].cfunits, units_kelvin)
-
-    @attr('data')
-    def test_file_only(self):
-        rd = self.test_data.get_rd('cancm4_tas')
-        field = rd.get()
-        field = field[:, 10:20, :, 20:30, 40:50]
-        grouping = ['month']
-        tgd = field.temporal.get_grouping(grouping)
-        # Value should not be loaded at this point.
-        self.assertEqual(field.variables['tas']._value, None)
-        mu = Mean(field=field, tgd=tgd, alias='my_mean', file_only=True)
-        ret = mu.execute()
-        # Value should still not be loaded.
-        self.assertEqual(field.variables['tas']._value, None)
-        # There should be no value in the variable present and attempts to load it should fail.
-        with self.assertRaises(Exception):
-            ret['my_mean_tas'].value
-
-    @attr('data')
-    def test_output_datatype(self):
-        # ensure the output data type is the same as the input data type of the variable.
-        rd = self.test_data.get_rd('cancm4_tas')
-        ops = ocgis.OcgOperations(dataset=rd, calc=[{'func': 'mean', 'name': 'mean'}], calc_grouping=['month'],
-                                  geom='state_boundaries', select_ugid=[27])
-        ret = ops.execute()
-        with nc_scope(rd.uri) as ds:
-            var_dtype = ds.variables['tas'].dtype
-        self.assertEqual(ret[27]['tas'].variables['mean'].dtype, var_dtype)
-
-    @attr('data')
-    def test_file_only_by_operations(self):
-        rd = self.test_data.get_rd('cancm4_tas')
-        ops = ocgis.OcgOperations(dataset=rd, calc=[{'func': 'mean', 'name': 'mean'}],
-                                  calc_grouping=['month'], geom='state_boundaries',
-                                  select_ugid=[27], file_only=True, output_format='nc')
-        ret = ops.execute()
-        with nc_scope(ret) as ds:
-            var = ds.variables['mean']
-            ## all data should be masked since this is file only
-            self.assertTrue(var[:].mask.all())
-
-    def test_use_raw_values(self):
-        field = self.get_field(with_value=True, month_count=2)
-        field.variables.add_variable(Variable(value=field.variables['tmax'].value + 5,
-                                              name='tmin', alias='tmin'))
-        grouping = ['month']
-        tgd = field.temporal.get_grouping(grouping)
-
-        ur = [True, False]
-        agg = [
-            True,
-            False
-        ]
-
-        for u, a in itertools.product(ur, agg):
-            if a:
-                cfield = field.get_spatially_aggregated()
-                self.assertNotEqual(cfield.shape, cfield._raw.shape)
-                self.assertEqual(set([r.value.shape for r in cfield.variables.values()]), set([(2, 60, 2, 1, 1)]))
-                self.assertEqual(cfield.shape, (2, 60, 2, 1, 1))
-            else:
-                cfield = field
-                self.assertEqual(set([r.value.shape for r in cfield.variables.values()]), set([(2, 60, 2, 3, 4)]))
-                self.assertEqual(cfield.shape, (2, 60, 2, 3, 4))
-            mu = Mean(field=cfield, tgd=tgd, alias='my_mean', use_raw_values=u)
-            ret = mu.execute()
-            if a:
-                self.assertEqual(set([r.value.shape for r in ret.values()]), set([(2, 2, 2, 1, 1)]))
-            else:
-                self.assertEqual(set([r.value.shape for r in ret.values()]), set([(2, 2, 2, 3, 4)]))
-
-
-if __name__ == "__main__":
-    # import sys;sys.argv = ['', 'Test.testName']
-    unittest.main()

@@ -1,45 +1,22 @@
-import itertools
-import os
-from collections import OrderedDict
 from datetime import datetime as dt, datetime
 
-import fiona
-import numpy as np
-from shapely.geometry import Point, mapping
-
 from ocgis.constants import OCGIS_UNIQUE_GEOMETRY_IDENTIFIER
-from ocgis.exc import SingleElementError, ShapeError
-from ocgis.interface.base.crs import Spherical, CoordinateReferenceSystem
+from ocgis.spatial.geom_cabinet import GeomCabinetIterator
 from ocgis.test.base import TestBase
 from ocgis.test.base import attr
-from ocgis.test.test_ocgis.test_interface.test_base.test_dimension.test_spatial import AbstractTestSpatialDimension
-from ocgis.util.geom_cabinet import GeomCabinetIterator
-from ocgis.util.helpers import format_bool, iter_array, validate_time_subset, \
-    get_formatted_slice, get_is_date_between, get_trimmed_array_by_mask, \
-    get_added_slice, get_iter, get_ordered_dicts_from_records_array, get_sorted_uris_by_time_dimension, \
-    get_bounds_from_1d, get_date_list, get_bounds_vector_from_centroids, get_extrapolated_corners_esmf, \
-    get_is_increasing, \
-    get_extrapolated_corners_esmf_vector, set_name_attributes, get_ocgis_corners_from_esmf_corners, \
-    add_shapefile_unique_identifier, get_tuple, set_new_value_mask_for_field
+from ocgis.util.helpers import *
+from ocgis.variable.crs import Spherical, CoordinateReferenceSystem
 
 
-class Test1(AbstractTestSpatialDimension):
+class Test1(TestBase):
     def test_get_bounds_from_1d(self):
-        sdim = self.get_sdim(bounds=False)
-        test_sdim = self.get_sdim(bounds=True)
-
-        row_bounds = get_bounds_from_1d(sdim.grid.row.value)
-        col_bounds = get_bounds_from_1d(sdim.grid.col.value)
-
-        self.assertNumpyAll(row_bounds, test_sdim.grid.row.bounds)
-        self.assertNumpyAll(col_bounds, test_sdim.grid.col.bounds)
-
         across_180 = np.array([-180, -90, 0, 90, 180], dtype=float)
-        bounds_180 = get_bounds_from_1d(across_180)
-        self.assertEqual(bounds_180.tostring(),
-                         '\x00\x00\x00\x00\x00 l\xc0\x00\x00\x00\x00\x00\xe0`\xc0\x00\x00\x00\x00\x00\xe0`\xc0\x00\x00\x00\x00\x00\x80F\xc0\x00\x00\x00\x00\x00\x80F\xc0\x00\x00\x00\x00\x00\x80F@\x00\x00\x00\x00\x00\x80F@\x00\x00\x00\x00\x00\xe0`@\x00\x00\x00\x00\x00\xe0`@\x00\x00\x00\x00\x00 l@')
 
-        dates = get_date_list(datetime(2000, 1, 31), datetime(2002, 12, 31), 1)
+        bounds_180 = get_bounds_from_1d(across_180)
+        desired = [[-225.0, -135.0], [-135.0, -45.0], [-45.0, 45.0], [45.0, 135.0], [135.0, 225.0]]
+        self.assertEqual(bounds_180.tolist(), desired)
+
+        dates = get_date_list(datetime.datetime(2000, 1, 31), datetime.datetime(2002, 12, 31), 1)
         with self.assertRaises(NotImplementedError):
             get_bounds_from_1d(np.array(dates))
 
@@ -47,16 +24,16 @@ class Test1(AbstractTestSpatialDimension):
             get_bounds_from_1d(np.array([0], dtype=float))
 
         just_two = get_bounds_from_1d(np.array([50, 75], dtype=float))
-        self.assertEqual(just_two.tostring(),
-                         '\x00\x00\x00\x00\x00\xc0B@\x00\x00\x00\x00\x00@O@\x00\x00\x00\x00\x00@O@\x00\x00\x00\x00\x00\xe0U@')
+        desired = [[37.5, 62.5], [62.5, 87.5]]
+        self.assertEqual(just_two.tolist(), desired)
 
         just_two_reversed = get_bounds_from_1d(np.array([75, 50], dtype=float))
-        self.assertEqual(just_two_reversed.tostring(),
-                         '\x00\x00\x00\x00\x00\xe0U@\x00\x00\x00\x00\x00@O@\x00\x00\x00\x00\x00@O@\x00\x00\x00\x00\x00\xc0B@')
+        desired = [[87.5, 62.5], [62.5, 37.5]]
+        self.assertEqual(just_two_reversed.tolist(), desired)
 
         zero_origin = get_bounds_from_1d(np.array([0, 50, 100], dtype=float))
-        self.assertEqual(zero_origin.tostring(),
-                         '\x00\x00\x00\x00\x00\x009\xc0\x00\x00\x00\x00\x00\x009@\x00\x00\x00\x00\x00\x009@\x00\x00\x00\x00\x00\xc0R@\x00\x00\x00\x00\x00\xc0R@\x00\x00\x00\x00\x00@_@')
+        desired = [[-25.0, 25.0], [25.0, 75.0], [75.0, 125.0]]
+        self.assertEqual(zero_origin.tolist(), desired)
 
     def test_get_is_increasing(self):
         ret = get_is_increasing(np.array([1, 2, 3]))
@@ -207,18 +184,6 @@ class Test1(AbstractTestSpatialDimension):
         centroids = np.array([2, -1], dtype=float)
         ret = get_bounds_vector_from_centroids(centroids)
         self.assertNumpyAll(ret, np.array([3.5, 0.5, -2.5]))
-
-    def test_get_ocgis_corners_from_esmf_corners(self):
-        sdim = self.get_sdim()
-        ecorners = sdim.grid.corners_esmf
-        ocorners = get_ocgis_corners_from_esmf_corners(ecorners)
-        self.assertNumpyAll(ocorners, sdim.grid.corners)
-
-        sdim = self.get_sdim()[0, 0]
-        self.assertEqual(sdim.shape, (1, 1))
-        ecorners = sdim.grid.corners_esmf
-        ocorners = get_ocgis_corners_from_esmf_corners(ecorners)
-        self.assertNumpyAll(ocorners, sdim.grid.corners)
 
 
 class Test2(TestBase):
@@ -377,6 +342,46 @@ class Test2(TestBase):
         with self.assertRaises(AssertionError):
             get_added_slice(slice1, slice2)
 
+    def test_get_optimal_slice_from_array(self):
+        arr = np.array([1, 3, 4])
+        res = get_optimal_slice_from_array(arr)
+        np.testing.assert_equal(arr, res)
+
+        arr = np.array([1, 2, 3, 4])
+        res = get_optimal_slice_from_array(arr)
+        self.assertEqual(res, slice(1, 5))
+
+    def test_get_swap_chain(self):
+        # # Iteration dimensions used during the fill operation.
+        # idims = set(desired_names) - set(actual_names)
+        #
+        # n_data_order = deepcopy(desired_names)
+        # for idim in idims:
+        #     n_data_order.pop(n_data_order.index(idim))
+
+        actual = ['d', 'b', 'a', 'c']
+        desired = ['a', 'b', 'c', 'd']
+
+        desired_data = np.random.rand(2, 3, 4, 5)
+        desired_data_swap = desired_data.swapaxes(0, 3)
+        desired_data_swap = desired_data_swap.swapaxes(2, 3)
+
+        sc = get_swap_chain(actual, desired)
+
+        actual_swapped = desired_data_swap.copy()
+        for swap in sc:
+            actual_swapped = actual_swapped.swapaxes(*swap)
+
+        self.assertNumpyNotAll(actual_swapped, desired_data_swap)
+        self.assertNumpyAll(actual_swapped, desired_data)
+
+    def test_get_trimmed_array_by_mask(self):
+        mask = [[True, False, False, True], [True, False, False, True], [True, False, False, True]]
+        mask = np.array(mask)
+        desired = np.zeros((3, 2), dtype=bool)
+        actual, slc = get_trimmed_array_by_mask(mask, return_adjustments=True)
+        self.assertNumpyAll(actual, desired)
+
     def test_get_trimmed_array_by_mask_by_bool(self):
         arr = np.zeros((4, 4), dtype=bool)
         arr[-1, :] = True
@@ -408,7 +413,7 @@ class Test2(TestBase):
         self.assertNumpyAll(ret, arr[1:-1, 1:-1])
         self.assertTrue(np.may_share_memory(ret, arr))
         ret, adjust = get_trimmed_array_by_mask(arr, return_adjustments=True)
-        self.assertEqual(adjust, {'col': slice(1, -1), 'row': slice(1, -1)})
+        self.assertEqual(adjust, (slice(1, 3, None), slice(1, 3, None)))
 
     def test_get_trimmed_array_by_mask_none_masked(self):
         arr = np.random.rand(4, 4)
@@ -416,7 +421,6 @@ class Test2(TestBase):
         ret, adjust = get_trimmed_array_by_mask(arr, return_adjustments=True)
         self.assertNumpyAll(ret, arr)
         self.assertTrue(np.may_share_memory(ret, arr))
-        self.assertEqual(adjust, {'col': slice(0, None), 'row': slice(0, None)})
 
     def test_get_trimmed_array_by_mask_interior_masked(self):
         arr = np.random.rand(4, 4)
@@ -430,20 +434,13 @@ class Test2(TestBase):
     def test_get_trimmed_array_by_mask_all_masked(self):
         arr = np.random.rand(4, 4)
         arr = np.ma.array(arr, mask=True)
-        ret, adjust = get_trimmed_array_by_mask(arr, return_adjustments=True)
-        self.assertEqual(ret.shape, (0, 0))
-        self.assertEqual(adjust, {'col': slice(4, -4), 'row': slice(4, -5)})
+        with self.assertRaises(AllElementsMaskedError):
+            get_trimmed_array_by_mask(arr, return_adjustments=True)
 
-    def test_get_trimmed_array_by_mask_singleton_dimension(self):
-        arr = np.array([[True, False, True]], dtype=bool)
+    def test_get_trimmed_array_by_mask_1d(self):
+        arr = np.ma.array([1, 2, 3], mask=[True, False, True])
         ret, adjust = get_trimmed_array_by_mask(arr, return_adjustments=True)
-        self.assertEqual(ret.shape, (1, 1))
-        self.assertNumpyAll(ret, np.array([[False]]))
-
-        arr = arr.reshape(3, 1)
-        ret, adjust = get_trimmed_array_by_mask(arr, return_adjustments=True)
-        self.assertEqual(ret.shape, (1, 1))
-        self.assertNumpyAll(ret, np.array([[False]]))
+        self.assertNumpyAll(ret, arr.__getitem__(adjust))
 
     def test_get_tuple(self):
         value = [4, 5]
@@ -472,28 +469,48 @@ class Test2(TestBase):
         self.assertTrue(get_is_date_between(lower, upper, month=12))
 
     def test_get_formatted_slice(self):
+        slc = (np.array([0, 2]),)
+        actual = get_formatted_slice(slc, 1)
+        self.assertIsInstance(actual, tuple)
+        desired = np.array([1, 2, 3, 4, 5])
+        self.assertNumpyAll(actual[0], np.array([0, 2]))
+        self.assertNumpyAll(desired[slc], desired[actual])
 
         ret = get_formatted_slice(slice(None, None, None), 10)
-        self.assertEqual(ret, [slice(None, None, None)] * 10)
+        self.assertEqual(ret, tuple([slice(None, None, None)] * 10))
 
         ret = get_formatted_slice(0, 1)
-        self.assertEqual(slice(0, 1), ret)
+        self.assertEqual((slice(0, 1),), ret)
         with self.assertRaises(IndexError):
             get_formatted_slice(slice(0, 1), 2)
 
         ret = get_formatted_slice((slice(0, 1), 0), 2)
-        self.assertEqual(ret, [slice(0, 1, None), slice(0, 1, None)])
+        self.assertEqual(ret, tuple([slice(0, 1, None), slice(0, 1, None)]))
 
         ret = get_formatted_slice([(1, 2, 3), slice(None)], 2)
-        self.assertNumpyAll(ret[0], np.arange(1, 4))
+        self.assertEqual(ret[0], slice(1, 4))
         self.assertEqual(ret[1], slice(None))
         self.assertEqual(len(ret), 2)
 
         ret = get_formatted_slice((1, 2), 1)
-        self.assertNumpyAll(ret, np.array([1, 2]))
+        self.assertEqual(ret, (slice(1, 3),))
 
         ret = get_formatted_slice((1,), 1)
-        self.assertEqual(ret, slice(1))
+        self.assertEqual(ret, (slice(1, 2),))
+
+        ret = get_formatted_slice((slice(0, -1, None),), 1)
+        self.assertEqual(ret, (slice(0, -1, None),))
+
+        ret = get_formatted_slice((0,), 1)
+        self.assertEqual(ret, (slice(0, 1),))
+
+        slc = [np.array([0, 1, 2], dtype=np.int32)]
+        ret = get_formatted_slice(slc, 1)
+        self.assertEqual(ret, (slice(0, 3),))
+
+        slc = np.array([True, False], dtype=bool)
+        ret = get_formatted_slice(slc, 1)
+        self.assertNumpyAll(ret[0], slc)
 
     def test_set_name_attributes(self):
 
@@ -509,14 +526,6 @@ class Test2(TestBase):
 
         self.assertEqual(a.name, 'evil_twin')
         self.assertEqual(b.name, 'harbringer')
-
-    def test_set_new_value_mask_for_field(self):
-        field = self.get_field()
-        self.assertFalse(field.variables.first().value.mask.any())
-        mask = np.array([True, False, True, False]).reshape(2, 2)
-        set_new_value_mask_for_field(field, mask)
-        self.assertTrue(field.variables.first().value.mask.any())
-        self.assertEqual(field.variables.first().value.mask.sum(), 4)
 
     def test_validate_time_subset(self):
         time_range = [dt(2000, 1, 1), dt(2001, 1, 1)]
@@ -573,8 +582,13 @@ class Test2(TestBase):
         self.assertEqual(len(list(iter_array(values, use_mask=True))), len(values.compressed()))
         self.assertEqual(len(list(iter_array(values, use_mask=False))), len(values.data.flatten()))
 
+        # Test true index is used regardless of mask. That is, the index is global not local to only the masked data.
+        arr = np.ma.array([1, 2, 3], mask=[False, True, False])
+        lhs = [i[0] for i in iter_array(arr)]
+        self.assertEqual(lhs, [0, 2])
+
     def test_format_bool(self):
         mmap = {0: False, 1: True, 't': True, 'True': True, 'f': False, 'False': False}
-        for key, value in mmap.iteritems():
+        for key, value in mmap.items():
             ret = format_bool(key)
             self.assertEqual(ret, value)

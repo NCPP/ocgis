@@ -4,8 +4,8 @@ import tempfile
 
 import fiona
 
+from ocgis.spatial.geom_cabinet import GeomCabinet
 from ocgis.test.base import TestBase, attr
-from ocgis.util.geom_cabinet import GeomCabinet
 from ocgis.util.shp_process import ShpProcess
 
 
@@ -42,4 +42,4 @@ class TestShpProcess(TestBase):
         path = os.path.join(out_folder, 'world_countries.shp')
         with fiona.open(path, 'r') as sci:
             uids = [record['properties']['new_id'] for record in sci]
-        self.assertEqual(uids, range(1, 212))
+        self.assertEqual(uids, list(range(1, 212)))

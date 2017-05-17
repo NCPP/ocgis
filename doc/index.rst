@@ -21,15 +21,17 @@ Contents:
 
    contact
    install
-   api
+   operations
    classes
    functions
    computation
+   parallel
    regrid
    examples
    constants
    exc
    appendix
+   changelog
 
 .. Indices and tables
 ..  ==================

@@ -1,12 +1,16 @@
-# try to turn off fiona logging except for errors
 import datetime
 import logging
 import os
 from warnings import warn
 
+import six
+import sys
+
 import ocgis
 from ocgis import env
 from ocgis.exc import OcgWarning
+from ocgis.vmachine.mpi import get_standard_comm_state
+
 
 fiona_logger = logging.getLogger('Fiona')
 fiona_logger.setLevel(logging.ERROR)
@@ -51,18 +55,20 @@ class ProgressOcgOperations(object):
 
 
 class OcgisLogging(object):
-    def __init__(self):
+    def __init__(self, comm=None):
+        _, rank, _ = get_standard_comm_state(comm=comm)
+
         self.level = None
         self.null = True  # pass through if not configured
         self.parent = None
         self.callback = None
         self.callback_level = None
         self.loggers = None
+        self.rank = rank
 
         logging.captureWarnings(None)
 
     def __call__(self, msg=None, logger=None, level=logging.INFO, alias=None, ugid=None, exc=None):
-
         # attach a default exception to messages to handle warnings if an exception is not provided
         if level == logging.WARN:
             if exc is None:
@@ -85,7 +91,7 @@ class OcgisLogging(object):
         else:
             dest_level = level or self.level
             # get the logger by string name
-            if isinstance(logger, basestring):
+            if isinstance(logger, six.string_types):
                 dest_logger = self.get_logger(logger)
             else:
                 dest_logger = logger or self.parent
@@ -95,49 +101,50 @@ class OcgisLogging(object):
                 dest_logger.log(dest_level, msg)
             else:
                 if level == logging.WARN:
-                    wmsg = '{0}: {1}'.format(exc.__class__.__name__, exc.message)
+                    wmsg = '{0}: {1}'.format(exc.__class__.__name__, str(exc))
                     dest_logger.warn(wmsg)
                 else:
                     dest_logger.exception(msg)
                     raise exc
 
     def configure(self, to_file=None, to_stream=False, level=logging.INFO, callback=None, callback_level=logging.INFO):
-        # set the callback arguments
         self.callback = callback
         self.callback_level = callback_level
 
-        # no need to configure loggers
+        # No logging to file or stdout. There is nothing to configure.
         if to_file is None and not to_stream:
             self.null = True
         else:
             self.level = level
             self.null = False
-            # add the filehandler if request
+            # Log to null if there is no file present.
             if to_file is None:
                 filename = os.devnull
             else:
                 filename = to_file
-            # create the root logger
+            # This is the root logger.
             self.loggers = {}
             self.parent = logging.getLogger('ocgis')
             self.parent.parent = None
             self.parent.setLevel(level)
             self.parent.handlers = []
-            # add the file handler
+            # Always configure the file handler. This goes to to null if there is no file path.
             fh = logging.FileHandler(filename, 'w')
             fh.setLevel(level)
-            fh.setFormatter(logging.Formatter(fmt='%(name)s: %(levelname)s: %(asctime)s: %(message)s',
-                                              datefmt='%Y-%m-%d %H:%M'))
+            fh.setFormatter(
+                logging.Formatter(fmt='%(name)s: rank={}: %(levelname)s: %(asctime)s: %(message)s'.format(self.rank),
+                                  datefmt='%Y-%m-%d %H:%M:%S'))
             self.parent.addHandler(fh)
-            # add the stream handler if requested
+            # This is the stdout logger.
             if to_stream:
                 console = logging.StreamHandler()
                 console.setLevel(level)
-                console.setFormatter(logging.Formatter(fmt='[%(asctime)s] %(levelname)s: %(name)s: %(message)s',
-                                                       datefmt='%Y-%m-%d %H:%M:%S'))
+                console.setFormatter(logging.Formatter(
+                    fmt='[%(asctime)s]: rank={}: %(levelname)s: %(name)s: %(message)s'.format(self.rank),
+                    datefmt='%Y-%m-%d %H:%M:%S'))
                 self.parent.addHandler(console)
 
-            # tell logging to capture warnings
+            # Capture warnings if requested by the environment.
             logging.captureWarnings(env.SUPPRESS_WARNINGS)
 
             # Insert the current software version into the logging file.
@@ -173,7 +180,7 @@ class OcgisLogging(object):
 
     def _log_versions_(self):
         versions = get_versions()
-        versions = ', '.join(['{0}={1}'.format(k, v) for k, v in versions.iteritems()])
+        versions = ', '.join(['{0}={1}'.format(k, v) for k, v in versions.items()])
 
         self.parent.log(logging.DEBUG, 'Dependency versions: {0}'.format(versions))
 
@@ -209,6 +216,12 @@ def get_versions():
         v_rtree = None
     else:
         v_rtree = rtree.__version__
+    try:
+        import mpi4py
+    except ImportError:
+        v_mpi4py = None
+    else:
+        v_mpi4py = mpi4py.__version__
     import fiona
     v_fiona = fiona.__version__
     import netCDF4
@@ -216,9 +229,21 @@ def get_versions():
     import numpy
     v_numpy = numpy.__version__
     from ocgis import osgeo
-    v_osgeo = osgeo.__version__
-    versions = dict(esmf=v_esmf, cfunits=v_cfunits, rtree=v_rtree, osgeo=v_osgeo, numpy=v_numpy, netcdf4=v_netcdf4,
-                    icclim=v_icclim, fiona=v_fiona, cf_units=v_cf_units)
+    v_gdal = osgeo.__version__
+    import six
+    v_six = six.__version__
+    import pyproj
+    v_pyproj = pyproj.__version__
+    try:
+        import nose
+    except ImportError:
+        v_nose = None
+    else:
+        v_nose = nose.__version__
+
+    versions = dict(esmf=v_esmf, cfunits=v_cfunits, rtree=v_rtree, gdal=v_gdal, numpy=v_numpy, netcdf4=v_netcdf4,
+                    icclim=v_icclim, fiona=v_fiona, cf_units=v_cf_units, mpi4py=v_mpi4py, six=v_six, pyproj=v_pyproj,
+                    python=sys.version_info, nose=v_nose)
     return versions
 
 

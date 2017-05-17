@@ -1,10 +1,9 @@
 import os
-import sys
 
 from setuptools import setup, Command, find_packages
 from setuptools.command.test import test as TestCommand
 
-VERSION = '1.3.2'
+VERSION = '2.0.0.dev1'
 
 
 ########################################################################################################################
@@ -12,10 +11,8 @@ VERSION = '1.3.2'
 ########################################################################################################################
 
 
-class test(TestCommand):
-    user_options = [('with-optional', None, 'If present, run optional dependency tests.'),
-                    ('no-esmf', None, 'If present, do not run ESMF tests.'),
-                    ('no-icclim', None, 'If present, do not run ICCLIM tests.')]
+class TestCommandOcgis(TestCommand):
+    user_options = [('with-optional', None, 'If present, run optional dependency tests.')]
 
     def initialize_options(self):
         TestCommand.initialize_options(self)
@@ -32,16 +29,23 @@ class test(TestCommand):
         attrs = ['simple']
         if self.with_optional:
             to_append = 'optional'
-            if self.no_esmf:
-                to_append += ',!esmf'
-            if self.no_esmf:
-                to_append += ',!icclim'
             attrs.append(to_append)
 
         run_simple(attrs=attrs, verbose=False)
 
 
-class test_all(TestCommand):
+class TestMoreCommandOcgis(TestCommand):
+    description = 'run most tests (exludes data, slow, remote, benchmark, etc.)'
+
+    def run_tests(self):
+        from ocgis.test import run_more
+
+        run_more(verbose=False)
+
+
+class TestAllCommandOcgis(TestCommand):
+    description = 'run all tests except benchmark tests'
+
     def run_tests(self):
         from ocgis.test import run_all
 
@@ -65,18 +69,7 @@ class UninstallCommand(Command):
             print('To uninstall, manually remove the Python package folder located here: {0}'.format(
                 os.path.split(ocgis.__file__)[0]))
         except ImportError:
-            raise (ImportError("Either OpenClimateGIS is not installed or not available on the Python path."))
-
-
-########################################################################################################################
-# check python version
-########################################################################################################################
-
-
-python_version = float(sys.version_info[0]) + float(sys.version_info[1]) / 10
-if python_version != 2.7:
-    raise (ImportError('This software requires Python version 2.7.x. You have {0}.x'.format(python_version)))
-
+            raise ImportError("Either OpenClimateGIS is not installed or not available on the Python path.")
 
 ########################################################################################################################
 # set up data files for installation
@@ -98,15 +91,16 @@ setup(
     version=VERSION,
     author='NESII/CIRES/NOAA-ESRL',
     author_email='ocgis_support@list.woc.noaa.gov',
-    url='http://ncpp.github.io/ocgis/install.html#installing-openclimategis',
+    url='http://ocgis.readthedocs.io/en/latest/install.html',
     license='NCSA License',
     platforms=['all'],
     packages=find_packages(where='./src'),
     package_dir={'': 'src'},
     package_data=package_data,
     cmdclass={'uninstall': UninstallCommand,
-              'test': test,
-              'test_all': test_all},
-    install_requires=['numpy', 'netCDF4', 'fiona', 'shapely'],
+              'test': TestCommandOcgis,
+              'test_more': TestMoreCommandOcgis,
+              'test_all': TestAllCommandOcgis},
+    install_requires=['numpy', 'netCDF4', 'fiona', 'shapely', 'pyproj', 'six', 'gdal'],
     tests_require=['nose']
 )

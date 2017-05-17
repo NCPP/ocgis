@@ -14,7 +14,7 @@ def get_tile_schema(nrow, ncol, tdim, origin=0):
     row_slices = get_slices(row_idx)
     col_slices = get_slices(col_idx)
     tile_id = 0
-    for row, col in itertools.product(range(len(row_slices)), range(len(col_slices))):
+    for row, col in itertools.product(list(range(len(row_slices))), list(range(len(col_slices)))):
         ret.update({tile_id: {'row': row_slices[row], 'col': col_slices[col]}})
         tile_id += 1
     return (ret)

@@ -1,22 +1,19 @@
 Appendix
 --------
 
-Output Formats
-~~~~~~~~~~~~~~
-
-.. _2d-flexible-mesh-label:
-
-2D Flexible Mesh
-++++++++++++++++
-
-The two-dimensional flexible mesh format is a NetCDF4-based format adhering to `UGRID (v0.9.0) <https://github.com/ugrid-conventions/ugrid-conventions/blob/v0.9.0/ugrid-conventions.md>`_ convention. It is used to represent a set of arbitrary boundaries (polygons). Documentation for the format is here: https://github.com/ugrid-conventions/ugrid-conventions/blob/v0.9.0/ugrid-conventions.md#2d-flexible-mesh-mixed-triangles-quadrilaterals-etc-topology.
-
-See :ref:`2d-flexible-mesh-example-label` for example code converting a shapefile to a UGRID NetCDF file.
-
 Spatial Operations
 ~~~~~~~~~~~~~~~~~~
 
 .. note:: Differences between point and polygon geometry representations are discussed in the respective sections. The greatest differences between how the geometries are handled occurs in the way point aggregations are constructued (see `Aggregate (Union)`_).
+
+Spatial Masking
++++++++++++++++
+
+OpenClimateGIS manages spatial masking independent from data masking. Following a spatial operation, a new variable is added to a grid's variable collection if a any geometries are masked. This variable's default name is :attr:`constants.VariableName.SPATIAL_MASK`.
+
+The spatial mask variable allows masking to be tracked independently from data variable masking. The spatial mask is stilled hardened into the data array following a subset. A spatial mask variable will not be created if no geometries within the subset were masked.
+
+If present on an input dataset, the spatial mask variable will always be respected. It may be ignored by setting it to ``None`` in a request dataset's :class:`~ocgis.DimensionMap`.
 
 .. _appendix-intersects:
 

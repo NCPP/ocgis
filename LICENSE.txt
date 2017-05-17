@@ -1,6 +1,6 @@
-OpenClimateGIS (OCGIS)
+OpenClimateGIS (ocgis)
 
-Copyright 2012-2015: University of Michigan-Ann Arbor, Michigan Technological
+Copyright 2012-2017: University of Michigan-Ann Arbor, Michigan Technological
   University, University of Colorado-Boulder
 
 Licensed under the University of Illinois-NCSA License.

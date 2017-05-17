@@ -5,17 +5,23 @@ import sys
 import tempfile
 from collections import OrderedDict
 from copy import deepcopy
+from pprint import pprint
 from tempfile import mkdtemp
 
 import fiona
 import numpy as np
+import six
 from fiona.crs import from_epsg
+from netCDF4 import netcdftime
+from numpy.core.multiarray import ndarray
+from numpy.ma import MaskedArray
 from shapely.geometry import Point
+from shapely.geometry.base import BaseGeometry
 from shapely.geometry.geo import mapping
 from shapely.geometry.polygon import Polygon
 from shapely.wkb import loads as wkb_loads
 
-from ocgis.exc import SingleElementError, ShapeError
+from ocgis.exc import SingleElementError, ShapeError, AllElementsMaskedError
 
 
 class ProgressBar(object):
@@ -108,6 +114,19 @@ def get_bbox_poly(minx, miny, maxx, maxy):
     return make_poly(rtup, ctup)
 
 
+def get_by_key_list(src, keys):
+    found = False
+    ret = None
+    for key in keys:
+        if key in src:
+            if found:
+                raise ValueError('Key already found in source.')
+            else:
+                found = True
+                ret = src[key]
+    return ret
+
+
 def get_bounds_from_1d(centroids):
     """
     :param centroids: Vector representing center coordinates from which to interpolate bounds.
@@ -174,13 +193,30 @@ def get_bounds_vector_from_centroids(centroids):
     return mids
 
 
+def get_by_sequence(dictionary, key_sequence, default=None):
+    target = dictionary
+    for key in get_iter(key_sequence):
+        try:
+            target = target[key]
+        except KeyError:
+            target = default
+            break
+    return target
+
+
 def get_date_list(start, stop, days):
     ret = []
     delta = datetime.timedelta(days=days)
     check = start
     while check <= stop:
         ret.append(check)
-        check += delta
+        try:
+            check += delta
+        except TypeError:
+            # Probably an older netcdftime object
+            check = datetime.datetime(check.year, check.month, check.day, check.hour, check.second, check.microsecond)
+            check += delta
+            check = netcdftime.datetime(check.year, check.month, check.day, check.hour, check.second, check.microsecond)
     return ret
 
 
@@ -192,6 +228,34 @@ def get_default_or_apply(target, f, default=None):
     return ret
 
 
+def create_exact_field_value(longitude, latitude):
+    """
+    Create an exact field from spherical coordinates. Expects units of degrees - function will convert to radians.
+    """
+
+    longitude = np.atleast_1d(longitude)
+    latitude = np.atleast_1d(latitude)
+    select = longitude < 0
+    if np.any(select):
+        longitude = deepcopy(longitude)
+        longitude[select] += 360.
+    longitude_radians = longitude * 0.0174533
+    latitude_radians = latitude * 0.0174533
+    exact = 2.0 + np.cos(latitude_radians) ** 2 + np.cos(2.0 * longitude_radians)
+    return exact
+
+
+def create_zero_padded_integer(integer, nzeros):
+    sint = str(integer)
+    nstr_zeros = nzeros - len(sint)
+    if nstr_zeros <= 0:
+        ret = sint
+    else:
+        ret = '0' * nstr_zeros
+        ret += sint
+    return ret
+
+
 def get_extrapolated_corners_esmf(arr):
     """
     :param arr: Array of centroids.
@@ -199,6 +263,8 @@ def get_extrapolated_corners_esmf(arr):
     :returns: A two-dimensional array of extrapolated corners with dimension ``(arr.shape[0]+1, arr.shape[1]+1)``.
     :rtype: :class:`numpy.ndarray`
     """
+
+    assert not isinstance(arr, MaskedArray)
 
     # if this is only a single element, we cannot make corners
     if all([element == 1 for element in arr.shape]):
@@ -280,37 +346,55 @@ def get_extrapolated_corners_esmf_vector(vec):
 
 
 def get_formatted_slice(slc, n_dims):
-    def _format_(slc):
-        if isinstance(slc, int):
-            ret = slice(slc, slc + 1)
-        elif isinstance(slc, slice):
-            ret = slc
-        elif isinstance(slc, np.ndarray):
-            ret = slc
-        else:
-            if len(slc) == 1:
-                ret = slice(slc[0])
-            elif len(slc) > 1:
-                ret = np.array(slc)
+    def _format_singleton_(single_slc):
+        # Avoid numpy typing by attempting to convert to an integer. Floats will be mangled, but whatever.
+        try:
+            single_slc = int(single_slc)
+        except:
+            pass
+
+        if isinstance(single_slc, int):
+            ret = slice(single_slc, single_slc + 1)
+        elif isinstance(single_slc, slice):
+            ret = single_slc
+        elif isinstance(single_slc, np.ndarray):
+            ret = get_optimal_slice_from_array(single_slc)
+        elif isinstance(single_slc, (list, tuple)):
+            if len(single_slc) == 1 and isinstance(single_slc[0], slice):
+                ret = single_slc[0]
+            elif len(single_slc) == 1 and isinstance(single_slc[0], ndarray):
+                ret = get_optimal_slice_from_array(single_slc[0])
             else:
-                raise (NotImplementedError(slc, n_dims))
+                ret = get_optimal_slice_from_array(np.array(single_slc, ndmin=1))
+        elif single_slc is None:
+            ret = slice(None)
+        else:
+            raise NotImplementedError(single_slc, n_dims)
         return ret
 
-    if isinstance(slc, slice) and slc == slice(None):
+    slice_none = slice(None)
+    if isinstance(slc, slice) and slc == slice_none:
         if n_dims == 1:
             ret = slc
         else:
-            ret = [slice(None)] * n_dims
+            ret = [slice_none] * n_dims
+    elif slc is None and n_dims == 1:
+        ret = slice_none
     elif n_dims == 1:
-        ret = _format_(slc)
+        ret = _format_singleton_(slc)
     elif n_dims > 1:
         try:
-            assert (len(slc) == n_dims)
+            assert len(slc) == n_dims
         except (TypeError, AssertionError):
             raise IndexError("Only {0}-d slicing allowed.".format(n_dims))
-        ret = map(_format_, slc)
+        ret = list(map(_format_singleton_, slc))
     else:
-        raise (NotImplementedError((slc, n_dims)))
+        raise NotImplementedError((slc, n_dims))
+
+    if isinstance(ret, list):
+        ret = tuple(ret)
+    if not isinstance(ret, tuple):
+        ret = (ret,)
 
     return ret
 
@@ -383,7 +467,7 @@ def get_iter(element, dtype=None):
         if isinstance(element, dtype):
             element = (element,)
 
-    if isinstance(element, (basestring, np.ndarray)):
+    if isinstance(element, tuple(list(six.string_types) + [np.ndarray])):
         it = iter([element])
     else:
         try:
@@ -418,6 +502,33 @@ def get_none_or_slice(target, slc):
     return ret
 
 
+def get_esmf_corners_from_ocgis_corners(ocorners, fill=None):
+    """
+    :param ocorners: Corners array with dimension (m, n, 4).
+    :type ocorners: :class:`numpy.ma.core.MaskedArray`
+    :returns: An ESMF corners array with dimension (m + 1, n + 1).
+    :rtype: :class:`numpy.ndarray`
+    """
+
+    if fill is None:
+        fill = np.zeros([element + 1 for element in ocorners.shape[0:2]], dtype=ocorners.dtype)
+    range_row = list(range(ocorners.shape[0]))
+    range_col = list(range(ocorners.shape[1]))
+
+    if isinstance(ocorners, MaskedArray):
+        _corners = ocorners.data
+    else:
+        _corners = ocorners
+
+    for ii, jj in itertools.product(range_row, range_col):
+        ref = fill[ii:ii + 2, jj:jj + 2]
+        ref[0, 0] = _corners[ii, jj, 0]
+        ref[0, 1] = _corners[ii, jj, 1]
+        ref[1, 1] = _corners[ii, jj, 2]
+        ref[1, 0] = _corners[ii, jj, 3]
+    return fill
+
+
 def get_ocgis_corners_from_esmf_corners(ecorners):
     """
     :param ecorners: An array of ESMF corners.
@@ -426,19 +537,33 @@ def get_ocgis_corners_from_esmf_corners(ecorners):
     :rtype: :class:`~numpy.ma.core.MaskedArray`
     """
 
-    base_shape = [xx - 1 for xx in ecorners.shape[1:]]
-    grid_corners = np.zeros([2] + base_shape + [4], dtype=ecorners.dtype)
+    assert ecorners.ndim == 2
+
+    # ESMF corners have an extra row and column.
+    base_shape = [xx - 1 for xx in ecorners.shape]
+    grid_corners = np.zeros(base_shape + [4], dtype=ecorners.dtype)
+    # Upper left, upper right, lower right, lower left
     slices = [(0, 0), (0, 1), (1, 1), (1, 0)]
-    # collect the corners and insert into ocgis corners array
-    for ii, jj in itertools.product(range(base_shape[0]), range(base_shape[1])):
+    for ii, jj in itertools.product(list(range(base_shape[0])), list(range(base_shape[1]))):
         row_slice = slice(ii, ii + 2)
         col_slice = slice(jj, jj + 2)
-        row_corners = ecorners[0][row_slice, col_slice]
-        col_corners = ecorners[1][row_slice, col_slice]
+        corners = ecorners[row_slice, col_slice]
         for kk, slc in enumerate(slices):
-            grid_corners[:, ii, jj, kk] = row_corners[slc], col_corners[slc]
+            grid_corners[ii, jj, kk] = corners[slc]
     grid_corners = np.ma.array(grid_corners, mask=False)
     return grid_corners
+
+
+def get_optimal_slice_from_array(arr, check_diff=True):
+    if arr.dtype == bool:
+        ret = arr
+    else:
+        if check_diff and np.any(np.diff(arr) > 1):
+            ret = arr
+        else:
+            arr_min, arr_max = arr.min(), arr.max()
+            ret = slice(arr_min, arr_max + 1)
+    return ret
 
 
 def get_ordered_dicts_from_records_array(arr):
@@ -497,75 +622,115 @@ def get_sorted_uris_by_time_dimension(uris, variable=None):
     return ret
 
 
-def get_trimmed_array_by_mask(arr, return_adjustments=False):
-    '''
-    Returns a slice of the masked array ``arr`` with masked rows and columns
-    removed.
+def get_swap_chain(actual, desired):
+    """
+    :param sequence actual: The current names.
+    :param sequence desired: The desired names.
+    :return: Tuple of tuples containing swap indices to achieve the desired names ordering.
+    :rtype: tuple(tuple(), ...)
+    """
+    assert set(actual) == set(desired)
+    swap_ops = []
 
-    :param arr: Two-dimensional array object.
+    running_archetype = deepcopy(actual)
+    for swap_src in range(len(actual)):
+        if running_archetype[swap_src] != desired[swap_src]:
+            swap_dst = running_archetype.index(desired[swap_src])
+            the_swap = (swap_src, swap_dst)
+            original_value = running_archetype[swap_src]
+            running_archetype[the_swap[0]] = running_archetype[swap_dst]
+            running_archetype[the_swap[1]] = original_value
+            swap_ops.append((swap_src, swap_dst))
+
+    return tuple(swap_ops)
+
+
+def get_trimmed_array_by_mask(arr, return_adjustments=False):
+    """"
+    Returns a slice of the masked array ``arr`` with masked rows and columns removed.
+
+    :param arr: An array.
     :type arr: :class:`numpy.ma.MaskedArray` or bool :class:`numpy.ndarray`
-    :param bool return_adjustments: If ``True``, return a dictionary with
-     values of index adjustments that may be added to a slice object.
+    :param bool return_adjustments: If ``True``, return a dictionary with values of index adjustments that may be added
+     to a slice object.
     :raises NotImplementedError:
     :returns: :class:`numpy.ma.MaskedArray` or (:class:`numpy.ma.MaskedArray', {'row':slice(...),'col':slice(...)})
-    '''
+    """
+
+    assert arr.ndim <= 2
+
+    has_col = False
     try:
         _mask = arr.mask
     except AttributeError:
-        ## likely a boolean array
+        # Likely a boolean array.
         if arr.dtype == np.dtype(bool):
             _mask = arr
         else:
-            raise (NotImplementedError('Array type is not implemented.'))
-    ## row 0 to end
+            raise NotImplementedError('Array type is not implemented.')
+
+    if _mask.all():
+        raise AllElementsMaskedError
+
+    # Row 0 to end.
     start_row = 0
+    masked_rows = [start_row]
     for idx_row in range(arr.shape[0]):
-        if _mask[idx_row, :].all():
+        if _mask[idx_row, ...].all():
             start_row += 1
+            masked_rows.append(start_row)
         else:
             break
+    start_row = max(masked_rows)
 
-    ## row end to 0
-    stop_row = 0
-    idx_row_adjust = 1
-    for __ in range(arr.shape[0]):
-        if _mask[stop_row - idx_row_adjust, :].all():
-            idx_row_adjust += 1
-        else:
-            idx_row_adjust -= 1
-            break
-    if idx_row_adjust == 0:
-        stop_row = None
-    else:
-        stop_row = stop_row - idx_row_adjust
-
-    ## col 0 to end
-    start_col = 0
-    for idx_col in range(arr.shape[1]):
-        if _mask[:, idx_col].all():
-            start_col += 1
+    # Row end to 0.
+    stop_row = _mask.shape[0]
+    masked_rows = [stop_row]
+    for adjust in range(arr.shape[0]):
+        adjust += 1
+        row_to_test = stop_row - adjust
+        if _mask[row_to_test, ...].all():
+            masked_rows.append(row_to_test)
         else:
             break
+    stop_row = min(masked_rows)
 
-    ## col end to 0
-    stop_col = 0
-    idx_col_adjust = 0
-    for __ in range(arr.shape[0]):
-        if _mask[:, stop_col - (idx_col_adjust + 1), ].all():
-            idx_col_adjust += 1
-        else:
-            break
-    if idx_col_adjust == 0:
-        stop_col = None
-    else:
-        stop_col = stop_col - idx_col_adjust
+    if arr.ndim == 2:
+        has_col = True
 
-    ret = arr[start_row:stop_row, start_col:stop_col]
+        # col 0 to end.
+        start_col = 0
+        masked_cols = [start_col]
+        for idx_col in range(arr.shape[1]):
+            if _mask[:, idx_col].all():
+                start_col += 1
+                masked_cols.append(start_col)
+            else:
+                break
+        start_col = max(masked_cols)
+
+        # col end to 0.
+        stop_col = _mask.shape[1]
+        masked_cols = [stop_col]
+        for adjust in range(arr.shape[1]):
+            adjust += 1
+            col_to_test = stop_col - adjust
+            if _mask[:, col_to_test].all():
+                masked_cols.append(col_to_test)
+            else:
+                break
+        stop_col = min(masked_cols)
+
+    slc = [slice(start_row, stop_row)]
+
+    if has_col:
+        slc.append(slice(start_col, stop_col))
+    ret = arr.__getitem__(slc)
 
     if return_adjustments:
-        ret = (ret, {'row': slice(start_row, stop_row), 'col': slice(start_col, stop_col)})
+        ret = (ret, tuple(slc))
 
-    return (ret)
+    return ret
 
 
 def get_tuple(value):
@@ -575,11 +740,29 @@ def get_tuple(value):
     :rtype: tuple
     """
 
-    if isinstance(value, basestring) or value is None:
+    if isinstance(value, six.string_types) or value is None:
         ret = (value,)
     else:
         ret = tuple(value)
     return ret
+
+
+def is_auto_dtype(dtype):
+    try:
+        is_auto = dtype == 'auto'
+    except TypeError:
+        # NumPy does interesting things with data type comparisons.
+        is_auto = False
+    return is_auto
+
+
+def is_crs_variable(obj):
+    from ocgis.variable.crs import AbstractCRS
+    return isinstance(obj, AbstractCRS)
+
+
+def is_geometry(obj):
+    return isinstance(obj, BaseGeometry)
 
 
 def itersubclasses(cls, _seen=None):
@@ -623,22 +806,23 @@ def itersubclasses(cls, _seen=None):
                 yield sub
 
 
-def iter_array(arr, use_mask=True, return_value=False):
+def iter_array(arr, use_mask=True, return_value=False, mask=None):
     try:
         shp = arr.shape
     # assume array is not a numpy array
     except AttributeError:
         arr = np.array(arr, ndmin=1)
         shp = arr.shape
-    iter_args = [range(0, ii) for ii in shp]
-    if use_mask and not np.ma.isMaskedArray(arr):
+    iter_args = [list(range(0, ii)) for ii in shp]
+    if use_mask and not np.ma.isMaskedArray(arr) and mask is None:
         use_mask = False
     else:
         try:
-            mask = arr.mask
+            if mask is None:
+                mask = arr.mask
             # if the mask is not being used, to skip some objects, set the arr to the underlying data value after
             # referencing the mask.
-            if not use_mask:
+            if not use_mask and np.ma.isMaskedArray(arr):
                 arr = arr.data
         # array is not masked
         except AttributeError:
@@ -672,12 +856,26 @@ def locate(pattern, root=os.curdir, followlinks=True):
     """
 
     for path, dirs, files in os.walk(os.path.abspath(root), followlinks=followlinks):
-        for filename in filter(lambda x: x == pattern, files):
+        for filename in [x for x in files if x == pattern]:
             yield os.path.join(path, filename)
 
 
+def pprint_dict(target):
+    def _convert_(input):
+        ret = input
+        if isinstance(ret, dict):
+            ret = dict(input)
+            for k, v in ret.items():
+                ret[k] = _convert_(v)
+        return ret
+
+    to_print = _convert_(target)
+    print('')
+    pprint(to_print)
+
+
 def project_shapely_geometry(geom, from_sr, to_sr):
-    from ocgis.util.environment import ogr
+    from ocgis.environment import ogr
     CreateGeometryFromWkb = ogr.CreateGeometryFromWkb
 
     if from_sr.IsSame(to_sr) == 1:
@@ -690,6 +888,13 @@ def project_shapely_geometry(geom, from_sr, to_sr):
     return ret
 
 
+def reduce_multiply(sequence):
+    ret = 1.
+    for s in sequence:
+        ret *= s
+    return ret
+
+
 def set_name_attributes(name_mapping):
     """
     Set the name attributes on the keys of ``name_mapping``.
@@ -697,26 +902,20 @@ def set_name_attributes(name_mapping):
      ``None``.
     """
 
-    for target, name in name_mapping.iteritems():
+    for target, name in name_mapping.items():
         if target is not None and target.name is None:
             target.name = name
 
 
-def set_new_value_mask_for_field(field, mask):
-    shape_field = field.shape
-    for var in field.variables.itervalues():
-        if var._value is not None:
-            set_new_value_mask_for_variable(mask, shape_field, var.value)
+def update_or_pass(target, key, value):
+    """
+    :param dict target: The target dictionary to update.
+    :param key: The dictionary's key to update.
+    :param value: The dictionary's value to use for the update if the key is not present in `target`.
+    """
 
-
-def set_new_value_mask_for_variable(mask, shape_field, value):
-    rng_realization = range(shape_field[0])
-    rng_temporal = range(shape_field[1])
-    rng_level = range(shape_field[2])
-    ref_logical_or = np.logical_or
-    for idx_r, idx_t, idx_l in itertools.product(rng_realization, rng_temporal, rng_level):
-        ref = value[idx_r, idx_t, idx_l]
-        ref.mask = ref_logical_or(ref.mask, mask)
+    if key not in target:
+        target[key] = value
 
 
 def validate_time_subset(time_range, time_region):
@@ -816,9 +1015,9 @@ def write_geom_dict(dct, path=None, filename=None, epsg=4326, crs=None):
 
     crs = crs or from_epsg(epsg)
     driver = 'ESRI Shapefile'
-    schema = {'properties': {'UGID': 'int'}, 'geometry': dct.values()[0].geom_type}
+    schema = {'properties': {'UGID': 'int'}, 'geometry': list(dct.values())[0].geom_type}
     with fiona.open(path, 'w', driver=driver, crs=crs, schema=schema) as source:
-        for k, v in dct.iteritems():
+        for k, v in dct.items():
             rec = {'properties': {'UGID': k}, 'geometry': mapping(v)}
             source.write(rec)
     return path
@@ -868,3 +1067,52 @@ def get_temp_path(suffix='', name=None, nest=False, only_dir=False, wd=None, dir
             f.close()
             ret = f.name
     return str(ret)
+
+
+def get_local_to_global_slices(slices_global, slices_local):
+    # tdk: optimize: remove np.arange
+    ga = [np.arange(s.start, s.stop) for s in slices_global]
+    lm = [get_optimal_slice_from_array(ga[idx][slices_local[idx]]) for idx in range(len(slices_local))]
+    lm = tuple(lm)
+    return lm
+
+
+def get_group(ddict, keyseq, has_root=True, create=False, last=None):
+    keyseq = deepcopy(keyseq)
+    if last is None:
+        last = {}
+
+    if keyseq is None:
+        keyseq = [None]
+    elif isinstance(keyseq, six.string_types):
+        keyseq = [keyseq]
+
+    if keyseq[0] is not None:
+        keyseq.insert(0, None)
+
+    curr = ddict
+    len_keyseq = len(keyseq)
+    for ctr, key in enumerate(keyseq, start=1):
+        if key is None:
+            if has_root:
+                curr = curr[None]
+        else:
+            # Allow dimension maps to not have groups. Return empty dictionaries for groups that do not exist in the
+            # dimension map.
+            # curr = curr.get('groups', {}).get(key, {})
+            if create:
+                curr = get_or_create_dict(curr, 'groups', {})
+                if ctr == len_keyseq:
+                    default = last
+                else:
+                    default = {}
+                curr = get_or_create_dict(curr, key, default)
+            else:
+                curr = curr['groups'][key]
+    return curr
+
+
+def get_or_create_dict(dct, key, default):
+    if key not in dct:
+        dct[key] = default
+    return dct[key]

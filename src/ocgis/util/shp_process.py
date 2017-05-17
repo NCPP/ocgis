@@ -89,7 +89,7 @@ def main(cargs):
     sp = ShpProcess(cargs.in_shp, cargs.folder)
     if cargs.folder is None:
         cargs.folder = os.getcwd()
-    print(sp.process())
+    print((sp.process()))
 
 
 if __name__ == '__main__':

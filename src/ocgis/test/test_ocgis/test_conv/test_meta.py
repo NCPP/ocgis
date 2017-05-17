@@ -1,6 +1,8 @@
 import os
 from copy import deepcopy
 
+import six
+
 from ocgis import OcgOperations
 from ocgis import constants
 from ocgis.conv.meta import MetaOCGISConverter, MetaJSONConverter, AbstractMetaConverter
@@ -16,7 +18,7 @@ class TestMetaJSONConverter(TestBase):
 
     def get_operations(self):
         rd = self.test_data.get_rd('cancm4_tas')
-        ops = OcgOperations(dataset=rd, output_format=constants.OUTPUT_FORMAT_METADATA_JSON)
+        ops = OcgOperations(dataset=rd, output_format=constants.OutputFormatName.METADATA_JSON)
         return ops
 
     @attr('data')
@@ -27,7 +29,7 @@ class TestMetaJSONConverter(TestBase):
     @attr('data')
     def test_operations(self):
         ops = self.get_operations()
-        self.assertIsInstance(ops.execute(), basestring)
+        self.assertIsInstance(ops.execute(), six.string_types)
 
     @attr('data')
     def test_validate_ops(self):
@@ -37,18 +39,19 @@ class TestMetaJSONConverter(TestBase):
         rd2 = deepcopy(rd)
         rd2.alias = 'foo'
         with self.assertRaises(DefinitionValidationError):
-            OcgOperations(dataset=[rd, rd2], output_format=constants.OUTPUT_FORMAT_METADATA_JSON)
+            OcgOperations(dataset=[rd, rd2], output_format=constants.OutputFormatName.METADATA_JSON)
 
         # Test fields are not convertible to metadata JSON.
         field = rd.get()
         with self.assertRaises(DefinitionValidationError):
-            OcgOperations(dataset=field, output_format=constants.OUTPUT_FORMAT_METADATA_JSON)
+            OcgOperations(dataset=field, output_format=constants.OutputFormatName.METADATA_JSON)
 
     @attr('data')
     def test_write(self):
         mj = self.get()
         ret = mj.write()
-        self.assertIsInstance(ret, basestring)
+        self.assertIsInstance(ret, six.string_types)
+
 
 
 class TestMetaOCGISConverter(TestBase):

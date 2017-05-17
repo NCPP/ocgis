@@ -15,7 +15,7 @@ for jj in "${tests[@]}"; do
         echo "Running serial tests: ${jj}"
         echo -e "=====================\\n"
 
-        nosetests -x -a '!release' ${jj}
+        nosetests -vsx -a '!release' ${jj}
         if [ $? == 1 ]; then
             echo "FAIL: One or more serial tests failed."
             exit 1

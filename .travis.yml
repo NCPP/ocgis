@@ -3,9 +3,12 @@ language: python
 sudo: false
 
 env:
-  - CONDA_PYTHON="python=2.7", NESII_CHANNEL="nesii/channel/dev-ocgis", OCGIS_DEPS_ADDS="icclim esmpy"
-  - CONDA_PYTHON="python=3.5", NESII_CHANNEL="nesii/channel/dev-ocgis", OCGIS_DEPS_ADDS=""
-  - CONDA_PYTHON="python=3.6", NESII_CHANNEL="nesii/channel/dev-ocgis", OCGIS_DEPS_ADDS=""
+  global:
+    - NESII_CHANNEL="nesii"
+  matrix:
+    - CONDA_PYTHON="python=2.7", OCGIS_DEPS_ADDS="icclim esmpy"
+    - CONDA_PYTHON="python=3.5", OCGIS_DEPS_ADDS=""
+    - CONDA_PYTHON="python=3.6", OCGIS_DEPS_ADDS=""
 
 before_install:
   - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh;

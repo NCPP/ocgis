@@ -140,7 +140,6 @@ class Grid(AbstractSpatialContainer):
             if not isinstance(parent, Field):
                 raise ValueError("'parent' objects must be fields")
 
-
         self._abstraction = None
 
         self.abstraction = abstraction

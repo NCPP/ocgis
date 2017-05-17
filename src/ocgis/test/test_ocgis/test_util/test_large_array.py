@@ -1,7 +1,6 @@
 import time
 from copy import deepcopy
 
-import netCDF4 as nc
 import numpy as np
 
 import ocgis

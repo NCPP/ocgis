@@ -3,7 +3,7 @@ import os
 from setuptools import setup, Command, find_packages
 from setuptools.command.test import test as TestCommand
 
-VERSION = '2.0.0.dev1'
+VERSION = '2.0.0'
 
 
 ########################################################################################################################

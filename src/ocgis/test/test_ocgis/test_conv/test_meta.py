@@ -53,7 +53,6 @@ class TestMetaJSONConverter(TestBase):
         self.assertIsInstance(ret, six.string_types)
 
 
-
 class TestMetaOCGISConverter(TestBase):
     @attr('data')
     def test_init(self):

@@ -22,7 +22,7 @@ from shapely.geometry import Point
 
 from ocgis import RequestDataset
 from ocgis import SourcedVariable
-from ocgis import Variable, Dimension, VariableCollection
+from ocgis import Variable, Dimension
 from ocgis import env
 from ocgis.collection.field import Field
 from ocgis.spatial.geom_cabinet import GeomCabinet

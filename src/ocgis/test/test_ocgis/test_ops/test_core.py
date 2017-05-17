@@ -2,11 +2,11 @@ import csv
 import datetime
 import itertools
 import os
+import sys
 from datetime import datetime as dt
 from unittest import SkipTest
 
 import numpy as np
-import sys
 from shapely.geometry import Point, LineString
 
 import ocgis
@@ -29,7 +29,7 @@ from ocgis.variable.base import Variable
 from ocgis.variable.crs import Spherical, CoordinateReferenceSystem, WGS84
 from ocgis.variable.temporal import TemporalVariable
 from ocgis.vmachine.mpi import OcgDist, MPI_RANK, variable_collection_scatter, MPI_COMM, dgather, \
-    hgather, MPI_SIZE, barrier_print, rank_print
+    hgather, MPI_SIZE
 
 
 class TestOcgOperations(TestBase):

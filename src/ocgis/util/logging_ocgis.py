@@ -1,16 +1,15 @@
 import datetime
 import logging
 import os
+import sys
 from warnings import warn
 
 import six
-import sys
 
 import ocgis
 from ocgis import env
 from ocgis.exc import OcgWarning
 from ocgis.vmachine.mpi import get_standard_comm_state
-
 
 fiona_logger = logging.getLogger('Fiona')
 fiona_logger.setLevel(logging.ERROR)

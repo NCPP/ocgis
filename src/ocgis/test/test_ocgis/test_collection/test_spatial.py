@@ -69,7 +69,8 @@ class TestSpatialCollection(AbstractTestInterface):
 
         gridcode = Variable('gridcode', [110101, 12103], dimensions='ngeom')
         description = Variable('description', ['high point', 'low point'], dimensions='ngeom')
-        dimension_map = {'geom': {'variable': 'geoms', DimensionMapKey.DIMENSION: ['ngeom']}, 'crs': {'variable': crs.name}}
+        dimension_map = {'geom': {'variable': 'geoms', DimensionMapKey.DIMENSION: ['ngeom']},
+                         'crs': {'variable': crs.name}}
         poi = Field(variables=[geoms, gridcode, description], dimension_map=dimension_map,
                     is_data=[gridcode, description])
         geoms.set_ugid(gridcode)

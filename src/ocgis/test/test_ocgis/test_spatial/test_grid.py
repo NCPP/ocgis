@@ -1,10 +1,10 @@
 import itertools
+import sys
 from copy import deepcopy
 from unittest import SkipTest
 
 import fiona
 import numpy as np
-import sys
 from numpy.testing.utils import assert_equal
 from shapely import wkt
 from shapely.geometry import Point, box, MultiPolygon, shape
@@ -20,7 +20,7 @@ from ocgis.exc import EmptySubsetError, BoundsAlreadyAvailableError
 from ocgis.spatial.grid import Grid, expand_grid, GridGeometryProcessor
 from ocgis.test.base import attr, AbstractTestInterface, create_gridxy_global
 from ocgis.util.helpers import make_poly, iter_array
-from ocgis.variable.base import Variable, VariableCollection, SourcedVariable
+from ocgis.variable.base import Variable, SourcedVariable
 from ocgis.variable.crs import WGS84, CoordinateReferenceSystem, Spherical, Cartesian
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable

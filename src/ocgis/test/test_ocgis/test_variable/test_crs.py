@@ -1,7 +1,7 @@
 import os
+import sys
 from copy import deepcopy
 from unittest import SkipTest
-import sys
 
 import netCDF4 as nc
 import numpy as np
@@ -21,7 +21,7 @@ from ocgis.util.itester import itr_products_keywords
 from ocgis.variable.base import Variable
 from ocgis.variable.crs import CoordinateReferenceSystem, CFAlbersEqualArea, CFLambertConformal, \
     CFRotatedPole, WGS84, Spherical, CFSpherical, Tripole, Cartesian
-from ocgis.vmachine.mpi import OcgDist, MPI_RANK, variable_scatter, MPI_COMM
+from ocgis.vmachine.mpi import OcgDist, MPI_RANK, variable_scatter
 
 
 class TestCoordinateReferenceSystem(TestBase):

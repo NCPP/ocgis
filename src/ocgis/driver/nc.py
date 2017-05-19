@@ -393,10 +393,15 @@ def read_from_collection(target, request_dataset, parent=None, name=None, source
 
     ret = VariableCollection(attrs=get_netcdf_attributes(target), parent=parent, name=name, source_name=source_name,
                              uid=uid)
+    pred = request_dataset.predicate
     for varname, ncvar in target.variables.items():
+        if pred is not None and not pred(varname):
+            continue
         source_name = varname
         name = rename_variable_map.get(varname, varname)
-        ret[name] = SourcedVariable(name=name, request_dataset=request_dataset, parent=ret, source_name=source_name)
+        sv = SourcedVariable(name=name, request_dataset=request_dataset, parent=ret, source_name=source_name)
+        ret[name] = sv
+
     for group_name, ncgroup in list(target.groups.items()):
         child = read_from_collection(ncgroup, request_dataset, parent=ret, name=group_name, uid=uid)
         ret.add_child(child)

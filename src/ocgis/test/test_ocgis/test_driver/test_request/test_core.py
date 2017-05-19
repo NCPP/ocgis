@@ -2,7 +2,7 @@ import datetime
 
 import numpy as np
 
-from ocgis import RequestDataset
+from ocgis import RequestDataset, Variable
 from ocgis.collection.field import Field
 from ocgis.constants import TagName, MiscName, DimensionMapKey
 from ocgis.driver.nc import DriverNetcdf, DriverNetcdfCF
@@ -95,6 +95,26 @@ class TestRequestDataset(TestSimpleBase):
         self.assertEqual(field.name, desired)
         self.assertIsNone(field.source_name)
         field.load()
+
+    def test_system_predicate(self):
+        """Test creating a request dataset with a predicate."""
+
+        path = self.get_temporary_file_path('foo.nc')
+        field = self.get_field()
+        to_exclude = Variable(name='exclude')
+        field.add_variable(to_exclude)
+        field.write(path)
+
+        rd = RequestDataset(uri=path, predicate=lambda x: not x.startswith('exclude'))
+        self.assertNotIn('exclude', rd.metadata['variables'])
+        actual = rd.get()
+        self.assertNotIn('exclude', actual)
+
+        # Test predicate affects data variable identification.
+        path = self.get_temporary_file_path('foo.nc')
+        rd = RequestDataset(uri=path, predicate=lambda x: x != 'foo')
+        with self.assertRaises(NoDataVariablesFound):
+            assert rd.variable
 
     @attr('cfunits')
     def test_conform_units_to(self):

@@ -422,3 +422,11 @@ class DimensionMapError(OcgException):
     def __init__(self, entry_key, message):
         msg = "Error with entry key '{}': {}".format(entry_key, message)
         super(DimensionMapError, self).__init__(message=msg)
+
+
+class VariableMissingMetadataError(OcgException):
+    """Raised when variable metadata cannot be found."""
+
+    def __init__(self, variable_name):
+        msg = 'Variable is missing metadata: {}'.format(variable_name)
+        super(VariableMissingMetadataError, self).__init__(message=msg)

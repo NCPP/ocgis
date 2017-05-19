@@ -114,6 +114,12 @@ class RequestDataset(AbstractRequestObject):
     :param opened: An open file used as a write target for the driver.
     :type opened: varies by ``driver`` class
     :param int uid: A unique identifier for the request dataset.
+    :param predicate: A filter function returning ``True`` if a variable should be included in the output field. The
+      function should take a single argument which is a sequence of string variable names. This function is applied
+      directly to the metadata before other functions (i.e. identifying data variables).
+    :type predicate: `function`
+    
+    >>> predicate = lambda x: x.startswith('w')
 
     .. _time units: http://netcdf4-python.googlecode.com/svn/trunk/docs/netCDF4-module.html#num2date
     .. _time calendar: http://netcdf4-python.googlecode.com/svn/trunk/docs/netCDF4-module.html#num2date
@@ -124,7 +130,7 @@ class RequestDataset(AbstractRequestObject):
                  time_subset_func=None, level_range=None, conform_units_to=None, crs='auto', t_units=None,
                  t_calendar=None, t_conform_units_to=None, grid_abstraction='auto', dimension_map=None,
                  field_name=None, driver=None, regrid_source=True, regrid_destination=False, metadata=None,
-                 format_time=True, opened=None, uid=None, rename_variable=None):
+                 format_time=True, opened=None, uid=None, rename_variable=None, predicate=None):
 
         self._is_init = True
 
@@ -134,6 +140,7 @@ class RequestDataset(AbstractRequestObject):
         self._time_region = None
         self._time_subset_func = None
 
+        self.predicate = predicate
         if dimension_map is not None and isinstance(dimension_map, dict):
             dimension_map = DimensionMap.from_dict(dimension_map)
         self._dimension_map = dimension_map

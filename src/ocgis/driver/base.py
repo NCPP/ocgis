@@ -13,7 +13,7 @@ from ocgis.base import get_variable_names
 from ocgis.collection.field import Field
 from ocgis.constants import MPIWriteMode, TagName, KeywordArgument
 from ocgis.driver.dimension_map import DimensionMap
-from ocgis.exc import DefinitionValidationError, NoDataVariablesFound, DimensionMapError
+from ocgis.exc import DefinitionValidationError, NoDataVariablesFound, DimensionMapError, VariableMissingMetadataError
 from ocgis.util.helpers import get_group
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import SourcedVariable, VariableCollection
@@ -291,7 +291,20 @@ class AbstractDriver(AbstractOcgisObject):
         :rtype: dict
         """
 
-        return self._get_metadata_main_()
+        metadata_subclass = self._get_metadata_main_()
+
+        # Use the predicate (filter) if present on the request dataset.
+        # TODO: Should handle groups?
+        pred = self.rd.predicate
+        if pred is not None:
+            to_pop = []
+            for var_name in metadata_subclass['variables'].keys():
+                if not pred(var_name):
+                    to_pop.append(var_name)
+            for var_name in to_pop:
+                metadata_subclass['variables'].pop(var_name)
+
+        return metadata_subclass
 
     def get_source_metadata_as_json(self):
         # tdk: test
@@ -729,7 +742,12 @@ def get_dump_report_for_group(group, global_attributes_name='global', indent=0):
 
 
 def get_variable_metadata_from_request_dataset(driver, variable):
-    return get_group(driver.metadata_source, variable.group, has_root=False)['variables'][variable._source_name]
+    variables_metadata = get_group(driver.metadata_source, variable.group, has_root=False)['variables']
+    try:
+        ret = variables_metadata[variable._source_name]
+    except KeyError:
+        raise VariableMissingMetadataError(variable._source_name)
+    return ret
 
 
 def iter_all_group_keys(ddict, entry=None, has_root=True):

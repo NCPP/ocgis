@@ -469,8 +469,16 @@ class Grid(AbstractSpatialContainer):
             targets = [np.abs(np.diff(np.abs(y_value[0:resolution_limit]))),
                        np.abs(np.diff(np.abs(x_value[0:resolution_limit])))]
         else:
-            targets = [np.abs(np.diff(np.abs(y_value[0:resolution_limit, :]), axis=0)),
-                       np.abs(np.diff(np.abs(x_value[:, 0:resolution_limit]), axis=1))]
+            if 1 in self.shape:
+                # Handle case singleton grid dimension case.
+                targets = []
+                if self.shape[0] != 1:
+                    targets.append(np.abs(np.diff(np.abs(y_value[0:resolution_limit, :]), axis=0)))
+                if self.shape[1] != 1:
+                    targets.append(np.abs(np.diff(np.abs(x_value[:, 0:resolution_limit]), axis=1)))
+            else:
+                targets = [np.abs(np.diff(np.abs(y_value[0:resolution_limit, :]), axis=0)),
+                           np.abs(np.diff(np.abs(x_value[:, 0:resolution_limit]), axis=1))]
         to_mean = [np.mean(t) for t in targets]
         ret = np.mean(to_mean)
         return ret

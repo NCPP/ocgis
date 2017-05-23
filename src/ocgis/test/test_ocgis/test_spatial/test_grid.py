@@ -902,6 +902,12 @@ class TestGrid(AbstractTestInterface):
         for grid in self.get_iter_gridxy():
             self.assertEqual(grid.resolution, 1.)
 
+        # Test resolution with a singleton dimension.
+        x = Variable(name='x', value=[[1, 2, 3, 4]], dimensions=['first', 'second'])
+        y = Variable(name='y', value=[[5, 6, 7, 8]], dimensions=['first', 'second'])
+        grid = Grid(x, y)
+        self.assertEqual(grid.resolution, 1)
+
     def test_set_extrapolated_bounds(self):
         value_grid = [[[40.0, 40.0, 40.0, 40.0], [39.0, 39.0, 39.0, 39.0], [38.0, 38.0, 38.0, 38.0]],
                       [[-100.0, -99.0, -98.0, -97.0], [-100.0, -99.0, -98.0, -97.0], [-100.0, -99.0, -98.0, -97.0]]]

@@ -1069,7 +1069,19 @@ class Variable(AbstractContainer, Attributes):
                     if var.name not in to_keep:
                         self.parent.pop(var.name)
 
-        return self.parent[self.name]
+        ret = self.parent[self.name]
+
+        # Remove any dimensions not associated with the extracted variable from its parent collection.
+        dimensions_to_keep = list(get_dimension_names(ret.dimensions))
+        if keep_bounds and ret.has_bounds:
+            dimensions_to_keep += list(get_dimension_names(ret.bounds.dimensions))
+        dimensions_to_keep = set(dimensions_to_keep)
+        dimensions_remaining = set(self.parent.dimensions.keys())
+        dimensions_to_pop = dimensions_remaining.difference(dimensions_to_keep)
+        for d in dimensions_to_pop:
+            self.parent.dimensions.pop(d)
+
+        return ret
 
     def get_between(self, lower, upper, return_indices=False, closed=False, use_bounds=True):
         """

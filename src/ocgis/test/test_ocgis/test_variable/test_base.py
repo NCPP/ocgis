@@ -542,6 +542,14 @@ class TestVariable(AbstractTestInterface):
         self.assertNotIn(v1.name, vc)
         self.assertEqual(list(vc.keys()), ['two', 'three'])
 
+        # Test dimensions match the extracted variable only.
+        var1 = Variable('var1', value=[1, 2], dimensions='dim1')
+        var2 = Variable('var2', value=[1, 2, 3], dimensions='dim2')
+        _ = VariableCollection(variables=[var1, var2])
+        var_extract = var1.extract()
+        self.assertEqual(len(var_extract.parent.dimensions), 1)
+        self.assertEqual(var_extract.parent.dimensions[var1.dimensions[0].name].name, var1.dimensions[0].name)
+
     def test_get_between(self):
         bv = Variable('foo', value=[0], dimensions='uni')
         with self.assertRaises(EmptySubsetError):

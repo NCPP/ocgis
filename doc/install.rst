@@ -157,5 +157,5 @@ The ``uninstall`` command will simply provide you with the directory location of
 
     python setup.py uninstall
 
-.. _bash script: https://github.com/NCPP/ocgis/blob/master/sh/install_geospatial.sh
+.. _bash script: https://github.com/NCPP/ocgis/blob/master/misc/sh/install_geospatial.sh
 .. _source: https://github.com/NCPP/ocgis

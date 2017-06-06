@@ -189,7 +189,8 @@ class GridSplitter(AbstractOcgisObject):
             if self.check_contains:
                 dst_box = vm.bcast(dst_box, root=live_ranks[0])
 
-            src_grid_subset = self.src_grid.get_intersects(sub_box, keep_touches=False, cascade=False)
+            src_grid_subset = self.src_grid.get_intersects(sub_box, keep_touches=False, cascade=False,
+                                                           optimized_bbox_subset=True)
 
             if not self.allow_masked:
                 gmask = self.src_grid.get_mask()

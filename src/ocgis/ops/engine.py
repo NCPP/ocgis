@@ -8,7 +8,8 @@ from ocgis.calc.engine import CalculationEngine
 from ocgis.collection.field import Field
 from ocgis.collection.spatial import SpatialCollection
 from ocgis.constants import WrappedState, HeaderName, WrapAction, SubcommName
-from ocgis.exc import ExtentError, EmptySubsetError, BoundsAlreadyAvailableError, SubcommNotFoundError
+from ocgis.exc import ExtentError, EmptySubsetError, BoundsAlreadyAvailableError, SubcommNotFoundError, \
+    NoDataVariablesFound, WrappedStateEvalTargetMissing
 from ocgis.spatial.spatial_subset import SpatialSubsetOperation
 from ocgis.util.helpers import get_default_or_apply
 from ocgis.util.logging_ocgis import ocgis_lh, ProgressOcgOperations
@@ -172,6 +173,9 @@ class OperationsEngine(AbstractOcgisObject):
             except TypeError:
                 # The alias is used for logging, etc. If it cannot be constructed easily, leave it as None.
                 alias = None
+        except NoDataVariablesFound:
+            # If an alias is not provided and there are no data variables, set to None as this is used only for logging.
+            alias = None
 
         ocgis_lh('processing...', self._subset_log, alias=alias, level=logging.DEBUG)
         # Create the field object. Field objects may be passed directly to operations.
@@ -613,7 +617,11 @@ def _update_aggregation_wrapping_crs_(obj, alias, sfield, subset_sdim, subset_ug
     raise_if_empty(sfield)
     ocgis_lh(msg='before wrapped_state in _update_aggregation_wrapping_crs_', logger=obj._subset_log,
              level=logging.DEBUG)
-    wrapped_state = sfield.wrapped_state
+    try:
+        wrapped_state = sfield.wrapped_state
+    except WrappedStateEvalTargetMissing:
+        # If there is no target for wrapping evaluation, then consider this unknown.
+        wrapped_state = WrappedState.UNKNOWN
     ocgis_lh(msg='after wrapped_state in _update_aggregation_wrapping_crs_', logger=obj._subset_log,
              level=logging.DEBUG)
 

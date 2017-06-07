@@ -181,7 +181,8 @@ class TestBase(unittest.TestCase):
                 data_to_check = (arr1.data, arr2.data)
             else:
                 data_to_check = (arr1, arr2)
-            self.assertTrue(np.all(arr1.mask == arr2.mask))
+            if check_arr_type:
+                self.assertTrue(np.all(arr1.mask == arr2.mask))
             if check_fill_value:
                 self.assertEqual(arr1.fill_value, arr2.fill_value)
         else:
@@ -231,7 +232,6 @@ class TestBase(unittest.TestCase):
             self.assertEqual(set(src.dimensions.keys()), set(dest.dimensions.keys()))
 
             for varname, var in src.variables.items():
-
                 if varname in ignore_variables:
                     continue
 
@@ -253,7 +253,7 @@ class TestBase(unittest.TestCase):
                                 self.assertNumpyAllClose(var_value, dvar_value)
                             else:
                                 self.assertNumpyAll(var_value, dvar_value, check_arr_dtype=check_types,
-                                                    check_fill_value=check_fill_value)
+                                                    check_fill_value=check_fill_value, check_arr_type=check_types)
                 except (AssertionError, AttributeError):
                     # Some zero-length netCDF variables should not be tested for value equality. Values are meaningless
                     # and only the attributes should be tested for equality.

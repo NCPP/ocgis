@@ -97,10 +97,10 @@ class NcConverter(AbstractCollectionConverter):
                 msg = 'Keyed function output may not be written to netCDF.'
                 _raise_(msg)
 
-    def _build_(self, coll):
-        ret = {'path': self.path, 'dataset_kwargs': {'format': self._get_file_format_()},
-               'variable_kwargs': self._variable_kwargs, 'driver': DriverNetcdfCF}
-        return ret
+    # def _build_(self, coll):
+    #     ret = {'path': self.path, 'dataset_kwargs': {'format': self._get_file_format_()},
+    #            'variable_kwargs': self._variable_kwargs, 'driver': DriverNetcdfCF}
+    #     return ret
 
     def _finalize_(self, ds):
         pass
@@ -163,6 +163,7 @@ class NcConverter(AbstractCollectionConverter):
         # Pull in dataset and variable keyword arguments.
         unlimited_to_fixedsize = self.options.get(KeywordArgument.UNLIMITED_TO_FIXED_SIZE, False)
         write_kwargs[KeywordArgument.VARIABLE_KWARGS] = variable_kwargs
+        write_kwargs[KeywordArgument.DATASET_KWARGS] = {KeywordArgument.FORMAT: self._get_file_format_()}
         variable_kwargs[KeywordArgument.UNLIMITED_TO_FIXED_SIZE] = unlimited_to_fixedsize
 
         # This is the output path. The driver handles MPI writing.

@@ -430,3 +430,10 @@ class VariableMissingMetadataError(OcgException):
     def __init__(self, variable_name):
         msg = 'Variable is missing metadata: {}'.format(variable_name)
         super(VariableMissingMetadataError, self).__init__(message=msg)
+
+
+class WrappedStateEvalTargetMissing(OcgException):
+    """Raised when attempting to retrieve the wrapped state of a field and no evaluation target is available."""
+
+    def __init__(self):
+        super(WrappedStateEvalTargetMissing, self).__init__(message='Target has no spatial information to evaluate.')

@@ -473,8 +473,12 @@ class RequestDataset(AbstractRequestObject):
         else:
             lr = '{0} to {1} (inclusive)'.format(self.level_range[0], self.level_range[1])
 
+        try:
+            data_variable = self.variable
+        except NoDataVariablesFound:
+            data_variable = None
         rows = ['    URI: {0}'.format(self.uri),
-                '    Variable: {0}'.format(self.variable),
+                '    Data Variable(s): {0}'.format(data_variable),
                 '    Time Range: {0}'.format(tr),
                 '    Time Region/Selection: {0}'.format(self.time_region),
                 '    Level Range: {0}'.format(lr)]

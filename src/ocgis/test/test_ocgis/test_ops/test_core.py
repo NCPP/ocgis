@@ -822,6 +822,22 @@ class TestOcgOperationsNoData(TestBase):
                 actual = actual == (idx + 1) * 10
                 self.assertTrue(np.all(actual))
 
+    def test_system_netcdf_output_format(self):
+        path = self.get_temporary_file_path('foo.nc')
+        var = Variable('vec', value=[1, 2, 3, 4, 5], dimensions='dvec', dtype=np.int32)
+        var.write(path)
+
+        with self.nc_scope(path, 'r') as ds:
+            self.assertEqual(ds.data_model, 'NETCDF4')
+
+        rd = RequestDataset(uri=path)
+        ops = OcgOperations(dataset=rd, prefix='converted', output_format='nc',
+                            output_format_options={'data_model': 'NETCDF4_CLASSIC'})
+        ret = ops.execute()
+
+        with self.nc_scope(ret, 'r') as ds:
+            self.assertEqual(ds.data_model, 'NETCDF4_CLASSIC')
+
     @attr('cfunits')
     def test_system_request_dataset_modifiers(self):
         """

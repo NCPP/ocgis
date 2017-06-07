@@ -158,17 +158,6 @@ class DriverNetcdf(AbstractDriver):
 
     @classmethod
     def _write_variable_collection_main_(cls, vc, opened_or_path, write_mode, **kwargs):
-        """
-        Write the variable collection to an open netCDF dataset or file path.
-
-        :param dataset: The open dataset object or path for the write.
-        :type dataset: :class:`netCDF4.Dataset` or str
-        :param bool file_only: If ``True``, we are not filling the value variables. Only the file schema and dimension
-         values will be written.
-        :param bool unlimited_to_fixedsize: If ``True``, convert the unlimited dimension to fixed size.
-        :param kwargs: Extra keyword arguments in addition to ``dimensions`` and ``fill_value`` to pass to
-         ``createVariable``. See http://unidata.github.io/netcdf4-python/netCDF4.Dataset-class.html#createVariable
-        """
         assert write_mode is not None
 
         dataset_kwargs = kwargs.get('dataset_kwargs', {})

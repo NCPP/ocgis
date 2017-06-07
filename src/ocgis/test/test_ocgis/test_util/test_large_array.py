@@ -1,3 +1,4 @@
+import subprocess
 import time
 from copy import deepcopy
 
@@ -94,8 +95,8 @@ class Test(TestBase):
         ops.prefix = 'ocgis'
         ret_ocgis = ops.execute()
 
-        self.assertNcEqual(ret, ret_ocgis, check_fill_value=False, ignore_attributes={'global': ['history'],
-                                                                                      'ln': ['_FillValue']})
+        self.assertNcEqual(ret, ret_ocgis, check_fill_value=False, check_types=False,
+                           ignore_attributes={'global': ['history'], 'ln': ['_FillValue']})
 
     @attr('data')
     def test_with_no_calc_grouping(self):
@@ -109,8 +110,8 @@ class Test(TestBase):
 
         ops.prefix = 'ocgis'
         ret_ocgis = ops.execute()
-        self.assertNcEqual(ret, ret_ocgis, check_fill_value=False, ignore_attributes={'global': ['history'],
-                                                                                      'ln': ['_FillValue']})
+        self.assertNcEqual(ret, ret_ocgis, check_fill_value=False, check_types=False,
+                           ignore_attributes={'global': ['history'], 'ln': ['_FillValue']})
 
     @attr('data')
     def test_compute_with_time_region(self):
@@ -124,8 +125,8 @@ class Test(TestBase):
 
         ops.prefix = 'ocgis'
         ret_ocgis = ops.execute()
-        self.assertNcEqual(ret, ret_ocgis, check_fill_value=False, ignore_attributes={'global': ['history'],
-                                                                                      'mean': ['_FillValue']})
+        self.assertNcEqual(ret, ret_ocgis, check_fill_value=False, check_types=False,
+                           ignore_attributes={'global': ['history'], 'mean': ['_FillValue']})
 
     @attr('data')
     def test_compute_with_geom(self):
@@ -139,8 +140,9 @@ class Test(TestBase):
 
         ops.prefix = 'ocgis'
         ret_ocgis = ops.execute()
-        self.assertNcEqual(ret, ret_ocgis, check_fill_value=False, ignore_attributes={'global': ['history'],
-                                                                                      'mean': ['_FillValue']})
+
+        self.assertNcEqual(ret, ret_ocgis, check_fill_value=False, check_types=False,
+                           ignore_attributes={'global': ['history'], 'mean': ['_FillValue']})
 
     @attr('data')
     def test_compute_small(self):
@@ -166,8 +168,8 @@ class Test(TestBase):
         ops.prefix = 'ocgis_compare'
         ops.add_auxiliary_files = False
         ret_ocgis = ops.execute()
-        self.assertNcEqual(ret_compute, ret_ocgis, check_fill_value=False, ignore_attributes={'global': ['history'],
-                                                                                              'mean': ['_FillValue']})
+        self.assertNcEqual(ret_compute, ret_ocgis, check_fill_value=False, check_types=False,
+                           ignore_attributes={'global': ['history'], 'mean': ['_FillValue']})
 
     def test_set_variable_spatial_mask(self):
         value = np.random.rand(10, 3, 4)

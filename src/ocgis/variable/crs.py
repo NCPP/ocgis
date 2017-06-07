@@ -14,7 +14,8 @@ from ocgis.base import AbstractInterfaceObject, raise_if_empty, AbstractOcgisObj
 from ocgis.constants import MPIWriteMode, WrappedState, WrapAction, KeywordArgument, CFName, OcgisUnits, \
     ConversionFactor, DimensionMapKey
 from ocgis.environment import osr
-from ocgis.exc import ProjectionCoordinateNotFound, ProjectionDoesNotMatch, CRSNotEquivalenError
+from ocgis.exc import ProjectionCoordinateNotFound, ProjectionDoesNotMatch, CRSNotEquivalenError, \
+    WrappedStateEvalTargetMissing
 from ocgis.spatial.wrap import GeometryWrapper, CoordinateArrayWrapper
 from ocgis.util.helpers import iter_array, get_iter
 
@@ -203,7 +204,7 @@ class AbstractCRS(AbstractOcgisObject):
                     target = target.geom
 
             if target is None:
-                raise ValueError('Target has no spatial information to evaluate.')
+                raise WrappedStateEvalTargetMissing
             elif target.is_empty:
                 ret = None
             elif isinstance(target, Grid):

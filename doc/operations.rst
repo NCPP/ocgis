@@ -374,6 +374,13 @@ A dictionary of converter-specific options. Options for each converter are liste
 >>> output_format_options = {'data_model': 'NETCDF4_CLASSIC'}
 >>> options = {'variable_kwargs': {'zlib': True, 'complevel': 4}}
 
+prefix
+~~~~~~
+
+The ``prefix`` provides the name of the output folder (if ``add_auxiliary_files=True``) and the filename prefix for any file output created by OpenClimateGIS.
+
+>>> prefix = 'fn_start'
+
 regrid_destination
 ~~~~~~~~~~~~~~~~~~
 

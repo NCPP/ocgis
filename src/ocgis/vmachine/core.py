@@ -14,13 +14,13 @@ class OcgVM(AbstractOcgisObject):
     """
 
     def __init__(self, comm=None):
-        self._is_finalized = False
         self._subcomms = {}
         self._current_comm_name = None
 
         if comm is None:
             comm = MPI_COMM
         self._comm = comm
+        self._original_comm = comm
 
         if hasattr(self._comm, 'Get_group'):
             is_dummy = False
@@ -36,8 +36,6 @@ class OcgVM(AbstractOcgisObject):
 
     @property
     def comm(self):
-        if self._is_finalized:
-            raise RuntimeError('Attempted operation on finalized VM')
         if self.current_comm_name is None:
             ret = self._comm
         else:
@@ -128,9 +126,8 @@ class OcgVM(AbstractOcgisObject):
         for v in self._subcomms.values():
             self.free_subcomm(subcomm=v)
         self._subcomms = None
-        self._is_finalized = True
         self._current_comm_name = None
-        self._comm = None
+        self._comm = self._original_comm
 
     def gather(self, *args, **kwargs):
         return self.comm.gather(*args, **kwargs)

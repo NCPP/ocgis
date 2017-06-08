@@ -148,8 +148,12 @@ class Test(AbstractCalcBase):
         with self.nc_scope(ret) as ds:
             ref = ds.variables['time'][:]
             self.assertEqual(len(ref), 12)
-            self.assertEqual(set(ds.variables['tasmax_mean'].ncattrs()),
-                             {'units', 'long_name', 'standard_name', 'grid_mapping'})
+            actual = ds.variables['tasmax_mean'].ncattrs()
+            # Do not check fill value attributes.
+            if '_FillValue' in actual:
+                actual.remove('_FillValue')
+            actual = set(actual)
+            self.assertEqual(actual, {'units', 'long_name', 'standard_name', 'grid_mapping'})
 
     @attr('data')
     def test_system_date_groups(self):

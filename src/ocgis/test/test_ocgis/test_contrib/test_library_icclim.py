@@ -354,6 +354,7 @@ class TestSU(TestBase):
             self.assertDictEqual(to_test, actual)
             var = ds.variables['SU']
             to_test = dict(var.__dict__)
+            to_test.pop('_FillValue', None)
             self.assertEqual(to_test, {'units': 'days',
                                        'standard_name': AbstractIcclimFunction.standard_name,
                                        'long_name': 'Summer days (number of days where daily maximum temperature > 25 degrees)',

@@ -162,9 +162,9 @@ class NcConverter(AbstractCollectionConverter):
 
         # Pull in dataset and variable keyword arguments.
         unlimited_to_fixedsize = self.options.get(KeywordArgument.UNLIMITED_TO_FIXED_SIZE, False)
+        variable_kwargs[KeywordArgument.UNLIMITED_TO_FIXED_SIZE] = unlimited_to_fixedsize
         write_kwargs[KeywordArgument.VARIABLE_KWARGS] = variable_kwargs
         write_kwargs[KeywordArgument.DATASET_KWARGS] = {KeywordArgument.FORMAT: self._get_file_format_()}
-        variable_kwargs[KeywordArgument.UNLIMITED_TO_FIXED_SIZE] = unlimited_to_fixedsize
 
         # This is the output path. The driver handles MPI writing.
         path = write_kwargs.pop(KeywordArgument.PATH)

@@ -376,7 +376,8 @@ class AbstractDriver(AbstractOcgisObject):
 
     @classmethod
     def get_variable_write_fill_value(cls, variable):
-        return cls.get_variable_for_writing(variable).fill_value
+        ret = cls.get_variable_for_writing(variable).fill_value
+        return ret
 
     @classmethod
     def get_variable_write_value(cls, variable):

@@ -113,7 +113,8 @@ class DriverNetcdf(AbstractDriver):
                 dimensions = [d.name for d in dimensions]
 
             # Only use the fill value if something is masked.
-            if len(dimensions) > 0 and not file_only and var.has_masked_values:
+            is_nc3 = dataset.data_model.startswith('NETCDF3')
+            if ((len(dimensions) > 0 and var.has_masked_values) and not file_only) or (is_nc3 and not var.has_allocated_value and len(dimensions) > 0):
                 fill_value = cls.get_variable_write_fill_value(var)
             else:
                 # Copy from original attributes.

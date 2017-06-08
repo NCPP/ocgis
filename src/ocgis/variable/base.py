@@ -517,13 +517,7 @@ class Variable(AbstractContainer, Attributes):
         return ret
 
     def _get_fill_value_(self):
-        dtype = self.dtype
-        if dtype is None or isinstance(dtype, ObjectType):
-            ret = None
-        else:
-            ret = np.ma.array([1], dtype=dtype).get_fill_value()
-            ret = np.array([ret], dtype=dtype)[0]
-        return ret
+        return get_default_fill_value_from_dtype(self.dtype)
 
     @property
     def has_dimensions(self):
@@ -1998,6 +1992,15 @@ def get_bounds_order_1d(bounds):
 
 def get_attribute_property(variable, name):
     return variable.attrs.get(name)
+
+
+def get_default_fill_value_from_dtype(dtype):
+    if dtype is None or isinstance(dtype, ObjectType):
+        ret = None
+    else:
+        ret = np.ma.array([1], dtype=dtype).get_fill_value()
+        ret = np.array([ret], dtype=dtype)[0]
+    return ret
 
 
 def get_dimension_lengths(dimensions):

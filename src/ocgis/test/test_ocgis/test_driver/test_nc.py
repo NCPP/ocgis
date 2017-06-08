@@ -257,7 +257,7 @@ class TestDriverNetcdf(TestBase):
         vc = driver.get_variable_collection()
         vc.write(path_out, dataset_kwargs={'format': 'NETCDF3_CLASSIC'}, variable_kwargs={'zlib': True})
 
-        self.assertNcEqual(path_in, path_out)
+        self.assertNcEqual(path_in, path_out, ignore_attributes={'var_seven': ['_FillValue']})
 
     @attr('mpi')
     def test_write_variable_collection_object_arrays(self):

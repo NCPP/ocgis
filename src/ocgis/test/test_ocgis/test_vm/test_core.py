@@ -7,32 +7,16 @@ from ocgis.vmachine.mpi import MPI_SIZE, MPI_RANK, MPI_COMM
 
 
 class TestOcgVM(TestBase):
-    # tdk: wtf
+
     @attr('mpi')
     def test_init(self):
-        vm = OcgVM()
-        vm.finalize()
+        for _ in range(50):
+            vm = OcgVM()
+            vm.finalize()
+            self.assertTrue(vm.size_global >= 1)
+            self.assertIsNotNone(vm.comm)
 
-        with self.assertRaises(RuntimeError):
-            vm.comm
-
-            # vm = OcgVM()
-            # self.assertEqual(vm.live_ranks, tuple(range(MPI_SIZE)))
-            #
-            # ompi = OcgDist(size=3)
-            # ompi.create_dimension('five', 5)
-            # ompi.update_dimension_bounds()
-            # vm = OcgVM(ompi=ompi)
-            # self.assertEqual(vm.live_ranks, (0, 1, 2))
-            #
-            # ompi = OcgDist()
-            # ompi.create_dimension('varying', 2 * MPI_SIZE)
-            # ompi.update_dimension_bounds()
-            # vm = OcgVM(ompi=ompi)
-            # self.assertEqual(vm.live_ranks, tuple(range(MPI_SIZE)))
-            # vm.barrier()
-
-    @attr('mpi', 'wtf')
+    @attr('mpi')
     def test_system_get_field_from_file(self):
         """Test returning a distributed field from file."""
 
@@ -183,16 +167,3 @@ class TestOcgVM(TestBase):
         vm = OcgVM()
         self.assertEqual(vm.size, 8)
         vm.finalize()
-
-        # # tdk: wtf
-        # @attr('mpi')
-        # def test_set_root(self):
-        #     vm = OcgVM()
-        #     bad = MPI_SIZE + 1
-        #     with self.assertRaises(ValueError):
-        #         vm.set_root(bad)
-        #
-        #     vm.set_root(MPI_SIZE - 1)
-        #     self.assertEqual(vm.root, MPI_SIZE - 1)
-        #
-        #     vm.finalize()

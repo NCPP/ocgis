@@ -15,6 +15,9 @@ class TestOcgVM(TestBase):
             vm.finalize()
             self.assertTrue(vm.size_global >= 1)
             self.assertIsNotNone(vm.comm)
+            vm.finalize()
+            vm.__init__()
+            vm.finalize()
 
     @attr('mpi')
     def test_system_get_field_from_file(self):

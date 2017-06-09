@@ -125,7 +125,7 @@ class OcgVM(AbstractOcgisObject):
     def finalize(self):
         for v in self._subcomms.values():
             self.free_subcomm(subcomm=v)
-        self._subcomms = None
+        self._subcomms = {}
         self._current_comm_name = None
         self._comm = self._original_comm
 

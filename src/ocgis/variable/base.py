@@ -1188,10 +1188,14 @@ class Variable(AbstractContainer, Attributes):
             slc = get_formatted_slice(slc, self.ndim)
             local_slc = [slice(None)] * self.ndim
             for idx in range(self.ndim):
-                if slc[idx] != slice(None):
-                    local_slc_args = get_global_to_local_slice([slc[idx].start, slc[idx].stop],
-                                                               dimensions[idx].bounds_local)
-                    local_slc[idx] = slice(*local_slc_args)
+                if isinstance(slc[idx], slice):
+                    if slc[idx] != slice(None):
+                        local_slc_args = get_global_to_local_slice([slc[idx].start, slc[idx].stop],
+                                                                   dimensions[idx].bounds_local)
+                        local_slc[idx] = slice(*local_slc_args)
+                else:
+                    # Allow for fancy slicing.
+                    local_slc[idx] = slc[idx]
             ret = self[local_slc]
 
         if not is_or_will_be_empty:

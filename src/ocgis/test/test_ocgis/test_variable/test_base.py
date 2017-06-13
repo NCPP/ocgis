@@ -18,7 +18,8 @@ from ocgis.util.units import get_units_object, get_are_units_equal
 from ocgis.variable.base import Variable, SourcedVariable, VariableCollection, ObjectType, init_from_source
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
-from ocgis.vmachine.mpi import MPI_SIZE, MPI_RANK, OcgDist, MPI_COMM, hgather
+from ocgis.vmachine.mpi import MPI_SIZE, MPI_RANK, OcgDist, MPI_COMM, hgather, variable_scatter, barrier_print, \
+    variable_gather
 
 
 class TestVariable(AbstractTestInterface):
@@ -716,6 +717,42 @@ class TestVariable(AbstractTestInterface):
                 rd = RequestDataset(path)
                 svar = SourcedVariable('var', request_dataset=rd)
                 self.assertEqual(svar.shape, (10, 2, 1))
+
+    @attr('mpi')
+    def test_get_distributed_slice_fancy_indexing(self):
+        """Test using a fancy indexing slice in parallel."""
+
+        if vm.size != 2:
+            raise SkipTest('vm.size != 2')
+
+        dist = OcgDist()
+        dim1 = dist.create_dimension('dim1', size=7, dist=True)
+        dim2 = dist.create_dimension('dim2', size=4)
+        dist.update_dimension_bounds()
+
+        if vm.rank == 0:
+            value = np.zeros((7, 4))
+            for idx in range(value.shape[0]):
+                value[idx, :] = idx
+            var = Variable(name='test', dimensions=['dim1', 'dim2'], value=value)
+        else:
+            var = None
+        var = variable_scatter(var, dist)
+
+        slices = {0: np.array([False, True, False, True]),
+                  1: np.array([False, True, False])}
+        for k, v in slices.items():
+            v = [v, slice(None)]
+            slices[k] = v
+
+        sub = var.get_distributed_slice(slices[vm.rank])
+
+        gvar = variable_gather(sub)
+
+        if vm.rank == 0:
+            desired = [[1.0, 1.0, 1.0, 1.0], [3.0, 3.0, 3.0, 3.0], [5.0, 5.0, 5.0, 5.0]]
+            actual = gvar.get_value().tolist()
+            self.assertEqual(actual, desired)
 
     @attr('mpi')
     def test_get_distributed_slice_parent_variables(self):

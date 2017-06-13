@@ -8,7 +8,7 @@ from ocgis.constants import DataType
 from ocgis.exc import EmptyObjectError
 from ocgis.test.base import attr, AbstractTestInterface
 from ocgis.variable.dimension import Dimension
-from ocgis.vmachine.mpi import OcgDist, MPI_SIZE, MPI_RANK, get_nonempty_ranks
+from ocgis.vmachine.mpi import OcgDist, MPI_SIZE, MPI_RANK, get_nonempty_ranks, barrier_print
 
 
 class TestDimension(AbstractTestInterface):
@@ -101,6 +101,7 @@ class TestDimension(AbstractTestInterface):
 
     @attr('mpi')
     def test_get_distributed_slice(self):
+        self.add_barrier = False
         for d in [True, False]:
             dist = OcgDist()
             dim = dist.create_dimension('five', 5, dist=d, src_idx='auto')
@@ -147,6 +148,27 @@ class TestDimension(AbstractTestInterface):
                 sub2 = None
         if MPI_SIZE == 3 and MPI_RANK == 2:
             self.assertIsNone(sub2)
+
+    @attr('mpi')
+    def test_get_distributed_slice_fancy_indexing(self):
+        if vm.size != 2:
+            raise SkipTest('vm.size != 2')
+
+        dist = OcgDist()
+        dim = dist.create_dimension('dim', size=5, dist=True, src_idx='auto')
+        dist.update_dimension_bounds()
+
+        barrier_print('original bounds local', dim._bounds_local)
+
+        slices = {0: [False, True, True],
+                  1: [False, True]}
+        slc = slices[vm.rank]
+        sub = dim.get_distributed_slice(slc)
+
+        desired_bounds_global = (0, sum([np.array(ii).sum() for ii in slices.values()]))
+        desired_bounds_local = {0: (0, 2), 1: (2, 3)}
+        self.assertEqual(sub.bounds_global, desired_bounds_global)
+        self.assertEqual(sub.bounds_local, desired_bounds_local[vm.rank])
 
     @attr('mpi')
     def test_get_distributed_slice_on_rank_subset(self):

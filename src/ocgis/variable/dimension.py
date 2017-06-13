@@ -267,7 +267,9 @@ class Dimension(AbstractNamedObject):
         Slice the dimension in parallel. The sliced dimension object is a shallow copy. The returned dimension may be
         empty.
         
-        :param slc: A :class:`slice`-like object.
+        :param slc: A :class:`slice`-like object or a fancy slice. If this is a fancy slice, ``slc`` must be
+         processor-local. If the fancy slice uses integer indices, the indices must be local. In other words, a fancy
+         ``slc`` is not manipulated or redistributed prior to slicing.
         :rtype: :class:`~ocgis.Dimension`
         :raises: :class:`~ocgis.exc.EmptyObjectError`
         """
@@ -275,16 +277,20 @@ class Dimension(AbstractNamedObject):
         raise_if_empty(self)
 
         slc = get_formatted_slice(slc, 1)[0]
-        if not isinstance(slc, slice):
-            raise ValueError('Slice not recognized: {}'.format(slc))
+        is_fancy = not isinstance(slc, slice)
 
-        if slc == slice(None):
+        if not is_fancy and slc == slice(None):
             ret = self.copy()
         # Use standard slicing for non-distributed dimensions.
         elif not self.dist:
             ret = self[slc]
         else:
-            local_slc = get_global_to_local_slice((slc.start, slc.stop), self.bounds_local)
+            if is_fancy:
+                local_slc = slc
+            else:
+                local_slc = get_global_to_local_slice((slc.start, slc.stop), self.bounds_local)
+                if local_slc is not None:
+                    local_slc = slice(*local_slc)
             # Slice does not overlap local bounds. The dimension is now empty with size 0.
             if local_slc is None:
                 ret = self.copy()
@@ -292,7 +298,7 @@ class Dimension(AbstractNamedObject):
                 dimension_size = 0
             # Slice overlaps so do a slice on the dimension using the local slice.
             else:
-                ret = self[slice(*local_slc)]
+                ret = self[local_slc]
                 dimension_size = len(ret)
             assert dimension_size >= 0
             dimension_sizes = vm.gather(dimension_size)
@@ -312,7 +318,7 @@ class Dimension(AbstractNamedObject):
 
             # Normalize the local bounds on live ranks.
             inner_live_ranks = get_nonempty_ranks(ret, vm)
-            with vm.scoped('bounds normaliztion', inner_live_ranks):
+            with vm.scoped('bounds normalization', inner_live_ranks):
                 if not vm.is_null:
                     if vm.rank == 0:
                         adjust = len(ret)

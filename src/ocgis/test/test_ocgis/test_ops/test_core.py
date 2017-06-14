@@ -148,6 +148,24 @@ class TestOcgOperations(TestBase):
             ret = ops.get_base_request_size()
             self.assertTrue(ret['total'] > 1)
 
+    def test_get_base_request_size_time_range(self):
+        path = self.get_temporary_file_path('foo.nc')
+        field = self.get_field(ntime=60)
+        time_range = [field.time.get_value()[0], field.time.get_value()[1]]
+        field.write(path)
+        rd = RequestDataset(path)
+
+        ops = OcgOperations(dataset=rd)
+        size_no_tr = ops.get_base_request_size()
+        time_size_no_tr = size_no_tr['field']['foo']['time']['kb']
+        self.pprint_dict(size_no_tr)
+
+        ops = OcgOperations(dataset=rd, time_range=time_range)
+        size_with_tr = ops.get_base_request_size()
+        time_size_with_tr = size_with_tr['field']['foo']['time']['kb']
+
+        self.assertAlmostEqual(time_size_no_tr - time_size_with_tr, 0.453125)
+
     @attr('data')
     def test_get_base_request_size_with_calculation(self):
         rd = self.test_data.get_rd('cancm4_tas')

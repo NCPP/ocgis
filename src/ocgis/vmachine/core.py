@@ -93,18 +93,21 @@ class OcgVM(AbstractOcgisObject):
 
     def create_subcomm(self, name, ranks, is_current=False, clobber=False):
         if not self._is_dummy:
-            the_pool = self.comm.Get_group()
-            sub_group = the_pool.Incl(ranks)
-            try:
-                ret = self.comm.Create(sub_group)
-                if name in self._subcomms:
-                    if clobber:
-                        vm.free_subcomm(name=name)
-                    else:
-                        raise SubcommAlreadyCreatedError(name)
-                self._subcomms[name] = ret
-            finally:
-                sub_group.Free()
+            if len(ranks) == 0:
+                self._subcomms[name] = COMM_NULL
+            else:
+                the_pool = self.comm.Get_group()
+                sub_group = the_pool.Incl(ranks)
+                try:
+                    ret = self.comm.Create(sub_group)
+                    if name in self._subcomms:
+                        if clobber:
+                            vm.free_subcomm(name=name)
+                        else:
+                            raise SubcommAlreadyCreatedError(name)
+                    self._subcomms[name] = ret
+                finally:
+                    sub_group.Free()
         if is_current:
             self._current_comm_name = name
         return name

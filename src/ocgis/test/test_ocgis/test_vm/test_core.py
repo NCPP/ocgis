@@ -109,6 +109,14 @@ class TestOcgVM(TestBase):
         vm.finalize()
 
     @attr('mpi')
+    def test_create_subcomm(self):
+        vm = OcgVM()
+        vm.create_subcomm('test', [], is_current=True)
+        self.assertTrue(vm.is_null)
+        vm.finalize()
+        self.assertFalse(vm.is_null)
+
+    @attr('mpi')
     def test_gather(self):
         if MPI_SIZE != 8:
             raise SkipTest('MPI_SIZE != 8')

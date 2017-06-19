@@ -1,6 +1,8 @@
 import datetime
+import os
 
 import six
+import logging
 
 import ocgis
 from ocgis import RequestDataset
@@ -9,11 +11,12 @@ from ocgis.calc.base import AbstractMultivariateFunction, AbstractKeyedOutputFun
 from ocgis.calc.engine import CalculationEngine
 from ocgis.calc.eval_function import MultivariateEvalFunction
 from ocgis.constants import KeywordArgument, DimensionName
-from ocgis.constants import MPIWriteMode, DimensionMapKey, KeywordArgument, DriverKey, CFName
-from ocgis.conv.base import AbstractCollectionConverter
+from ocgis.constants import MPIWriteMode, DimensionMapKey, KeywordArgument, DriverKey, CFName, DimensionName
+from ocgis.conv.base import AbstractCollectionConverter, _write_dataset_identifier_file_, _write_source_meta_
 from ocgis.driver.nc import DriverNetcdf, DriverNetcdfCF
 from ocgis.exc import DefinitionValidationError
-
+from ocgis.util.logging_ocgis import ocgis_lh
+from ocgis.vmachine.mpi import MPI_RANK
 
 class NcConverter(AbstractCollectionConverter):
     """
@@ -199,19 +202,72 @@ class NcConverterRegion(NcConverter):
     Then for the first collection, variables and dimensions would be created and the data for the first collection written
     Then for the following collection, data would be entered as indices being incremented along the spatial dimension.
     """
-    _ext = 'nc-region'
+    _ext = 'nc'
 
     def write(self):
-        #ocgis_lh('starting write method', self._log, logging.DEBUG)
+        ocgis_lh('starting write method', self._log, logging.DEBUG)
 
         # Indicates if user geometries should be written to file.
         write_ugeom = False
 
-        # Path to the output object.
-        f = {KeywordArgument.PATH: self.path}
+        # Count the number of collections. Surely there is a cleaner way...
+        ncoll = 0
+        for coll in self:
+            ncoll += 1
 
         build = True
-        for coll in self:
+        for i, coll in enumerate(self):
+            ugids = coll.properties.keys()
+            assert len(ugids) == 1
+            ugid = ugids[0]
+
+            # Geometry centroid location
+            clon, clat = coll.geoms[ugid].centroid.xy
+
+            for field in coll.iter_fields():
+
+                # TODO: add attributes (standard_name, units, ...)
+                field.add_variable(
+                    ocgis.Variable('clon',
+                                   value=clon,
+                                   dimensions=(DimensionName.UNIONED_GEOMETRY,),
+                                   attrs=field.dimension_map.get_attrs('x')
+                                   )
+                                   )
+
+                field.add_variable(
+                    ocgis.Variable('clat',
+                                   value=clat,
+                                   dimensions=(DimensionName.UNIONED_GEOMETRY,),
+                                   attrs=field.dimension_map.get_attrs('x')
+                                   )
+                )
+
+                # Removed for now. It'd be nice to find an elegant way to retain those. 
+                field.remove_variable('lat')
+                field.remove_variable('lon')
+                field.remove_variable('ocgis_spatial_mask')
+
+                # Geometry properties from the geom properties
+                for key, val in coll.properties[ugid].items():
+                    field.add_variable(
+                        ocgis.Variable(key, value=[val,],
+                                       dimensions=(DimensionName.UNIONED_GEOMETRY,)))
+
+
+                gdim = field.dimensions[DimensionName.UNIONED_GEOMETRY]
+                gdim.set_size(ncoll)
+
+
+                for var in field.iter_variables_by_dimensions([gdim]):
+                    d = var.dimensions_dict[DimensionName.UNIONED_GEOMETRY]
+                    d.bounds_local = (i, i+1)
+
+                gdim.set_name('region')
+
+            # Path to the output object.
+            f = {KeywordArgument.PATH: self.path}
+
             # This will be changed to "write" if we are on the build loop.
             write_mode = MPIWriteMode.APPEND
 
@@ -294,6 +350,35 @@ class NcConverterRegion(NcConverter):
         #arch.dimensions[constants.DimensionName.UNIONED_GEOMETRY].size=len(self.colls)
 
         self._write_archetype_(arch, ds, self._variable_kwargs)
+
+    def _write_archetype_(self, arch, write_kwargs, variable_kwargs):
+        """
+        Write a field to a netCDF dataset object.
+
+        :param arch: The field to write.
+        :type arch: :class:`ocgis.new_interface.field.Field`
+        :param dict write_kwargs: Dictionary of parameters needed for the write.
+        :param dict variable_kwargs: Optional keyword parameters to pass to the creation of netCDF4 variable objects.
+         See http://unidata.github.io/netcdf4-python/#netCDF4.Variable.
+        """
+        # Append to the history attribute.
+        history_str = '\n{dt} UTC ocgis-{release}'.format(dt=datetime.datetime.utcnow(), release=ocgis.__release__)
+        if self.ops is not None:
+            history_str += ': {0}'.format(self.ops)
+        original_history_str = arch.attrs.get('history', '')
+        arch.attrs['history'] = original_history_str + history_str
+
+        # Pull in dataset and variable keyword arguments.
+        unlimited_to_fixedsize = self.options.get(KeywordArgument.UNLIMITED_TO_FIXED_SIZE, False)
+        variable_kwargs[KeywordArgument.UNLIMITED_TO_FIXED_SIZE] = unlimited_to_fixedsize
+        write_kwargs[KeywordArgument.VARIABLE_KWARGS] = variable_kwargs
+        write_kwargs[KeywordArgument.DATASET_KWARGS] = {KeywordArgument.FORMAT: self._get_file_format_()}
+
+        # This is the output path. The driver handles MPI writing.
+        path = write_kwargs.pop(KeywordArgument.PATH)
+
+        # Write the field.
+        arch.write(path, **write_kwargs)
 
     @classmethod
     def validate_ops(cls, ops):

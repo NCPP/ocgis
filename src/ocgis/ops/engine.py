@@ -14,7 +14,7 @@ from ocgis.spatial.spatial_subset import SpatialSubsetOperation
 from ocgis.util.helpers import get_default_or_apply
 from ocgis.util.logging_ocgis import ocgis_lh, ProgressOcgOperations
 from ocgis.variable.crs import CFRotatedPole, Spherical, WGS84
-
+from ocgis import environment
 
 class OperationsEngine(AbstractOcgisObject):
     """
@@ -605,7 +605,8 @@ def _update_aggregation_wrapping_crs_(obj, alias, sfield, subset_sdim, subset_ug
 
         if not vm.is_null and subset_sdim is not None and subset_sdim.geom is not None:
             # Add the unique geometry identifier variable. This should match the selection geometry's identifier.
-            new_gid_variable = Variable(name=HeaderName.ID_GEOMETRY, value=subset_sdim.geom.ugid.get_value(),
+            value = subset_sdim.geom.ugid.get_value()
+            new_gid_variable = Variable(name=HeaderName.ID_GEOMETRY, value=value,
                                         dimensions=sfield.geom.dimensions)
             sfield.geom.set_ugid(new_gid_variable)
 

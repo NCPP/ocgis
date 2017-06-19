@@ -243,7 +243,7 @@ class NcConverterRegion(NcConverter):
                                    )
                 )
 
-                # Removed for now. It'd be nice to find an elegant way to retain those. 
+                # Removed for now. It'd be nice to find an elegant way to retain those.
                 field.remove_variable('lat')
                 field.remove_variable('lon')
                 field.remove_variable('ocgis_spatial_mask')

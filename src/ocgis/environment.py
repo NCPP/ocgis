@@ -253,6 +253,9 @@ def get_dtype(string_name, netcdf_file_format=None):
     if netcdf_file_format == 'NETCDF3_CLASSIC':
         mp = {'int': np.int32,
               'float': np.float32}
+    elif netcdf_file_format == 'NETCDF3_64BIT_OFFSET':
+        mp = {'int': np.int32,
+              'float': constants.DEFAULT_NP_FLOAT}
     else:
         mp = {'int': constants.DEFAULT_NP_INT,
               'float': constants.DEFAULT_NP_FLOAT}

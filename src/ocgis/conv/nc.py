@@ -8,7 +8,8 @@ from ocgis import env
 from ocgis.calc.base import AbstractMultivariateFunction, AbstractKeyedOutputFunction
 from ocgis.calc.engine import CalculationEngine
 from ocgis.calc.eval_function import MultivariateEvalFunction
-from ocgis.constants import KeywordArgument
+from ocgis.constants import KeywordArgument, DimensionName
+from ocgis.constants import MPIWriteMode, DimensionMapKey, KeywordArgument, DriverKey, CFName
 from ocgis.conv.base import AbstractCollectionConverter
 from ocgis.driver.nc import DriverNetcdf, DriverNetcdfCF
 from ocgis.exc import DefinitionValidationError
@@ -189,9 +190,111 @@ class NcConverter(AbstractCollectionConverter):
         self._write_archetype_(arch, ds, self._variable_kwargs)
 
 class NcConverterRegion(NcConverter):
+    """
+    Here we have multiple SpatialCollections that we want to save into a single netCDF file.
+    We can either try to same them into individual temporary files and the concatenate them along
+    the spatial dimension, or try to create a new collection that does this concatenation in memory.
+
+    Ideally what we would do is modify the dimensions of all variables to account for the number of collections.
+    Then for the first collection, variables and dimensions would be created and the data for the first collection written
+    Then for the following collection, data would be entered as indices being incremented along the spatial dimension.
+    """
     _ext = 'nc-region'
-    
-    
+
+    def write(self):
+        #ocgis_lh('starting write method', self._log, logging.DEBUG)
+
+        # Indicates if user geometries should be written to file.
+        write_ugeom = False
+
+        # Path to the output object.
+        f = {KeywordArgument.PATH: self.path}
+
+        build = True
+        for coll in self:
+            # This will be changed to "write" if we are on the build loop.
+            write_mode = MPIWriteMode.APPEND
+
+            if build:
+                # During a build loop, create the file and write the first series of records. Let the drivers determine
+                # the appropriate write modes for handling parallelism.
+                write_mode = None
+
+                # Write the user geometries if selected and there is one present on the incoming collection.
+                if self._add_ugeom and coll.has_container_geometries:
+                    write_ugeom = True
+
+                if write_ugeom:
+                    if vm.rank == 0:
+                        # The output file name for the user geometries.
+                        ugid_shp_name = self.prefix + '_ugid.shp'
+                        if self._add_ugeom_nest:
+                            ugeom_fiona_path = os.path.join(self._get_or_create_shp_folder_(), ugid_shp_name)
+                        else:
+                            ugeom_fiona_path = os.path.join(self.outdir, ugid_shp_name)
+                    else:
+                        ugeom_fiona_path = None
+
+                build = False
+
+            f[KeywordArgument.WRITE_MODE] = write_mode
+            self._write_coll_(f, coll)
+
+            if write_ugeom:
+                with vm.scoped(SubcommName.UGEOM_WRITE, [0]):
+                    if not vm.is_null:
+                        for subset_field in list(coll.children.values()):
+                            subset_field.write(ugeom_fiona_path, write_mode=write_mode, driver=DriverVector)
+
+        # The metadata and dataset descriptor files may only be written if OCGIS operations are present.
+        ops = self.ops
+        if ops is not None and self.add_auxiliary_files and MPI_RANK == 0:
+            # Add OCGIS metadata output if requested.
+            if self.add_meta:
+                ocgis_lh('adding OCGIS metadata file', 'conv', logging.DEBUG)
+                from ocgis.conv.meta import MetaOCGISConverter
+
+                lines = MetaOCGISConverter(ops).write()
+                out_path = os.path.join(self.outdir, self.prefix + '_' + MetaOCGISConverter._meta_filename)
+                with open(out_path, 'w') as f:
+                    f.write(lines)
+
+            # Add the dataset descriptor file if requested.
+            if self._add_did_file:
+                ocgis_lh('writing dataset description (DID) file', 'conv', logging.DEBUG)
+                path = os.path.join(self.outdir, self.prefix + '_did.csv')
+                _write_dataset_identifier_file_(path, ops)
+
+            # Add source metadata if requested.
+            if self._add_source_meta:
+                ocgis_lh('writing source metadata file', 'conv', logging.DEBUG)
+                path = os.path.join(self.outdir, self.prefix + '_source_metadata.txt')
+                _write_source_meta_(path, ops)
+
+        # Return the internal path unless overloaded by subclasses.
+        ret = self._get_return_()
+
+        return ret
+
+
+    def _write_coll_(self, ds, coll):
+        """
+        Write a spatial collection to an open netCDF4 dataset object.
+
+        :param ds: An open dataset object.
+        :type ds: :class:`netCDF4.Dataset`
+        :param coll: The collection containing data to write.
+        :type coll: :class:`~ocgis.SpatialCollection`
+        """
+
+        # Get the target field from the collection.
+        arch = coll.archetype_field
+        """:type arch: :class:`ocgis.Field`"""
+
+        #arch.dimensions[constants.DimensionName.UNIONED_GEOMETRY].size=len(self.colls)
+
+        self._write_archetype_(arch, ds, self._variable_kwargs)
+
     @classmethod
     def validate_ops(cls, ops):
         from ocgis.ops.parms.definition import OutputFormat

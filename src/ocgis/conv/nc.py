@@ -266,6 +266,7 @@ class NcConverterRegion(NcConverter):
                 gdim.set_name('region')
 
             # Path to the output object.
+            # I needed to put it here because _write_archetype pops it, so it's not available after the first loop.
             f = {KeywordArgument.PATH: self.path}
 
             # This will be changed to "write" if we are on the build loop.
@@ -331,54 +332,6 @@ class NcConverterRegion(NcConverter):
         ret = self._get_return_()
 
         return ret
-
-
-    def _write_coll_(self, ds, coll):
-        """
-        Write a spatial collection to an open netCDF4 dataset object.
-
-        :param ds: An open dataset object.
-        :type ds: :class:`netCDF4.Dataset`
-        :param coll: The collection containing data to write.
-        :type coll: :class:`~ocgis.SpatialCollection`
-        """
-
-        # Get the target field from the collection.
-        arch = coll.archetype_field
-        """:type arch: :class:`ocgis.Field`"""
-
-        #arch.dimensions[constants.DimensionName.UNIONED_GEOMETRY].size=len(self.colls)
-
-        self._write_archetype_(arch, ds, self._variable_kwargs)
-
-    def _write_archetype_(self, arch, write_kwargs, variable_kwargs):
-        """
-        Write a field to a netCDF dataset object.
-
-        :param arch: The field to write.
-        :type arch: :class:`ocgis.new_interface.field.Field`
-        :param dict write_kwargs: Dictionary of parameters needed for the write.
-        :param dict variable_kwargs: Optional keyword parameters to pass to the creation of netCDF4 variable objects.
-         See http://unidata.github.io/netcdf4-python/#netCDF4.Variable.
-        """
-        # Append to the history attribute.
-        history_str = '\n{dt} UTC ocgis-{release}'.format(dt=datetime.datetime.utcnow(), release=ocgis.__release__)
-        if self.ops is not None:
-            history_str += ': {0}'.format(self.ops)
-        original_history_str = arch.attrs.get('history', '')
-        arch.attrs['history'] = original_history_str + history_str
-
-        # Pull in dataset and variable keyword arguments.
-        unlimited_to_fixedsize = self.options.get(KeywordArgument.UNLIMITED_TO_FIXED_SIZE, False)
-        variable_kwargs[KeywordArgument.UNLIMITED_TO_FIXED_SIZE] = unlimited_to_fixedsize
-        write_kwargs[KeywordArgument.VARIABLE_KWARGS] = variable_kwargs
-        write_kwargs[KeywordArgument.DATASET_KWARGS] = {KeywordArgument.FORMAT: self._get_file_format_()}
-
-        # This is the output path. The driver handles MPI writing.
-        path = write_kwargs.pop(KeywordArgument.PATH)
-
-        # Write the field.
-        arch.write(path, **write_kwargs)
 
     @classmethod
     def validate_ops(cls, ops):

@@ -228,6 +228,7 @@ class DimensionMap(AbstractOcgisObject):
         """
 
         default_attrs = DIMENSION_MAP_TEMPLATE[DMK.SPATIAL_MASK][DMK.ATTRS]
+
         if attrs is None:
             attrs = default_attrs
         else:

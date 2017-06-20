@@ -161,7 +161,7 @@ class Environment(AbstractOcgisObject):
         if attr_value is None:
             netcdf_file_format = self.NETCDF_FILE_FORMAT
             """:type netcdf_file_format: str"""
-            dtype = get_dtype(name_dtype, netcdf_file_format=netcdf_file_format)
+            dtype = get_dtype(name_dtype, data_model=netcdf_file_format)
             setattr(self, name_private, EnvParm(name_private[1:], dtype))
         return object.__getattribute__(self, name_private)
 
@@ -239,21 +239,19 @@ class EnvParmImport(EnvParm):
         return any(results)
 
 
-def get_dtype(string_name, netcdf_file_format=None):
+def get_dtype(string_name, data_model=None):
     """
-    :param string_name: The name of the data type: ``'int'`` or ``'float'``.
-    :type string_name: str
-    :param netcdf_file_format: The target NetCDF file format.
-    :type netcdf_file_format: str
+    :param str string_name: The name of the data type: ``'int'`` or ``'float'``.
+    :param str data_model: The target data model string designation.
     :return: The appropriate data type for the ``string_name`` and ``netcdf_file_format``.
     :rtype: type
     """
 
     # The classic format does not support 64-bit data.
-    if netcdf_file_format == 'NETCDF3_CLASSIC':
+    if data_model == 'NETCDF3_CLASSIC':
         mp = {'int': np.int32,
               'float': np.float32}
-    elif netcdf_file_format == 'NETCDF3_64BIT_OFFSET':
+    elif data_model in ('NETCDF3_64BIT_OFFSET', 'NETCDF3_64BIT'):
         mp = {'int': np.int32,
               'float': constants.DEFAULT_NP_FLOAT}
     else:

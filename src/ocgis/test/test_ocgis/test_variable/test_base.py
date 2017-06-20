@@ -13,13 +13,22 @@ from ocgis.collection.field import Field
 from ocgis.constants import HeaderName
 from ocgis.exc import VariableInCollectionError, EmptySubsetError, NoUnitsError, PayloadProtectedError, \
     DimensionsRequiredError
-from ocgis.test.base import attr, nc_scope, AbstractTestInterface
+from ocgis.test.base import attr, nc_scope, AbstractTestInterface, TestBase
 from ocgis.util.units import get_units_object, get_are_units_equal
-from ocgis.variable.base import Variable, SourcedVariable, VariableCollection, ObjectType, init_from_source
+from ocgis.variable.base import Variable, SourcedVariable, VariableCollection, ObjectType, init_from_source, \
+    create_typed_variable_from_data_model
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
-from ocgis.vmachine.mpi import MPI_SIZE, MPI_RANK, OcgDist, MPI_COMM, hgather, variable_scatter, barrier_print, \
-    variable_gather
+from ocgis.vmachine.mpi import MPI_SIZE, MPI_RANK, OcgDist, MPI_COMM, hgather, variable_scatter, variable_gather
+
+
+class Test(TestBase):
+    def test_create_typed_variable_from_data_model(self):
+        netcdf_file_format = 'NETCDF3_64BIT_OFFSET'
+        string_name = 'int'
+        actual = create_typed_variable_from_data_model(string_name, data_model=netcdf_file_format,
+                                                       name='test', value=[1, 2, 3, 4], dimensions='dim')
+        self.assertEqual(actual.dtype, np.int32)
 
 
 class TestVariable(AbstractTestInterface):

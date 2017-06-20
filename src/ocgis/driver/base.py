@@ -54,6 +54,15 @@ class AbstractDriver(AbstractOcgisObject):
         raise NotImplementedError
 
     @property
+    def data_model(self):
+        """
+        Return the data model definition for the driver if it has one. NetCDF has NETCDF3_CLASSIC, etc.
+
+        :rtype: str | ``None``
+        """
+        return None
+
+    @property
     def dimension_map_raw(self):
         if self._dimension_map_raw is None:
             self._dimension_map_raw = get_dimension_map_raw(self, self.metadata_raw)
@@ -64,16 +73,6 @@ class AbstractDriver(AbstractOcgisObject):
         if self._dist is None:
             self._dist = self.get_dist()
         return self._dist
-
-    @property
-    def metadata_raw(self):
-        if self._metadata_raw is None:
-            self._metadata_raw = self.get_metadata()
-        return self._metadata_raw
-
-    @property
-    def metadata_source(self):
-        return self.rd.metadata
 
     @abc.abstractproperty
     def extensions(self):
@@ -87,6 +86,16 @@ class AbstractDriver(AbstractOcgisObject):
     @abc.abstractproperty
     def key(self):
         """:rtype: str"""
+
+    @property
+    def metadata_raw(self):
+        if self._metadata_raw is None:
+            self._metadata_raw = self.get_metadata()
+        return self._metadata_raw
+
+    @property
+    def metadata_source(self):
+        return self.rd.metadata
 
     @abc.abstractproperty
     def output_formats(self):

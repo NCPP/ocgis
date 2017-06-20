@@ -10,7 +10,7 @@ from ocgis.calc.engine import CalculationEngine
 from ocgis.calc.eval_function import MultivariateEvalFunction
 from ocgis.constants import KeywordArgument
 from ocgis.conv.base import AbstractCollectionConverter
-from ocgis.driver.nc import DriverNetcdf, DriverNetcdfCF
+from ocgis.driver.nc import DriverNetcdf
 from ocgis.exc import DefinitionValidationError
 
 
@@ -96,11 +96,6 @@ class NcConverter(AbstractCollectionConverter):
             if CalculationEngine._check_calculation_members_(ops.calc, AbstractKeyedOutputFunction):
                 msg = 'Keyed function output may not be written to netCDF.'
                 _raise_(msg)
-
-    # def _build_(self, coll):
-    #     ret = {'path': self.path, 'dataset_kwargs': {'format': self._get_file_format_()},
-    #            'variable_kwargs': self._variable_kwargs, 'driver': DriverNetcdfCF}
-    #     return ret
 
     def _finalize_(self, ds):
         pass

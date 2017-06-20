@@ -33,6 +33,10 @@ class DriverNetcdf(AbstractDriver):
     output_formats = 'all'
     common_extension = 'nc'
 
+    @property
+    def data_model(self):
+        return self.metadata_source['file_format']
+
     @staticmethod
     def get_data_variable_names(group_metadata, group_dimension_map):
         return tuple()

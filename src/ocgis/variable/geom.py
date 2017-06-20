@@ -109,7 +109,11 @@ class AbstractOperationsSpatialObject(AbstractSpatialObject):
         raise_if_empty(self)
 
         if self.crs is None:
-            msg = 'The current CRS is None and cannot be updated.'
+            msg = 'The current CRS is None and cannot be updated. Has the coordinate system been assigned ' \
+                  'appropriately?'
+            raise ValueError(msg)
+        if to_crs is None:
+            msg = 'The destination CRS may not be None. Has the coordinate system been assigned appropriately?'
             raise ValueError(msg)
 
     @abstractmethod

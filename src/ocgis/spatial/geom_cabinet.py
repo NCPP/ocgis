@@ -78,7 +78,7 @@ class GeomCabinet(object):
             raise ValueError(msg)
 
     def iter_geoms(self, key=None, select_uid=None, path=None, load_geoms=True, as_field=False,
-                   uid=None, select_sql_where=None, slc=None, union=False):
+                   uid=None, select_sql_where=None, slc=None, union=False, data_model=None):
         """
         See documentation for :class:`~ocgis.GeomCabinetIterator`.
         """
@@ -91,8 +91,9 @@ class GeomCabinet(object):
 
         if union:
             gic = GeomCabinetIterator(key=key, select_uid=select_uid, path=path, load_geoms=load_geoms, as_field=False,
-                                      uid=uid, select_sql_where=select_sql_where, slc=slc, union=False)
-            yld = Field.from_records(gic, meta['schema'], crs=meta['crs'], uid=uid, union=True)
+                                      uid=uid, select_sql_where=select_sql_where, slc=slc, union=False,
+                                      data_model=data_model)
+            yld = Field.from_records(gic, meta['schema'], crs=meta['crs'], uid=uid, union=True, data_model=data_model)
             yield yld
         else:
             if slc is not None and (select_uid is not None or select_sql_where is not None):
@@ -144,7 +145,8 @@ class GeomCabinet(object):
                         properties[uid] = int(properties[uid])
 
                     if as_field:
-                        yld = Field.from_records([yld], schema=meta['schema'], crs=yld['meta']['crs'], uid=uid)
+                        yld = Field.from_records([yld], schema=meta['schema'], crs=yld['meta']['crs'], uid=uid,
+                                                 data_model=data_model)
 
                     yield yld
                 try:
@@ -263,7 +265,7 @@ class GeomCabinetIterator(object):
     """
 
     def __init__(self, key=None, select_uid=None, path=None, load_geoms=True, as_field=False, uid=None,
-                 select_sql_where=None, slc=None, union=False):
+                 select_sql_where=None, slc=None, union=False, data_model=None):
         self.key = key
         self.path = path
         self.select_uid = select_uid
@@ -273,6 +275,7 @@ class GeomCabinetIterator(object):
         self.select_sql_where = select_sql_where
         self.slc = slc
         self.union = union
+        self.data_model = data_model
         self.sc = GeomCabinet()
 
     def __iter__(self):
@@ -283,7 +286,7 @@ class GeomCabinetIterator(object):
         for row in self.sc.iter_geoms(key=self.key, select_uid=self.select_uid, path=self.path,
                                       load_geoms=self.load_geoms, as_field=self.as_field,
                                       uid=self.uid, select_sql_where=self.select_sql_where, slc=self.slc,
-                                      union=self.union):
+                                      union=self.union, data_model=self.data_model):
             yield row
 
     def __len__(self):

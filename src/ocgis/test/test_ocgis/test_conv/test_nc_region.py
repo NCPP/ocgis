@@ -24,9 +24,35 @@ class TestNcConverterRegion():
                                       )
         return ops.execute()
 
+    def test_mds_clip(self):
+        rd = ocgis.RequestDataset([
+            '/home/david/data/cmip5/tas_Amon_GFDL-CM3_historical_r1i1p1_193501-193912.nc',
+            '/home/david/data/cmip5/tas_Amon_GFDL-CM3_historical_r1i1p1_194001-194412.nc',]
+        )
+
+        rd.dimension_map.set_bounds(ocgis.constants.DimensionMapKey.TIME, None)
+
+        ops = ocgis.OcgOperations(dataset=rd,
+                                  output_format=OutputFormatName.NETCDF_REGION,
+                                  output_format_options={
+                                      'data_model': 'NETCDF4'},
+                                  geom=[self.nebraska, self.germany],
+                                  aggregate=True,
+                                  spatial_operation='clip',
+                                  calc=[
+                                      {'func': 'mean', 'name': 'monthly_mean'}],
+                                  calc_grouping=['month'],
+                                  dir_output='/tmp',
+                                  prefix='clip'
+                                  )
+        return ops.execute()
+
+
     def test_intersects(self, region='germany'):
         #rd = self.test_data.get_rd('cancm4_tas')
-        rd = ocgis.RequestDataset('/home/david/data/cmip5/tas_Amon_GFDL-CM3_historical_r1i1p1_193501-193912.nc')
+        rd = ocgis.RequestDataset(
+            '/home/david/data/cmip5/tas_Amon_GFDL-CM3_historical_r1i1p1_193501-193912.nc',
+            )
         ops = ocgis.OcgOperations(dataset=rd,
                 output_format=OutputFormatName.NETCDF,
                 output_format_options={'data_model':'NETCDF4'},
@@ -62,4 +88,4 @@ class TestNcConverterRegion():
 
 #TestNcConverterRegion().test_intersects('germany')
 #TestNcConverterRegion().test_intersects('nebraska')
-TestNcConverterRegion().test_clip()
+TestNcConverterRegion().test_mds_clip()

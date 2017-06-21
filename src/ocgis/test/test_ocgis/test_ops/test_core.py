@@ -158,7 +158,6 @@ class TestOcgOperations(TestBase):
         ops = OcgOperations(dataset=rd)
         size_no_tr = ops.get_base_request_size()
         time_size_no_tr = size_no_tr['field']['foo']['time']['kb']
-        self.pprint_dict(size_no_tr)
 
         ops = OcgOperations(dataset=rd, time_range=time_range)
         size_with_tr = ops.get_base_request_size()
@@ -767,6 +766,30 @@ class TestOcgOperationsNoData(TestBase):
         shp_field = RequestDataset(shp_path).get()
         self.assertIn(gid_name, list(shp_field.keys()))
 
+    def test_system_geometry_identifier_typed_appropriately(self):
+        """Test GID is typed appropriately according to the data model."""
+
+        ofo = {'data_model': 'NETCDF3_64BIT_OFFSET'}
+        grid = create_gridxy_global(resolution=3.0)
+        field = create_exact_field(grid, 'foo', crs=Spherical())
+        ops = OcgOperations(dataset=field, output_format_options=ofo, geom=[-100, 30, -90, 40], aggregate=True)
+        actual = ops.execute()
+        actual = actual.get_element(container_ugid=1)
+        self.assertEqual(actual.geom.ugid.dtype, np.int32)
+
+        # Test data model is retrieved appropriately from file.
+        ofo = {'data_model': 'NETCDF3_64BIT_OFFSET'}
+        grid = create_gridxy_global(resolution=3.0)
+        field = create_exact_field(grid, 'foo', crs=Spherical())
+        ops = OcgOperations(dataset=field, output_format_options=ofo, output_format='nc')
+        ret = ops.execute()
+        rd = RequestDataset(uri=ret)
+
+        ops = OcgOperations(dataset=rd, geom=[-100, 30, -90, 40], aggregate=True)
+        actual = ops.execute()
+        actual = actual.get_element(container_ugid=1)
+        self.assertEqual(actual.geom.ugid.dtype, np.int32)
+
     def test_system_line_subsetting(self):
         """Test subsetting with a line."""
 
@@ -914,6 +937,17 @@ class TestOcgOperationsNoData(TestBase):
         shp_path = os.path.join(ops.dir_output, ops.prefix, 'shp', ops.prefix + '_ugid.shp')
         shp_field = RequestDataset(shp_path).get()
         self.assertIn(ugid_name, list(shp_field.keys()))
+
+    def test_system_user_geometry_identifier_typed_appropriately(self):
+        """Test UGID is typed appropriately according to the data model."""
+
+        ofo = {'data_model': 'NETCDF3_64BIT_OFFSET'}
+        grid = create_gridxy_global(resolution=3.0)
+        field = create_exact_field(grid, 'foo', crs=Spherical())
+        ops = OcgOperations(dataset=field, output_format_options=ofo, geom=[-100, 30, -90, 40], aggregate=True)
+        actual = ops.execute()
+        actual = actual[1]
+        self.assertEqual(actual.geom.ugid.dtype, np.int32)
 
     @attr('mpi')
     def test_system_spatial_averaging_through_operations(self):

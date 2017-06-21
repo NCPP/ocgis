@@ -149,7 +149,8 @@ class OcgOperations(AbstractOcgisObject):
         self.geom_select_uid = GeomSelectUid(geom_select_uid or select_ugid)
         self.geom_uid = GeomUid(geom_uid)
         self.geom = Geom(geom, select_ugid=self.geom_select_uid, geom_uid=self.geom_uid,
-                         geom_select_sql_where=self.geom_select_sql_where, union=self.agg_selection)
+                         geom_select_sql_where=self.geom_select_sql_where, union=self.agg_selection,
+                         output_format_options=self.output_format_options)
         self.vector_wrap = VectorWrap(vector_wrap)
         self.allow_empty = AllowEmpty(allow_empty)
         self.dir_output = DirOutput(dir_output or env.DIR_OUTPUT)

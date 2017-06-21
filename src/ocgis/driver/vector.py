@@ -11,6 +11,7 @@ from ocgis import constants, vm
 from ocgis.constants import MPIWriteMode, DimensionName, KeywordArgument, DriverKey, DMK
 from ocgis.driver.base import driver_scope, AbstractTabularDriver
 from ocgis.driver.dimension_map import DimensionMap
+from ocgis.environment import get_dtype
 from ocgis.util.helpers import is_auto_dtype
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import SourcedVariable, VariableCollection
@@ -253,13 +254,13 @@ def format_record_for_fiona(driver, record):
     return ret
 
 
-def get_dtype_from_fiona_type(ftype):
+def get_dtype_from_fiona_type(ftype, data_model=None):
     if ftype.startswith('int'):
-        ret = np.int
+        ret = get_dtype('int', data_model=data_model)
     elif ftype.startswith('str'):
         ret = object
     elif ftype.startswith('float'):
-        ret = np.float
+        ret = get_dtype('float', data_model=data_model)
     else:
         raise NotImplementedError(ftype)
     return ret

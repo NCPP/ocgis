@@ -17,6 +17,7 @@ from ocgis.constants import HeaderName, KeywordArgument, DriverKey, DimensionMap
 from ocgis.driver.csv_ import DriverCSV
 from ocgis.driver.nc import DriverNetcdf
 from ocgis.driver.vector import DriverVector
+from ocgis.spatial.geom_cabinet import GeomCabinetIterator
 from ocgis.spatial.grid import Grid, create_grid_mask_variable
 from ocgis.test.base import attr, AbstractTestInterface
 from ocgis.util.helpers import reduce_multiply
@@ -202,6 +203,14 @@ class TestField(AbstractTestInterface):
         crs = CoordinateReferenceSystem(epsg=2136)
         field = Field(variables=[crs])
         self.assertEqual(len(field.dimensions), 0)
+
+    def test_from_records(self):
+        gci = GeomCabinetIterator(path=self.path_state_boundaries)
+        actual = Field.from_records(gci, data_model='NETCDF3_CLASSIC')
+        desired = {'UGID': np.int32,
+                   'ID': np.float32}
+        for v in desired.keys():
+            self.assertEqual(actual[v].get_value().dtype, desired[v])
 
     def test_get_by_tag(self):
         v1 = Variable(name='tas')

@@ -34,8 +34,8 @@ class TestNcConverterRegion():
 
         ops = ocgis.OcgOperations(dataset=rd,
                                   output_format=OutputFormatName.NETCDF_REGION,
-                                  output_format_options={
-                                      'data_model': 'NETCDF4'},
+                                  #output_format_options={
+                                  #    'data_model': 'NETCDF4'},
                                   geom=[self.nebraska, self.germany],
                                   aggregate=True,
                                   spatial_operation='clip',

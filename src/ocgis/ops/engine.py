@@ -1,20 +1,21 @@
 import logging
 from copy import deepcopy
 
-from ocgis import Variable, vm
 from ocgis import env, constants
+from ocgis import vm
 from ocgis.base import raise_if_empty, AbstractOcgisObject
 from ocgis.calc.engine import CalculationEngine
 from ocgis.collection.field import Field
 from ocgis.collection.spatial import SpatialCollection
-from ocgis.constants import WrappedState, HeaderName, WrapAction, SubcommName
+from ocgis.constants import WrappedState, HeaderName, WrapAction, SubcommName, KeywordArgument
 from ocgis.exc import ExtentError, EmptySubsetError, BoundsAlreadyAvailableError, SubcommNotFoundError, \
     NoDataVariablesFound, WrappedStateEvalTargetMissing
 from ocgis.spatial.spatial_subset import SpatialSubsetOperation
 from ocgis.util.helpers import get_default_or_apply
 from ocgis.util.logging_ocgis import ocgis_lh, ProgressOcgOperations
+from ocgis.variable.base import create_typed_variable_from_data_model
 from ocgis.variable.crs import CFRotatedPole, Spherical, WGS84
-from ocgis import environment
+
 
 class OperationsEngine(AbstractOcgisObject):
     """
@@ -592,7 +593,7 @@ def _update_aggregation_wrapping_crs_(obj, alias, sfield, subset_sdim, subset_ug
         ocgis_lh('after sfield.geom.get_unioned in _update_aggregation_wrapping_crs_', obj._subset_log, alias=alias,
                  ugid=subset_ugid, level=logging.DEBUG)
 
-        # None is returned for the non-root process. Check we are in parallel and create and empty field.
+        # None is returned for the non-root process. Check we are in parallel and create an empty field.
         if sfield is None:
             if vm.size == 1:
                 raise ValueError('None should not be returned from get_unioned if running on a single processor.')
@@ -605,9 +606,10 @@ def _update_aggregation_wrapping_crs_(obj, alias, sfield, subset_sdim, subset_ug
 
         if not vm.is_null and subset_sdim is not None and subset_sdim.geom is not None:
             # Add the unique geometry identifier variable. This should match the selection geometry's identifier.
-            value = subset_sdim.geom.ugid.get_value()
-            new_gid_variable = Variable(name=HeaderName.ID_GEOMETRY, value=value,
-                                        dimensions=sfield.geom.dimensions)
+            new_gid_variable_kwargs = dict(name=HeaderName.ID_GEOMETRY, value=subset_sdim.geom.ugid.get_value(),
+                                           dimensions=sfield.geom.dimensions)
+            dm = get_data_model(obj.ops)
+            new_gid_variable = create_typed_variable_from_data_model('int', data_model=dm, **new_gid_variable_kwargs)
             sfield.geom.set_ugid(new_gid_variable)
 
     if vm.is_null:
@@ -688,3 +690,18 @@ def _update_wrapping_(obj, field_object):
                     field_object.wrap()
                 else:
                     field_object.unwrap()
+
+
+def get_data_model(ops):
+    if ops.output_format_options is None:
+        ret = None
+    else:
+        ret = ops.output_format_options.get(KeywordArgument.DATA_MODEL)
+
+    if ret is None:
+        ret = ops._get_object_('dataset')
+        if ret.data_model is not None:
+            ret = ret.data_model[0]
+        else:
+            ret = None
+    return ret

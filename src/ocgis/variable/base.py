@@ -15,6 +15,7 @@ from ocgis.base import AbstractNamedObject, get_dimension_names, get_variable_na
     orphaned, raise_if_empty
 from ocgis.collection.base import AbstractCollection
 from ocgis.constants import HeaderName, KeywordArgument, DriverKey
+from ocgis.environment import get_dtype
 from ocgis.exc import VariableInCollectionError, BoundsAlreadyAvailableError, EmptySubsetError, \
     ResolutionError, NoUnitsError, DimensionsRequiredError, DimensionMismatchError, MaskedDataFound
 from ocgis.util.helpers import get_iter, get_formatted_slice, get_bounds_from_1d, get_extrapolated_corners_esmf, \
@@ -1986,6 +1987,22 @@ def are_variable_and_dimensions_shape_equal(variable_value, dimensions):
 
 def get_bounds_names_1d(base_name):
     return 'lb_{}'.format(base_name), 'ub_{}'.format(base_name)
+
+
+def create_typed_variable_from_data_model(string_name, data_model=None, **kwargs):
+    """
+    Create a variable with the appropriate integer or float data type depending on the input data model.
+
+    :param string_name: See :meth:`~ocgis.environment.get_dtype`.
+    :param data_model: See :meth:`~ocgis.environment.get_dtype`.
+    :param dict kwargs: Keyword arguments for the creation of the variable.
+    :rtype: :class:`~ocgis.Variable`
+    """
+    from ocgis import Variable
+
+    kwargs = kwargs.copy()
+    kwargs[KeywordArgument.DTYPE] = get_dtype(string_name, data_model=data_model)
+    return Variable(**kwargs)
 
 
 def get_bounds_order_1d(bounds):

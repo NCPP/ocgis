@@ -502,6 +502,23 @@ class Dataset(base.AbstractParameter):
 
             yield element
 
+    @property
+    def data_model(self):
+        dms = []
+        for element in self:
+            try:
+                dm = element.driver.data_model
+            except AttributeError:
+                # Assume the data model or driver is not exposed by the object.
+                continue
+            else:
+                if dm is not None:
+                    dms.append(dm)
+        # Allow for no collected data models.
+        if len(dms) == 0:
+            dms = None
+        return dms
+
     @classmethod
     def from_query(cls, qi):
 
@@ -621,6 +638,8 @@ class Geom(base.AbstractParameter):
         self.union = kwargs.pop(KeywordArgument.UNION, False)
         self.geom_select_sql_where = kwargs.pop(GeomSelectSqlWhere.name, None)
         self.geom_uid = kwargs.pop(GeomUid.name, None)
+        self.output_format_options = kwargs.pop(OutputFormatOptions.name, None)
+        self.dataset = kwargs.pop(Dataset.name, None)
         # just store the value if it is a parameter object
         if isinstance(self.select_ugid, GeomSelectUid):
             self.select_ugid = self.select_ugid.value
@@ -628,6 +647,16 @@ class Geom(base.AbstractParameter):
             self.geom_uid = self.geom_uid.value
         if isinstance(self.geom_select_sql_where, GeomSelectSqlWhere):
             self.geom_select_sql_where = self.geom_select_sql_where.value
+        if isinstance(self.output_format_options, OutputFormatOptions):
+            self.output_format_options = self.output_format_options.value
+
+        if self.output_format_options is not None:
+            self.data_model = self.output_format_options.get(KeywordArgument.DATA_MODEL)
+        else:
+            if self.dataset is not None:
+                self.data_model = list(self.dataset.data_model)[0]
+            else:
+                self.data_model = None
 
         args = [self] + list(args)
         base.AbstractParameter.__init__(*args, **kwargs)
@@ -662,7 +691,8 @@ class Geom(base.AbstractParameter):
                     crs = element.get('crs', constants.UNINITIALIZED)
                     if 'crs' not in element:
                         ocgis_lh(msg='No CRS in geometry dictionary - assuming WGS84.', level=logging.WARN)
-                ret = Field.from_records(value, crs=crs, uid=self.geom_uid, union=self.union)
+                ret = Field.from_records(value, crs=crs, uid=self.geom_uid, union=self.union,
+                                         data_model=self.data_model)
             else:
                 if len(value) == 2:
                     geom = Point(value[0], value[1])
@@ -672,7 +702,7 @@ class Geom(base.AbstractParameter):
                 if not geom.is_valid:
                     raise DefinitionValidationError(self, 'Parsed geometry is not valid.')
                 ret = [{'geom': geom, 'properties': {self._ugid_key: 1}}]
-                ret = Field.from_records(ret, uid=self.geom_uid, union=self.union)
+                ret = Field.from_records(ret, uid=self.geom_uid, union=self.union, data_model=self.data_model)
                 self._bounds = geom.bounds
         elif isinstance(value, GeomCabinetIterator):
             self._shp_key = value.key or value.path
@@ -681,7 +711,7 @@ class Geom(base.AbstractParameter):
             ret = value
         elif isinstance(value, BaseGeometry):
             ret = [{'geom': value, 'properties': {self._ugid_key: 1}}]
-            ret = Field.from_records(ret, uid=self.geom_uid, union=self.union)
+            ret = Field.from_records(ret, uid=self.geom_uid, union=self.union, data_model=self.data_model)
         elif value is None:
             ret = value
         elif isinstance(value, Field):
@@ -748,6 +778,7 @@ class Geom(base.AbstractParameter):
             kwds['select_sql_where'] = self.geom_select_sql_where
             kwds['uid'] = self.geom_uid
             kwds[KeywordArgument.UNION] = self.union
+            kwds[KeywordArgument.DATA_MODEL] = self.data_model
             ret = GeomCabinetIterator(**kwds)
         return ret
 

@@ -13,7 +13,7 @@ from ocgis.constants import DimensionMapKey, WrapAction, TagName, HeaderName, Di
 from ocgis.spatial.grid import Grid
 from ocgis.util.helpers import get_iter
 from ocgis.util.logging_ocgis import ocgis_lh
-from ocgis.variable.base import Variable, get_bounds_names_1d
+from ocgis.variable.base import Variable, get_bounds_names_1d, create_typed_variable_from_data_model
 from ocgis.variable.crs import CoordinateReferenceSystem
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
@@ -368,7 +368,7 @@ class Field(VariableCollection):
         return ret
 
     @classmethod
-    def from_records(cls, records, schema=None, crs=UNINITIALIZED, uid=None, union=False):
+    def from_records(cls, records, schema=None, crs=UNINITIALIZED, uid=None, union=False, data_model=None):
         """
         Create a :class:`~ocgis.Field` from Fiona-like records.
 
@@ -386,6 +386,7 @@ class Field(VariableCollection):
          :attr:`env.DEFAULT_GEOM_UID` and, if not present, construct a 1-based identifier with this name.
         :param bool union: If ``True``, union the geometries from records yielding a single geometry with a unique
          identifier value of ``1``.
+        :param str data_model: See :meth:`~ocgis.driver.nc.create_typed_variable_from_data_model`.
         :returns: Field object constructed from records.
         :rtype: :class:`~ocgis.Field`
         """
@@ -461,7 +462,8 @@ class Field(VariableCollection):
             geom_type = schema['geometry']
 
         geom = GeometryVariable(value=deque_geoms, geom_type=geom_type, dimensions=dim)
-        uid = Variable(name=uid, value=deque_uid, dimensions=dim)
+        uid = create_typed_variable_from_data_model('int', data_model=data_model, name=uid, value=deque_uid,
+                                                    dimensions=dim)
         geom.set_ugid(uid)
 
         field = Field(geom=geom, crs=crs)
@@ -484,7 +486,7 @@ class Field(VariableCollection):
                     for k, v in list(schema['properties'].items()):
                         if k == uid.name:
                             continue
-                        dtype = get_dtype_from_fiona_type(v)
+                        dtype = get_dtype_from_fiona_type(v, data_model=data_model)
                         var = Variable(name=k, dtype=dtype, dimensions=dim)
                         field.add_variable(var)
                 for k, v in list(record['properties'].items()):

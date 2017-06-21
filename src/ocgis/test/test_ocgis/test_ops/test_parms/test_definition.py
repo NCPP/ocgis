@@ -575,6 +575,28 @@ class TestGeom(TestBase):
         with self.assertRaises(DefinitionValidationError):
             Geom(tempfile.gettempdir())
 
+    def test_init_field(self):
+        """Test using a field as initial value."""
+
+        field = Field.from_records(GeomCabinetIterator(path=self.path_state_boundaries))
+        self.assertIsInstance(field.crs, env.DEFAULT_COORDSYS.__class__)
+        g = Geom(field)
+        self.assertEqual(len(g.value), 51)
+        for field in g.value:
+            self.assertIsInstance(field, Field)
+            self.assertEqual(field.geom.shape, (1,))
+
+    def test_init_data_model(self):
+        """Test data models are used when creating fields."""
+
+        ofo = OutputFormatOptions({'data_model': 'NETCDF3_CLASSIC'})
+        g = Geom(self.path_state_boundaries, output_format_options=ofo)
+        for row in g.value:
+            desired = {'UGID': np.int32,
+                       'ID': np.float32}
+            for v in desired.keys():
+                self.assertEqual(row[v].get_value().dtype, desired[v])
+
     def test_geometry_dictionaries(self):
         """Test geometry dictionaries as input."""
 
@@ -595,17 +617,6 @@ class TestGeom(TestBase):
                 self.assertEqual(field.geom.ugid.shape[0], 1)
                 self.assertEqual(field['UGID'].get_value()[0], gdict['properties']['UGID'])
                 self.assertEqual(field['COUNTRY'].get_value()[0], gdict['properties']['COUNTRY'])
-
-    def test_init_field(self):
-        """Test using a field as initial value."""
-
-        field = Field.from_records(GeomCabinetIterator(path=self.path_state_boundaries))
-        self.assertIsInstance(field.crs, env.DEFAULT_COORDSYS.__class__)
-        g = Geom(field)
-        self.assertEqual(len(g.value), 51)
-        for field in g.value:
-            self.assertIsInstance(field, Field)
-            self.assertEqual(field.geom.shape, (1,))
 
     def test_parse(self):
         keywords = dict(geom_uid=[None, 'ID'],

@@ -6,14 +6,16 @@ import logging
 
 import ocgis
 from ocgis import RequestDataset
-from ocgis import env
+from ocgis import env, vm
 from ocgis.calc.base import AbstractMultivariateFunction, AbstractKeyedOutputFunction
 from ocgis.calc.engine import CalculationEngine
 from ocgis.calc.eval_function import MultivariateEvalFunction
-from ocgis.constants import KeywordArgument, DimensionName, HeaderName
-from ocgis.constants import MPIWriteMode, DimensionMapKey, KeywordArgument, DriverKey, CFName, DimensionName
-from ocgis.conv.base import AbstractCollectionConverter, _write_dataset_identifier_file_, _write_source_meta_
-from ocgis.driver.nc import DriverNetcdf, DriverNetcdfCF
+from ocgis.constants import HeaderName
+from ocgis.constants import MPIWriteMode, DimensionName
+from ocgis.conv.base import _write_dataset_identifier_file_, _write_source_meta_
+from ocgis.constants import KeywordArgument
+from ocgis.conv.base import AbstractCollectionConverter
+from ocgis.driver.nc import DriverNetcdf
 from ocgis.exc import DefinitionValidationError
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.vmachine.mpi import MPI_RANK
@@ -100,11 +102,6 @@ class NcConverter(AbstractCollectionConverter):
             if CalculationEngine._check_calculation_members_(ops.calc, AbstractKeyedOutputFunction):
                 msg = 'Keyed function output may not be written to netCDF.'
                 _raise_(msg)
-
-    # def _build_(self, coll):
-    #     ret = {'path': self.path, 'dataset_kwargs': {'format': self._get_file_format_()},
-    #            'variable_kwargs': self._variable_kwargs, 'driver': DriverNetcdfCF}
-    #     return ret
 
     def _finalize_(self, ds):
         pass

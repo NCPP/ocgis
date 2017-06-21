@@ -3,7 +3,7 @@ import os
 
 import six
 import logging
-
+import numpy as np
 import ocgis
 from ocgis import RequestDataset
 from ocgis import env, vm
@@ -19,6 +19,8 @@ from ocgis.driver.nc import DriverNetcdf
 from ocgis.exc import DefinitionValidationError
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.vmachine.mpi import MPI_RANK
+from ocgis.ops.engine import get_data_model
+from ocgis.environment import get_dtype
 
 class NcConverter(AbstractCollectionConverter):
     """
@@ -287,9 +289,19 @@ class NcConverterRegion(NcConverter):
 
                 # Geometry variables from the geom properties dict
                 # There is no metadata for those...
+                dm = get_data_model(self.ops)
+
                 for key, val in coll.properties[ugid].items():
+                    if np.issubdtype(type(val), int):
+                        dt = get_dtype('int', dm)
+                    elif np.issubdtype(type(val), float):
+                        dt = get_dtype('float', dm)
+                    else:
+                        dt='auto'
                     field.add_variable(
-                        ocgis.Variable(key, value=[val,],
+                        ocgis.Variable(key,
+                                       value=[val,],
+                                       dtype=dt,
                                        dimensions=(DimensionName.UNIONED_GEOMETRY,)))
 
                 # ------------------ Dimension update ------------------------ #

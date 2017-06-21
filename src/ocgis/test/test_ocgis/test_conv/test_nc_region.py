@@ -88,4 +88,4 @@ class TestNcConverterRegion():
 
 #TestNcConverterRegion().test_intersects('germany')
 #TestNcConverterRegion().test_intersects('nebraska')
-TestNcConverterRegion().test_mds_clip()
+TestNcConverterRegion().test_clip()

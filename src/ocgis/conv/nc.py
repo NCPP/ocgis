@@ -251,59 +251,65 @@ class NcConverterRegion(NcConverter):
             ugid = ugids[0]
 
             # Geometry centroid location
-            clon, clat = coll.geoms[ugid].centroid.xy
+            lon, lat = coll.geoms[ugid].centroid.xy
 
             for field in coll.iter_fields():
 
-
-                field.add_variable(
-                    ocgis.Variable('clon',
-                                   value=clon,
-                                   dimensions=(DimensionName.UNIONED_GEOMETRY,),
-                                   attrs=dict(field.x.attrs, **{'long_name':'Centroid longitude'})
-                                   #attrs=field.dimension_map.get_attrs('x')
-                                   )
-                                   )
-
-
-                field.add_variable(
-                    ocgis.Variable('clat',
-                                   value=clat,
-                                   dimensions=(DimensionName.UNIONED_GEOMETRY,),
-                                   attrs=dict(field.y.attrs, **{'long_name':'Centroid latitude'})
-                                   )
-                )
+                lon_attrs = field.x.attrs.copy()
+                lat_attrs = field.y.attrs.copy()
 
                 # Removed for now. It'd be nice to find an elegant way to retain those.
                 field.remove_variable('lat')
                 field.remove_variable('lon')
+
+                # Create new lon and lat variables
+                field.add_variable(
+                    ocgis.Variable('lon',
+                                   value=lon,
+                                   dimensions=(DimensionName.UNIONED_GEOMETRY,),
+                                   attrs=dict(lon_attrs, **{'long_name':'Centroid longitude'})
+                                   )
+                )
+
+
+                field.add_variable(
+                    ocgis.Variable('lat',
+                                   value=lat,
+                                   dimensions=(DimensionName.UNIONED_GEOMETRY,),
+                                   attrs=dict(lat_attrs, **{'long_name':'Centroid latitude'})
+                                   )
+                )
+
+                # Remove the spatial_mask and replace by new one.
                 field.remove_variable('ocgis_spatial_mask')
 
-                # This screws up field.grid
-                # field.set_x(field['clon'], DimensionName.UNIONED_GEOMETRY)
-                # field.set_y(field['clat'], DimensionName.UNIONED_GEOMETRY)
-                # coll.crs.format_field(field)
+                grid = ocgis.Grid(field['lon'], field['lat'], abstraction='point',
+                  crs=field.crs, parent=field)
+                grid.set_mask([[False,]])
+                field.set_grid(grid)
 
-                # Geometry variables from the geom properties
+                # Geometry variables from the geom properties dict
                 # There is no metadata for those...
                 for key, val in coll.properties[ugid].items():
                     field.add_variable(
                         ocgis.Variable(key, value=[val,],
                                        dimensions=(DimensionName.UNIONED_GEOMETRY,)))
 
-
+                # ------------------ Dimension update ------------------------ #
                 # Modify the dimensions for the number of geometries
                 gdim = field.dimensions[DimensionName.UNIONED_GEOMETRY]
                 gdim.set_size(ncoll)
 
-                # TODO: infer id type (timeseries_id, profile_id, trajectory_id)
-                gid = field[HeaderName.ID_GEOMETRY]
-                gid.attrs['cf_role'] = 'timeseries_id'
-
-
                 for var in field.iter_variables_by_dimensions([gdim]):
                     d = var.dimensions_dict[DimensionName.UNIONED_GEOMETRY]
                     d.bounds_local = (i, i+1)
+                # ------------------------------------------------------------ #
+
+                # CF-Conventions
+                # Can this be anything else than a timeseries_id
+                # Options are timeseries_id, profile_id, trajectory_id
+                gid = field[HeaderName.ID_GEOMETRY]
+                gid.attrs['cf_role'] = 'timeseries_id'
 
                 # TODO: Hard-code the name in constants.py
                 gdim.set_name('region')

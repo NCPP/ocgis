@@ -8,7 +8,7 @@ from numpy.core.multiarray import ndarray
 from numpy.testing.utils import assert_equal
 from shapely.geometry import Point
 
-from ocgis import RequestDataset, vm
+from ocgis import RequestDataset, vm, env
 from ocgis.collection.field import Field
 from ocgis.constants import HeaderName
 from ocgis.exc import VariableInCollectionError, EmptySubsetError, NoUnitsError, PayloadProtectedError, \
@@ -925,6 +925,24 @@ class TestVariable(AbstractTestInterface):
         var = Variable(name='lonely')
         vc3.add_variable(var)
         self.assertEqual(var.group, ['one', 'two', 'three'])
+
+    def test_set_bounds(self):
+
+        for l in ['__default__', False]:
+            if l == '__default__':
+                pass
+            else:
+                env.CLOBBER_UNITS_ON_BOUNDS = l
+
+            var = Variable(name='hi', value=[2], dimensions='one', units='unique')
+            bnds = Variable(name='hi_bounds', value=[[1, 3]], dimensions=['one', 'bounds'])
+
+            var.set_bounds(bnds)
+
+            if l == '__default__':
+                self.assertEqual(var.units, bnds.units)
+            else:
+                self.assertIsNone(bnds.units)
 
     def test_set_extrapolated_bounds(self):
         bv = self.get_boundedvariable(mask=[False, True, False])

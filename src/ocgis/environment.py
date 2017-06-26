@@ -88,6 +88,7 @@ class Environment(AbstractOcgisObject):
         self.NP_FLOAT = EnvParm('NP_FLOAT', constants.DEFAULT_NP_FLOAT)
         self.ADD_OPS_MPI_BARRIER = EnvParm('ADD_OPS_MPI_BARRIER', True, formatter=self._format_bool_)
         self.PREFER_NETCDFTIME = EnvParm('PREFER_NETCDFTIME', None, formatter=self._format_bool_)
+        self.CLOBBER_UNITS_ON_BOUNDS = EnvParm('CLOBBER_UNITS_ON_BOUNDS', True, formatter=self._format_bool_)
 
         if self.PREFER_NETCDFTIME is None:
             self.PREFER_NETCDFTIME = get_netcdftime_preference()

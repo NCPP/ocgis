@@ -621,6 +621,12 @@ def get_netcdf_attributes(target):
     return attributes
 
 
+def remove_netcdf_attribute(filename, variable_name, attr_name):
+    with driver_scope(DriverNetcdf, opened_or_path=filename, mode='a') as ds:
+        var = ds[variable_name]
+        var.delncattr(attr_name)
+
+
 def update_group_metadata(rootgrp, fill):
     global_attributes = get_netcdf_attributes(rootgrp)
     fill.update({'global_attributes': global_attributes})

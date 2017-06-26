@@ -13,7 +13,7 @@ from ocgis.collection.field import Field
 from ocgis.constants import DimensionMapKey
 from ocgis.driver.base import iter_all_group_keys
 from ocgis.driver.dimension_map import DimensionMap
-from ocgis.driver.nc import DriverNetcdf, DriverNetcdfCF
+from ocgis.driver.nc import DriverNetcdf, DriverNetcdfCF, remove_netcdf_attribute
 from ocgis.exc import OcgWarning, CannotFormatTimeError, \
     NoDataVariablesFound
 from ocgis.spatial.grid import Grid
@@ -25,6 +25,19 @@ from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.variable.temporal import TemporalVariable
 from ocgis.vmachine.mpi import MPI_RANK, MPI_COMM, OcgDist, variable_scatter
+
+
+class Test(TestBase):
+    def test_remove_netcdf_attribute(self):
+        path = self.get_temporary_file_path('foo.nc')
+        var = Variable(name='test', attrs={'remove_me': 10})
+        var.write(path)
+
+        remove_netcdf_attribute(path, var.name, 'remove_me')
+
+        with self.nc_scope(path) as ds:
+            actual = ds.variables[var.name]
+            self.assertFalse(hasattr(actual, 'remove_me'))
 
 
 class TestDriverNetcdf(TestBase):

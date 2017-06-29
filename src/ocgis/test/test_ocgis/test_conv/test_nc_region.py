@@ -86,6 +86,17 @@ class TestNcConverterRegion():
 #        self.assertTrue(ret.is_valid)
         return ret
 
+
+def test_nc3():
+    rd = ocgis.RequestDataset('/home/david/projects/PAVICS/src/ocgis/src/ocgis/test/test_ocgis/test_conv/dummy.nc', 'dummy')
+
+    ops = ocgis.OcgOperations(dataset=rd, geom=[100, -10, 110, -8],
+                              spatial_operation='clip', aggregate=True,
+                              snippet=False, output_format='region-nc',
+                              interpolate_spatial_bounds=True,
+                              prefix='nc_output').execute()
+
 #TestNcConverterRegion().test_intersects('germany')
 #TestNcConverterRegion().test_intersects('nebraska')
-TestNcConverterRegion().test_clip()
+#TestNcConverterRegion().test_clip()
+#test_nc3()

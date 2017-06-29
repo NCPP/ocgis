@@ -244,6 +244,7 @@ class KeywordArgument(object):
     DIMENSION_MAP = 'dimension_map'
     DIMENSIONS = 'dimensions'
     DIR_OUTPUT = 'dir_output'
+    DIST = 'dist'
     DRIVER = 'driver'
     DTYPE = 'dtype'
     EAGER = 'eager'
@@ -282,6 +283,7 @@ class KeywordArgument(object):
     REGRID_SOURCE = 'regrid_source'
     RENAME_VARIABLE = 'rename_variable'
     RETURN_SLICE = 'return_slice'
+    SIZE = 'size'
     SNIPPET = 'snippet'
     STANDARDIZE = 'standardize'
     STRICT = 'strict'
@@ -314,11 +316,32 @@ class DriverKey(object):
     VECTOR = 'vector'
 
 
+class MPIOps(IntEnum):
+    SUM = 0
+
+    @staticmethod
+    def get_op(op):
+        from ocgis import env
+        if env.USE_MPI4PY:
+            from mpi4py import MPI
+            op_map = {MPIOps.SUM: MPI.SUM}
+            ret = op_map[op]
+        else:
+            ret = None
+        return ret
+
+
 class MPITag(IntEnum):
     BARRIER = 0
     SCATTER = 1
     BCAST = 2
     GATHER = 3
+    UNIQUE_GLOBAL_COUNT = 4
+    UNIQUE_GLOBAL_CHECK = 5
+    REINDEX_CACHE_CREATE = 6
+    REINDEX_CACHE_GET_RECV = 7
+    REINDEX_CACHE_GET_SEND = 8
+    CREATE_DIST_DIM = 9
 
 
 class CFName(object):
@@ -356,6 +379,11 @@ class OcgisUnits(Enum):
 class ConversionFactor(object):
     DEG_TO_RAD = np.pi / 180.
     RAD_TO_DEG = 180. / np.pi
+
+
+class SourceIndexType(IntEnum):
+    BOUNDS = 0
+    FANCY = 1
 
 
 MPI_COMM_NULL_VALUE = 8675309

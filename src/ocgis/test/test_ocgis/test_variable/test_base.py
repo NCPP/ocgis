@@ -494,7 +494,8 @@ class TestVariable(AbstractTestInterface):
         self.assertNotIn('overload', var.parent.dimensions)
 
         # Test this is not a deepcopy.
-        var = Variable(value=[10, 11, 12], dimensions=Dimension('three', 3, src_idx='auto'), name='no deepcopies!')
+        var = Variable(value=[10, 11, 12], dimensions=Dimension('three', 3, src_idx=np.arange(3)),
+                       name='no deepcopies!')
         cvar = var.copy()
         self.assertNumpyMayShareMemory(var.get_value(), cvar.get_value())
         self.assertNumpyMayShareMemory(var.dimensions[0]._src_idx, cvar.dimensions[0]._src_idx)
@@ -596,7 +597,7 @@ class TestVariable(AbstractTestInterface):
         self.assertEqual(var2.parent.shapes, OrderedDict([('a', (3,)), ('b', (3,))]))
         self.assertEqual(sub.parent.shapes, OrderedDict([('a', (1,)), ('b', (1,))]))
 
-        # Test slicing a bounded variabled.
+        # Test slicing a bounded variable.
         bv = self.get_boundedvariable()
         sub = bv[1]
         self.assertEqual(sub.bounds.shape, (1, 2))
@@ -626,6 +627,24 @@ class TestVariable(AbstractTestInterface):
         bounds_global = [d.bounds_global for d in sub.dimensions]
         self.assertEqual(desired_bounds_global_slice, bounds_global)
         self.assertEqual(desired_bounds_global_slice, [d.bounds_local for d in sub.dimensions])
+
+    def test_getitem_index_slice(self):
+        # Test with an index slice.
+        d_coords = Dimension('d_coords', 7, src_idx='auto')
+        coords = Variable(name='coords', value=[0, 11, 22, 33, 44, 55, 66], dimensions=d_coords)
+        d_cindex = Dimension('d_cindex', 9, src_idx='auto')
+        index = Variable(name='cindex', value=[4, 2, 1, 2, 1, 4, 1, 4, 2], dimensions=d_cindex, parent=coords.parent)
+
+        sub_coords = coords[index.get_value()]
+        self.assertEqual(sub_coords.dimensions[0].size, 9)
+
+        actual = sub_coords.get_value().tolist()
+        desired = [44, 22, 11, 22, 11, 44, 11, 44, 22]
+        self.assertEqual(actual, desired)
+
+        actual = sub_coords.dimensions[0]._src_idx.tolist()
+        desired = index.get_value().tolist()
+        self.assertEqual(actual, desired)
 
     def test_get_between_bounds(self):
         value = [0., 5., 10.]

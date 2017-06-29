@@ -21,6 +21,7 @@ from shapely.geometry.geo import mapping
 from shapely.geometry.polygon import Polygon
 from shapely.wkb import loads as wkb_loads
 
+from ocgis.constants import MPITag
 from ocgis.exc import SingleElementError, ShapeError, AllElementsMaskedError
 
 
@@ -84,6 +85,40 @@ def format_bool(value):
             ret = False
         else:
             raise ValueError('String not recognized for boolean conversion: {0}'.format(value))
+    return ret
+
+
+def arange_from_dimension(dim, start=0, dtype=int, dist=True):
+    """
+    Create a sequential integer range similar to ``numpy.arange``.
+
+    :param dim: The dimension to use for creating the range.
+    :type dim: :class:`~ocgis.Dimension`
+    :param int start: The starting value for the range.
+    :param dtype: The data type for the output array.
+    :param bool dist: If ``True``, create range as a distributed array with a collective VM call. If ``False``, create
+     the array locally.
+    :rtype: :class:`numpy.ndarray`
+    """
+
+    local_size = len(dim)
+    if dist:
+        from ocgis import vm
+        for rank in vm.ranks:
+            dest_rank = rank + 1
+            if dest_rank == vm.size:
+                break
+            else:
+                if vm.rank == rank:
+                    vm.comm.send(start + local_size, dest=dest_rank)
+                elif vm.rank == dest_rank:
+                    start = vm.comm.recv(source=rank)
+                else:
+                    pass
+        vm.barrier()
+
+    ret = np.arange(start, start + local_size, dtype=dtype)
+
     return ret
 
 
@@ -895,6 +930,80 @@ def reduce_multiply(sequence):
     return ret
 
 
+def reindex_and_minimize_variables_global(idxvar, datavar, start_index=0):
+    """
+    Reindex ``idxvar`` to start-based index ``start_index`` and minimize elements in ``datavar`` based on its index
+    presence in ``idxvar``.
+
+    :param idxvar: N-dimensional, integer variable containing indices.
+    :type idxvar: :class:`~ocgis.Variable`
+    :param datavar: One-dimensional variable containing data for indices in ``idxvar``.
+    :param int start_index: The start index to use for the first element in ``idxvar``.
+    :return: A two-element tuple with the first element being the re-indexed ``idxvar`` and the second element being
+     the minimized data indexed by the new ``idxvar``.
+    :rtype: tuple
+    """
+
+    raise NotImplementedError('work in progress')
+
+
+def create_index_array(src, dst, dtype=int, indices=None):
+    """
+    Index the values in ``src`` inside ``dst``. Returns an integer index array that will create the values in ``src``
+    if used to slice ``dst``.
+    
+    :param src: Array containing source values to index.
+    :type src: :class:`numpy.ndarray`
+    :param dst: Array containing the value database to index into.
+    :type dst: :class:`numpy.ndarray`
+    :param dtype: Output data type for the index array.
+    :type dtype: `NumPy integer type`
+    :rtype: :class:`numpy.ndarray`
+    """
+
+    src = np.array(src)
+    dst = np.array(dst)
+    ret = np.zeros_like(src, dtype=dtype)
+
+    for idx, src_value in enumerate(src.flat):
+        select = src_value == dst
+        idx_dst = np.where(select)[0][0]
+        if indices is not None:
+            a = indices[idx_dst]
+        else:
+            a = idx_dst
+        ret[idx] = a
+
+    return ret
+
+
+def create_index_variable_global(name, src, dst, dtype=int, start=0):
+    """
+    Create an index variable in parallel.
+    
+    Similar to :meth:`~ocgis.util.helpers.create_index_array` except :class:`~ocgis.Variable` objects are used and 
+    returned instead of :class:`numpy.ndarray` objects. This method will accept empty objects for both ``src`` and
+    ``dst``. If ``src`` is empty on the calling rank, then ``None`` will be returned.
+    
+    :param str name: Name of the output global index variable.
+    """
+
+    raise NotImplementedError('work in progress')
+
+    global_index = dst.create_ugid_global('global_index', start=start)
+
+    for src_value in src.get_value().flat:
+        tkk
+
+    # barrier_print(global_index.get_value())
+
+    # tkk
+
+    index_array = create_index_array(src.get_value(), dst.get_value(), dtype=dtype, indices=global_index.get_value())
+    ret = src.__class__(name=name, value=index_array, dimensions=src.dimensions)
+    return ret
+
+
 def set_name_attributes(name_mapping):
     """
     Set the name attributes on the keys of ``name_mapping``.
@@ -905,6 +1014,64 @@ def set_name_attributes(name_mapping):
     for target, name in name_mapping.items():
         if target is not None and target.name is None:
             target.name = name
+
+
+def create_unique_global_array(arr):
+    """
+    Create a distributed NumPy array containing unique elements. If the rank has no unique items, an array with zero
+    elements will be returned. This call is collective across the current VM.
+
+    :param arr: Input array for unique operation.
+    :type arr: :class:`numpy.ndarray`
+    :rtype: :class:`numpy.ndarray`
+    :raises: ValueError
+    """
+
+    from ocgis import vm
+
+    if arr is None:
+        raise ValueError('Input must be a NumPy array.')
+
+    from ocgis.vmachine.mpi import rank_print
+    rank_print('starting np.unique')
+    unique_local = np.unique(arr)
+    rank_print('finished np.unique')
+
+    rank_print('waiting at barrier1')
+    vm.barrier()
+
+    tag_unique_count = MPITag.UNIQUE_GLOBAL_COUNT
+    tag_unique_check = MPITag.UNIQUE_GLOBAL_CHECK
+
+    for root_rank in vm.ranks:
+        rank_print('root_rank=', root_rank)
+
+        if vm.rank == root_rank:
+            has_unique_local = len(unique_local) != 0
+        else:
+            has_unique_local = None
+        has_unique_local = vm.bcast(has_unique_local, root=root_rank)
+
+        if has_unique_local:
+            if vm.rank == root_rank:
+                for rank in vm.ranks:
+                    if rank != vm.rank:
+                        vm.comm.send(len(unique_local), dest=rank, tag=tag_unique_count)
+                for u in unique_local:
+                    for rank in vm.ranks:
+                        if rank != vm.rank:
+                            vm.comm.send(u, dest=rank, tag=tag_unique_check)
+            else:
+                recv_count = vm.comm.recv(source=root_rank, tag=tag_unique_count)
+                for _ in range(recv_count):
+                    if _ % 500 == 0: print 'rank={}, {} of {}'.format(vm.rank, _, recv_count)
+                    u = vm.comm.recv(source=root_rank, tag=tag_unique_check)
+                    if u in unique_local:
+                        select = np.invert(unique_local == u)
+                        unique_local = unique_local[select]
+        rank_print('waiting at barrier 2')
+        vm.barrier()
+    return unique_local
 
 
 def update_or_pass(target, key, value):

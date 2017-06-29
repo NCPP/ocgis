@@ -11,7 +11,7 @@ from netCDF4._netCDF4 import VLType, MFDataset, MFTime
 from ocgis import constants, vm
 from ocgis import env
 from ocgis.base import orphaned, raise_if_empty
-from ocgis.constants import MPIWriteMode, DimensionMapKey, KeywordArgument, DriverKey, CFName
+from ocgis.constants import MPIWriteMode, DimensionMapKey, KeywordArgument, DriverKey, CFName, SourceIndexType
 from ocgis.driver.base import AbstractDriver, driver_scope
 from ocgis.driver.dimension_map import DimensionMap
 from ocgis.exc import ProjectionDoesNotMatch, PayloadProtectedError, OcgWarning, NoDataVariablesFound
@@ -467,6 +467,7 @@ def get_dimensions_from_netcdf_metadata(metadata, desired_dimensions):
             length = dim_length
             length_current = None
         # tdk: identify best method to remove the need to set 'auto' when creating a source index
+        # new_dim = Dimension(dim_name, size=length, size_current=length_current)
         new_dim = Dimension(dim_name, size=length, size_current=length_current, src_idx='auto')
         new_dimensions.append(new_dim)
     return new_dimensions
@@ -513,13 +514,18 @@ def get_variable_value(variable, dimensions):
         to_format = [None] * len(dimensions)
         for idx in range(len(dimensions)):
             current_dimension = dimensions[idx]
-            if current_dimension._src_idx is None:
+            si_type = current_dimension._src_idx_type
+            if si_type is None:
                 if current_dimension.bounds_local is None:
                     to_insert = slice(0, len(current_dimension))
                 else:
                     to_insert = slice(*current_dimension.bounds_local)
-            else:
+            elif si_type == SourceIndexType.FANCY:
                 to_insert = current_dimension._src_idx
+            elif si_type == SourceIndexType.BOUNDS:
+                to_insert = slice(*current_dimension._src_idx)
+            else:
+                raise NotImplementedError(si_type)
             to_format[idx] = to_insert
         slc = get_formatted_slice(to_format, len(dimensions))
     else:

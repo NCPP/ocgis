@@ -8,7 +8,7 @@ import numpy as np
 from shapely.geometry import mapping
 
 from ocgis import constants, vm
-from ocgis.constants import MPIWriteMode, DimensionName, KeywordArgument, DriverKey, DMK
+from ocgis.constants import MPIWriteMode, DimensionName, KeywordArgument, DriverKey, DMK, SourceIndexType
 from ocgis.driver.base import driver_scope, AbstractTabularDriver
 from ocgis.driver.dimension_map import DimensionMap
 from ocgis.environment import get_dtype
@@ -95,12 +95,14 @@ class DriverVector(AbstractTabularDriver):
         return ret
 
     def get_variable_value(self, variable):
-        # Iteration is always based on source indices. Generate them if they are not available on the variable.
+        # Iteration is always based on source indices.
         iteration_dimension = variable.dimensions[0]
-        if iteration_dimension._src_idx is None:
+        src_idx = iteration_dimension._src_idx
+        if src_idx is None:
             raise ValueError("Iteration dimension must have a source index.")
         else:
-            src_idx = iteration_dimension._src_idx
+            if iteration_dimension._src_idx_type == SourceIndexType.BOUNDS:
+                src_idx = slice(*src_idx)
 
         # For vector formats based on loading via iteration, it makes sense to load all values with a single pass.
         with driver_scope(self, slc=src_idx) as g:

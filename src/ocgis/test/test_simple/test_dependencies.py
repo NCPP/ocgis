@@ -1,14 +1,30 @@
 import os
+from unittest.case import SkipTest
 
 import numpy as np
 from netCDF4._netCDF4 import MFDataset, MFTime
 
-from ocgis import CoordinateReferenceSystem, Variable
+from ocgis import CoordinateReferenceSystem, Variable, vm
 from ocgis.test.base import TestBase, attr
 
 
 @attr('simple')
 class TestDependencies(TestBase):
+    @attr('mpi', 'optional')
+    def test_mpi4py_reduce(self):
+        if vm.size != 2:
+            raise SkipTest('vm.size != 2')
+
+        if vm.rank == 0:
+            n = 2
+        else:
+            n = 3
+
+        from mpi4py import MPI
+        actual = vm.comm.reduce(n, op=MPI.SUM)
+        if vm.rank == 0:
+            self.assertEqual(actual, 5)
+
     def test_netCDF4(self):
         path = os.path.join(self.current_dir_output, 'foo.nc')
         with self.nc_scope(path, 'w') as ds:

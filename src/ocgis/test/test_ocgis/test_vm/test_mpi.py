@@ -301,7 +301,7 @@ class Test(AbstractTestInterface):
     def test_variable_gather(self):
         dist = OcgDist()
         three = dist.create_dimension('three', 3, src_idx=np.arange(3) * 10)
-        four = dist.create_dimension('four', 4, src_idx='auto', dist=True)
+        four = dist.create_dimension('four', 4, src_idx=np.arange(4, dtype=np.int32), dist=True)
         dist.create_variable('four', dimensions=[three, four])
         dist.update_dimension_bounds()
 
@@ -329,16 +329,42 @@ class Test(AbstractTestInterface):
             self.assertIsNone(mask_gather)
 
     @attr('mpi')
+    def test_variable_gather_bounded_source_index(self):
+        self.add_barrier = False
+        dist = OcgDist()
+        dist.create_dimension('long', 7, dist=True, src_idx='auto')
+        dist.create_dimension('short', 3, src_idx='auto')
+        dist.update_dimension_bounds()
+
+        if vm.rank == 0:
+            var = Variable(name='test', value=np.arange(21).reshape(7, 3), dimensions=['long', 'short'])
+        else:
+            var = None
+        svar = variable_scatter(var, dist)
+
+        with vm.scoped_by_emptyable('gather test', svar):
+            if vm.is_null:
+                return
+            gvar = variable_gather(svar)
+
+            if vm.rank == 0:
+                actual = gvar.dimensions[0]._src_idx
+                desired = (0, 7)
+                self.assertEqual(actual, desired)
+            else:
+                self.assertIsNone(gvar)
+
+    @attr('mpi')
     def test_variable_scatter(self):
         var_value = np.arange(5, dtype=float) + 50
         var_mask = np.array([True, True, False, True, False])
 
         dest_dist = OcgDist()
-        five = dest_dist.create_dimension('five', 5, src_idx='auto', dist=True)
+        five = dest_dist.create_dimension('five', 5, src_idx=np.arange(5), dist=True)
         dest_dist.update_dimension_bounds()
 
         if MPI_RANK == 0:
-            local_dim = Dimension('local', 5, src_idx='auto')
+            local_dim = Dimension('local', 5, src_idx=np.arange(5))
             dim_src_idx = local_dim._src_idx.copy()
 
             var = Variable('the_five', value=var_value, mask=var_mask, dimensions=five.name)
@@ -437,7 +463,7 @@ class TestOcgDist(AbstractTestInterface):
     @attr('mpi')
     def test(self):
         ompi = OcgDist()
-        src_idx = [2, 3, 4, 5, 6]
+        src_idx = np.array([2, 3, 4, 5, 6])
         dim = ompi.create_dimension('foo', size=5, group='subroot', dist=True, src_idx=src_idx)
         self.assertEqual(dim, ompi.get_dimension(dim.name, group='subroot'))
         self.assertEqual(dim.bounds_local, (0, len(dim)))
@@ -460,7 +486,7 @@ class TestOcgDist(AbstractTestInterface):
                 self.assertTrue(dim.is_empty)
 
         # Test with multiple dimensions.
-        d1 = Dimension('d1', size=5, dist=True, src_idx='auto')
+        d1 = Dimension('d1', size=5, dist=True, src_idx=np.arange(5, dtype=np.int32))
         d2 = Dimension('d2', size=10, dist=False)
         d3 = Dimension('d3', size=3, dist=True)
         dimensions = [d1, d2, d3]
@@ -590,3 +616,17 @@ class TestOcgDist(AbstractTestInterface):
                 self.assertTrue(actual.is_empty)
                 self.assertEqual(actual.bounds_local, (0, 0))
                 self.assertNotEqual(id(d1), id(actual))
+
+    def test_update_dimension_bounds_with_source_indexing(self):
+        dist_size = 5
+        dist = OcgDist(size=dist_size)
+        dist.create_dimension('dim', 11, dist=True, src_idx='auto')
+        dist.update_dimension_bounds()
+
+        actual = []
+        for rank in range(dist_size):
+            rank_dim = dist.get_dimension('dim', rank=rank)
+            actual.append(rank_dim._src_idx)
+
+        desired = [(0, 3), (3, 5), (5, 7), (7, 9), (9, 11)]
+        self.assertEqual(actual, desired)

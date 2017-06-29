@@ -3,7 +3,7 @@ import six
 
 from ocgis import constants, vm
 from ocgis.base import AbstractNamedObject, raise_if_empty
-from ocgis.constants import DataType
+from ocgis.constants import DataType, KeywordArgument, MPIOps, MPITag, SourceIndexType
 from ocgis.util.helpers import get_formatted_slice
 from ocgis.vmachine.mpi import get_global_to_local_slice, get_nonempty_ranks
 
@@ -12,30 +12,30 @@ class Dimension(AbstractNamedObject):
     """
     A dimension tracks the count of elements along an axis in a multi-dimensional array. All :class:`~ocgis.Variable`
     objects use dimensions. Dimensions are used to track global and local bounds when running and parallel. They also
-    track source indices allowed data to be sliced without loading from source. See 
+    track source indices allowed data to be sliced without loading from source. See
     https://en.wikipedia.org/wiki/Dimension for an overview of dimensions.
-    
+
     :param str name: The dimension's name.
-    :param int size: The dimension's size. Set to ``None`` if this dimension is unlimited. 
+    :param int size: The dimension's size. Set to ``None`` if this dimension is unlimited.
     :param size_current: The dimension's current size. The current size is needed to track sizes if the dimension is
      unlimited.
     :param src_idx: An one-dimensional, integer array containing the source indices for a "dimensioned" element. If
      ``'auto'``, generate the index array automatically from the dimension size (not applicable for unlimited
-     dimensions). 
+     dimensions).
     :type src_idx: :class:`numpy.ndarray` | ``str``
-    :param bool dist: If ``True``, this dimension is distributed. Used by :class:`ocgis.OcgDist` to generate the 
+    :param bool dist: If ``True``, this dimension is distributed. Used by :class:`ocgis.OcgDist` to generate the
      parallel distribution.
-    :param bool is_empty: If ``True``, the dimension is empty on the current rank. 
+    :param bool is_empty: If ``True``, the dimension is empty on the current rank.
     :param source_name: See :class:`~ocgis.base.AbstractNamedObject`.
     :param aliases: See :class:`~ocgis.base.AbstractNamedObject`.
     :param uid: See :class:`~ocgis.base.AbstractNamedObject`.
-    
+
     **Example Code:**
-    
+
     >>> # Create standard dimension.
     >>> dim = Dimension('the_dim', size=5)
     >>> assert dim.size == 5 and len(dim) == 5
-    
+
     >>> # Create an unlimited dimension.
     >>> udim = Dimension('unlimited_dim', size_current=10)
     >>> assert udim.size is None and len(udim) == 10 and udim.size_current == 10
@@ -95,11 +95,11 @@ class Dimension(AbstractNamedObject):
         """
         Dimensions may be sliced like other sliceable Python objects. A shallow copy of the dimension is created before
         slicing. Use :meth:`~ocgis.Dimension.get_distributed_slice` for parallel slicing.
-        
+
         :param slc: A :class:`slice`-like object.
         :rtype: :class:`~ocgis.Dimension`
         :raises: IndexError
-         
+
         >>> dim = Dimension('five', 5)
         >>> sub = dim[2:4]
         >>> assert len(sub) == 2
@@ -140,14 +140,14 @@ class Dimension(AbstractNamedObject):
     def bounds_global(self):
         """
         Get or set the global bounds for the dimension across all non-empty ranks.
-        
+
         ===== ================
         Index Description
         ===== ================
         0     The lower bound.
         1     The upper bound.
         ===== ================
-        
+
         :rtype: ``tuple(int, int)``
         """
 
@@ -216,7 +216,7 @@ class Dimension(AbstractNamedObject):
     def size(self):
         """
         :return: The dimension's size.
-        :rtype: ``int`` | ``None`` if unlimited 
+        :rtype: ``int`` | ``None`` if unlimited
         """
         return self._size
 
@@ -224,7 +224,7 @@ class Dimension(AbstractNamedObject):
     def size_current(self):
         """
         :return: The current size of the dimension. Needed to track sizes for unlimited dimensions.
-        :rtype: int 
+        :rtype: int
         """
         if self._size_current is None:
             ret = self.size
@@ -233,17 +233,40 @@ class Dimension(AbstractNamedObject):
         return ret
 
     @property
+    def size_global(self):
+        """
+        :return: The global size of the dimension.
+        :rtype: int
+        """
+
+        ret = self.bounds_global[1] - self.bounds_global[0]
+        return ret
+
+    @property
     def _src_idx(self):
         return self.__src_idx__
 
     @_src_idx.setter
     def _src_idx(self, value):
-        if value is not None:
-            if not isinstance(value, np.ndarray):
-                value = np.array(value)
-            if len(value) != len(self):
-                raise ValueError('Source index length must equal the dimension length.')
+        si_type = identify_source_index_type(value)
+        if si_type is not None:
+            if si_type == SourceIndexType.FANCY:
+                if len(value) != len(self):
+                    msg = 'Source index length must equal the dimension length when using array-based indexing.'
+                    raise ValueError(msg)
+            else:
+                value = tuple(value)
+                if len(value) != 2:
+                    msg = 'Only two elements allowed for bounds-based source indexing.'
+                    raise ValueError(msg)
+                if (value[1] - value[0]) != len(self):
+                    msg = 'Bounds-based source indexing extent must equal the dimension length.'
+                    raise ValueError(msg)
         self.__src_idx__ = value
+
+    @property
+    def _src_idx_type(self):
+        return identify_source_index_type(self._src_idx)
 
     def convert_to_empty(self):
         """
@@ -346,7 +369,7 @@ class Dimension(AbstractNamedObject):
 
         if value is not None:
             if isinstance(src_idx, six.string_types) and src_idx == 'auto':
-                src_idx = create_src_idx(0, value, dtype=DataType.DIMENSION_SRC_INDEX)
+                src_idx = create_src_idx(0, value, dtype=DataType.DIMENSION_SRC_INDEX, si_type=SourceIndexType.BOUNDS)
         elif value is None:
             src_idx = None
         else:
@@ -405,14 +428,105 @@ class Dimension(AbstractNamedObject):
             # This is using negative indexing. Subtract from the current length.
             length += length_self
 
-        # Source index can be None if the dimension has zero length.
-        if ret._src_idx is not None:
-            src_idx = ret._src_idx.__getitem__(slc)
-        else:
-            src_idx = None
+        # Slice the source index. If the source index is None, a value of None will be returned by the slice operation.
+        src_idx = slice_source_index(slc, ret._src_idx)
 
         ret.set_size(length, src_idx=src_idx)
 
 
-def create_src_idx(start, stop, dtype=np.int32):
-    return np.arange(start, stop, dtype=dtype)
+def create_distributed_dimension(size, **kwargs):
+    """
+    Create a distributed dimension using a local size. Function is collective across the current VM.
+
+    :param int size: The local size of the dimension. If ``0``, the created dimension will be empty.
+    :param dict kwargs: Additional arguments to the creation of the dimension. A dimension name is required. Size,
+     distribution, and empty keyword arguments are overloaded.
+    :rtype: :class:`~ocgis.Dimension`
+    """
+    assert KeywordArgument.NAME in kwargs
+    kwargs = kwargs.copy()
+    dimension_name = kwargs.pop(KeywordArgument.NAME)
+
+    size_global = vm.reduce(size, MPIOps.SUM)
+    size_global = vm.bcast(size_global)
+
+    tag = MPITag.CREATE_DIST_DIM
+
+    if vm.rank == 0:
+        start_idx = 0
+    for idx, rank in enumerate(vm.ranks):
+        dest_rank = rank + 1
+        if dest_rank == vm.size:
+            break
+        else:
+            if vm.rank == rank:
+                vm.comm.send(start_idx + size, dest=dest_rank, tag=tag)
+            elif vm.rank == dest_rank:
+                start_idx = vm.comm.recv(source=rank, tag=tag)
+
+    bounds_local = (start_idx, start_idx + size)
+
+    is_empty = size == 0
+
+    kwargs[KeywordArgument.SIZE] = size
+    kwargs[KeywordArgument.DIST] = True
+    kwargs[KeywordArgument.IS_EMPTY] = is_empty
+    ret = Dimension(dimension_name, **kwargs)
+    ret.bounds_global = (0, size_global)
+    ret.bounds_local = bounds_local
+    return ret
+
+
+def create_src_idx(start, stop, dtype=np.int32, si_type=SourceIndexType.BOUNDS):
+    if si_type == SourceIndexType.BOUNDS:
+        ret = (start, stop)
+    elif si_type == SourceIndexType.FANCY:
+        ret = np.arange(start, stop, dtype=dtype)
+    else:
+        raise NotImplementedError(si_type)
+    return ret
+
+
+def identify_source_index_type(src_idx):
+    if src_idx is None:
+        ret = None
+    elif isinstance(src_idx, np.ndarray):
+        ret = SourceIndexType.FANCY
+    else:
+        ret = SourceIndexType.BOUNDS
+    return ret
+
+
+def slice_source_index(slc, src_idx):
+    if isinstance(slc, slice) and slc == slice(None):
+        pass
+    else:
+        si_type = identify_source_index_type(src_idx)
+        # Source index can be None if the dimension has zero length.
+        if si_type is not None:
+            if si_type == SourceIndexType.FANCY:
+                src_idx = src_idx.__getitem__(slc)
+            else:
+                offset = src_idx[0]
+                if isinstance(slc, np.ndarray):
+                    if slc.dtype == bool:
+                        slc = np.where(slc)[0]
+                    src_idx = slc + offset
+                else:
+                    new_si = np.array(src_idx) - offset
+                    start, stop = slc.start, slc.stop
+
+                    if start < 0:
+                        new_si[0] = new_si[1] + start
+                    elif start > new_si[0]:
+                        new_si[0] = start
+
+                    if stop < 0:
+                        new_si[1] = new_si[1] + stop
+                    elif stop < new_si[1]:
+                        new_si[1] = stop
+                    new_si += offset
+                    src_idx = tuple(new_si)
+        else:
+            src_idx = None
+    return src_idx

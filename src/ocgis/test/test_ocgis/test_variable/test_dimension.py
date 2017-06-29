@@ -6,9 +6,45 @@ import six
 from ocgis import vm
 from ocgis.constants import DataType
 from ocgis.exc import EmptyObjectError
-from ocgis.test.base import attr, AbstractTestInterface
-from ocgis.variable.dimension import Dimension
-from ocgis.vmachine.mpi import OcgDist, MPI_SIZE, MPI_RANK, get_nonempty_ranks, barrier_print
+from ocgis.test.base import attr, AbstractTestInterface, TestBase
+from ocgis.variable.dimension import Dimension, create_distributed_dimension
+from ocgis.vmachine.mpi import OcgDist, MPI_SIZE, MPI_RANK, get_nonempty_ranks
+
+
+class Test(TestBase):
+    @attr('mpi')
+    def test_create_distributed_dimension(self):
+        if vm.size != 2:
+            raise SkipTest('vm.size != 2')
+
+        if vm.rank == 0:
+            size = 2
+        else:
+            size = 4
+
+        dim = create_distributed_dimension(size, name='the_dist')
+
+        self.assertTrue(dim.dist)
+        self.assertEqual(dim.size_global, 6)
+        self.assertEqual(dim.size, size)
+
+        desired = {0: (0, 2),
+                   1: (2, 6)}
+        self.assertEqual(desired[vm.rank], dim.bounds_local)
+
+    @attr('mpi')
+    def test_create_distributed_dimension_with_empty(self):
+        if vm.size != 3:
+            raise SkipTest('vm.size != 3')
+
+        sizes = {0: 3, 1: 0, 2: 8}
+
+        dim = create_distributed_dimension(sizes[vm.rank], name='hello')
+
+        if vm.rank == 1:
+            self.assertTrue(dim.is_empty)
+        else:
+            self.assertFalse(dim.is_empty)
 
 
 class TestDimension(AbstractTestInterface):
@@ -53,6 +89,15 @@ class TestDimension(AbstractTestInterface):
         dim = Dimension('foo', uid=10)
         self.assertEqual(dim.uid, 10)
 
+        # Test using a tuple with conversion required.
+        desired = (0, 5)
+        dim = Dimension('test', 5, src_idx=list(desired))
+        self.assertEqual(dim._src_idx, desired)
+
+        # Test bounds are the default source index type.
+        dim = Dimension('test', 8, src_idx='auto')
+        self.assertEqual(dim._src_idx, (0, 8))
+
     def test_init_source_name(self):
         dim = Dimension('foo', source_name='actual_foo')
         self.assertEqual(dim.source_name, 'actual_foo')
@@ -61,13 +106,23 @@ class TestDimension(AbstractTestInterface):
         dim.set_name('new_foo')
         self.assertEqual(dim.source_name, 'foo')
 
+    @attr('slow')
+    def test_system_create_many_large_dimensions(self):
+        count = 10000
+        dims = [None] * count
+        for idx in range(count):
+            dims[idx] = Dimension(str(idx), size=500000000, src_idx='auto')
+        sliced_dims = [None] * len(dims)
+        for idx in range(count):
+            sliced_dims[idx] = dims[idx][50000:490000000]
+
     def test_bounds_local(self):
         dim = Dimension('a', 5)
         dim.bounds_local = [0, 2]
         self.assertEqual(dim.bounds_local, (0, 2))
 
     def test_convert_to_empty(self):
-        dim = Dimension('three', 3, src_idx=[10, 11, 12], dist=True)
+        dim = Dimension('three', 3, src_idx=np.array([10, 11, 12]), dist=True)
         dim.convert_to_empty()
         self.assertFalse(dim.is_unlimited)
         self.assertTrue(dim.is_empty)
@@ -157,8 +212,6 @@ class TestDimension(AbstractTestInterface):
         dist = OcgDist()
         dim = dist.create_dimension('dim', size=5, dist=True, src_idx='auto')
         dist.update_dimension_bounds()
-
-        barrier_print('original bounds local', dim._bounds_local)
 
         slices = {0: [False, True, True],
                   1: [False, True]}
@@ -268,18 +321,6 @@ class TestDimension(AbstractTestInterface):
         with self.assertRaises(IndexError):
             dim[400:500]
 
-        # Test with negative indexing.
-        dim = Dimension(name='geom', size=2, src_idx='auto')
-        slc = slice(0, -1, None)
-        actual = dim[slc]
-        self.assertEqual(actual, Dimension('geom', size=1, src_idx='auto'))
-
-        dim = Dimension(name='geom', size=5, src_idx=np.arange(5))
-        slc = slice(1, -2, None)
-        actual = dim[slc]
-        desired = Dimension('geom', size=2, src_idx=[1, 2])
-        self.assertEqual(actual, desired)
-
         dim = self.get_dimension(src_idx=np.arange(10))
 
         sub = dim[4]
@@ -321,10 +362,74 @@ class TestDimension(AbstractTestInterface):
         sub = dim[:-3]
         self.assertEqual(sub._src_idx.shape[0], sub.size)
 
-        # Test source index is None after slicing.
+    def test_getitem_source_indexing(self):
+        """Test slicing with source indexing."""
+
+        # Test a nuisance slice.
+        dim = Dimension('test', 12, src_idx='auto')
+        sub = dim[:]
+        self.assertEqual(sub._src_idx, (0, 12))
+
+        # Test source index is None after slicing if it was not set.
         dim = Dimension('water', 10)
         sub = dim[0:3]
         self.assertIsNone(sub._src_idx)
+
+        # Test with negative indexing.
+        dim = Dimension(name='geom', size=2, src_idx='auto')
+        slc = slice(0, -1, None)
+        actual = dim[slc]
+        self.assertEqual(actual, Dimension('geom', size=1, src_idx=(0, 1)))
+
+        dim = Dimension(name='dim', size=5, src_idx='auto')
+        slc = slice(-3, -1)
+        sub = dim[slc]
+        desired = np.arange(5)[slc]
+        desired = (desired[0], desired[-1] + 1)
+        actual = sub._src_idx
+        self.assertEqual(actual, desired)
+
+        # Test fancy slicing an array-based index.
+        dim = Dimension(name='geom', size=5, src_idx=np.arange(5))
+        slc = slice(1, -2, None)
+        actual = dim[slc]
+        desired = Dimension('geom', size=2, src_idx=np.array([1, 2]))
+        self.assertEqual(actual, desired)
+
+        # Test bounds length must equal the dimension length.
+        with self.assertRaises(ValueError):
+            Dimension('test', 5, src_idx=(20, 27))
+
+        # Test slicing a bounds tuple with a well-formed slice.
+        dim = Dimension('test', 5, src_idx=(20, 25))
+        slc = slice(2, 4)
+        sub = dim[slc]
+        actual = sub._src_idx
+        desired = np.arange(20, 25)[slc]
+        desired = (desired[0], desired[-1] + 1)
+        self.assertEqual(actual, desired)
+
+        # Test slicing a bounds tuple with a well-formed slice.
+        dim = Dimension('test', 5, src_idx=(20, 25))
+        slc = slice(0, 4)
+        sub = dim[slc]
+        actual = sub._src_idx
+        desired = np.arange(20, 25)[slc]
+        desired = (desired[0], desired[-1] + 1)
+        self.assertEqual(actual, desired)
+
+        # Test slicing a bounds tuple with a well-formed slice.
+        src_idx = [(20, 25), (0, 5)]
+        slices = [np.array([1, 3]), np.array([False, True, False, True, False])]
+        keywords = dict(src_idx=src_idx, slc=slices)
+        for kwds in self.iter_product_keywords(keywords):
+            s, slc = kwds.src_idx, kwds.slc
+            dim = Dimension('test', 5, src_idx=s)
+            sub = dim[slc]
+            actual = sub._src_idx
+            desired = np.arange(*s)[slc]
+            self.assertNumpyAll(actual, desired)
+            self.assertFalse(np.may_share_memory(slc, sub._src_idx))
 
     def test_is_matched_by_alias(self):
         dim = Dimension('non_standard_time')

@@ -3,7 +3,6 @@ import numpy as np
 from ocgis import vm
 from ocgis.constants import MPITag
 from ocgis.util.helpers import create_unique_global_array
-from ocgis.vmachine.mpi import rank_print
 
 
 def reduce_reindex_coordinate_variables(cindex, start_index=0):
@@ -28,8 +27,6 @@ def reduce_reindex_coordinate_variables(cindex, start_index=0):
     :rtype: tuple
     """
 
-    rank_print('entering reduce_reindex...')
-
     # Get the coordinate index values as a NumPy array.
     try:
         cindex = cindex.get_value()
@@ -39,8 +36,6 @@ def reduce_reindex_coordinate_variables(cindex, start_index=0):
 
     # Create the unique coordinte index array.
     u = np.array(create_unique_global_array(cindex))
-
-    rank_print('creating cache')
 
     # Holds re-indexed values.
     new_cindex = np.empty_like(cindex)
@@ -52,8 +47,6 @@ def reduce_reindex_coordinate_variables(cindex, start_index=0):
         if to_reindex not in cache:
             cache[to_reindex] = curr_idx
             curr_idx += 1
-
-    print cache
 
     # MPI communication tags.
     tag_cache_create = MPITag.REINDEX_CACHE_CREATE
@@ -68,7 +61,6 @@ def reduce_reindex_coordinate_variables(cindex, start_index=0):
         offset = 0
 
     # Synchronize the processes with the appropriate local offset.
-    rank_print('getting local offset')
     for idx, rank in enumerate(vm.ranks):
         try:
             dest_rank = vm.ranks[idx + 1]

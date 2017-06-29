@@ -279,8 +279,11 @@ class NcConverterRegion(NcConverter):
                                    )
                 )
 
-                # Remove the spatial_mask and replace by new one.
-                field.remove_variable('ocgis_spatial_mask')
+
+                if 'ocgis_spatial_mask' in field:
+                    # Remove the spatial_mask and replace by new one.
+                    field.remove_variable('ocgis_spatial_mask')
+
 
                 grid = ocgis.Grid(field['lon'], field['lat'], abstraction='point',
                   crs=field.crs, parent=field)

@@ -161,7 +161,7 @@ def format_return_field(function_tag, out_field, new_temporal=None):
         pass
     else:
         for tr in to_remove:
-            out_field.pop(tr)
+            out_field.remove_variable(tr)
 
     # Remove the original time variable and replace with the new one if there is a new time dimension. New
     # time dimensions may not be present for calculations that do not compute one.

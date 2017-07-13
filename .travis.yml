@@ -18,6 +18,7 @@ before_install:
   - conda config --set always_yes yes --set changeps1 no
   - conda update --all --yes
   - conda info -a
+  - conda config --prepend channels "conda-forge"
 
 install:
   - travis_retry conda create -n test-minimal -c $NESII_CHANNEL -c conda-forge $CONDA_PYTHON ocgis nose

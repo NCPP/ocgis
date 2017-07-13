@@ -1064,7 +1064,6 @@ def create_unique_global_array(arr):
             else:
                 recv_count = vm.comm.recv(source=root_rank, tag=tag_unique_count)
                 for _ in range(recv_count):
-                    if _ % 500 == 0: print 'rank={}, {} of {}'.format(vm.rank, _, recv_count)
                     u = vm.comm.recv(source=root_rank, tag=tag_unique_check)
                     if u in unique_local:
                         select = np.invert(unique_local == u)

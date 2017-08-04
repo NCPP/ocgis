@@ -1152,7 +1152,8 @@ class AbstractTestField(TestBase):
             elif month_count == 2:
                 temporal_stop = dt(2000, 2, 29, 12)
             else:
-                raise NotImplementedError
+                temporal_stop = dt(2000 + month_count // 12,
+                                   1 + month_count % 12, 1, 12)
             temporal_value = get_date_list(temporal_start, temporal_stop, 1)
             delta_bounds = datetime.timedelta(hours=12)
             if with_bounds:

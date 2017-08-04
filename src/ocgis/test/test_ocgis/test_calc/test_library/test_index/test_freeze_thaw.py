@@ -1,7 +1,7 @@
 import numpy as np
 
 import ocgis
-from ocgis.calc.library.index.freeze_thaw import FreezeThawCycles, freezethaw1d
+from ocgis.calc.library.index.freeze_thaw import FreezeThaw, freezethaw1d
 from ocgis.exc import UnitsValidationError
 from ocgis.test.base import AbstractTestField
 
@@ -48,31 +48,31 @@ class TestFreezeThawCycles(AbstractTestField):
         field = self.get_field(with_value=True, month_count=23, name='tas', units='K')
 
         tgd = field.temporal.get_grouping(['year'])
-        dv = FreezeThawCycles(field=field, parms={'threshold': 20}, tgd=tgd)
+        dv = FreezeThaw(field=field, parms={'threshold': 20}, tgd=tgd)
         ret = dv.execute()
         shp_out = (2, 2, 2, 3, 4)
-        self.assertEqual(ret['freezethawcycles'].get_value().shape, shp_out)
-        self.assertNumpyAll(ret['freezethawcycles'].get_value()[:], np.zeros(shp_out))
+        self.assertEqual(ret['freezethaw'].get_value().shape, shp_out)
+        self.assertNumpyAll(ret['freezethaw'].get_value()[:], np.zeros(shp_out))
 
     def test_units_check(self):
         """Check that using a variable with units other than Kelvin raises an
         error."""
         field = self.get_field(with_value=True, month_count=23, name='pr', units='mm')
         tgd = field.temporal.get_grouping(['year'])
-        dv = FreezeThawCycles(field=field, parms={'threshold': 20}, tgd=tgd)
+        dv = FreezeThaw(field=field, parms={'threshold': 20}, tgd=tgd)
         self.assertRaises(ocgis.exc.UnitsValidationError, dv.execute)
 
     def test_unit_conversion(self):
         field = self.get_field(with_value=True, month_count=23, name='tas',
                                units='C')
         tgd = field.temporal.get_grouping(['year'])
-        dv = FreezeThawCycles(field=field, parms={'threshold': 1}, tgd=tgd)
+        dv = FreezeThaw(field=field, parms={'threshold': 1}, tgd=tgd)
         retC = dv.execute()
 
         field['tas'].set_value(field['tas'].get_value() + 273.15)
         field['tas'].units = 'K'
-        dv = FreezeThawCycles(field=field, parms={'threshold': 1}, tgd=tgd)
+        dv = FreezeThaw(field=field, parms={'threshold': 1}, tgd=tgd)
         retK = dv.execute()
 
-        self.assertNumpyAll(retC['freezethawcycles'].get_value(), retK['freezethawcycles'].get_value())
+        self.assertNumpyAll(retC['freezethaw'].get_value(), retK['freezethaw'].get_value())
 

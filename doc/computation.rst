@@ -235,6 +235,14 @@ Thresholds
    :members: calculate
    :undoc-members:
 
+Miscellaneous
+-------------
+.. autoclass:: ocgis.calc.library.index.freeze_thaw.FreezeThaw
+   :show-inheritance:
+   :members: calculate
+   :undoc-members:
+
+
 Calculation using ``icclim`` for ECA Indices
 ============================================
 

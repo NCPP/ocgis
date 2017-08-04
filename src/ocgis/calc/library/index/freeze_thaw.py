@@ -5,16 +5,23 @@ from ocgis.util.units import get_are_units_equal_by_string_or_cfunits
 import numpy as np
 import datetime as dt
 
-class FreezeThawCycles(base.AbstractUnivariateSetFunction, base.AbstractParameterizedFunction):
-    key = 'freezethawcycles'
-    description = "Number of freeze thaw cycles, where freezing and thawing occurs once a threshold of degree days below or above 0C is reached."
-    long_name = "Number of freeze thaw cycles"
-    standard_name = "Number of freeze thaw cycles"
+class FreezeThaw(base.AbstractUnivariateSetFunction, base.AbstractParameterizedFunction):
+    key = 'freezethaw'
+    description = "Number of freeze-thaw events, where freezing and thawing occurs once a threshold of degree days below or above 0C is reached. A complete cycle (freeze-thaw-freeze) will return a value of 2. "
+    long_name = "Number of freeze-thaw events"
+    standard_name = "freeze-thaw"
     required_units = ['K', 'C']
 
     parms_definition = {'threshold': float}
 
     def calculate(self, values, threshold=15):
+        """
+        Return the number of freeze-thaw transitions. A value of 2 corresponds
+        to a complete cycle (frozen-thawed-frozen).
+
+        :param threshold: The number of degree-days above or below the freezing point after which the ground is considered frozen or thawed.
+        """
+
         assert (len(values.shape) == 3)
 
         # Check temporal resolution
@@ -50,7 +57,7 @@ class FreezeThawCycles(base.AbstractUnivariateSetFunction, base.AbstractParamete
 
 def freezethaw1d(x, threshold):
     """
-    Return the number of freeze-thaw cycles.
+    Return the number of freeze-thaw transitions.
 
     Parameters
     ----------

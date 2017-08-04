@@ -81,14 +81,17 @@ def freezethaw1d(x, threshold):
         else:
             x = x.compressed()
 
+    # This avoids issues when the threshold is reached right at the first value.
+    x = np.concatenate([[0,], x])
+
     # Compute the cumulative degree days relative to the freezing point.
     cx = np.cumsum(x)
 
     # Find the places where the temperature crosses the freezing point (FP).
     over = x >= 0
-    cross = [0, ] + np.nonzero(np.diff(over) != 0)[0].tolist()
+    cross = np.concatenate([[0,], np.nonzero(np.diff(over) != 0)[0]])
 
-    cycles = [0, ]
+    cycles = [0,]
     for ci in cross:
 
         # Skip FP crossing if it occurs before the threshold is reached.
@@ -109,8 +112,5 @@ def freezethaw1d(x, threshold):
             if s != np.sign(cycles[-1]):
                 cycles.append(s * (w + ci))
 
-    # Remove the artificial cycle starting at 0.
-    cycles.pop(0)
-
-    # Return the number of transitions from frozen to thawed or vice-versa
-    return len(cycles)-1
+    # Return the numbe  r of transitions from frozen to thawed or vice-versa
+    return len(cycles) - 2 # There are two "artificial" transitions

@@ -9,14 +9,17 @@ from ocgis.test.base import AbstractTestField
 class TestFreezeThawCycles(AbstractTestField):
 
     def test_freezethaw1d(self):
+
+        x = np.array([0, 7, -1, 8, 0, -15, 0])
+        self.assertEquals(freezethaw1d(x, 15), 0)
+        x = np.array([16, -15, 0])
+        self.assertEquals(freezethaw1d(x, 15), 1)
+
         x = np.array([0, 15, 0, -15, 0])
         self.assertEquals(freezethaw1d(x, 15), 1)
 
         x = np.array([0, 15, -15, 0])
         self.assertEquals(freezethaw1d(x, 15), 1)
-
-        x = np.array([0, 7, -1, 8, 0, -15, 0])
-        self.assertEquals(freezethaw1d(x, 15), 0)
 
         x = np.array([0, 7, -1, 9, 0, -15, 0])
         self.assertEquals(freezethaw1d(x, 15), 1)
@@ -75,4 +78,8 @@ class TestFreezeThawCycles(AbstractTestField):
         retK = dv.execute()
 
         self.assertNumpyAll(retC['freezethaw'].get_value(), retK['freezethaw'].get_value())
+
+    def test_missing(self):
+        x = np.ma.masked_values([0,-1, 1, -1, 2, -2, 0], 2)
+        self.assertEquals(freezethaw1d(x, 1), 2)
 

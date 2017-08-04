@@ -15,7 +15,7 @@ from ocgis.base import AbstractNamedObject, get_dimension_names, get_variable_na
     orphaned, raise_if_empty
 from ocgis.collection.base import AbstractCollection
 from ocgis.constants import HeaderName, KeywordArgument, DriverKey
-from ocgis.environment import get_dtype
+from ocgis.environment import get_dtype, env
 from ocgis.exc import VariableInCollectionError, BoundsAlreadyAvailableError, EmptySubsetError, \
     ResolutionError, NoUnitsError, DimensionsRequiredError, DimensionMismatchError, MaskedDataFound
 from ocgis.util.helpers import get_iter, get_formatted_slice, get_bounds_from_1d, get_extrapolated_corners_esmf, \
@@ -341,14 +341,19 @@ class Variable(AbstractContainer, Attributes):
             ret = self.parent[self._bounds_name]
         return ret
 
-    def set_bounds(self, value, force=False):
+    def set_bounds(self, value, force=False, clobber_units=None):
         """
         Set the bounds variable.
         
         :param value: The variable containing bounds for the target.
         :type value: :class:`~ocgis.Variable`
-        :param bool force: If ``True``, clobber the bounds if they exist in :attr:`~ocgis.Variable.parent`. 
+        :param bool force: If ``True``, clobber the bounds if they exist in :attr:`~ocgis.Variable.parent`.
+        :param bool clobber_units: If ``True``, clobber ``value.units`` to match ``self.units``. If ``None``, default to
+         :attr:`ocgis.env.CLOBBER_UNITS_ON_BOUNDS`
         """
+
+        if clobber_units is None:
+            clobber_units = env.CLOBBER_UNITS_ON_BOUNDS
 
         bounds_attr_name = self._bounds_attribute_name
         if value is None:
@@ -360,7 +365,8 @@ class Variable(AbstractContainer, Attributes):
             self._bounds_name = value.name
             self.attrs[bounds_attr_name] = value.name
             self.parent.add_variable(value, force=force)
-            value.units = self.units
+            if clobber_units:
+                value.units = self.units
 
             # This will synchronize the bounds mask with the variable's mask.
             if not self.is_empty:

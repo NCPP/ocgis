@@ -80,6 +80,7 @@ class Environment(AbstractOcgisObject):
         self.USE_CFUNITS = EnvParmImport('USE_CFUNITS', None, ('cf_units', 'cfunits'))
         self.USE_ESMF = EnvParmImport('USE_ESMF', None, 'ESMF')
         self.USE_ICCLIM = EnvParmImport('USE_ICCLIM', None, 'icclim')
+        self.USE_MPI4PY = EnvParmImport('USE_MPI4PY', None, 'mpi4py')
         self.CONF_PATH = EnvParm('CONF_PATH', os.path.expanduser('~/.config/ocgis.conf'))
         self.SUPPRESS_WARNINGS = EnvParm('SUPPRESS_WARNINGS', True, formatter=self._format_bool_)
         self.DEFAULT_GEOM_UID = EnvParm('DEFAULT_GEOM_UID', constants.OCGIS_UNIQUE_GEOMETRY_IDENTIFIER, formatter=str)
@@ -88,6 +89,7 @@ class Environment(AbstractOcgisObject):
         self.NP_FLOAT = EnvParm('NP_FLOAT', constants.DEFAULT_NP_FLOAT)
         self.ADD_OPS_MPI_BARRIER = EnvParm('ADD_OPS_MPI_BARRIER', True, formatter=self._format_bool_)
         self.PREFER_NETCDFTIME = EnvParm('PREFER_NETCDFTIME', None, formatter=self._format_bool_)
+        self.CLOBBER_UNITS_ON_BOUNDS = EnvParm('CLOBBER_UNITS_ON_BOUNDS', True, formatter=self._format_bool_)
 
         if self.PREFER_NETCDFTIME is None:
             self.PREFER_NETCDFTIME = get_netcdftime_preference()

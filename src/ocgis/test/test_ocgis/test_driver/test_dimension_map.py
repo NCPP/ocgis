@@ -130,6 +130,15 @@ class TestDimensionMap(TestBase):
         with self.assertRaises(DimensionMapError):
             dmap.set_variable(DMK.SPATIAL_MASK, mask_var)
 
+        # Test custom variables may be used.
+        dmap = DimensionMap()
+        dims = Dimension('x', 3), Dimension('y', 7)
+        mask_var = create_grid_mask_variable('a_mask', None, dims)
+        attrs = {'please keep me': 'no overwriting'}
+        dmap.set_spatial_mask(mask_var, attrs=attrs)
+        attrs = dmap.get_attrs(DMK.SPATIAL_MASK)
+        self.assertIn('please keep me', attrs)
+
     def test_set_variable(self):
         var = Variable(name='test', value=[1, 2], dimensions='two')
         dmap = DimensionMap()

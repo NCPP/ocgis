@@ -7,7 +7,7 @@ import six
 
 from ocgis import constants
 from ocgis.base import AbstractOcgisObject, raise_if_empty
-from ocgis.constants import DataType, MPITag
+from ocgis.constants import DataType, MPITag, SourceIndexType
 from ocgis.exc import DimensionNotFound
 from ocgis.util.helpers import get_optimal_slice_from_array, get_iter, get_group
 
@@ -53,6 +53,9 @@ class DummyMPIComm(object):
 
     def recv(self, *args, **kwargs):
         pass
+
+    def reduce(self, *args, **kwargs):
+        return args[0]
 
     def scatter(self, *args, **kwargs):
         return args[0][0]
@@ -280,11 +283,9 @@ class OcgDist(AbstractOcgisObject):
                 # Use this to calculate the local bounds for a dimension.
                 bounds_local = get_rank_bounds(len(distributed_dimension), the_size, rank)
                 if bounds_local is not None:
+                    from ocgis.variable.dimension import slice_source_index
                     start, stop = bounds_local
-                    if distributed_dimension._src_idx is None:
-                        src_idx = None
-                    else:
-                        src_idx = distributed_dimension._src_idx[start:stop]
+                    src_idx = slice_source_index(slice(start, stop), distributed_dimension._src_idx)
                     distributed_dimension.set_size(stop - start, src_idx=src_idx)
                     distributed_dimension.bounds_local = bounds_local
                 else:
@@ -680,9 +681,16 @@ def variable_gather(variable, root=0):
                         has_src_idx = part._src_idx is not None
                         new_size += len(part)
                     if has_src_idx:
-                        new_src_idx = np.zeros(new_size, dtype=DataType.DIMENSION_SRC_INDEX)
-                        for part in parts:
-                            new_src_idx[part.bounds_local[0]: part.bounds_local[1]] = part._src_idx
+                        if part._src_idx_type == SourceIndexType.FANCY:
+                            new_src_idx = np.zeros(new_size, dtype=DataType.DIMENSION_SRC_INDEX)
+                            for part in parts:
+                                new_src_idx[part.bounds_local[0]: part.bounds_local[1]] = part._src_idx
+                        else:
+                            part_bounds = [None] * len(parts)
+                            for idx2, part in enumerate(parts):
+                                part_bounds[idx2] = part._src_idx
+                            part_bounds = np.array(part_bounds)
+                            new_src_idx = (part_bounds.min(), part_bounds.max())
                     else:
                         new_src_idx = None
                     new_dim = dim.copy()

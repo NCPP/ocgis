@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 
 from ocgis.base import AbstractOcgisObject
+from ocgis.constants import MPIOps
 from ocgis.exc import SubcommNotFoundError, SubcommAlreadyCreatedError
 from ocgis.vmachine.mpi import MPI_COMM, get_nonempty_ranks, MPI_SIZE, MPI_RANK, COMM_NULL
 
@@ -146,6 +147,13 @@ class OcgVM(AbstractOcgisObject):
             return self._subcomms[name]
         except KeyError:
             raise SubcommNotFoundError(name)
+
+    def reduce(self, target, op, root=0):
+        if self._is_dummy:
+            ret = target
+        else:
+            ret = vm.comm.reduce(target, MPIOps.get_op(op), root=root)
+        return ret
 
     def set_comm(self, name=None):
         self._current_comm_name = name

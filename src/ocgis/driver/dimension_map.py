@@ -13,7 +13,7 @@ from ocgis.util.helpers import pprint_dict, get_or_create_dict
 class DimensionMap(AbstractOcgisObject):
     """
     A dimension map is used to link dimensions and variables with an explicit meaning. It is the main mapping produced
-    by a driver and a request dataset's metadata. Dimension maps are used by field to construct grids and geometries,
+    by a driver and a request dataset's metadata. Dimension maps are used by fields to construct grids and geometries,
     perform subsetting, link bounds to parent variables, and manage coordinate systems.
     """
 
@@ -220,29 +220,31 @@ class DimensionMap(AbstractOcgisObject):
 
     def set_spatial_mask(self, variable, attrs=None):
         """
-        Set the spatial mask variable for the dimension map.
+        Set the spatial mask variable for the dimension map. If ``attrs`` is not ``None``, then ``attrs`` >
+        ``variable.attrs`` (if ``variable`` is not a string) > default attributes.
         
         :param variable: The spatial mask variable.
-        :param dict attrs: Attribute associated with the spatial mask variable.
+        :param dict attrs: Attributes to associate with the spatial mask variable.
         :type variable: :class:`~ocgis.Variable` | :class:`str`
         """
 
-        default_attrs = DIMENSION_MAP_TEMPLATE[DMK.SPATIAL_MASK][DMK.ATTRS]
+        default_attrs = deepcopy(DIMENSION_MAP_TEMPLATE[DMK.SPATIAL_MASK][DMK.ATTRS])
+
+        try:
+            vattrs = deepcopy(variable.attrs)
+        except AttributeError:
+            vattrs = {}
 
         if attrs is None:
-            attrs = default_attrs
-        else:
-            try:
-                attrs = deepcopy(variable.attrs)
-            except AttributeError:
-                attrs = default_attrs
-            else:
-                attrs.update(default_attrs)
+            attrs = {}
+
+        default_attrs.update(vattrs)
+        default_attrs.update(attrs)
 
         variable = get_variable_names(variable)[0]
         entry = self._get_entry_(DMK.SPATIAL_MASK)
         entry[DMK.VARIABLE] = variable
-        entry[DMK.ATTRS] = attrs
+        entry[DMK.ATTRS] = default_attrs
 
     def set_variable(self, entry_key, variable, dimension=None, bounds=None, attrs=None, pos=None, dimensionless=False):
         """

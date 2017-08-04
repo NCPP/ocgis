@@ -684,6 +684,16 @@ class TestOcgOperationsNoData(TestBase):
 
         return field
 
+    def test_system_calculation_variable_naming(self):
+        """Test the same data variable name may be used for the calculation."""
+
+        field = self.get_field()
+        calc = [{'func': 'mean', 'name': field.data_variables[0].name}]
+        ops = OcgOperations(dataset=field, calc=calc, calc_grouping=['month'])
+        ret = ops.execute()
+        out_field = ret.get_element()
+        self.assertIn(field.data_variables[0].name, out_field)
+
     def test_system_dataset_identifiers_on_variables(self):
         """Test dataset identifiers make it to output variables for iteration."""
 

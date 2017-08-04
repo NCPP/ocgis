@@ -1,11 +1,14 @@
 from datetime import datetime as dt, datetime
+from unittest.case import SkipTest
 
+from ocgis import Variable, vm, Dimension, GeometryVariable
 from ocgis.constants import OCGIS_UNIQUE_GEOMETRY_IDENTIFIER
 from ocgis.spatial.geom_cabinet import GeomCabinetIterator
 from ocgis.test.base import TestBase
 from ocgis.test.base import attr
 from ocgis.util.helpers import *
 from ocgis.variable.crs import Spherical, CoordinateReferenceSystem
+from ocgis.vmachine.mpi import OcgDist, variable_scatter, hgather
 
 
 class Test1(TestBase):
@@ -231,6 +234,91 @@ class Test2(TestBase):
         with fiona.open(out_path) as sci:
             records = list(sci)
         self.assertAsSetEqual([6, 60], [xx['properties']['new_id'] for xx in records])
+
+    @attr('mpi')
+    def test_arange_from_dimension(self):
+        dist = OcgDist()
+        dim = dist.create_dimension('dim', size=7, dist=True)
+        dist.update_dimension_bounds()
+
+        actual = arange_from_dimension(dim, start=2, dtype=np.int64)
+        actual = vm.gather(actual)
+        if vm.rank == 0:
+            actual = hgather(actual)
+            desired = np.arange(2, 9, dtype=np.int64)
+            self.assertNumpyAll(actual, desired)
+
+    def test_create_index_array(self):
+        np.random.seed(1)
+        dst = np.random.rand(33)
+        src = np.random.choice(dst, size=11)
+
+        actual = create_index_array(src, dst)
+        self.assertNumpyAll(dst[actual], src)
+
+    @attr('mpi')
+    def test_create_index_variable_global(self):
+        raise SkipTest('not implemented')
+
+        dsrc_size = 5
+        ddst_size = 7
+
+        dsrc = Dimension('dsrc', dsrc_size, dist=True)
+        src_dist = OcgDist()
+        src_dist.add_dimension(dsrc)
+        src_dist.update_dimension_bounds()
+
+        ddst = Dimension('ddst', ddst_size, dist=True)
+        dst_dist = OcgDist()
+        dst_dist.add_dimension(ddst)
+        dst_dist.update_dimension_bounds()
+
+        if vm.rank == 0:
+            np.random.seed(1)
+            dst = np.random.rand(ddst_size)
+            src = np.random.choice(dst, size=dsrc_size, replace=False)
+
+            src = Variable(name='src', value=src, dimensions=dsrc.name)
+            # TODO: move create_ugid_global to create_global_index on a standard variable object
+            dst = GeometryVariable(name='dst', value=dst, dimensions=ddst.name)
+        else:
+            src, dst = [None] * 2
+
+        src = variable_scatter(src, src_dist)
+        dst = variable_scatter(dst, dst_dist)
+
+        actual = create_index_variable_global('index_array', src, dst)
+
+        self.assertNumpyAll(dst.get_value()[actual.get_value()], src.get_value())
+
+    @attr('mpi')
+    def test_create_unique_global_array(self):
+        dist = OcgDist()
+        dist.create_dimension('dim', 9, dist=True)
+        dist.update_dimension_bounds()
+
+        values = [[4, 2, 1, 2, 1, 4, 1, 4, 2],
+                  [44, 25, 16, 27, 18, 49, 10, 41, 22],
+                  [44, 25, 16, 27, 44, 49, 10, 41, 44]]
+
+        for v in values:
+            if vm.rank == 0:
+                index = Variable(name='cindex', value=v, dimensions='dim')
+                desired = np.unique(index.get_value())
+                desired_length = len(desired)
+            else:
+                index = None
+            index = variable_scatter(index, dist)
+
+            with vm.scoped_by_emptyable('not empty', index):
+                if not vm.is_null:
+                    uvar = create_unique_global_array(index.get_value())
+                    uvar_gathered = vm.gather(uvar)
+
+                    if vm.rank == 0:
+                        uvar_gathered = hgather(uvar_gathered)
+                        self.assertEqual(len(uvar_gathered), desired_length)
+                        self.assertEqual(set(uvar_gathered), set(desired))
 
     def test_get_iter(self):
         element = 'hi'

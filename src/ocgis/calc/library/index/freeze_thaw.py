@@ -1,29 +1,43 @@
+from ocgis import env
 from ocgis.calc import base
 from ocgis.util.helpers import iter_array
+from ocgis.util.units import get_are_units_equal_by_string_or_cfunits
 import numpy as np
-
+import datetime as dt
 
 class FreezeThawCycles(base.AbstractUnivariateSetFunction, base.AbstractParameterizedFunction):
     key = 'freezethawcycles'
     description = "Number of freeze thaw cycles, where freezing and thawing occurs once a threshold of degree days below or above 0C is reached."
     long_name = "Number of freeze thaw cycles"
     standard_name = "Number of freeze thaw cycles"
-    required_units = ['kelvin', 'K']
+    required_units = ['K', 'C']
 
     parms_definition = {'threshold': float}
 
     def calculate(self, values, threshold=15):
-
-        # TODO: Check temporal resolution
-
         assert (len(values.shape) == 3)
 
-        # storage array for counts
+        # Check temporal resolution
+        t = self.field['time'].get_value()[:2]
+        step = t[1] - t[0]
+        assert step == dt.timedelta(days=1)
+
+        # Unit conversion
+        units = self.field.data_variables[0].units
+        if get_are_units_equal_by_string_or_cfunits(units, 'C',
+                                            try_cfunits=env.USE_CFUNITS):
+            tas = values
+        elif get_are_units_equal_by_string_or_cfunits(units, 'K',
+                                                      try_cfunits=env.USE_CFUNITS):
+            tas = values - 273.15
+
+        # Storage array for count
         shp_out = values.shape[-2:]
         out = np.zeros(shp_out, dtype=int).flatten()
 
+        # Actual computations, grid cell by grid cell.
         for ii, (rowidx, colidx) in enumerate(iter_array(values[0, :, :], use_mask=True)):
-            x = values[:, rowidx, colidx].reshape(-1)
+            x = tas[:, rowidx, colidx].reshape(-1)
             out[ii] = freezethaw1d(x, threshold)
 
         out.resize(shp_out)
@@ -34,14 +48,14 @@ class FreezeThawCycles(base.AbstractUnivariateSetFunction, base.AbstractParamete
         return out
 
 
-def freezethaw1d(tas, threshold):
+def freezethaw1d(x, threshold):
     """
     Return the number of freeze-thaw cycles.
 
     Parameters
     ----------
-    tas : array
-      The daily temperature series (Kelvins).
+    x : ndarray
+      The daily temperature series (C).
     threshold : float
       The threshold in degree-days above or below the freezing point at
       which we consider the soil thawed or frozen.
@@ -53,15 +67,12 @@ def freezethaw1d(tas, threshold):
       freeze-thaw cycle corresponds to a count of 2.
     """
 
-    # Ignore masked values.
-    if hasattr(tas, 'mask'):
-        if tas.mask.all():
+    # Masked values are just compressed.
+    if hasattr(x, 'mask'):
+        if x.mask.all():
             return np.nan
         else:
-            tas = tas.compressed()
-
-    # Convert the units to C
-    x = tas - 273.15
+            x = x.compressed()
 
     # Compute the cumulative degree days relative to the freezing point.
     cx = np.cumsum(x)

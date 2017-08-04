@@ -1,64 +1,78 @@
-from datetime import datetime as dt
 import numpy as np
 
 import ocgis
-from ocgis.base import get_variable_names, orphaned
 from ocgis.calc.library.index.freeze_thaw import FreezeThawCycles, freezethaw1d
-from ocgis.constants import TagName
 from ocgis.exc import UnitsValidationError
-from ocgis.test.base import attr, AbstractTestField
-from ocgis.variable.base import VariableCollection
-
-from ocgis import RequestDataset, OcgOperations
+from ocgis.test.base import AbstractTestField
 
 
 class TestFreezeThawCycles(AbstractTestField):
 
-
     def test_freezethaw1d(self):
-        x = np.array([0, 15, 0, -15, 0]) + 273.15
+        x = np.array([0, 15, 0, -15, 0])
         self.assertEquals(freezethaw1d(x, 15), 1)
 
-        x = np.array([0, 15, -15, 0]) + 273.15
+        x = np.array([0, 15, -15, 0])
         self.assertEquals(freezethaw1d(x, 15), 1)
 
-        x = np.array([0, 7, -1, 8, 0, -15, 0]) + 273.15
+        x = np.array([0, 7, -1, 8, 0, -15, 0])
         self.assertEquals(freezethaw1d(x, 15), 0)
 
-        x = np.array([0, 7, -1, 9, 0, -15, 0]) + 273.15
+        x = np.array([0, 7, -1, 9, 0, -15, 0])
         self.assertEquals(freezethaw1d(x, 15), 1)
 
-        x = np.array([-10, 15, 0, -15, 0]) + 273.15
+        x = np.array([-10, 15, 0, -15, 0])
         self.assertEquals(freezethaw1d(x, 15), 1)
 
-        x = np.array([0, 1, 2, 3, 0, -1, 0, 1, -2, -3, 3]) + 273.15
+        x = np.array([0, 1, 2, 3, 0, -1, 0, 1, -2, -3, 3])
         self.assertEquals(freezethaw1d(x, 2), 2)
 
-        x = np.array([0, 1, 2, 3, 4]) + 273.15
+        x = np.array([0, 1, 2, 3, 4])
         self.assertEquals(freezethaw1d(x, 2), 0)
 
-        x = np.array([0, -2, 0, -2, 0, -2, 2, 0, 2, 0, -2]) + 273.15
+        x = np.array([0, -2, 0, -2, 0, -2, 2, 0, 2, 0, -2])
         self.assertEquals(freezethaw1d(x, 2), 2)
 
-
-        x = np.array([3, 4, 5, 2, 3, -3, 4, 5, -5, -6, -3, 0, -1, 4, 5, 2, -3, -5, 6]) + 273.15
+        x = np.array([3, 4, 5, 2, 3, -3, 4, 5, -5, -6, -3, 0, -1, 4, 5, 2, -3, -5, 6])
         self.assertEquals(freezethaw1d(x, 2), 6)
 
-        x = np.array([2, 3, 4, -1, 0, 2.5, 0, 0, -1, -1, -2, -3, -4, -5, 1, -5, -6, 4, 5, ]) + 273.15
+        x = np.array([2, 3, 4, -1, 0, 2.5, 0, 0, -1, -1, -2, -3, -4, -5, 1, -5, -6, 4, 5, ])
         self.assertEquals(freezethaw1d(x, 2), 2)
 
         x = np.array([3, 4, 5, 2, 3, -3, 4, 5, -5, -6, -3, 0, -1, 4, 5, 2, -3,
-                      -5, ]) + 273.15
+                      -5, ])
         self.assertEquals(freezethaw1d(x, 2), 5)
 
-
     def test_execute(self):
-        field = self.get_field(with_value=True, month_count=23, name='tas')
+        # Just a smoke test for the class.
+        field = self.get_field(with_value=True, month_count=23, name='tas', units='K')
 
-        grouping = ['year']
-        tgd = field.temporal.get_grouping(grouping)
+        tgd = field.temporal.get_grouping(['year'])
         dv = FreezeThawCycles(field=field, parms={'threshold': 20}, tgd=tgd)
         ret = dv.execute()
         shp_out = (2, 2, 2, 3, 4)
         self.assertEqual(ret['freezethawcycles'].get_value().shape, shp_out)
         self.assertNumpyAll(ret['freezethawcycles'].get_value()[:], np.zeros(shp_out))
+
+    def test_units_check(self):
+        """Check that using a variable with units other than Kelvin raises an
+        error."""
+        field = self.get_field(with_value=True, month_count=23, name='pr', units='mm')
+        tgd = field.temporal.get_grouping(['year'])
+        dv = FreezeThawCycles(field=field, parms={'threshold': 20}, tgd=tgd)
+        self.assertRaises(ocgis.exc.UnitsValidationError, dv.execute)
+
+    def test_unit_conversion(self):
+        field = self.get_field(with_value=True, month_count=23, name='tas',
+                               units='C')
+        tgd = field.temporal.get_grouping(['year'])
+        dv = FreezeThawCycles(field=field, parms={'threshold': 1}, tgd=tgd)
+        retC = dv.execute()
+
+        field['tas'].set_value(field['tas'].get_value() + 273.15)
+        field['tas'].units = 'K'
+        dv = FreezeThawCycles(field=field, parms={'threshold': 1}, tgd=tgd)
+        retK = dv.execute()
+
+        self.assertNumpyAll(retC['freezethawcycles'].get_value(), retK['freezethawcycles'].get_value())
+

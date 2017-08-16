@@ -9,9 +9,8 @@ from ocgis.collection.field import Field
 from ocgis.constants import WrappedState, DimensionMapKey
 from ocgis.exc import EmptySubsetError
 from ocgis.spatial.spatial_subset import SpatialSubsetOperation
-from ocgis.test.base import TestBase, attr
+from ocgis.test.base import TestBase, attr, get_geometry_dictionaries
 from ocgis.test.strings import GERMANY_WKT, NEBRASKA_WKT
-from ocgis.test.test_ocgis.test_ops.test_parms.test_definition import TestGeom
 from ocgis.util.helpers import make_poly
 from ocgis.util.itester import itr_products_keywords
 from ocgis.variable.crs import CFRotatedPole, WGS84, CFSpherical
@@ -207,7 +206,7 @@ class TestSpatialSubsetOperation(TestBase):
     def test_get_spatial_subset_circular_geometries(self):
         """Test circular geometries. They were causing wrapping errors."""
 
-        geoms = TestGeom.get_geometry_dictionaries()
+        geoms = get_geometry_dictionaries()
         rd = self.test_data.get_rd('cancm4_tas')
         buffered = [element['geom'].buffer(rd.get().grid.resolution * 2) for element in geoms]
         for buff in buffered:

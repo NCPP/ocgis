@@ -1268,3 +1268,15 @@ def create_gridxy_global(resolution=1.0, with_bounds=True, wrapped=True, crs=Non
         grid.set_extrapolated_bounds('xbounds', 'ybounds', 'bounds')
 
     return grid
+
+
+def get_geometry_dictionaries(uid='UGID'):
+    coordinates = [('France', [2.8, 47.16]),
+                   ('Germany', [10.5, 51.29]),
+                   ('Italy', [12.2, 43.4])]
+    geom = []
+    for ugid, coordinate in enumerate(coordinates, start=1):
+        point = Point(coordinate[1][0], coordinate[1][1])
+        geom.append({'geom': point,
+                     'properties': {uid: ugid, 'COUNTRY': coordinate[0]}})
+    return geom

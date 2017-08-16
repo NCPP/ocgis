@@ -204,6 +204,7 @@ class TestField(AbstractTestInterface):
         field = Field(variables=[crs])
         self.assertEqual(len(field.dimensions), 0)
 
+    @attr('data')
     def test_from_records(self):
         gci = GeomCabinetIterator(path=self.path_state_boundaries)
         actual = Field.from_records(gci, data_model='NETCDF3_CLASSIC')

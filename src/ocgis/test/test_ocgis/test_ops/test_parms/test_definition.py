@@ -8,7 +8,7 @@ from ocgis.ops.parms.base import AbstractParameter
 from ocgis.ops.parms.definition import *
 from ocgis.ops.query import QueryInterface
 from ocgis.spatial.geom_cabinet import GeomCabinet
-from ocgis.test.base import TestBase, attr
+from ocgis.test.base import TestBase, attr, get_geometry_dictionaries
 from ocgis.util.helpers import make_poly
 from ocgis.util.itester import itr_products_keywords
 from ocgis.util.units import get_units_object, get_are_units_equal
@@ -498,18 +498,6 @@ class TestDataset(TestBase):
 class TestGeom(TestBase):
     create_dir = False
 
-    @staticmethod
-    def get_geometry_dictionaries(uid='UGID'):
-        coordinates = [('France', [2.8, 47.16]),
-                       ('Germany', [10.5, 51.29]),
-                       ('Italy', [12.2, 43.4])]
-        geom = []
-        for ugid, coordinate in enumerate(coordinates, start=1):
-            point = Point(coordinate[1][0], coordinate[1][1])
-            geom.append({'geom': point,
-                         'properties': {uid: ugid, 'COUNTRY': coordinate[0]}})
-        return geom
-
     def test_init(self):
         geom = make_poly((37.762, 38.222), (-102.281, -101.754))
 
@@ -586,6 +574,7 @@ class TestGeom(TestBase):
             self.assertIsInstance(field, Field)
             self.assertEqual(field.geom.shape, (1,))
 
+    @attr('data')
     def test_init_data_model(self):
         """Test data models are used when creating fields."""
 
@@ -601,7 +590,7 @@ class TestGeom(TestBase):
         """Test geometry dictionaries as input."""
 
         for crs in [None, WGS84(), CoordinateReferenceSystem(epsg=2136)]:
-            geom = self.get_geometry_dictionaries()
+            geom = get_geometry_dictionaries()
             if crs is not None:
                 for g in geom:
                     g['crs'] = crs
@@ -620,7 +609,7 @@ class TestGeom(TestBase):
 
     def test_parse(self):
         keywords = dict(geom_uid=[None, 'ID'],
-                        geom=[None, self.get_geometry_dictionaries(), self.get_geometry_dictionaries(uid='ID')])
+                        geom=[None, get_geometry_dictionaries(), get_geometry_dictionaries(uid='ID')])
         for k in self.iter_product_keywords(keywords):
             g = Geom(k.geom, geom_uid=k.geom_uid)
             ret = g.parse(k.geom)

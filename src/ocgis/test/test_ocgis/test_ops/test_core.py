@@ -148,6 +148,7 @@ class TestOcgOperations(TestBase):
             ret = ops.get_base_request_size()
             self.assertTrue(ret['total'] > 1)
 
+    @attr('data')
     def test_get_base_request_size_time_range(self):
         path = self.get_temporary_file_path('foo.nc')
         field = self.get_field(ntime=60)

@@ -13,8 +13,7 @@ from ocgis.conv.numpy_ import NumpyConverter
 from ocgis.ops.core import OcgOperations
 from ocgis.ops.engine import OperationsEngine
 from ocgis.spatial.grid import Grid
-from ocgis.test.base import attr, AbstractTestInterface
-from ocgis.test.test_ocgis.test_ops.test_parms.test_definition import TestGeom
+from ocgis.test.base import attr, AbstractTestInterface, get_geometry_dictionaries
 from ocgis.util.itester import itr_products_keywords
 from ocgis.util.logging_ocgis import ProgressOcgOperations
 from ocgis.variable.crs import Spherical, WGS84, CoordinateReferenceSystem
@@ -28,7 +27,7 @@ class TestOperationsEngine(AbstractTestInterface):
         return ops
 
     def get_subset_operation(self):
-        geom = TestGeom.get_geometry_dictionaries()
+        geom = get_geometry_dictionaries()
         rd = self.test_data.get_rd('cancm4_tas')
         ops = ocgis.OcgOperations(dataset=rd, geom=geom, select_nearest=True)
         subset = OperationsEngine(ops)
@@ -77,7 +76,7 @@ class TestOperationsEngine(AbstractTestInterface):
         subset = self.get_subset_operation()
         conv = NumpyConverter(subset)
         coll = conv.write()
-        geom = TestGeom.get_geometry_dictionaries()
+        geom = get_geometry_dictionaries()
         container = coll.children[2]
         self.assertEqual(container['COUNTRY'].get_value()[0], 'Germany')
         self.assertEqual(container.geom.get_value()[0], geom[1]['geom'])

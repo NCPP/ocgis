@@ -1,4 +1,4 @@
-from ocgis.calc.library.index import heat_index, duration
+from ocgis.calc.library.index import heat_index, duration, freeze_thaw
 from ocgis.calc.library.math import Convolve1D
 from ocgis.util.helpers import itersubclasses
 from . import math
@@ -16,7 +16,7 @@ class FunctionRegistry(dict):
         self.reg += [statistics.FrequencyPercentile, statistics.Mean, statistics.StandardDeviation, statistics.Max,
                      statistics.Median, statistics.Min, Convolve1D, statistics.MovingWindow, statistics.DailyPercentile]
         self.reg += [thresholds.Between, thresholds.Threshold]
-        self.reg += [heat_index.HeatIndex, duration.Duration]
+        self.reg += [heat_index.HeatIndex, duration.Duration, freeze_thaw.FreezeThaw]
 
         for cc in self.reg:
             self.update({cc.key: cc})

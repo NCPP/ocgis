@@ -191,7 +191,7 @@ class NcConverter(AbstractCollectionConverter):
 
         self._write_archetype_(arch, ds, self._variable_kwargs)
 
-class NcConverterRegion(NcConverter):
+class NcRegionConverter(NcConverter):
     """
     Here we have multiple SpatialCollections that we want to save into a single netCDF file.
     We can either try to same them into individual temporary files and the concatenate them along

@@ -6,6 +6,13 @@ from ocgis.test.strings import GERMANY_WKT, NEBRASKA_WKT
 from shapely import wkt
 
 ocgis.env.OVERWRITE = True
+
+class TestNcRegionConverter(TestBase):
+    pass
+
+
+
+
 class TestNcConverterRegion():
     
     def test_clip(self):

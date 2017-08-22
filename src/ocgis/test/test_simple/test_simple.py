@@ -655,9 +655,11 @@ class TestSimple(TestSimpleBase):
         calc = 'foo2=foo+4'
         ocgis.env.OVERWRITE = True
         for of in OutputFormat.iter_possible():
+            if of in [constants.OutputFormatName.NETCDF_REGION,]:
+                continue
             ops = ocgis.OcgOperations(dataset=rd, calc=calc, output_format=of)
             ret = ops.execute()
-            if of == 'nc':
+            if of in ['nc']:
                 with nc_scope(ret) as ds:
                     self.assertEqual(ds.variables['foo2'][:].mean(), 6.5)
 
@@ -673,7 +675,8 @@ class TestSimple(TestSimpleBase):
                                           slice=[None, [0, 10], None, None, None])
             except DefinitionValidationError:
                 # Only one dataset allowed for ESMPy and JSON metadata output.
-                self.assertIn(of, [constants.OutputFormatName.ESMPY_GRID, constants.OutputFormatName.METADATA_JSON])
+                # `aggregate` has to be set to True for NETCDF_REGION
+                self.assertIn(of, [constants.OutputFormatName.ESMPY_GRID, constants.OutputFormatName.METADATA_JSON, constants.OutputFormatName.NETCDF_REGION])
                 continue
             ret = ops.execute()
             if of == constants.OutputFormatName.OCGIS:
@@ -771,6 +774,97 @@ class TestSimple(TestSimpleBase):
         try:
             ref = ds.variables['my_divide'][:]
             self.assertEqual(ref.shape, (2, 2, 4, 4))
+            self.assertEqual(np.unique(ref)[0], 1.)
+        finally:
+            ds.close()
+
+
+    def test_nc_region_point(self):
+        env.OVERWRITE = True
+        rd = self.get_dataset()
+        geom = [{'geom':Point(-104., 38.), 'properties':{'Name':'A'}}, {'geom':Point(-103., 39.), 'properties':{'Name':'B'}}]
+        ops = self.get_ops(kwds={'geom': geom, 'aggregate':True,
+                                 'search_radius_mult': 0.01,
+                                 'output_format': 'region-nc'})
+        ret = self.get_ret(ops)
+
+        with self.nc_scope(ret) as ds:
+            self.assertEqual(ds.file_format,
+                             constants.NETCDF_DEFAULT_DATA_MODEL)
+            self.assertEqual(ds.featureType, 'timeSeries')
+            self.assertEqual(ds.variables[self.var].dimensions, (constants.DimensionName.TEMPORAL, constants.NAME_DIMENSION_LEVEL, constants.DimensionName.UNIONED_GEOMETRY))
+            self.assertEqual(ds.dimensions[constants.DimensionName.UNIONED_GEOMETRY].size, 2)
+            self.assertNumpyAllClose(ds.variables['longitude'][:], np.array([-104., -103.]))
+            self.assertNumpyAllClose(ds.variables['latitude'][:], np.array([38., 39.]))
+
+        with self.nc_scope(ret) as ds:
+            expected = {'time': 'T', 'level': 'Z', 'latitude': 'Y',
+                        'longitude': 'X'}
+            for k, v in expected.items():
+                var = ds.variables[k]
+                self.assertEqual(var.axis, v)
+
+        # Test changing the geom dimension name
+        ug = constants.DimensionName.UNIONED_GEOMETRY
+        constants.DimensionName.UNIONED_GEOMETRY = 'region'
+        ret = self.get_ret(ops)
+        with self.nc_scope(ret) as ds:
+            self.assertEqual(ds.variables[self.var].dimensions, (
+            constants.DimensionName.TEMPORAL, constants.NAME_DIMENSION_LEVEL,
+            'region'))
+        constants.DimensionName.UNIONED_GEOMETRY = ug
+
+    def test_nc_region_conversion_calc(self):
+        calc_grouping = ['month']
+        calc = [{'func': 'mean', 'name': 'my_mean'},
+                {'func': 'std', 'name': 'my_stdev'}]
+        geom = make_poly((38, 39), (-104, -103))
+        kwds = dict(calc_grouping=calc_grouping, calc=calc, geom=geom, aggregate=True, output_format='region-nc')
+        ret = self.get_ret(kwds=kwds)
+
+        ds = nc.Dataset(ret)
+        try:
+            for alias in ['my_mean', 'my_stdev']:
+                self.assertEqual(ds.variables[alias].shape, (2, 2, 1))
+
+            # Time variable bounds attribute should be named to account for climatology.
+            with self.assertRaises(AttributeError):
+                assert ds.variables['time'].bounds
+
+            self.assertEqual(ds.variables['time'].climatology,
+                             'climatology_bounds')
+            self.assertEqual(ds.variables['climatology_bounds'].shape, (2, 2))
+        finally:
+            ds.close()
+
+    def test_nc_region_conversion_multiple_request_datasets(self):
+        rd1 = self.get_dataset()
+        rd2 = self.get_dataset()
+        rd2[KeywordArgument.FIELD_NAME] = 'foo2'
+        geom = make_poly((38, 39), (-104, -103))
+        with self.assertRaises(DefinitionValidationError):
+            OcgOperations(dataset=[rd1, rd2], geom=geom, aggregate=True,
+                          output_format=constants.OutputFormatName.NETCDF_REGION)
+
+    def test_nc_region_conversion_multivariate_calculation(self):
+        rd1 = self.get_dataset()
+        rd2 = self.get_dataset()
+        rd2[KeywordArgument.RENAME_VARIABLE] = 'foo2'
+        calc = [{'func': 'divide', 'name': 'my_divide',
+                 'kwds': {'arr1': 'foo', 'arr2': 'foo2'}}]
+        calc_grouping = ['month']
+        geom = make_poly((38, 39), (-104, -103))
+        ops = OcgOperations(dataset=[rd1, rd2], calc=calc,
+                            geom = geom,
+                            aggregate=True,
+                            calc_grouping=calc_grouping,
+                            output_format='region-nc')
+        ret = ops.execute()
+
+        ds = nc.Dataset(ret)
+        try:
+            ref = ds.variables['my_divide'][:]
+            self.assertEqual(ref.shape, (2, 2, 1))
             self.assertEqual(np.unique(ref)[0], 1.)
         finally:
             ds.close()
@@ -1005,8 +1099,9 @@ class TestSimple(TestSimpleBase):
                                     prefix=o + 'yay')
             except DefinitionValidationError:
                 # Only one dataset allowed for some outputs.
+                # 'aggregate` has to be True for NETCDF_REGION
                 self.assertIn(o, [constants.OutputFormatName.ESMPY_GRID, constants.OutputFormatName.METADATA_JSON,
-                                  constants.OutputFormatName.GEOJSON])
+                                  constants.OutputFormatName.GEOJSON, constants.OutputFormatName.NETCDF_REGION])
                 continue
 
             ret = ops.execute()
@@ -1417,7 +1512,7 @@ class TestSimpleMultivariate(TestSimpleBase):
 
     def test_operations_convert_multiple_request_datasets(self):
         for o in OutputFormat.iter_possible():
-            if o in [constants.OutputFormatName.NETCDF]:
+            if o in [constants.OutputFormatName.NETCDF, constants.OutputFormatName.NETCDF_REGION]:
                 continue
             rds = self.get_multiple_request_datasets()
             try:

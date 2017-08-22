@@ -193,13 +193,8 @@ class NcConverter(AbstractCollectionConverter):
 
 class NcRegionConverter(NcConverter):
     """
-    Here we have multiple SpatialCollections that we want to save into a single netCDF file.
-    We can either try to same them into individual temporary files and the concatenate them along
-    the spatial dimension, or try to create a new collection that does this concatenation in memory.
-
-    Ideally what we would do is modify the dimensions of all variables to account for the number of collections.
-    Then for the first collection, variables and dimensions would be created and the data for the first collection written
-    Then for the following collection, data would be entered as indices being incremented along the spatial dimension.
+    Save multiple SpatialCollections in a unique netCDF file along a geometry
+    dimension.
     """
     _ext = 'nc'
 
@@ -219,9 +214,9 @@ class NcRegionConverter(NcConverter):
             history_str += ': {0}'.format(self.ops)
         original_history_str = arch.attrs.get('history', '')
         arch.attrs['history'] = original_history_str + history_str
+
         arch.attrs['featureType'] = 'timeSeries'
         # It could also be (point, trajectory, profile, timeSeriesProfile, trajectoryProfile. We should be able to distinguish the type from the ops definition.
-        # TODO: Infer featureType
 
         # Pull in dataset and variable keyword arguments.
         unlimited_to_fixedsize = self.options.get(KeywordArgument.UNLIMITED_TO_FIXED_SIZE, False)
@@ -256,14 +251,16 @@ class NcRegionConverter(NcConverter):
 
                 lon_attrs = field.x.attrs.copy()
                 lat_attrs = field.y.attrs.copy()
+                xn = field.x.name
+                yn = field.y.name
 
                 # Removed for now. It'd be nice to find an elegant way to retain those.
-                field.remove_variable('lat')
-                field.remove_variable('lon')
+                field.remove_variable(xn)
+                field.remove_variable(yn)
 
                 # Create new lon and lat variables
                 field.add_variable(
-                    ocgis.Variable('lon',
+                    ocgis.Variable(xn,
                                    value=lon,
                                    dimensions=(DimensionName.UNIONED_GEOMETRY,),
                                    attrs=dict(lon_attrs, **{'long_name':'Centroid longitude'})
@@ -272,7 +269,7 @@ class NcRegionConverter(NcConverter):
 
 
                 field.add_variable(
-                    ocgis.Variable('lat',
+                    ocgis.Variable(yn,
                                    value=lat,
                                    dimensions=(DimensionName.UNIONED_GEOMETRY,),
                                    attrs=dict(lat_attrs, **{'long_name':'Centroid latitude'})
@@ -285,15 +282,16 @@ class NcRegionConverter(NcConverter):
                     field.remove_variable('ocgis_spatial_mask')
 
 
-                grid = ocgis.Grid(field['lon'], field['lat'], abstraction='point',
+                grid = ocgis.Grid(field[xn], field[yn], abstraction='point',
                   crs=field.crs, parent=field)
                 grid.set_mask([[False,]])
                 field.set_grid(grid)
 
                 # Geometry variables from the geom properties dict
-                # There is no metadata for those...
                 dm = get_data_model(self.ops)
 
+                # Some dtypes are not supported by netCDF3. Use the netCDF4
+                # data model to avoid these issues.
                 for key, val in coll.properties[ugid].items():
                     if np.issubdtype(type(val), int):
                         dt = get_dtype('int', dm)
@@ -301,6 +299,9 @@ class NcRegionConverter(NcConverter):
                         dt = get_dtype('float', dm)
                     else:
                         dt='auto'
+
+                    # There is no metadata for those yet, but it could be passed
+                    # using the output_format_options keyword.
                     field.add_variable(
                         ocgis.Variable(key,
                                        value=[val,],
@@ -318,13 +319,9 @@ class NcRegionConverter(NcConverter):
                 # ------------------------------------------------------------ #
 
                 # CF-Conventions
-                # Can this be anything else than a timeseries_id
-                # Options are timeseries_id, profile_id, trajectory_id
+                # Options for cf-role are timeseries_id, profile_id, trajectory_id
                 gid = field[HeaderName.ID_GEOMETRY]
                 gid.attrs['cf_role'] = 'timeseries_id'
-
-                # TODO: Hard-code the name in constants.py
-                gdim.set_name('region')
 
             # Path to the output object.
             # I needed to put it here because _write_archetype pops it, so it's not available after the first loop.
@@ -398,8 +395,18 @@ class NcRegionConverter(NcConverter):
     def validate_ops(cls, ops):
         from ocgis.ops.parms.definition import OutputFormat
 
-        def _raise_(msg, ocg_arugument=OutputFormat):
-            raise DefinitionValidationError(ocg_arugument, msg)
+        def _raise_(msg, ocg_argument=OutputFormat):
+            raise DefinitionValidationError(ocg_argument, msg)
+
+        # Only aggregated data is supported.
+        if not ops.aggregate:
+            msg = 'This output format is only for aggregated data. The aggregate parameter must be True.'
+            _raise_(msg, OutputFormat)
+
+        # Geometries need to be defined to aggregate over.
+        if not ops.geom:
+            msg = 'This output format requires at least one `geom` to aggregate data over.'
+            _raise_(msg, OutputFormat)
 
         # We can only write one request dataset to netCDF.
         len_ops_dataset = len(list(ops.dataset))
@@ -429,10 +436,6 @@ class NcRegionConverter(NcConverter):
                     # There is a multivariate calculation and this requires multiple request datasets.
                     pass
 
-        # Only aggregated data is supported.
-        if not ops.aggregate:
-            msg = 'This output format is only for aggregated data. The aggregate parameter must be True.'
-            _raise_(msg, OutputFormat)
         # Calculations on raw values are not relevant as not aggregation can occur anyway.
         if ops.calc is not None:
             if ops.calc_raw:

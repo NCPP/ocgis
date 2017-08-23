@@ -15,7 +15,7 @@ from ocgis.conv.base import AbstractTabularConverter, get_converter_map, Abstrac
 from ocgis.conv.csv_ import CsvConverter, CsvShapefileConverter
 from ocgis.conv.fiona_ import ShpConverter, GeoJsonConverter
 from ocgis.conv.meta import MetaJSONConverter
-from ocgis.conv.nc import NcConverter, NcRegionConverter
+from ocgis.conv.nc import NcConverter
 from ocgis.test.base import TestBase, nc_scope
 from ocgis.test.base import attr
 
@@ -103,7 +103,7 @@ class TestAbstractCollectionConverter(AbstractTestConverter):
 
     @attr('data')
     def test_multiple_variables(self):
-        conv_klasses = [CsvConverter, NcConverter, NcRegionConverter]
+        conv_klasses = [CsvConverter, NcConverter]
         rd = self.test_data.get_rd('cancm4_tas')
         field = rd.get()
         var2 = deepcopy(field['tas'].extract())
@@ -170,10 +170,6 @@ class TestAbstractCollectionConverter(AbstractTestConverter):
     @attr('data')
     def test_add_auxiliary_files_nc(self):
         self.run_auxiliary_file_tst(NcConverter, ['ocgis_output.nc'])
-
-    @attr('data')
-    def test_add_auxiliary_files_ncregion(self):
-        self.run_auxiliary_file_tst(NcRegionConverter, ['ocgis_output.nc'])
 
     @attr('data')
     def test_add_auxiliary_files_csv_shp(self):

@@ -148,14 +148,15 @@ class AbstractCollectionConverter(AbstractFileConverter):
     def _write_coll_(self, f, coll):
         raise NotImplementedError
 
-    def _finalize_(self, *args, **kwargs):
-        raise NotImplementedError
-
     def _get_or_create_shp_folder_(self):
         path = os.path.join(self.outdir, 'shp')
         if not os.path.exists(path):
             os.mkdir(path)
         return path
+
+    def _preformatting(self, i, coll):
+        """Prepare collection before it is written to disk."""
+        return coll
 
     def write(self):
         ocgis_lh('starting write method', self._log, logging.DEBUG)
@@ -167,7 +168,7 @@ class AbstractCollectionConverter(AbstractFileConverter):
         f = {KeywordArgument.PATH: self.path}
 
         build = True
-        for coll in self:
+        for i, coll in enumerate(self):
             # This will be changed to "write" if we are on the build loop.
             write_mode = MPIWriteMode.APPEND
 
@@ -194,7 +195,8 @@ class AbstractCollectionConverter(AbstractFileConverter):
                 build = False
 
             f[KeywordArgument.WRITE_MODE] = write_mode
-            self._write_coll_(f, coll)
+
+            self._write_coll_(f, self._preformatting(i, coll))
 
             if write_ugeom:
                 with vm.scoped(SubcommName.UGEOM_WRITE, [0]):

@@ -783,10 +783,15 @@ class TestSimple(TestSimpleBase):
         env.OVERWRITE = True
         rd = self.get_dataset()
         geom = [{'geom':Point(-104., 38.), 'properties':{'Name':'A'}}, {'geom':Point(-103., 39.), 'properties':{'Name':'B'}}]
+        ops = OcgOperations(dataset=rd,
+                            calc=[{'func':'mean', 'name':'mean'},],
+                            calc_grouping='year',
+                            geom=geom, aggregate=True, search_radius_mult=.01,
+                            output_format='nc')
         ops = self.get_ops(kwds={'geom': geom, 'aggregate':True,
                                  'search_radius_mult': 0.01,
-                                 'output_format': 'region-nc'})
-        ret = self.get_ret(ops)
+                                 'output_format': 'nc'})
+        ret = ops.execute()
 
         with self.nc_scope(ret) as ds:
             self.assertEqual(ds.file_format,
@@ -805,21 +810,23 @@ class TestSimple(TestSimpleBase):
                 self.assertEqual(var.axis, v)
 
         # Test changing the geom dimension name
-        ug = constants.DimensionName.UNIONED_GEOMETRY
-        constants.DimensionName.UNIONED_GEOMETRY = 'region'
+        ops = self.get_ops(kwds={'geom': geom, 'aggregate': True,
+                                 'search_radius_mult': 0.01,
+                                 'output_format': 'nc',
+                                 'output_format_options': {'geom_dim':'region'} })
         ret = self.get_ret(ops)
         with self.nc_scope(ret) as ds:
             self.assertEqual(ds.variables[self.var].dimensions, (
             constants.DimensionName.TEMPORAL, constants.NAME_DIMENSION_LEVEL,
             'region'))
-        constants.DimensionName.UNIONED_GEOMETRY = ug
+
 
     def test_nc_region_conversion_calc(self):
         calc_grouping = ['month']
         calc = [{'func': 'mean', 'name': 'my_mean'},
                 {'func': 'std', 'name': 'my_stdev'}]
         geom = make_poly((38, 39), (-104, -103))
-        kwds = dict(calc_grouping=calc_grouping, calc=calc, geom=geom, aggregate=True, output_format='region-nc')
+        kwds = dict(calc_grouping=calc_grouping, calc=calc, geom=geom, aggregate=True, output_format='nc')
         ret = self.get_ret(kwds=kwds)
 
         ds = nc.Dataset(ret)
@@ -844,7 +851,7 @@ class TestSimple(TestSimpleBase):
         geom = make_poly((38, 39), (-104, -103))
         with self.assertRaises(DefinitionValidationError):
             OcgOperations(dataset=[rd1, rd2], geom=geom, aggregate=True,
-                          output_format=constants.OutputFormatName.NETCDF_REGION)
+                          output_format='nc')
 
     def test_nc_region_conversion_multivariate_calculation(self):
         rd1 = self.get_dataset()
@@ -858,7 +865,7 @@ class TestSimple(TestSimpleBase):
                             geom = geom,
                             aggregate=True,
                             calc_grouping=calc_grouping,
-                            output_format='region-nc')
+                            output_format='nc')
         ret = ops.execute()
 
         ds = nc.Dataset(ret)

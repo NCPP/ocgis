@@ -110,7 +110,7 @@ class NcConverter(AbstractCollectionConverter):
             msg = 'If aggregate is True than a geometry must be provided for netCDF output. '
             _raise_(msg, OutputFormat)
 
-        if not ops.aggregate and not ops.agg_selection and ops.geom:
+        if not ops.aggregate and not ops.agg_selection and ops.geom and len(ops.geom) > 1:
             msg = 'Multiple geometries must either be unioned (agg_selection) ' \
                   'or aggregated (aggregate).'
             _raise_(msg, OutputFormat)
@@ -121,6 +121,7 @@ class NcConverter(AbstractCollectionConverter):
         Modify in place the collections so they can be saved as discrete
         geometries along a new spatial dimension.
         """
+        #TODO: UGID and GID show up in the output file, but they are equal. Remove one.
 
         # Size of spatial dimension
         if self.ops.aggregate is False:
@@ -173,7 +174,7 @@ class NcConverter(AbstractCollectionConverter):
 
             grid = ocgis.Grid(field[xn], field[yn], abstraction='point',
                               crs=field.crs, parent=field)
-            grid.set_mask([[False, ]])
+            #   grid.set_mask([[False, ]])
             field.set_grid(grid)
 
             # Geometry variables from the geom properties dict
@@ -195,7 +196,7 @@ class NcConverter(AbstractCollectionConverter):
                     ocgis.Variable(key,
                                    value=[val, ],
                                    dtype=dt,
-                                   dimensions=(udim,)))
+                                   dimensions=(udim,)),)
 
             # ------------------ Dimension update ------------------------ #
             # Modify the dimensions for the number of geometries

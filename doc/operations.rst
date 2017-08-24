@@ -212,7 +212,7 @@ This sets the output folder for any disk formats. If this is ``None`` and :attr:
 geom
 ~~~~
 
-.. warning:: Subsetting with multiple geometries to netCDF will result in :ref:`agg_selection` being set to ``True``.
+.. warning:: Unless ``aggregate`` or ``agg_selection`` is True, subsetting with multiple geometries to netCDF will raise an error.
 
 If a geometry(s) is provided, it is used to subset `every` :class:`~ocgis.RequestDataset` or :class:`~ocgis.Field` object. Supplying a value of ``None`` (the default) results in the return of the entire spatial domain.
 
@@ -369,7 +369,10 @@ A dictionary of converter-specific options. Options for each converter are liste
 |               | variable_kwargs        | Dictionary of keyword parameters to use for netCDF variable creation. See: http://unidata.github.io/netcdf4-python/#netCDF4.Variable.  |
 |               +------------------------+----------------------------------------------------------------------------------------------------------------------------------------+
 |               | unlimited_to_fixedsize | If ``True``, convert the unlimited dimension to fixed size. Only applies to time and level dimensions.                                 |
+|               +------------------------+----------------------------------------------------------------------------------------------------------------------------------------+
+|               | geom_dim               | The name of the dimension storing aggregated (unioned) outputs. Only applies when ``aggregate is True``.                               |
 +---------------+------------------------+----------------------------------------------------------------------------------------------------------------------------------------+
+
 
 >>> output_format_options = {'data_model': 'NETCDF4_CLASSIC'}
 >>> options = {'variable_kwargs': {'zlib': True, 'complevel': 4}}

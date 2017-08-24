@@ -831,6 +831,7 @@ class TestSimple(TestSimpleBase):
 
         geom = [{'geom': Point(-104., 38.), 'properties': {'Name': 'A'}},
                 {'geom': Point(-103., 39.), 'properties': {'Name': 'B'}}]
+
         with self.assertRaises(DefinitionValidationError):
             ops = self.get_ops(kwds={'geom': geom,
                                      'aggregate': False,
@@ -842,6 +843,30 @@ class TestSimple(TestSimpleBase):
                                      'spatial_operation':'intersects',
                                      'aggregate': False,
                                      'output_format': 'nc'})
+        # This should be ok
+        ops = self.get_ops(kwds={'geom': geom[:1],
+                                 'aggregate': False,
+                                 'agg_selection':False,
+                                 'output_format': 'nc'})
+
+    def test_nc_discrete_geometry_compatibility(self):
+        """Check that the output in the discrete geometry format can be read
+        and operated on."""
+        env.OVERWRITE = True
+        rd = self.get_dataset()
+        geom = [{'geom':Point(-104., 38.)},
+                {'geom':Point(-103., 39.)}]
+
+        ops1 = OcgOperations(dataset=rd,
+                            geom=geom, aggregate=True, search_radius_mult=.01,
+                            output_format='nc')
+        ret = ops1.execute()
+
+        rd = RequestDataset(ret, variable='foo')
+        ops2 = OcgOperations(dataset=rd,
+                             calc=[{'func': 'mean', 'name': 'mean'}, ],
+                             calc_grouping='year')
+        ops2.execute()
 
     def test_nc_discrete_geometry_conversion_calc(self):
         calc_grouping = ['month']

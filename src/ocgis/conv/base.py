@@ -271,7 +271,7 @@ def get_converter_map():
     from ocgis.conv.fiona_ import ShpConverter, GeoJsonConverter
     from ocgis.conv.csv_ import CsvConverter, CsvShapefileConverter
     from ocgis.conv.numpy_ import NumpyConverter
-    from ocgis.conv.nc import NcConverter, NcRegionConverter
+    from ocgis.conv.nc import NcConverter
     from ocgis.conv.meta import MetaOCGISConverter, MetaJSONConverter
 
     mmap = {constants.OutputFormatName.SHAPEFILE: ShpConverter,
@@ -280,7 +280,6 @@ def get_converter_map():
             constants.OutputFormatName.OCGIS: NumpyConverter,
             constants.OutputFormatName.GEOJSON: GeoJsonConverter,
             constants.OutputFormatName.NETCDF: NcConverter,
-            constants.OutputFormatName.NETCDF_REGION: NcRegionConverter,
             constants.OutputFormatName.METADATA_JSON: MetaJSONConverter,
             constants.OutputFormatName.METADATA_OCGIS: MetaOCGISConverter,
             }

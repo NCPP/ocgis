@@ -61,8 +61,8 @@ class NcConverter(AbstractCollectionConverter):
     def validate_ops(cls, ops):
         from ocgis.ops.parms.definition import OutputFormat
 
-        def _raise_(msg, ocg_arugument=OutputFormat):
-            raise DefinitionValidationError(ocg_arugument, msg)
+        def _raise_(msg, ocg_argument=OutputFormat):
+            raise DefinitionValidationError(ocg_argument, msg)
 
         # We can only write one request dataset to netCDF.
         len_ops_dataset = len(list(ops.dataset))
@@ -92,10 +92,10 @@ class NcConverter(AbstractCollectionConverter):
         # Clipped data which creates an arbitrary geometry may not be written to netCDF.
         if ops.spatial_operation != 'intersects' and not ops.aggregate:
             msg = ('Only "intersects" spatial operation allowed for netCDF output. Arbitrary geometries may not '
-                   'currently be written.')
+                   'currently be written unless ``aggregate`` is True.')
             _raise_(msg, OutputFormat)
 
-        # Calculations on raw values are not relevant as not aggregation can occur anyway.
+        # Calculations on raw values are not relevant as no aggregation can occur anyway.
         if ops.calc is not None:
             if ops.calc_raw:
                 msg = 'Calculations must be performed on original values (i.e. calc_raw=False) for netCDF output.'
@@ -106,19 +106,26 @@ class NcConverter(AbstractCollectionConverter):
                 _raise_(msg)
 
         # Re-organize the collections following a discrete geometry model if aggregate is True
-
-        if ops.aggregate and len(ops.geom) < 1:
+        if ops.aggregate and not ops.geom:
             msg = 'If aggregate is True than a geometry must be provided for netCDF output. '
             _raise_(msg, OutputFormat)
+
+        if not ops.aggregate and not ops.agg_selection and ops.geom:
+            msg = 'Multiple geometries must either be unioned (agg_selection) ' \
+                  'or aggregated (aggregate).'
+            _raise_(msg, OutputFormat)
+
 
     def _preformatting(self, i, coll):
         """
         Modify in place the collections so they can be saved as discrete
         geometries along a new spatial dimension.
-
         """
 
         # Size of spatial dimension
+        if self.ops.aggregate is False:
+            return coll
+
         ncoll = len(self.ops.geom)
 
         udim = DimensionName.UNIONED_GEOMETRY
@@ -298,170 +305,3 @@ class NcConverter(AbstractCollectionConverter):
 
         self._write_archetype_(arch, ds, self._variable_kwargs)
 
-class NcRegionConverter(NcConverter):
-    """
-    Save multiple SpatialCollections in a unique netCDF file along a geometry
-    dimension.
-    """
-    _ext = 'nc'
-
-    def write(self):
-        ocgis_lh('starting write method', self._log, logging.DEBUG)
-
-        # Indicates if user geometries should be written to file.
-        write_ugeom = False
-
-        ncoll = len(self.ops.geom)
-
-        build = True
-        for i, coll in enumerate(self):
-            ugids = coll.properties.keys()
-            assert len(ugids) == 1
-            ugid = ugids[0]
-
-            # Geometry centroid location
-            lon, lat = coll.geoms[ugid].centroid.xy
-
-            for field in coll.iter_fields():
-
-                lon_attrs = field.x.attrs.copy()
-                lat_attrs = field.y.attrs.copy()
-                xn = field.x.name
-                yn = field.y.name
-
-                # Removed for now. It'd be nice to find an elegant way to retain those.
-                field.remove_variable(xn)
-                field.remove_variable(yn)
-
-                # Create new lon and lat variables
-                field.add_variable(
-                    ocgis.Variable(xn,
-                                   value=lon,
-                                   dimensions=(DimensionName.UNIONED_GEOMETRY,),
-                                   attrs=dict(lon_attrs, **{'long_name':'Centroid longitude'})
-                                   )
-                )
-
-
-                field.add_variable(
-                    ocgis.Variable(yn,
-                                   value=lat,
-                                   dimensions=(DimensionName.UNIONED_GEOMETRY,),
-                                   attrs=dict(lat_attrs, **{'long_name':'Centroid latitude'})
-                                   )
-                )
-
-
-                if 'ocgis_spatial_mask' in field:
-                    # Remove the spatial_mask and replace by new one.
-                    field.remove_variable('ocgis_spatial_mask')
-
-
-                grid = ocgis.Grid(field[xn], field[yn], abstraction='point',
-                  crs=field.crs, parent=field)
-                grid.set_mask([[False,]])
-                field.set_grid(grid)
-
-                # Geometry variables from the geom properties dict
-                dm = get_data_model(self.ops)
-
-                # Some dtypes are not supported by netCDF3. Use the netCDF4
-                # data model to avoid these issues.
-                for key, val in coll.properties[ugid].items():
-                    if np.issubdtype(type(val), int):
-                        dt = get_dtype('int', dm)
-                    elif np.issubdtype(type(val), float):
-                        dt = get_dtype('float', dm)
-                    else:
-                        dt='auto'
-
-                    # There is no metadata for those yet, but it could be passed
-                    # using the output_format_options keyword.
-                    field.add_variable(
-                        ocgis.Variable(key,
-                                       value=[val,],
-                                       dtype=dt,
-                                       dimensions=(DimensionName.UNIONED_GEOMETRY,)))
-
-                # ------------------ Dimension update ------------------------ #
-                # Modify the dimensions for the number of geometries
-                gdim = field.dimensions[DimensionName.UNIONED_GEOMETRY]
-                gdim.set_size(ncoll)
-
-                for var in field.iter_variables_by_dimensions([gdim]):
-                    d = var.dimensions_dict[DimensionName.UNIONED_GEOMETRY]
-                    d.bounds_local = (i, i+1)
-                # ------------------------------------------------------------ #
-
-                # CF-Conventions
-                # Options for cf-role are timeseries_id, profile_id, trajectory_id
-                gid = field[HeaderName.ID_GEOMETRY]
-                gid.attrs['cf_role'] = 'timeseries_id'
-
-            # Path to the output object.
-            # I needed to put it here because _write_archetype pops it, so it's not available after the first loop.
-            f = {KeywordArgument.PATH: self.path}
-
-            # This will be changed to "write" if we are on the build loop.
-            write_mode = MPIWriteMode.APPEND
-
-            if build:
-                # During a build loop, create the file and write the first series of records. Let the drivers determine
-                # the appropriate write modes for handling parallelism.
-                write_mode = None
-
-                # Write the user geometries if selected and there is one present on the incoming collection.
-                if self._add_ugeom and coll.has_container_geometries:
-                    write_ugeom = True
-
-                if write_ugeom:
-                    if vm.rank == 0:
-                        # The output file name for the user geometries.
-                        ugid_shp_name = self.prefix + '_ugid.shp'
-                        if self._add_ugeom_nest:
-                            ugeom_fiona_path = os.path.join(self._get_or_create_shp_folder_(), ugid_shp_name)
-                        else:
-                            ugeom_fiona_path = os.path.join(self.outdir, ugid_shp_name)
-                    else:
-                        ugeom_fiona_path = None
-
-                build = False
-
-            f[KeywordArgument.WRITE_MODE] = write_mode
-            self._write_coll_(f, coll)
-
-            if write_ugeom:
-                with vm.scoped(SubcommName.UGEOM_WRITE, [0]):
-                    if not vm.is_null:
-                        for subset_field in list(coll.children.values()):
-                            subset_field.write(ugeom_fiona_path, write_mode=write_mode, driver=DriverVector)
-
-        # The metadata and dataset descriptor files may only be written if OCGIS operations are present.
-        ops = self.ops
-        if ops is not None and self.add_auxiliary_files and MPI_RANK == 0:
-            # Add OCGIS metadata output if requested.
-            if self.add_meta:
-                ocgis_lh('adding OCGIS metadata file', 'conv', logging.DEBUG)
-                from ocgis.conv.meta import MetaOCGISConverter
-
-                lines = MetaOCGISConverter(ops).write()
-                out_path = os.path.join(self.outdir, self.prefix + '_' + MetaOCGISConverter._meta_filename)
-                with open(out_path, 'w') as f:
-                    f.write(lines)
-
-            # Add the dataset descriptor file if requested.
-            if self._add_did_file:
-                ocgis_lh('writing dataset description (DID) file', 'conv', logging.DEBUG)
-                path = os.path.join(self.outdir, self.prefix + '_did.csv')
-                _write_dataset_identifier_file_(path, ops)
-
-            # Add source metadata if requested.
-            if self._add_source_meta:
-                ocgis_lh('writing source metadata file', 'conv', logging.DEBUG)
-                path = os.path.join(self.outdir, self.prefix + '_source_metadata.txt')
-                _write_source_meta_(path, ops)
-
-        # Return the internal path unless overloaded by subclasses.
-        ret = self._get_return_()
-
-        return ret

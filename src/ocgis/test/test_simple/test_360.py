@@ -66,7 +66,8 @@ class Test360(TestBase):
 
         for s_abstraction in ['point', 'polygon']:
             interface = {'s_abstraction': s_abstraction}
-            ops = OcgOperations(dataset=dataset, output_format=output_format, geom=geom, snippet=snippet,
+            ops = OcgOperations(dataset=dataset, output_format=output_format,
+                                geom=geom, snippet=snippet, agg_selection=True,
                                 abstraction=s_abstraction)
             OcgInterpreter(ops).execute()
 

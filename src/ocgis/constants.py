@@ -78,7 +78,6 @@ class OutputFormatName(object):
     METADATA_JSON = 'meta-json'
     METADATA_OCGIS = 'meta-ocgis'
     NETCDF = 'nc'
-    NETCDF_REGION = 'region-nc'
     SHAPEFILE = 'shp'
     OCGIS = 'ocgis'
 

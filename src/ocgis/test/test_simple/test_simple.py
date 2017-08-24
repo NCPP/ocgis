@@ -374,7 +374,8 @@ class TestSimple(TestSimpleBase):
         self.assertEqual(ret.get_element().geom.shape, (4, 4))
         self.assertEqual(len(ret.children), 1)
 
-        ops = OcgOperations(dataset=self.get_dataset(), geom=geom, output_format='nc', prefix='nc')
+        ops = OcgOperations(dataset=self.get_dataset(), geom=geom,
+                            agg_selection=True, output_format='nc', prefix='nc')
         ret = ops.execute()
         with nc_scope(ret) as ds:
             ref = ds.variables['foo']
@@ -655,8 +656,6 @@ class TestSimple(TestSimpleBase):
         calc = 'foo2=foo+4'
         ocgis.env.OVERWRITE = True
         for of in OutputFormat.iter_possible():
-            if of in [constants.OutputFormatName.NETCDF_REGION,]:
-                continue
             ops = ocgis.OcgOperations(dataset=rd, calc=calc, output_format=of)
             ret = ops.execute()
             if of in ['nc']:
@@ -675,8 +674,7 @@ class TestSimple(TestSimpleBase):
                                           slice=[None, [0, 10], None, None, None])
             except DefinitionValidationError:
                 # Only one dataset allowed for ESMPy and JSON metadata output.
-                # `aggregate` has to be set to True for NETCDF_REGION
-                self.assertIn(of, [constants.OutputFormatName.ESMPY_GRID, constants.OutputFormatName.METADATA_JSON, constants.OutputFormatName.NETCDF_REGION])
+                self.assertIn(of, [constants.OutputFormatName.ESMPY_GRID, constants.OutputFormatName.METADATA_JSON])
                 continue
             ret = ops.execute()
             if of == constants.OutputFormatName.OCGIS:
@@ -779,15 +777,18 @@ class TestSimple(TestSimpleBase):
             ds.close()
 
 
-    def test_nc_region_point(self):
+    def test_nc_discrete_geometry_simple(self):
         env.OVERWRITE = True
         rd = self.get_dataset()
-        geom = [{'geom':Point(-104., 38.), 'properties':{'Name':'A'}}, {'geom':Point(-103., 39.), 'properties':{'Name':'B'}}]
+        geom = [{'geom':Point(-104., 38.), 'properties':{'Name':'A'}},
+                {'geom':Point(-103., 39.), 'properties':{'Name':'B'}}]
+
         ops = OcgOperations(dataset=rd,
                             calc=[{'func':'mean', 'name':'mean'},],
                             calc_grouping='year',
                             geom=geom, aggregate=True, search_radius_mult=.01,
                             output_format='nc')
+
         ops = self.get_ops(kwds={'geom': geom, 'aggregate':True,
                                  'search_radius_mult': 0.01,
                                  'output_format': 'nc'})
@@ -802,14 +803,16 @@ class TestSimple(TestSimpleBase):
             self.assertNumpyAllClose(ds.variables['longitude'][:], np.array([-104., -103.]))
             self.assertNumpyAllClose(ds.variables['latitude'][:], np.array([38., 39.]))
 
-        with self.nc_scope(ret) as ds:
             expected = {'time': 'T', 'level': 'Z', 'latitude': 'Y',
                         'longitude': 'X'}
             for k, v in expected.items():
                 var = ds.variables[k]
                 self.assertEqual(var.axis, v)
 
+    def test_nc_discrete_geometry_dim_name(self):
         # Test changing the geom dimension name
+        geom = [{'geom': Point(-104., 38.), 'properties': {'Name': 'A'}},]
+
         ops = self.get_ops(kwds={'geom': geom, 'aggregate': True,
                                  'search_radius_mult': 0.01,
                                  'output_format': 'nc',
@@ -820,8 +823,27 @@ class TestSimple(TestSimpleBase):
             constants.DimensionName.TEMPORAL, constants.NAME_DIMENSION_LEVEL,
             'region'))
 
+    def test_nc_discrete_geometry_validate(self):
 
-    def test_nc_region_conversion_calc(self):
+        with self.assertRaises(DefinitionValidationError):
+            ops = self.get_ops(kwds={'aggregate': True,
+                                     'output_format': 'nc'})
+
+        geom = [{'geom': Point(-104., 38.), 'properties': {'Name': 'A'}},
+                {'geom': Point(-103., 39.), 'properties': {'Name': 'B'}}]
+        with self.assertRaises(DefinitionValidationError):
+            ops = self.get_ops(kwds={'geom': geom,
+                                     'aggregate': False,
+                                     'agg_selection': False,
+                                     'output_format': 'nc'})
+
+        with self.assertRaises(DefinitionValidationError):
+            ops = self.get_ops(kwds={'geom': geom,
+                                     'spatial_operation':'intersects',
+                                     'aggregate': False,
+                                     'output_format': 'nc'})
+
+    def test_nc_discrete_geometry_conversion_calc(self):
         calc_grouping = ['month']
         calc = [{'func': 'mean', 'name': 'my_mean'},
                 {'func': 'std', 'name': 'my_stdev'}]
@@ -844,7 +866,7 @@ class TestSimple(TestSimpleBase):
         finally:
             ds.close()
 
-    def test_nc_region_conversion_multiple_request_datasets(self):
+    def test_nc_discrete_geometry_conversion_multiple_request_datasets(self):
         rd1 = self.get_dataset()
         rd2 = self.get_dataset()
         rd2[KeywordArgument.FIELD_NAME] = 'foo2'
@@ -853,7 +875,7 @@ class TestSimple(TestSimpleBase):
             OcgOperations(dataset=[rd1, rd2], geom=geom, aggregate=True,
                           output_format='nc')
 
-    def test_nc_region_conversion_multivariate_calculation(self):
+    def test_nc_discrete_geometry_conversion_multivariate_calculation(self):
         rd1 = self.get_dataset()
         rd2 = self.get_dataset()
         rd2[KeywordArgument.RENAME_VARIABLE] = 'foo2'
@@ -1106,9 +1128,8 @@ class TestSimple(TestSimpleBase):
                                     prefix=o + 'yay')
             except DefinitionValidationError:
                 # Only one dataset allowed for some outputs.
-                # 'aggregate` has to be True for NETCDF_REGION
                 self.assertIn(o, [constants.OutputFormatName.ESMPY_GRID, constants.OutputFormatName.METADATA_JSON,
-                                  constants.OutputFormatName.GEOJSON, constants.OutputFormatName.NETCDF_REGION])
+                                  constants.OutputFormatName.GEOJSON])
                 continue
 
             ret = ops.execute()
@@ -1402,7 +1423,8 @@ class TestSimpleMPI(TestSimpleBase):
                 snippet = True
 
             rd = RequestDataset(path)
-            ops = OcgOperations(dataset=rd, geom=geom, prefix=output_format, output_format=output_format,
+            ops = OcgOperations(dataset=rd, geom=geom, agg_selection=True,
+                                prefix=output_format, output_format=output_format,
                                 snippet=snippet)
 
             dir_outputs = comm.gather(ops.dir_output)
@@ -1519,7 +1541,7 @@ class TestSimpleMultivariate(TestSimpleBase):
 
     def test_operations_convert_multiple_request_datasets(self):
         for o in OutputFormat.iter_possible():
-            if o in [constants.OutputFormatName.NETCDF, constants.OutputFormatName.NETCDF_REGION]:
+            if o in [constants.OutputFormatName.NETCDF,]:
                 continue
             rds = self.get_multiple_request_datasets()
             try:

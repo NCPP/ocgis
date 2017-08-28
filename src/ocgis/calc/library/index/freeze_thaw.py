@@ -27,7 +27,15 @@ class FreezeThaw(base.AbstractUnivariateSetFunction, base.AbstractParameterizedF
         # Check temporal resolution
         t = self.field['time'].get_value()[:2]
         step = t[1] - t[0]
-        assert step == dt.timedelta(days=1)
+        if type(step) == dt.timedelta:
+            assert step == dt.timedelta(days=1)
+        else:
+            if self.field['time'].units.startswith('days'):
+                assert step == 1
+            else:
+                raise NotImplementedError
+
+
 
         # Unit conversion
         units = self.field.data_variables[0].units

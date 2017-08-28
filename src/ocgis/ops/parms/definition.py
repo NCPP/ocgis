@@ -72,7 +72,6 @@ class Aggregate(base.BooleanParameter):
     meta_false = 'Selected geometries are not aggregated (unioned).'
 
 
-# This is obsolete following new netCDF driver with support for discrete geoms.
 class AggregateSelection(base.BooleanParameter):
     name = 'agg_selection'
     default = False

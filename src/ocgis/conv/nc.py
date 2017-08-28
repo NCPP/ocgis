@@ -116,7 +116,7 @@ class NcConverter(AbstractCollectionConverter):
             _raise_(msg, OutputFormat)
 
 
-    def _preformatting(self, i, coll):
+    def _preformatting_(self, i, coll):
         """
         Modify in place the collections so they can be saved as discrete
         geometries along a new spatial dimension.

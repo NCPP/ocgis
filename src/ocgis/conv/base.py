@@ -154,7 +154,7 @@ class AbstractCollectionConverter(AbstractFileConverter):
             os.mkdir(path)
         return path
 
-    def _preformatting(self, i, coll):
+    def _preformatting_(self, i, coll):
         """Prepare collection before it is written to disk."""
         return coll
 
@@ -196,7 +196,7 @@ class AbstractCollectionConverter(AbstractFileConverter):
 
             f[KeywordArgument.WRITE_MODE] = write_mode
 
-            self._write_coll_(f, self._preformatting(i, coll))
+            self._write_coll_(f, self._preformatting_(i, coll))
 
             if write_ugeom:
                 with vm.scoped(SubcommName.UGEOM_WRITE, [0]):

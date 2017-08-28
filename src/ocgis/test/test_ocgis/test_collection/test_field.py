@@ -12,8 +12,11 @@ from shapely.geometry.base import BaseGeometry
 
 from ocgis import RequestDataset, vm
 from ocgis import constants
+from ocgis.base import get_variable_names
 from ocgis.collection.field import Field
+from ocgis.collection.spatial import SpatialCollection
 from ocgis.constants import HeaderName, KeywordArgument, DriverKey, DimensionMapKey
+from ocgis.conv.nc import NcConverter
 from ocgis.driver.csv_ import DriverCSV
 from ocgis.driver.nc import DriverNetcdf
 from ocgis.driver.vector import DriverVector
@@ -95,6 +98,49 @@ class TestField(AbstractTestInterface):
         field = Field(time=time, dimension_map=dmap)
         actual = field.dimension_map.get_dimension('time')
         self.assertEqual(actual, ['the_time'])
+
+    def test_system_add_variable(self):
+        """Test adding variables from spatial collections."""
+
+        # Create a few separate fields.
+        variable_names = tuple(['a', 'b', 'c'])
+        fields = [self.get_field(variable_name=v) for v in variable_names]
+        # Create spatial collections containing those fields.
+        scs = []
+        for field in fields:
+            sc = SpatialCollection()
+            sc.add_field(field, None)
+            scs.append(sc)
+
+        # Destination spatial collection to add variables to from source spatial collections.
+        grow = scs[0]
+        # Loop over source fields.
+        for idx in range(1, len(scs)):
+            # Loop over child fields and spatial containers in the current source spatial collection.
+            for field, container in scs[idx].iter_fields(yield_container=True):
+                # TODO: This should be adjusted to allow easier selection with empty fields.
+                try:
+                    # Case when we have spatial containers.
+                    grow_field = grow.get_element(field_name=field.name, container_ugid=container)
+                except KeyError:
+                    # Case without spatial containers.
+                    grow_field = grow.get_element(field.name)
+                # Add data variables to the grow field.
+                for dv in field.data_variables:
+                    grow_field.add_variable(dv.extract(), is_data=True)
+
+        # Assert all variables are present on the grow field.
+        actual = grow.get_element()
+        self.assertEqual(get_variable_names(actual.data_variables), variable_names)
+
+        # Write the spatial collection using a converter.
+        conv = NcConverter([grow], outdir=self.current_dir_output, prefix='out.nc')
+        conv.write()
+
+        # Assert all variables are present.
+        rd = RequestDataset(conv.path)
+        actual = rd.get()
+        self.assertEqual(get_variable_names(actual.data_variables), variable_names)
 
     def test_system_properties(self):
         """Test field properties."""

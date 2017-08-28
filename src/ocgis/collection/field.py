@@ -343,7 +343,7 @@ class Field(VariableCollection):
 
     def add_variable(self, variable, force=False, is_data=False):
         """
-        ..note:: Accepts all paramters to :meth:`~ocgis.VariableCollection.add_variable`.
+        ..note:: Accepts all parameters to :meth:`~ocgis.VariableCollection.add_variable`.
         
         Additional keyword arguments are:
         

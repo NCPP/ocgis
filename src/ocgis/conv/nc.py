@@ -123,10 +123,11 @@ class NcConverter(AbstractCollectionConverter):
         """
         #TODO: UGID and GID show up in the output file, but they are equal. Remove one.
 
-        # Size of spatial dimension
-        if self.ops.aggregate is False:
+
+        if not self.ops or self.ops.aggregate is False:
             return coll
 
+        # Size of spatial dimension
         ncoll = len(self.ops.geom)
 
         udim = DimensionName.UNIONED_GEOMETRY
@@ -275,7 +276,7 @@ class NcConverter(AbstractCollectionConverter):
         original_history_str = arch.attrs.get('history', '')
         arch.attrs['history'] = original_history_str + history_str
 
-        if self.ops.aggregate:
+        if self.ops and self.ops.aggregate:
             arch.attrs['featureType'] = 'timeSeries'
 
         # Pull in dataset and variable keyword arguments.

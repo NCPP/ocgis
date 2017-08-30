@@ -134,7 +134,7 @@ class NcConverter(AbstractCollectionConverter):
 
         ugids = coll.properties.keys()
         assert len(ugids) == 1
-        ugid = ugids[0]
+        ugid = list(ugids)[0]
 
         # Geometry centroid location
         lon, lat = coll.geoms[ugid].centroid.xy

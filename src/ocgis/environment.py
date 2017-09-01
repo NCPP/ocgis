@@ -250,7 +250,7 @@ def get_dtype(string_name, data_model=None):
     """
 
     # The classic format does not support 64-bit data.
-    if data_model == 'NETCDF3_CLASSIC':
+    if data_model in ('NETCDF3_CLASSIC' , 'NETCDF4_CLASSIC'):
         mp = {'int': np.int32,
               'float': np.float32}
     elif data_model in ('NETCDF3_64BIT_OFFSET', 'NETCDF3_64BIT'):

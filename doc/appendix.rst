@@ -1,6 +1,20 @@
 Appendix
 --------
 
+Output Formats
+~~~~~~~~~~~~~~
+
+There are multiple formats in which OCGIS output can be saved on disk: shapefiles (``'shp'``), comma separated values (``'csv'``), a combination of shapefiles and csv (``'csv-shp'``), netCDF (``'nc'``) and GeoJSON (``'geojson'``). The :class:`~ocgis.OcgOperations` :ref:`output_format_headline` parameter determines which format is used. Additional options are available through the :ref:`output_format_options_headline` (not all output formats expose options).
+
+.. _netcdf_output_headline:
+
+NetCDF Output
++++++++++++++
+
+`netCDF <https://www.unidata.ucar.edu/software/netcdf/>`_ is a binary file format widely used in the climate community. It is self-descriptive in the sense that it carries metadata describing the file content. netCDF files created by OCGIS carry the original file's metadata in addition to updating the file's history attribute. Spatial and temporal subsetting or aggregation operations will modify the original dimensions of the file but retain all relevant data and metadata on the temporal and spatial coordinates, time and level dimensions. New variable created by OCGIS are named after the ``calc`` operation that defined it.
+
+There are two modes for netCDF output, one handling gridded data and another handling multiple unioned geometries. For example, if ``geom`` is a list of world countries, ``calc`` is the annual average and ``dataset`` stores globally gridded daily temperature and ``aggregate`` is set to ``True``, then the annual average temperature for each country would be stored in a variable with dimensions ``(time, ocgis_geom_union)``, where the ``ocgis_geom_union`` dimension indexes each individual country. Metadata about the geometries (for example its name), will be stored in variables spanning this spatial dimension. Although the netCDF file does not include each region's geometry (point or polygon), the region's centroid coordinates are stored in the latitude and longitude variables. Instead of ``ocgis_geom_union``, users can change the name of the discrete geometry dimension by setting the ``output_format_options`` called ``geom_dim``.
+
 Spatial Operations
 ~~~~~~~~~~~~~~~~~~
 

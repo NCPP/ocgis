@@ -126,7 +126,7 @@ class OcgInterpreter(Interpreter):
                 # the operations object performs subsetting and calculations
                 ocgis_lh('initializing subset', interpreter_log, level=logging.DEBUG)
                 so = OperationsEngine(self.ops, progress=progress)
-                # if there is no grouping on the output files, a singe converter is is needed
+                # if there is no grouping on the output files, a singe converter is needed
                 if self.ops.output_grouping is None:
                     ocgis_lh('initializing converter', interpreter_log, level=logging.DEBUG)
                     conv = self._get_converter_(Converter, outdir, prefix, so)

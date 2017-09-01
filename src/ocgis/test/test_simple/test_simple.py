@@ -374,7 +374,8 @@ class TestSimple(TestSimpleBase):
         self.assertEqual(ret.get_element().geom.shape, (4, 4))
         self.assertEqual(len(ret.children), 1)
 
-        ops = OcgOperations(dataset=self.get_dataset(), geom=geom, output_format='nc', prefix='nc')
+        ops = OcgOperations(dataset=self.get_dataset(), geom=geom,
+                            agg_selection=True, output_format='nc', prefix='nc')
         ret = ops.execute()
         with nc_scope(ret) as ds:
             ref = ds.variables['foo']
@@ -657,7 +658,7 @@ class TestSimple(TestSimpleBase):
         for of in OutputFormat.iter_possible():
             ops = ocgis.OcgOperations(dataset=rd, calc=calc, output_format=of)
             ret = ops.execute()
-            if of == 'nc':
+            if of in ['nc']:
                 with nc_scope(ret) as ds:
                     self.assertEqual(ds.variables['foo2'][:].mean(), 6.5)
 
@@ -771,6 +772,153 @@ class TestSimple(TestSimpleBase):
         try:
             ref = ds.variables['my_divide'][:]
             self.assertEqual(ref.shape, (2, 2, 4, 4))
+            self.assertEqual(np.unique(ref)[0], 1.)
+        finally:
+            ds.close()
+
+
+    def test_nc_discrete_geometry_simple(self):
+        env.OVERWRITE = True
+        rd = self.get_dataset()
+        geom = [{'geom':Point(-104., 38.), 'properties':{'Name':'A'}},
+                {'geom':Point(-103., 39.), 'properties':{'Name':'B'}}]
+
+        ops = OcgOperations(dataset=rd,
+                            calc=[{'func':'mean', 'name':'mean'},],
+                            calc_grouping='year',
+                            geom=geom, aggregate=True, search_radius_mult=.01,
+                            output_format='nc')
+
+        ops = self.get_ops(kwds={'geom': geom, 'aggregate':True,
+                                 'search_radius_mult': 0.01,
+                                 'output_format': 'nc'})
+        ret = ops.execute()
+
+        with self.nc_scope(ret) as ds:
+            self.assertEqual(ds.file_format,
+                             constants.NETCDF_DEFAULT_DATA_MODEL)
+            self.assertEqual(ds.featureType, 'timeSeries')
+            self.assertEqual(ds.variables[self.var].dimensions, (constants.DimensionName.TEMPORAL, constants.NAME_DIMENSION_LEVEL, constants.DimensionName.UNIONED_GEOMETRY))
+            self.assertEqual(ds.dimensions[constants.DimensionName.UNIONED_GEOMETRY].size, 2)
+            self.assertNumpyAllClose(ds.variables['longitude'][:], np.array([-104., -103.]))
+            self.assertNumpyAllClose(ds.variables['latitude'][:], np.array([38., 39.]))
+
+            expected = {'time': 'T', 'level': 'Z', 'latitude': 'Y',
+                        'longitude': 'X'}
+            for k, v in expected.items():
+                var = ds.variables[k]
+                self.assertEqual(var.axis, v)
+
+    def test_nc_discrete_geometry_dim_name(self):
+        # Test changing the geom dimension name
+        geom = [{'geom': Point(-104., 38.), 'properties': {'Name': 'A'}},]
+
+        ops = self.get_ops(kwds={'geom': geom, 'aggregate': True,
+                                 'search_radius_mult': 0.01,
+                                 'output_format': 'nc',
+                                 'output_format_options': {'geom_dim':'region'} })
+        ret = self.get_ret(ops)
+        with self.nc_scope(ret) as ds:
+            self.assertEqual(ds.variables[self.var].dimensions, (
+            constants.DimensionName.TEMPORAL, constants.NAME_DIMENSION_LEVEL,
+            'region'))
+
+    def test_nc_discrete_geometry_validate(self):
+
+        with self.assertRaises(DefinitionValidationError):
+            ops = self.get_ops(kwds={'aggregate': True,
+                                     'output_format': 'nc'})
+
+        geom = [{'geom': Point(-104., 38.), 'properties': {'Name': 'A'}},
+                {'geom': Point(-103., 39.), 'properties': {'Name': 'B'}}]
+
+        with self.assertRaises(DefinitionValidationError):
+            ops = self.get_ops(kwds={'geom': geom,
+                                     'aggregate': False,
+                                     'agg_selection': False,
+                                     'output_format': 'nc'})
+
+        with self.assertRaises(DefinitionValidationError):
+            ops = self.get_ops(kwds={'geom': geom,
+                                     'spatial_operation':'intersects',
+                                     'aggregate': False,
+                                     'output_format': 'nc'})
+        # This should be ok
+        ops = self.get_ops(kwds={'geom': geom[:1],
+                                 'aggregate': False,
+                                 'agg_selection':False,
+                                 'output_format': 'nc'})
+
+    def test_nc_discrete_geometry_compatibility(self):
+        """Check that the output in the discrete geometry format can be read
+        and operated on."""
+        env.OVERWRITE = True
+        rd = self.get_dataset()
+        geom = [{'geom':Point(-104., 38.)},
+                {'geom':Point(-103., 39.)}]
+
+        ops1 = OcgOperations(dataset=rd,
+                            geom=geom, aggregate=True, search_radius_mult=.01,
+                            output_format='nc')
+        ret = ops1.execute()
+
+        rd = RequestDataset(ret, variable='foo')
+        ops2 = OcgOperations(dataset=rd,
+                             calc=[{'func': 'mean', 'name': 'mean'}, ],
+                             calc_grouping='year')
+        ops2.execute()
+
+    def test_nc_discrete_geometry_conversion_calc(self):
+        calc_grouping = ['month']
+        calc = [{'func': 'mean', 'name': 'my_mean'},
+                {'func': 'std', 'name': 'my_stdev'}]
+        geom = make_poly((38, 39), (-104, -103))
+        kwds = dict(calc_grouping=calc_grouping, calc=calc, geom=geom, aggregate=True, output_format='nc')
+        ret = self.get_ret(kwds=kwds)
+
+        ds = nc.Dataset(ret)
+        try:
+            for alias in ['my_mean', 'my_stdev']:
+                self.assertEqual(ds.variables[alias].shape, (2, 2, 1))
+
+            # Time variable bounds attribute should be named to account for climatology.
+            with self.assertRaises(AttributeError):
+                assert ds.variables['time'].bounds
+
+            self.assertEqual(ds.variables['time'].climatology,
+                             'climatology_bounds')
+            self.assertEqual(ds.variables['climatology_bounds'].shape, (2, 2))
+        finally:
+            ds.close()
+
+    def test_nc_discrete_geometry_conversion_multiple_request_datasets(self):
+        rd1 = self.get_dataset()
+        rd2 = self.get_dataset()
+        rd2[KeywordArgument.FIELD_NAME] = 'foo2'
+        geom = make_poly((38, 39), (-104, -103))
+        with self.assertRaises(DefinitionValidationError):
+            OcgOperations(dataset=[rd1, rd2], geom=geom, aggregate=True,
+                          output_format='nc')
+
+    def test_nc_discrete_geometry_conversion_multivariate_calculation(self):
+        rd1 = self.get_dataset()
+        rd2 = self.get_dataset()
+        rd2[KeywordArgument.RENAME_VARIABLE] = 'foo2'
+        calc = [{'func': 'divide', 'name': 'my_divide',
+                 'kwds': {'arr1': 'foo', 'arr2': 'foo2'}}]
+        calc_grouping = ['month']
+        geom = make_poly((38, 39), (-104, -103))
+        ops = OcgOperations(dataset=[rd1, rd2], calc=calc,
+                            geom = geom,
+                            aggregate=True,
+                            calc_grouping=calc_grouping,
+                            output_format='nc')
+        ret = ops.execute()
+
+        ds = nc.Dataset(ret)
+        try:
+            ref = ds.variables['my_divide'][:]
+            self.assertEqual(ref.shape, (2, 2, 1))
             self.assertEqual(np.unique(ref)[0], 1.)
         finally:
             ds.close()
@@ -1300,7 +1448,8 @@ class TestSimpleMPI(TestSimpleBase):
                 snippet = True
 
             rd = RequestDataset(path)
-            ops = OcgOperations(dataset=rd, geom=geom, prefix=output_format, output_format=output_format,
+            ops = OcgOperations(dataset=rd, geom=geom, agg_selection=True,
+                                prefix=output_format, output_format=output_format,
                                 snippet=snippet)
 
             dir_outputs = comm.gather(ops.dir_output)
@@ -1417,7 +1566,7 @@ class TestSimpleMultivariate(TestSimpleBase):
 
     def test_operations_convert_multiple_request_datasets(self):
         for o in OutputFormat.iter_possible():
-            if o in [constants.OutputFormatName.NETCDF]:
+            if o in [constants.OutputFormatName.NETCDF,]:
                 continue
             rds = self.get_multiple_request_datasets()
             try:

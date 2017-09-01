@@ -349,12 +349,14 @@ output_format
 Value                 Description
 ===================== ===============================================================================================================================================================
 ``'ocgis'`` (default) Return a :class:`~ocgis.SpatialCollection` with keys matching `ugid` (see `geom`_). Also see `Spatial Collections`_ for more information on this output format.
-``'shp'``             A shapefile representation of the data.
 ``'csv'``             A CSV file representation of the data.
 ``'csv-shp'``         In addition to a CSV representation, shapefiles with primary key links to the CSV are provided.
-``'nc'``              A NetCDF4-CF file.
+``'nc'``              A NetCDF4-CF file. See :ref:`netcdf_output_headline` for additional information on the structure of the NetCDF format.
 ``'geojson'``         A GeoJSON representation of the data.
+``'shp'``             A shapefile representation of the data.
 ===================== ===============================================================================================================================================================
+
+.. _output_format_options_headline:
 
 output_format_options
 ~~~~~~~~~~~~~~~~~~~~~

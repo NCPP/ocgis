@@ -155,12 +155,12 @@ Mathematical Operations
 
 .. autoclass:: ocgis.calc.library.math.Sum
    :show-inheritance:
-   :members: calculate, description
+   :members: description, calculate
    :undoc-members:
 
 .. autoclass:: ocgis.calc.library.math.Convolve1D
    :show-inheritance:
-   :members: calculate, description
+   :members: description, calculate
    :undoc-members:
 
 Basic Statistics
@@ -168,32 +168,32 @@ Basic Statistics
 
 .. autoclass:: ocgis.calc.library.statistics.FrequencyPercentile
    :show-inheritance:
-   :members: calculate, description
+   :members: description, calculate
    :undoc-members:
 
 .. autoclass:: ocgis.calc.library.statistics.Max
    :show-inheritance:
-   :members: calculate, description
+   :members: description, calculate
    :undoc-members:
 
 .. autoclass:: ocgis.calc.library.statistics.Mean
    :show-inheritance:
-   :members: calculate, description
+   :members: description, calculate
    :undoc-members:
 
 .. autoclass:: ocgis.calc.library.statistics.Median
    :show-inheritance:
-   :members: calculate, description
+   :members: description, calculate
    :undoc-members:
 
 .. autoclass:: ocgis.calc.library.statistics.Min
    :show-inheritance:
-   :members: calculate, description
+   :members: description, calculate
    :undoc-members:
 
 .. autoclass:: ocgis.calc.library.statistics.StandardDeviation
    :show-inheritance:
-   :members: calculate, description
+   :members: description, calculate
    :undoc-members:
 
 Moving Window / Kernel-Based
@@ -201,7 +201,7 @@ Moving Window / Kernel-Based
 
 .. autoclass:: ocgis.calc.library.statistics.MovingWindow
    :show-inheritance:
-   :members: calculate, description
+   :members: description, calculate
    :undoc-members:
 
 Multivariate Calculations / Indices
@@ -209,17 +209,17 @@ Multivariate Calculations / Indices
 
 .. autoclass:: ocgis.calc.library.index.duration.FrequencyDuration
    :show-inheritance:
-   :members: calculate, description
+   :members: description, calculate
    :undoc-members:
 
 .. autoclass:: ocgis.calc.library.index.duration.Duration
    :show-inheritance:
-   :members: calculate, description
+   :members: description, calculate
    :undoc-members:
 
 .. autoclass:: ocgis.calc.library.index.heat_index.HeatIndex
    :show-inheritance:
-   :members: calculate, description
+   :members: description, calculate
    :undoc-members:
 
 Thresholds
@@ -227,19 +227,19 @@ Thresholds
 
 .. autoclass:: ocgis.calc.library.thresholds.Between
    :show-inheritance:
-   :members: calculate, description
+   :members: description, calculate
    :undoc-members:
 
 .. autoclass:: ocgis.calc.library.thresholds.Threshold
    :show-inheritance:
-   :members: calculate, description
+   :members: description, calculate
    :undoc-members:
 
 Miscellaneous
 -------------
 .. autoclass:: ocgis.calc.library.index.freeze_thaw.FreezeThaw
    :show-inheritance:
-   :members: calculate, description
+   :members: description, calculate
    :undoc-members:
 
 

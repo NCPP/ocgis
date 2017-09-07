@@ -175,7 +175,8 @@ class NcConverter(AbstractCollectionConverter):
 
             grid = ocgis.Grid(field[xn], field[yn], abstraction='point',
                               crs=field.crs, parent=field)
-            #   grid.set_mask([[False, ]])
+
+            grid.set_mask([[False, ]])
             field.set_grid(grid)
 
             # Geometry variables from the geom properties dict

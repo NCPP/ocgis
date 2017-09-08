@@ -10,7 +10,7 @@ from ocgis import env, vm
 from ocgis.calc.base import AbstractMultivariateFunction, AbstractKeyedOutputFunction
 from ocgis.calc.engine import CalculationEngine
 from ocgis.calc.eval_function import MultivariateEvalFunction
-from ocgis.constants import HeaderName
+from ocgis.constants import HeaderName, VariableName
 from ocgis.constants import MPIWriteMode, DimensionName
 from ocgis.conv.base import _write_dataset_identifier_file_, _write_source_meta_
 from ocgis.constants import KeywordArgument
@@ -169,13 +169,13 @@ class NcConverter(AbstractCollectionConverter):
                                )
             )
 
-            if 'ocgis_spatial_mask' in field:
-                # Remove the spatial_mask and replace by new one.
-                field.remove_variable('ocgis_spatial_mask')
+            if VariableName.SPATIAL_MASK in field:
+                # Remove the spatial_mask.
+                field.remove_variable(VariableName.SPATIAL_MASK)
+                field.dimension_map.set_spatial_mask(None)
 
             grid = ocgis.Grid(field[xn], field[yn], abstraction='point',
                               crs=field.crs, parent=field)
-            #   grid.set_mask([[False, ]])
             field.set_grid(grid)
 
             # Geometry variables from the geom properties dict

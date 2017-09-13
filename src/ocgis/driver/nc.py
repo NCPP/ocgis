@@ -560,7 +560,7 @@ def get_crs_variable(metadata, to_search=None):
                 continue
         for potential in itersubclasses(CFCoordinateReferenceSystem):
             try:
-                crs = potential.load_from_metadata(vname, metadata)
+                crs = potential.load_from_metadata(vname, metadata, strict=False)
                 found.append(crs)
                 break
             except ProjectionDoesNotMatch:

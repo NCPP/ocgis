@@ -858,9 +858,6 @@ class CFCoordinateReferenceSystem(CoordinateReferenceSystem):
         else:
             pc_x, pc_y = None, None
 
-        # this variable name is used by the netCDF converter
-        # meta['grid_mapping_variable_name'] = r_grid_mapping['name']
-
         kwds = r_grid_mapping['attrs'].copy()
         kwds.pop('grid_mapping_name', None)
         kwds['projection_x_coordinate'] = pc_x
@@ -898,7 +895,7 @@ class CFSpherical(Spherical, CFCoordinateReferenceSystem):
         Spherical.__init__(self, *args, **kwargs)
 
     @classmethod
-    def load_from_metadata(cls, var, meta):
+    def load_from_metadata(cls, var, meta, strict=False):
         r_grid_mapping = meta['variables'][var]['attrs'].get('grid_mapping')
         r_grid_mapping_name = meta['variables'][var]['attrs'].get('grid_mapping_name')
         if cls.grid_mapping_name in (r_grid_mapping, r_grid_mapping_name):

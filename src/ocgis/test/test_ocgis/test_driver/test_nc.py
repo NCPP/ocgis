@@ -1,4 +1,5 @@
 import pickle
+from collections import OrderedDict
 from copy import deepcopy
 
 import fiona
@@ -13,14 +14,14 @@ from ocgis.collection.field import Field
 from ocgis.constants import DimensionMapKey
 from ocgis.driver.base import iter_all_group_keys
 from ocgis.driver.dimension_map import DimensionMap
-from ocgis.driver.nc import DriverNetcdf, DriverNetcdfCF, remove_netcdf_attribute
+from ocgis.driver.nc import DriverNetcdf, DriverNetcdfCF, remove_netcdf_attribute, get_crs_variable
 from ocgis.exc import OcgWarning, CannotFormatTimeError, \
     NoDataVariablesFound
 from ocgis.spatial.grid import Grid
 from ocgis.test.base import TestBase, attr, create_gridxy_global
 from ocgis.util.helpers import get_group
 from ocgis.variable.base import Variable, ObjectType, VariableCollection, SourcedVariable
-from ocgis.variable.crs import WGS84, CoordinateReferenceSystem, CFSpherical
+from ocgis.variable.crs import WGS84, CoordinateReferenceSystem, CFSpherical, CFRotatedPole
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.variable.temporal import TemporalVariable
@@ -28,6 +29,26 @@ from ocgis.vmachine.mpi import MPI_RANK, MPI_COMM, OcgDist, variable_scatter
 
 
 class Test(TestBase):
+    def test_get_crs_variable(self):
+        # Test with no linking to data variables.
+        metadata = {'variables': {'rotated_pole': {'dimensions': (),
+                                                   'dtype': np.dtype('S1'),
+                                                   'fill_value': 'auto',
+                                                   'name': u'rotated_pole',
+                                                   'dtype_packed': None,
+                                                   'attrs': OrderedDict([(
+                                                       u'grid_mapping_name',
+                                                       u'rotated_latitude_longitude'),
+                                                       (
+                                                           u'grid_north_pole_latitude',
+                                                           90.0),
+                                                       (
+                                                           u'grid_north_pole_longitude',
+                                                           360.0)]),
+                                                   'fill_value_packed': None}}}
+        var = get_crs_variable(metadata)
+        self.assertIsInstance(var, CFRotatedPole)
+
     def test_remove_netcdf_attribute(self):
         path = self.get_temporary_file_path('foo.nc')
         var = Variable(name='test', attrs={'remove_me': 10})

@@ -354,6 +354,11 @@ class CFName(object):
     GRID_MAPPING = 'grid_mapping'
     AXIS = 'axis'
 
+    class StandardName(object):
+        HEIGHT = 'height'
+        LATITUDE = 'latitude'
+        LONGITUDE = 'longitude'
+
     @classmethod
     def get_axis_mapping(cls):
         return {'T': cls.TIME, 'X': cls.X, 'Y': cls.Y, 'Z': cls.Z}

@@ -9,6 +9,7 @@ from numpy.testing.utils import assert_equal
 from shapely.geometry import Point
 
 from ocgis import RequestDataset, vm, env
+from ocgis.base import get_variable_names
 from ocgis.collection.field import Field
 from ocgis.constants import HeaderName
 from ocgis.exc import VariableInCollectionError, EmptySubsetError, NoUnitsError, PayloadProtectedError, \
@@ -1387,6 +1388,21 @@ class TestVariableCollection(AbstractTestInterface):
         # Test with a unique identifier.
         vc = VariableCollection(uid=45)
         self.assertEqual(vc.uid, 45)
+
+    def test_find_by_attribute(self):
+        v1 = Variable(attrs={'a': 5}, name='1')
+        v2 = Variable(attrs={'b': 5}, name='2')
+        vc = VariableCollection(variables=[v1, v2])
+
+        actual = vc.find_by_attribute('c', value=10)
+        self.assertEqual(len(actual), 0)
+
+        actual = vc.find_by_attribute('b', 5)
+        self.assertEqual(actual[0].name, v2.name)
+
+        pred = lambda x: x == 5
+        actual = vc.find_by_attribute(pred=pred)
+        self.assertEqual(get_variable_names(actual), (v1.name, v2.name))
 
     def test_getitem(self):
         vc = self.get_variablecollection()

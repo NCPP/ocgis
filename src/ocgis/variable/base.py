@@ -1742,6 +1742,39 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
         else:
             self._tags[tag] = []
 
+    def find_by_attribute(self, key=None, value=None, pred=None):
+        """
+        Find a variable by searching attributes.
+
+        :param str key: The attribute key. If ``None``, check all attribute values.
+        :param value: The value to match. Takes precedence over ``pred``.
+        :type value: <varying>
+        :param pred: A function accepting the attribute value associated with ``key``. If ``pred`` returns ``True``,
+         the variable matches.
+        :type pred: function
+        :rtype: tuple of :class:`~ocgis.Variable`
+        :raises: ValueError
+        """
+
+        ret = []
+        for v in self.values():
+            if key is None or key in v.attrs:
+                if key is None:
+                    keys = v.attrs.keys()
+                else:
+                    keys = [key]
+                for k in keys:
+                    attr_value = v.attrs[k]
+                    if value is not None:
+                        match = attr_value == value
+                    elif pred is not None:
+                        match = pred(attr_value)
+                    else:
+                        raise ValueError("Either 'value' or 'pred' must be defined (not None).")
+                    if match:
+                        ret.append(v)
+        return tuple(ret)
+
     def get_by_tag(self, tag, create=False, strict=False, names_only=False):
         """
         Tuple of variable objects that have the ``tag``.

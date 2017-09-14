@@ -590,7 +590,7 @@ def get_dimension_map_entry(axis, variables, dimensions, strict=False):
 
     # Try to find by default names.
     if not strict and len(axis_vars) == 0:
-        possible_names = CFName.get_name_mapping().get(axis, [])
+        possible_names = CFName.get_axis_mapping().get(axis, [])
         for pn in possible_names:
             if pn in list(variables.keys()):
                 axis_vars.append(variables[pn]['name'])

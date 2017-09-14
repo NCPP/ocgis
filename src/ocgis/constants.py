@@ -355,7 +355,7 @@ class CFName(object):
     AXIS = 'axis'
 
     @classmethod
-    def get_name_mapping(cls):
+    def get_axis_mapping(cls):
         return {'T': cls.TIME, 'X': cls.X, 'Y': cls.Y, 'Z': cls.Z}
 
 

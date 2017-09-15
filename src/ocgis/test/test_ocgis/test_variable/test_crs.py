@@ -11,8 +11,8 @@ from shapely.geometry.multipolygon import MultiPolygon
 import ocgis
 from ocgis import constants, vm
 from ocgis.collection.field import Field
-from ocgis.constants import WrapAction, WrappedState, ConversionFactor, OcgisUnits
-from ocgis.exc import CRSNotEquivalenError
+from ocgis.constants import WrapAction, WrappedState, ConversionFactor, OcgisUnits, CFName
+from ocgis.exc import CRSNotEquivalenError, CRSDepthNotImplemented
 from ocgis.spatial.grid import Grid
 from ocgis.test.base import TestBase, nc_scope, create_gridxy_global
 from ocgis.test.base import attr
@@ -417,6 +417,22 @@ class TestCFRotatedPole(TestBase):
             self.assertIsInstance(variable, nc.Variable)
             self.assertEqual(variable.proj4, '')
             self.assertEqual(variable.proj4_transform, rd.crs._trans_proj)
+
+
+class TestCFSpherical(TestBase):
+
+    def test_load_from_metadata(self):
+        # Test with greater depth which checks variable attributes.
+        lat = {'attrs': {CFName.STANDARD_NAME: CFName.StandardName.LATITUDE}}
+        lon = {'attrs': {CFName.STANDARD_NAME: CFName.StandardName.LONGITUDE}}
+        var = {'attrs': {}}
+        meta = {'variables': {'lat': lat, 'lon': lon, 'var': var}}
+        actual = CFSpherical.load_from_metadata('var', meta, depth=2)
+        self.assertIsInstance(actual, CFSpherical)
+
+        # Test a depth check is not supported.
+        with self.assertRaises(CRSDepthNotImplemented):
+            CFSpherical.load_from_metadata('var', meta, depth=-1)
 
 
 class TestTripole(TestBase):

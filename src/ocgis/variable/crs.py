@@ -16,7 +16,7 @@ from ocgis.constants import MPIWriteMode, WrappedState, WrapAction, KeywordArgum
     ConversionFactor, DimensionMapKey, DMK
 from ocgis.environment import osr
 from ocgis.exc import ProjectionCoordinateNotFound, ProjectionDoesNotMatch, CRSNotEquivalenError, \
-    WrappedStateEvalTargetMissing, RequestableFeature
+    WrappedStateEvalTargetMissing, RequestableFeature, CRSDepthNotImplemented
 from ocgis.spatial.wrap import GeometryWrapper, CoordinateArrayWrapper
 from ocgis.util.helpers import iter_array, get_iter
 
@@ -552,9 +552,9 @@ class CRS(CoordinateReferenceSystem):
 @six.add_metaclass(abc.ABCMeta)
 class AbstractSphericalCoordinateReferenceSystem(AbstractOcgisObject):
     _cf_attributes = {DimensionMapKey.X: {CFName.UNITS: 'degrees_east',
-                                          CFName.STANDARD_NAME: 'longitude'},
+                                          CFName.STANDARD_NAME: CFName.StandardName.LONGITUDE},
                       DimensionMapKey.Y: {CFName.UNITS: 'degrees_north',
-                                          CFName.STANDARD_NAME: 'latitude'}}
+                                          CFName.STANDARD_NAME: CFName.StandardName.LATITUDE}}
     is_wrappable = True
     is_geographic = True
 
@@ -930,13 +930,32 @@ class CFSpherical(Spherical, CFCoordinateReferenceSystem):
         Spherical.__init__(self, *args, **kwargs)
 
     @classmethod
-    def load_from_metadata(cls, var, meta, strict=False):
-        r_grid_mapping = meta['variables'][var]['attrs'].get('grid_mapping')
-        r_grid_mapping_name = meta['variables'][var]['attrs'].get('grid_mapping_name')
-        if cls.grid_mapping_name in (r_grid_mapping, r_grid_mapping_name):
-            return cls()
+    def load_from_metadata(cls, var, meta, strict=False, depth=1):
+        variables = meta['variables']
+        if depth == 1:
+            r_grid_mapping = variables[var]['attrs'].get('grid_mapping')
+            r_grid_mapping_name = variables[var]['attrs'].get('grid_mapping_name')
+            if cls.grid_mapping_name in (r_grid_mapping, r_grid_mapping_name):
+                return cls()
+            else:
+                raise ProjectionDoesNotMatch
+        elif depth == 2:
+            # Check for standard names on variables as spherical is often not defined in the metadata file.
+            found = {}
+            for k, v in cls._cf_attributes.items():
+                sn = v[CFName.STANDARD_NAME]
+                found[sn] = []
+                for vname, vmeta in variables.items():
+                    if vmeta['attrs'].get(CFName.STANDARD_NAME) == sn:
+                        found[sn].append(vname)
+            # There should be only one variable found for each standard name.
+            counts = [len(v) for v in found.values()]
+            if any([c > 1 for c in counts]) or any([c == 0 for c in counts]):
+                raise ProjectionDoesNotMatch
+            else:
+                return cls()
         else:
-            raise ProjectionDoesNotMatch
+            raise CRSDepthNotImplemented(depth)
 
 
 class CFAlbersEqualArea(CFCoordinateReferenceSystem):

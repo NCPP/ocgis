@@ -156,6 +156,13 @@ class ProjectionDoesNotMatch(CFException):
     pass
 
 
+class CRSDepthNotImplemented(CFException):
+    """Raised when a CRS depth check is not supported."""
+
+    def __init__(self, depth):
+        self.message = "Depth check not supported: {}".format(depth)
+
+
 class DimensionNotFound(CFException):
     def __init__(self, name):
         self.message = "Dimension not found: '{}'".format(name)

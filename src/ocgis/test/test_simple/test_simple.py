@@ -25,7 +25,7 @@ from ocgis import osr
 from ocgis.base import get_variable_names
 from ocgis.collection.field import Field
 from ocgis.collection.spatial import SpatialCollection
-from ocgis.constants import WrappedState, KeywordArgument, TagName, HeaderName
+from ocgis.constants import WrappedState, KeywordArgument, TagName, HeaderName, GridAbstraction
 from ocgis.exc import ExtentError, DefinitionValidationError
 from ocgis.ops.core import OcgOperations
 from ocgis.ops.interpreter import OcgInterpreter
@@ -632,7 +632,8 @@ class TestSimple(TestSimpleBase):
             self.assertEqual(ref.shape, (2, 2, 1))
             self.assertEqual(ref.get_value().flatten().mean(), 2.5)
             actual = ret.children[None].children['foo']['my_mean'].attrs
-            self.assertDictEqual(actual, {'long_name': 'Mean', 'standard_name': 'mean', 'units': 'K'})
+            self.assertDictEqual(actual, {'long_name': 'Mean', 'standard_name': 'mean', 'units': 'K',
+                                          'grid_mapping': 'latitude_longitude'})
 
     def test_calc_multivariate(self):
         rd1 = self.get_dataset()
@@ -1438,8 +1439,6 @@ class TestSimpleMPI(TestSimpleBase):
         # ocgis.env.VERBOSE = True
         # ocgis.env.DEBUG = True
         for ctr, k in enumerate(self.iter_product_keywords(keywords)):
-            # if ctr != 4: continue
-            # barrier_print(ctr, k)
             output_format = getattr(k, KeywordArgument.OUTPUT_FORMAT)
 
             if output_format in [constants.OutputFormatName.OCGIS, constants.OutputFormatName.NETCDF]:
@@ -1464,6 +1463,7 @@ class TestSimpleMPI(TestSimpleBase):
                 with vm.scoped_by_emptyable('global_extent', actual_field):
                     if not vm.is_null:
                         actual_extent = actual_field.grid.extent_global
+                        self.assertEqual(actual_field.grid.abstraction, GridAbstraction.POLYGON)
                         self.assertEqual(actual_extent, desired_extent)
 
                 data_in = actual_field.data_variables[0]

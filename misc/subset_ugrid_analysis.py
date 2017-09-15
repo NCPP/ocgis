@@ -14,7 +14,7 @@ from ocgis.test.base import nc_scope
 
 def plot_centers(path):
     rd = RequestDataset(path)
-    vc = rd.get_variable_collection()
+    vc = rd.get_raw_field()
 
     x = vc[FACE_CENTER_X].get_value()  # [::100]
     y = vc[FACE_CENTER_Y].get_value()  # [::100]
@@ -43,7 +43,7 @@ def plot_subset():
 
 def resolution():
     rd = RequestDataset(IN_PATH)
-    vc = rd.get_variable_collection()
+    vc = rd.get_raw_field()
 
     x = vc[FACE_CENTER_X].get_value()
     x = np.sort(x)
@@ -63,7 +63,7 @@ def ugrid_area():
     # path = '/home/benkoziol/htmp/src_subset_1.nc'
     path = '/home/benkoziol/l/data/ocgis/ugrid-cesm-subsetting/UGRID_1km-merge-10min_HYDRO1K-merge-nomask_c130402.nc'
     rd = RequestDataset(path)
-    vc = rd.get_variable_collection()
+    vc = rd.get_raw_field()
     vc.load()
 
     face_nodes = vc['landmesh_face_node'].get_value()
@@ -107,7 +107,7 @@ def ugrid_corner_plotting(path, show=True):
     # path = '/home/benkoziol/l/data/ocgis/ugrid-cesm-subsetting/UGRID_1km-merge-10min_HYDRO1K-merge-nomask_c130402.nc'
 
     rd = RequestDataset(path)
-    vc = rd.get_variable_collection()
+    vc = rd.get_raw_field()
     vc.load()
 
     face_nodes = vc['landmesh_face_node'].get_value()
@@ -150,7 +150,7 @@ def analyze_weights():
             f = os.path.join(folder, f)
             print f
             rd = RequestDataset(f)
-            vc = rd.get_variable_collection()
+            vc = rd.get_raw_field()
             weights = vc['S'].get_value()
             wmin, wmax = weights.min(), weights.max()
             if wmin < 0:
@@ -166,7 +166,7 @@ def check_spatial_overlap():
     src_file = '/home/benkoziol/htmp/src_subset_57.nc'
     dst_file = '/home/benkoziol/htmp/dst_subset_57.nc'
 
-    vc = RequestDataset(src_file).get_variable_collection()
+    vc = RequestDataset(src_file).get_raw_field()
     face_node_x = vc['landmesh_node_x'].get_value()
     face_node_y = vc['landmesh_node_y'].get_value()
     minx, maxx = face_node_x.min(), face_node_x.max()

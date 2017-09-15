@@ -9,12 +9,12 @@ from shapely import wkt
 from shapely.geometry import Point, box, MultiPoint, LineString
 from shapely.geometry.multilinestring import MultiLineString
 
-from ocgis import RequestDataset, vm
+from ocgis import RequestDataset, vm, Field
 from ocgis import env, CoordinateReferenceSystem
-from ocgis.constants import DMK
+from ocgis.constants import DMK, WrappedState
 from ocgis.exc import EmptySubsetError
 from ocgis.spatial.grid import Grid, get_geometry_variable
-from ocgis.test.base import attr, AbstractTestInterface
+from ocgis.test.base import attr, AbstractTestInterface, create_gridxy_global
 from ocgis.variable.base import Variable, VariableCollection
 from ocgis.variable.crs import WGS84, Spherical, Cartesian
 from ocgis.variable.dimension import Dimension
@@ -88,7 +88,7 @@ class TestGeometryVariable(AbstractTestInterface):
         vpa[:] = [Point(1, 2), Point(3, 4), Point(5, 6)]
         value = np.arange(0, 30).reshape(10, 3)
         tas = Variable(name='tas', value=value, dimensions=['time', 'ngeom'])
-        backref = VariableCollection(variables=[tas])
+        backref = Field(variables=[tas])
         pa = GeometryVariable(value=vpa, parent=backref, name='point', dimensions='ngeom')
         backref[pa.name] = pa
         return pa
@@ -172,6 +172,50 @@ class TestGeometryVariable(AbstractTestInterface):
     def test_area(self):
         gvar = self.get_geometryvariable()
         self.assertTrue(np.all(gvar.area == 0))
+
+    def test_as_shapely(self):
+        coords = (12, 3, 15, 4)
+        bbox = box(*coords)
+        gvar = GeometryVariable(value=bbox, is_bbox=True, dimensions='geom', crs=Spherical())
+        geom = gvar.as_shapely()
+        self.assertEqual(geom.bounds, coords)
+
+    def test_convert_to_geometry_coordinates_points(self):
+        pt1 = Point(1, 2, 3)
+        pt2 = Point(3, 4, 4)
+        pt3 = Point(5, 6, 5)
+        pt4 = Point(7, 8, 6)
+        crs = WGS84()
+        value = [pt1, pt2, pt3, pt4]
+        mask = [True, False, True, False]
+
+        gvar = GeometryVariable(value=value, dimensions='ngeom', crs=crs, mask=mask)
+
+        gvar_mask = gvar.get_mask().tolist()
+        self.assertEqual(mask, gvar_mask)
+        actual = gvar.convert_to()
+        self.assertEqual(actual.get_mask().tolist(), gvar_mask)
+
+        for actual_geom, desired_geom in zip(actual.get_geometry_iterable(use_mask=False), value):
+            self.assertEqual(actual_geom[1], desired_geom)
+
+        self.assertEqual(actual.crs, crs)
+
+    def test_convert_to_geometry_coordinates_polygons(self):
+        grid = create_gridxy_global(resolution=45.0)
+        geom = grid.get_abstraction_geometry()
+        geom.reshape(Dimension('n_elements', geom.size))
+
+        keywords = dict(pack=[True, False], repeat_last_node=[False, True])
+        for k in self.iter_product_keywords(keywords):
+            # print k
+            actual = geom.convert_to(pack=k.pack, repeat_last_node=k.repeat_last_node)
+
+            self.assertEqual(actual.packed, k.pack)
+            self.assertIsNotNone(actual.cindex)
+
+            for actual_geom, desired_geom in zip(actual.get_geometry_iterable(), geom.get_value().flat):
+                self.assertEqual(actual_geom[1], desired_geom)
 
     @attr('mpi')
     def test_create_ugid_global(self):
@@ -430,7 +474,7 @@ class TestGeometryVariable(AbstractTestInterface):
         self.assertEqual(si._index.bounds, [1.0, 2.0, 3.0, 4.0])
 
     def test_get_unioned(self):
-        # tdk: test with ndimensional mask
+        # TODO: Test with an n-dimensional mask.
 
         ancillary = Variable('ancillary')
         pa = self.get_geometryvariable(parent=ancillary.parent, crs=WGS84())
@@ -526,6 +570,21 @@ class TestGeometryVariable(AbstractTestInterface):
             self.assertAlmostEqual(actual.get_value().max(), 5.5466666666666677)
         else:
             self.assertIsNone(unioned)
+
+    def test_prepare(self):
+        coords = (-10.0, 40.0, 50.0, 50.0)
+        bbox = box(*coords)
+        gvar = GeometryVariable(value=bbox, dimensions='geom', crs=Spherical(), is_bbox=True,
+                                wrapped_state=WrappedState.UNWRAPPED)
+        self.assertFalse(gvar.is_prepared)
+        for _ in range(3):
+            gvar.prepare()
+            self.assertTrue(gvar.is_prepared)
+            actual = []
+            desired = [(-10.0, 40.0, 50.0, 50.0), (350.0, 40.0, 370.0, 50.0)]
+            for g in gvar.get_value().flatten()[0]:
+                actual.append(g.bounds)
+            self.assertEqual(actual, desired)
 
     def test_unwrap(self):
         geom = box(195, -40, 225, -30)

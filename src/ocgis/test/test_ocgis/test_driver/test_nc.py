@@ -11,7 +11,7 @@ from ocgis import RequestDataset
 from ocgis import env
 from ocgis.base import get_variable_names
 from ocgis.collection.field import Field
-from ocgis.constants import DimensionMapKey
+from ocgis.constants import DimensionMapKey, DMK
 from ocgis.driver.base import iter_all_group_keys
 from ocgis.driver.dimension_map import DimensionMap
 from ocgis.driver.nc import DriverNetcdf, DriverNetcdfCF, remove_netcdf_attribute, get_crs_variable
@@ -68,7 +68,7 @@ class TestDriverNetcdf(TestBase):
             ds.createDimension('a', 2)
         rd = RequestDataset(uri=path, driver='netcdf')
         self.assertIsInstance(rd.driver, DriverNetcdf)
-        vc = rd.get_variable_collection()
+        vc = rd.get_raw_field()
         self.assertEqual(len(vc), 0)
 
     def test_system_changing_field_name(self):
@@ -86,7 +86,7 @@ class TestDriverNetcdf(TestBase):
 
         rd = RequestDataset(path1)
         # rd.inspect()
-        nvc = rd.get_variable_collection()
+        nvc = rd.get_raw_field()
         nvc2 = nvc.children['vc2']
         self.assertIsNone(nvc2['var2']._value)
         self.assertEqual(nvc2.name, 'vc2')
@@ -97,7 +97,7 @@ class TestDriverNetcdf(TestBase):
         nvc.write(path2)
         rd2 = RequestDataset(path2)
         # rd2.inspect()
-        n2vc = rd2.get_variable_collection()
+        n2vc = rd2.get_raw_field()
         self.assertEqual(n2vc.children[nvc2.name].name, nvc2.name)
 
     def test_get_dist(self):
@@ -227,7 +227,7 @@ class TestDriverNetcdf(TestBase):
                 b[:] = idx
         uri = [path1, path2]
         rd = RequestDataset(uri=uri, driver=DriverNetcdf)
-        field = rd.get_variable_collection()
+        field = rd.get_raw_field()
         self.assertEqual(field['b'].get_value().tolist(), [0, 1])
 
     def test_write_variable(self):
@@ -267,7 +267,7 @@ class TestDriverNetcdf(TestBase):
         rd = RequestDataset(path_in)
         rd.metadata['dimensions']['seven']['dist'] = True
         driver = DriverNetcdf(rd)
-        vc = driver.get_variable_collection()
+        vc = driver.get_raw_field()
         with vm.scoped_by_emptyable('write', vc):
             if not vm.is_null:
                 vc.write(path_out)
@@ -288,7 +288,7 @@ class TestDriverNetcdf(TestBase):
 
         rd = RequestDataset(path_in)
         driver = DriverNetcdf(rd)
-        vc = driver.get_variable_collection()
+        vc = driver.get_raw_field()
         vc.write(path_out, dataset_kwargs={'format': 'NETCDF3_CLASSIC'}, variable_kwargs={'zlib': True})
 
         self.assertNcEqual(path_in, path_out, ignore_attributes={'var_seven': ['_FillValue']})
@@ -486,12 +486,13 @@ class TestDriverNetcdfCF(TestBase):
         with self.assertRaises(NoDataVariablesFound):
             assert driver.rd.variable
 
-    def test_get_dimension_map(self):
+    def test_create_dimension_map(self):
         d = self.get_drivernetcdf()
-        dmap = d.get_dimension_map(d.metadata_source, strict=True)
+        dmap = d.create_dimension_map(d.metadata_source, strict=True)
         desired = {'crs': {'variable': 'latitude_longitude'},
                    'time': {'variable': 'time', 'bounds': 'time_bounds', DimensionMapKey.DIMENSION: ['time'],
-                            DimensionMapKey.ATTRS: {'axis': 'T'}}}
+                            DimensionMapKey.ATTRS: {'axis': 'T'}},
+                   'driver': DriverNetcdfCF.key}
         self.assertEqual(dmap.as_dict(), desired)
 
         def _run_():
@@ -500,7 +501,7 @@ class TestDriverNetcdfCF(TestBase):
                                             'attrs': {'axis': 'X', 'bounds': 'x_bounds'},
                                             'dimensions': ('xx',)}},
                         'dimensions': {'xx': {'name': 'xx', 'size': None}}}
-            d.get_dimension_map(metadata)
+            d.create_dimension_map(metadata)
 
         self.assertWarns(OcgWarning, _run_)
 
@@ -510,9 +511,9 @@ class TestDriverNetcdfCF(TestBase):
         actual = driver.rd.dimension_map
         self.assertEqual(actual.get_variable(DimensionMapKey.LEVEL), 'does_not_exist')
         # The driver dimension map always loads from the data.
-        self.assertNotEqual(dm, driver.get_dimension_map(driver.metadata_source))
-        with self.assertRaises(ValueError):
-            driver.get_field()
+        self.assertNotEqual(dm, driver.create_dimension_map(driver.metadata_source))
+        actual = driver.get_field().dimension_map
+        self.assertEqual(actual.get_variable(DMK.LEVEL), dm['level']['variable'])
 
         # Test a dimension name is converted to a list.
         dmap = {DimensionMapKey.TIME: {DimensionMapKey.VARIABLE: 'time', DimensionMapKey.DIMENSION: 'time'}}
@@ -521,14 +522,14 @@ class TestDriverNetcdfCF(TestBase):
         actual = f.dimension_map.get_dimension(DimensionMapKey.TIME)
         self.assertEqual(actual, ['time'])
 
-    def test_get_dimension_map_no_time_axis(self):
+    def test_create_dimension_map_no_time_axis(self):
         metadata = {'variables': {'time': {'name': 'time', 'attrs': {}, 'dimensions': ['time']}},
                     'dimensions': {}}
         d = self.get_drivernetcdf()
-        dmap = d.get_dimension_map(metadata)
+        dmap = d.create_dimension_map(metadata)
         self.assertEqual(dmap.get_variable(DimensionMapKey.TIME), 'time')
 
-    def test_get_dimension_map_2d_spatial_coordinates(self):
+    def test_create_dimension_map_2d_spatial_coordinates(self):
         grid = create_gridxy_global()
         grid.expand()
         path = self.get_temporary_file_path('foo.nc')
@@ -545,7 +546,7 @@ class TestDriverNetcdfCF(TestBase):
         actual = f.dimension_map.get_dimension(DimensionMapKey.X)
         self.assertEqual(actual, ['x'])
 
-    def test_get_dimension_map_with_spatial_mask(self):
+    def test_create_dimension_map_with_spatial_mask(self):
         path = self.get_temporary_file_path('foo.nc')
         grid = create_gridxy_global()
         gmask = grid.get_mask(create=True)
@@ -554,7 +555,7 @@ class TestDriverNetcdfCF(TestBase):
         grid.parent.write(path)
         rd = RequestDataset(path)
         driver = DriverNetcdfCF(rd)
-        dmap = driver.get_dimension_map(driver.metadata_source)
+        dmap = driver.create_dimension_map(driver.metadata_source)
         self.assertIsNotNone(dmap.get_spatial_mask())
         field = rd.get()
         self.assertEqual(field.grid.get_mask().sum(), 1)

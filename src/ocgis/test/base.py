@@ -25,6 +25,7 @@ from ocgis import SourcedVariable
 from ocgis import Variable, Dimension
 from ocgis import env
 from ocgis.collection.field import Field
+from ocgis.constants import GridAbstraction, KeywordArgument
 from ocgis.spatial.geom_cabinet import GeomCabinet
 from ocgis.spatial.grid import Grid, get_geometry_variable
 from ocgis.util.helpers import get_iter, pprint_dict, get_bounds_from_1d, get_date_list, create_exact_field_value
@@ -689,9 +690,12 @@ class TestBase(unittest.TestCase):
             path = os.path.split(path)[0]
         subprocess.call(['nautilus', path])
 
-    def ncdump(self, path, header_only=True):
+    def ncdump(self, path, header_only=True, variable=None):
         cmd = ['ncdump']
-        if header_only:
+        if variable is not None:
+            cmd.append('-v')
+            cmd.append(variable)
+        if header_only and variable is None:
             cmd.append('-h')
         cmd.append(path)
         subprocess.check_call(cmd)
@@ -967,7 +971,7 @@ class AbstractTestInterface(TestBase):
         return var
 
     def get_gridxy(self, with_2d_variables=False, crs=None, with_xy_bounds=False, with_value_mask=False,
-                   with_parent=False):
+                   with_parent=False, abstraction=GridAbstraction.AUTO):
 
         dest_mpi = OcgDist()
         dest_mpi.create_dimension('xdim', 3)
@@ -1002,6 +1006,7 @@ class AbstractTestInterface(TestBase):
             if with_xy_bounds:
                 vx.set_extrapolated_bounds('xbounds', 'bounds')
                 vy.set_extrapolated_bounds('ybounds', 'bounds')
+                dest_mpi.add_dimension(vx.bounds.dimensions[-1])
 
             if with_parent:
                 np.random.seed(1)
@@ -1024,6 +1029,7 @@ class AbstractTestInterface(TestBase):
         if with_parent:
             parent = variable_collection_scatter(parent, dest_mpi)
             kwds['parent'] = parent
+        kwds[KeywordArgument.ABSTRACTION] = abstraction
 
         grid = Grid(svx, svy, **kwds)
 

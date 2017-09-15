@@ -431,6 +431,13 @@ class TestDimension(AbstractTestInterface):
             self.assertNumpyAll(actual, desired)
             self.assertFalse(np.may_share_memory(slc, sub._src_idx))
 
+    def test_getitem_source_indexing_big_values(self):
+        """Test very large source indexing."""
+
+        dim = Dimension(name='big', size=742528506, src_idx='auto')
+        sub = dim[1000]
+        self.assertEqual(sub._src_idx, (1000, 1001))
+
     def test_is_matched_by_alias(self):
         dim = Dimension('non_standard_time')
         dim.append_alias('time')

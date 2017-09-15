@@ -1,21 +1,22 @@
 import abc
 import itertools
 import tempfile
-from copy import copy, deepcopy
+from copy import deepcopy
 
 import numpy as np
 import six
 from fiona.crs import from_string, to_string
-from shapely.geometry import Point, Polygon
+from shapely.geometry import Point, Polygon, box
 from shapely.geometry.base import BaseMultipartGeometry
+from shapely.geometry.multipolygon import MultiPolygon
 
 from ocgis import constants
 from ocgis.base import AbstractInterfaceObject, raise_if_empty, AbstractOcgisObject
 from ocgis.constants import MPIWriteMode, WrappedState, WrapAction, KeywordArgument, CFName, OcgisUnits, \
-    ConversionFactor, DimensionMapKey
+    ConversionFactor, DimensionMapKey, DMK
 from ocgis.environment import osr
 from ocgis.exc import ProjectionCoordinateNotFound, ProjectionDoesNotMatch, CRSNotEquivalenError, \
-    WrappedStateEvalTargetMissing
+    WrappedStateEvalTargetMissing, RequestableFeature
 from ocgis.spatial.wrap import GeometryWrapper, CoordinateArrayWrapper
 from ocgis.util.helpers import iter_array, get_iter
 
@@ -23,7 +24,7 @@ SpatialReference = osr.SpatialReference
 
 
 @six.add_metaclass(abc.ABCMeta)
-class AbstractCRS(AbstractOcgisObject):
+class AbstractCRS(AbstractInterfaceObject):
     """
     Base class for all OCGIS coordinate systems. Intended to allow differentiation between standard PROJ.4 coordinate
     systems and specialized OCGIS-supported coordinate systems.
@@ -45,18 +46,17 @@ class AbstractCRS(AbstractOcgisObject):
         return self._angular_units
 
     @property
+    def dist(self):
+        """Here for variable compatibility."""
+        return False
+
+    @property
     def linear_units(self):
         return self._linear_units
 
     @property
     def attrs(self):
         return {}
-
-    def copy(self):
-        return copy(self)
-
-    def deecopy(self):
-        return deepcopy(self)
 
     @property
     def has_initialized_parent(self):
@@ -101,32 +101,30 @@ class AbstractCRS(AbstractOcgisObject):
     def convert_to_empty(self):
         pass
 
-    def format_field(self, field, is_transform=False):
+    def format_spatial_object(self, spatial_obj, is_transform=False):
         """
-        :param field: The field to format.
-        :type field: :class:`~ocgis.Field`
-        :param bool is_transform: If ``True``, this is a coordinate system tranformation format. CF attributes should be
-         removed. If ``False``, this is for a write and attributes should be left as is or overwritten if explicitly
-         defined by the coordinate system.
+        :param spatial_obj: The spatial object to format.
+        :type spatial_obj: <varying>
+        :param bool is_transform: If ``True``, this is a coordinate system transformation format call. CF attributes
+         should be removed. If ``False``, this is for a write and attributes should be left as is or overwritten if
+         explicitly defined by the coordinate system.
         """
-
         # No changes to geometry variables.
         from ocgis.variable.geom import GeometryVariable
-        if isinstance(field, GeometryVariable):
+        if isinstance(spatial_obj, GeometryVariable):
             return
 
         # Allows grids to be modified in addition to fields.
-        if hasattr(field, 'data_variables'):
-            for data_variable in field.data_variables:
-                field[data_variable.name].attrs[CFName.GRID_MAPPING] = self.name
+        if hasattr(spatial_obj, 'data_variables'):
+            for data_variable in spatial_obj.data_variables:
+                data_variable.attrs[CFName.GRID_MAPPING] = self.name
 
         # Add CF attributes to coordinate variables.
         if self._cf_attributes is None and is_transform:
-            targets = [field.x, field.y]
+            targets = spatial_obj.coordinate_variables
             for target in targets:
-                if target is not None:
-                    for attr_key in self._cf_attributes_to_remove:
-                        target.attrs.pop(attr_key, None)
+                for attr_key in self._cf_attributes_to_remove:
+                    target.attrs.pop(attr_key, None)
         elif self._cf_attributes is not None:
 
             def _update_attr_(target, name, value, clobber=False):
@@ -134,8 +132,11 @@ class AbstractCRS(AbstractOcgisObject):
                 if name not in attrs or (name in attrs and clobber):
                     attrs[name] = value
 
-            updates = {field.x: self._cf_attributes[DimensionMapKey.X],
-                       field.y: self._cf_attributes[DimensionMapKey.Y]}
+            updates = {}
+            for c in spatial_obj.coordinate_variables:
+                i = spatial_obj.dimension_map.inquire_is_xyz(c)
+                if i != DMK.LEVEL:
+                    updates[c] = self._cf_attributes[i]
 
             for target, name_values in updates.items():
                 if target is not None:
@@ -187,8 +188,9 @@ class AbstractCRS(AbstractOcgisObject):
         :type target: :class:`~ocgis.Field`
         """
         # TODO: Wrapped state should operate on the x-coordinate variable vectors or geometries only.
+        # TODO: This should be a method on grids and geometry variables.
         from ocgis.collection.field import Field
-        from ocgis.spatial.grid import Grid
+        from ocgis.spatial.grid import Grid, GridUnstruct
         from ocgis import vm
 
         raise_if_empty(self)
@@ -198,10 +200,14 @@ class AbstractCRS(AbstractOcgisObject):
             ret = None
         else:
             if isinstance(target, Field):
-                if target.grid is not None:
-                    target = target.grid
+                grid = target.grid
+                if grid is not None:
+                    target = grid
                 else:
                     target = target.geom
+
+            if isinstance(target, GridUnstruct):
+                raise RequestableFeature('Wrapping not supported with unstructured grids.')
 
             if target is None:
                 raise WrappedStateEvalTargetMissing
@@ -233,6 +239,35 @@ class AbstractCRS(AbstractOcgisObject):
         ret = vm.bcast(ret)
 
         return ret
+
+    def prepare_geometry_variable(self, subset_geom, rhs_tol=10.0):
+        """
+        Prepared a geometry variable for subsetting. This method:
+
+        * Appropriately wraps subset geometries for spherical coordinate systems.
+
+        :param subset_geom: The geometry variable to prepare.
+        :type subset_geom: :class:`~ocgis.GeometryVariable`
+        :param float rhs_tol: The amount, in matching coordinate system units, to buffer the right hand selection
+         geometry.
+        :return:
+        """
+
+        assert subset_geom.size == 1
+        if self.is_wrappable and subset_geom.is_bbox and subset_geom.wrapped_state == WrappedState.UNWRAPPED:
+            svalue = subset_geom.get_value()
+            buffered_bbox = svalue[0].bounds
+            if buffered_bbox[0] < 0.:
+                bbox_rhs = list(deepcopy(buffered_bbox))
+                bbox_rhs[0] = buffered_bbox[0] + 360.
+                bbox_rhs[2] = 360. + rhs_tol
+
+                bboxes = [buffered_bbox, bbox_rhs]
+            else:
+                bboxes = [buffered_bbox]
+            bboxes = [box(*b) for b in bboxes]
+            if len(bboxes) > 1:
+                svalue[0] = MultiPolygon(bboxes)
 
     def wrap_or_unwrap(self, action, target):
         from ocgis.variable.geom import GeometryVariable
@@ -475,7 +510,7 @@ class CoordinateReferenceSystem(AbstractProj4CRS, AbstractInterfaceObject):
     def convert_to_empty(self):
         pass
 
-    def extract(self):
+    def extract(self, *args, **kwargs):
         return self
 
     def get_mask(self):
@@ -523,13 +558,13 @@ class AbstractSphericalCoordinateReferenceSystem(AbstractOcgisObject):
     is_wrappable = True
     is_geographic = True
 
-    def format_field(self, *args, **kwargs):
+    def format_spatial_object(self, *args, **kwargs):
         if self.angular_units == OcgisUnits.RADIANS:
             msg = '{} are not acceptable units for field formatting. Must be {}.'
             msg = msg.format(OcgisUnits.RADIANS, OcgisUnits.DEGREES)
             raise ValueError(msg)
 
-        super(AbstractSphericalCoordinateReferenceSystem, self).format_field(*args, **kwargs)
+        super(AbstractSphericalCoordinateReferenceSystem, self).format_spatial_object(*args, **kwargs)
 
     def transform_coordinates(self, other_crs, x, y, z, inverse=False):
         """
@@ -986,9 +1021,9 @@ class CFRotatedPole(CFCoordinateReferenceSystem):
 
     def update_with_rotated_pole_transformation(self, grid, inverse=False):
         """
-        :type spatial: :class:`ocgis.interface.base.dimension.spatial.SpatialDimension`
+        :type grid: :class:`~ocgis.Grid`
         :param bool inverse: If ``True``, this is an inverse transformation.
-        :rtype: :class:`ocgis.interface.base.dimension.spatial.SpatialDimension`
+        :rtype: :class:`~ocgis.Grid`
         """
         assert grid.crs.is_geographic or isinstance(grid.crs, CFRotatedPole)
 

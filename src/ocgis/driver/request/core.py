@@ -73,9 +73,9 @@ class RequestDataset(AbstractRequestObject):
 
     >>> t_conform_units_to = 'days since 1949-1-1'
 
-    :param str grid_abstraction: Abstract the geometry data to either ``'point'`` or ``'polygon'``. If ``'polygon'`` is 
-     not possible due to missing bounds, ``'point'`` will be used instead. If ``'auto'`` (the default), identify the 
-     grid abstraction automatically.
+    :param str grid_abstraction: Abstract the geometry data to either ``'point'`` or ``'polygon'``. If ``'polygon'`` is
+     not possible due to missing bounds, ``'point'`` will be used instead. If ``'auto'`` (the default), identify the
+     grid abstraction automatically. Unstructured data formats also allow for ``'line'``.
 
     .. note:: The ``abstraction`` argument in :class:`~ocgis.OcgOperations` will overload this.
 
@@ -214,11 +214,6 @@ class RequestDataset(AbstractRequestObject):
             return self.__dict__ == other.__dict__
         else:
             return False
-
-    # tdk: remove
-    @property
-    def _name(self):
-        raise NotImplementedError
 
     def __iter__(self):
         attrs = ['variable', 'units', 'conform_units_to']
@@ -373,7 +368,6 @@ class RequestDataset(AbstractRequestObject):
 
     @property
     def time_subset_func(self):
-        # tdk: implement
         return self._time_subset_func.value
 
     @time_subset_func.setter
@@ -403,11 +397,6 @@ class RequestDataset(AbstractRequestObject):
             m = self.metadata['variables']
             for v, u in zip(get_tuple(self.variable), value):
                 m[v]['attrs']['units'] = u
-
-    # tdk: remove
-    @property
-    def _units(self):
-        raise NotImplementedError
 
     @property
     def uri(self):
@@ -450,11 +439,13 @@ class RequestDataset(AbstractRequestObject):
             kwargs['name'] = name
         return self.driver.get_field(*args, **kwargs)
 
-    def get_variable_collection(self, **kwargs):
+    def get_raw_field(self, **kwargs):
         """
-        :rtype: `VariableCollection`
+        Return a raw field with no metadata interpretation.
+
+        :rtype: :class:`~ocgis.Field`
         """
-        return self.driver.get_variable_collection(**kwargs)
+        return self.driver.get_raw_field(**kwargs)
 
     def inspect(self):
         """

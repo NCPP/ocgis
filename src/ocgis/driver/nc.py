@@ -1,4 +1,5 @@
 import logging
+from abc import ABCMeta
 from collections import OrderedDict
 from copy import deepcopy
 from warnings import warn
@@ -11,14 +12,14 @@ from netCDF4._netCDF4 import VLType, MFDataset, MFTime
 from ocgis import constants, vm
 from ocgis import env
 from ocgis.base import orphaned, raise_if_empty
+from ocgis.collection.field import Field
 from ocgis.constants import MPIWriteMode, DimensionMapKey, KeywordArgument, DriverKey, CFName, SourceIndexType
 from ocgis.driver.base import AbstractDriver, driver_scope
-from ocgis.driver.dimension_map import DimensionMap
-from ocgis.exc import ProjectionDoesNotMatch, PayloadProtectedError, OcgWarning, NoDataVariablesFound
+from ocgis.exc import ProjectionDoesNotMatch, PayloadProtectedError, OcgWarning, NoDataVariablesFound, \
+    GridDeficientError
 from ocgis.util.helpers import itersubclasses, get_iter, get_formatted_slice, get_by_key_list, is_auto_dtype, get_group
 from ocgis.util.logging_ocgis import ocgis_lh
-from ocgis.variable.base import SourcedVariable, ObjectType, VariableCollection, \
-    get_slice_sequence_using_local_bounds
+from ocgis.variable.base import SourcedVariable, ObjectType, get_slice_sequence_using_local_bounds
 from ocgis.variable.crs import CFCoordinateReferenceSystem, CoordinateReferenceSystem
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.temporal import TemporalVariable
@@ -45,7 +46,8 @@ class DriverNetcdf(AbstractDriver):
     def get_variable_for_writing_temporal(cls, temporal_variable):
         return temporal_variable.value_numtime
 
-    def get_variable_collection(self, **kwargs):
+    def get_raw_field(self, **kwargs):
+        """See superclass :meth:`ocgis.driver.base.AbstractDriver.get_raw_field`."""
         with driver_scope(self) as ds:
             ret = read_from_collection(ds, self.rd, parent=None, uid=kwargs.pop('uid', None))
         return ret
@@ -235,25 +237,43 @@ class DriverNetcdf(AbstractDriver):
         return ret
 
 
-class DriverNetcdfCF(DriverNetcdf):
-    """
-    Metadata-aware netCDF driver.
-    """
-    key = DriverKey.NETCDF_CF
-    _default_crs = env.DEFAULT_COORDSYS
-    _priority = True
+@six.add_metaclass(ABCMeta)
+class AbstractDriverNetcdfCF(DriverNetcdf):
+    def create_dimension_map(self, group_metadata, strict=False):
+        dmap = super(AbstractDriverNetcdfCF, self).create_dimension_map(group_metadata, strict=strict)
 
-    def get_dimension_map(self, group_metadata, strict=False):
-        # Get dimension variable metadata. This involves checking for the presence of any bounds variables.
+        # Check for time, level, and realization variables. This involves checking for the presence of any bounds
+        # variables.
+        axes = {'realization': 'R', 'time': 'T', 'level': 'Z'}
+        entries = self._create_dimension_map_entries_dict_(axes, group_metadata, strict)
+        self._update_dimension_map_with_entries_(entries, dmap)
+
+        # Check for coordinate system variables. This will check every variable.
+        crs_name = get_coordinate_system_variable_name(self, group_metadata)
+        if crs_name is not None:
+            dmap.set_crs(crs_name)
+
+        # Check for a spatial mask.
+        variables = group_metadata['variables']
+        for varname, var in variables.items():
+            if 'ocgis_role' in var.get('attrs', {}):
+                if var['attrs']['ocgis_role'] == 'spatial_mask':
+                    dmap.set_spatial_mask(varname, attrs=var['attrs'])
+                    break
+
+        return dmap
+
+    @staticmethod
+    def _create_dimension_map_entries_dict_(axes, group_metadata, strict):
         variables = group_metadata['variables']
         dimensions = group_metadata['dimensions']
-        axes = {'realization': 'R', 'time': 'T', 'level': 'Z', 'x': 'X', 'y': 'Y'}
         check_bounds = list(axes.keys())
-        check_bounds.pop(check_bounds.index('realization'))
+        if 'realization' in check_bounds:
+            check_bounds.pop(check_bounds.index('realization'))
 
         # Get the main entry for each axis.
         for k, v in list(axes.items()):
-            axes[k] = get_dimension_map_entry(v, variables, dimensions, strict=strict)
+            axes[k] = create_dimension_map_entry(v, variables, dimensions, strict=strict)
 
         # Attempt to find bounds for each entry (ignoring realizations).
         for k in check_bounds:
@@ -269,24 +289,33 @@ class DriverNetcdfCF(DriverNetcdf):
                         ocgis_lh(msg, logger='nc.driver', level=logging.WARNING)
                         bounds_var = None
                 axes[k]['bounds'] = bounds_var
+        entries = {k: v for k, v in list(axes.items()) if v is not None}
+        return entries
 
-        # Create the template dimension map dictionary.
-        ret = {k: v for k, v in list(axes.items()) if v is not None}
+    @staticmethod
+    def _update_dimension_map_with_entries_(entries, dimension_map):
+        for k, v in entries.items():
+            variable_name = v.pop('variable')
+            dimension_map.set_variable(k, variable_name, **v)
 
-        # Check for coordinate system variables. This will check every variable.
-        crs_name = get_coordinate_system_variable_name(self, group_metadata)
-        if crs_name is not None:
-            ret[DimensionMapKey.CRS] = {DimensionMapKey.VARIABLE: crs_name}
 
-        ret = DimensionMap.from_dict(ret)
+class DriverNetcdfCF(AbstractDriverNetcdfCF):
+    """
+    Metadata-aware netCDF driver interpreting CF-Grid by default.
+    """
+    key = DriverKey.NETCDF_CF
+    _default_crs = env.DEFAULT_COORDSYS
+    _priority = True
 
-        # Check for a spatial mask.
-        for varname, var in group_metadata['variables'].items():
-            if 'ocgis_role' in var.get('attrs', {}):
-                if var['attrs']['ocgis_role'] == 'spatial_mask':
-                    ret.set_spatial_mask(varname, attrs=var['attrs'])
+    def create_dimension_map(self, group_metadata, strict=False):
+        dmap = super(DriverNetcdfCF, self).create_dimension_map(group_metadata, strict=strict)
 
-        return ret
+        # Get dimension variable metadata. This involves checking for the presence of any bounds variables.
+        axes = {'x': 'X', 'y': 'Y'}
+        entries = self._create_dimension_map_entries_dict_(axes, group_metadata, strict)
+        self._update_dimension_map_with_entries_(entries, dmap)
+
+        return dmap
 
     @staticmethod
     def get_data_variable_names(group_metadata, group_dimension_map):
@@ -329,6 +358,15 @@ class DriverNetcdfCF(DriverNetcdf):
             ret = None
         return ret
 
+    @staticmethod
+    def get_grid(field):
+        from ocgis import Grid
+        try:
+            ret = Grid(parent=field)
+        except GridDeficientError:
+            ret = None
+        return ret
+
     def _get_crs_main_(self, group_metadata):
         return get_crs_variable(group_metadata)
 
@@ -336,11 +374,9 @@ class DriverNetcdfCF(DriverNetcdf):
     def _get_field_write_target_(cls, field):
         """Collective!"""
 
-        # These changes to the field can be maintained following a write.
         if field.crs is not None:
-            field.crs.format_field(field)
+            field.crs.format_spatial_object(field)
 
-        # Putting units on bounds for netCDF-CF can confuse some parsers.
         grid = field.grid
         if grid is not None:
             # If any grid pieces are masked, ensure the mask is created across all grids.
@@ -356,6 +392,7 @@ class DriverNetcdfCF(DriverNetcdf):
             if create_mask and not grid.has_mask:
                 grid.get_mask(create=True)
 
+            # Putting units on bounds for netCDF-CF can confuse some parsers.
             if grid.has_bounds:
                 field = field.copy()
                 field.x.bounds.attrs.pop('units', None)
@@ -385,8 +422,7 @@ def read_from_collection(target, request_dataset, parent=None, name=None, source
     except NoDataVariablesFound:
         rename_variable_map = {}
 
-    ret = VariableCollection(attrs=get_netcdf_attributes(target), parent=parent, name=name, source_name=source_name,
-                             uid=uid)
+    ret = Field(attrs=get_netcdf_attributes(target), parent=parent, name=name, source_name=source_name, uid=uid)
     pred = request_dataset.predicate
     for varname, ncvar in target.variables.items():
         if pred is not None and not pred(varname):
@@ -429,7 +465,7 @@ def init_variable_using_metadata_for_netcdf(variable, metadata):
 
         variable_attrs = variable._attrs
         # Offset and scale factors are not supported by OCGIS. The data is unpacked when written to a new output file.
-        # tdk: consider supporting offset and scale factors
+        # TODO: Consider supporting offset and scale factors for write operations.
         exclude = ['add_offset', 'scale_factor']
         for k, v in list(var['attrs'].items()):
             if k in exclude:
@@ -466,8 +502,6 @@ def get_dimensions_from_netcdf_metadata(metadata, desired_dimensions):
         else:
             length = dim_length
             length_current = None
-        # tdk: identify best method to remove the need to set 'auto' when creating a source index
-        # new_dim = Dimension(dim_name, size=length, size_current=length_current)
         new_dim = Dimension(dim_name, size=length, size_current=length_current, src_idx='auto')
         new_dimensions.append(new_dim)
     return new_dimensions
@@ -578,7 +612,7 @@ def get_crs_variable(metadata, to_search=None):
     return crs
 
 
-def get_dimension_map_entry(axis, variables, dimensions, strict=False):
+def create_dimension_map_entry(axis, variables, dimensions, strict=False):
     axis_vars = []
     for variable in list(variables.values()):
         vattrs = variable['attrs']

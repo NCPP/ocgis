@@ -102,5 +102,5 @@ setup(
               'test_more': TestMoreCommandOcgis,
               'test_all': TestAllCommandOcgis},
     install_requires=['numpy', 'netCDF4', 'fiona', 'shapely', 'pyproj', 'six', 'gdal'],
-    tests_require=['nose']
+    tests_require=['nose', 'mock']
 )

@@ -10,6 +10,13 @@ from ocgis.util.helpers import pprint_dict
 
 @six.add_metaclass(abc.ABCMeta)
 class AbstractCollection(AbstractOcgisObject):
+    """
+    Base class for collection objects which simply wraps an ordered dictionary.
+
+    :param initial_data: If provided, use this as the initial internal storage.
+    :type initial_data: :class:`collections.OrderedDict`
+    """
+
     def __init__(self, initial_data=None):
         if initial_data is None:
             self._storage = OrderedDict()

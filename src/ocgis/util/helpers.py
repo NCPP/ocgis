@@ -88,9 +88,31 @@ def format_bool(value):
     return ret
 
 
+def arange_from_bool_ndarray(arr, start=0, **kwargs):
+    """
+    Create a collapsed range from ``start`` to the sum of ``True`` elements in ``arr`` plus one.
+
+    :param arr: The boolean array to use as a filter for the range creation.
+    :type arr: :class:`numpy.ndarray`
+    :param int start: The start index for the range array.
+    :param kwargs: Additional arguments to array creation.
+    :return: An integer range array.
+    :rtype: :class:`numpy.ndarray`
+    """
+
+    ret = np.zeros(arr.sum(), **kwargs)
+    ret_idx = 0
+    for idx in range(arr.shape[0]):
+        if arr[idx]:
+            ret[ret_idx] = idx + start
+            ret_idx += 1
+    return ret
+
+
 def arange_from_dimension(dim, start=0, dtype=int, dist=True):
     """
-    Create a sequential integer range similar to ``numpy.arange``.
+    Create a sequential integer range similar to ``numpy.arange``. Call is collective across the current
+    :class:`~ocgis.OcgVM` if ``dist=True`` (the default).
 
     :param dim: The dimension to use for creating the range.
     :type dim: :class:`~ocgis.Dimension`
@@ -691,7 +713,6 @@ def get_trimmed_array_by_mask(arr, return_adjustments=False):
     :raises NotImplementedError:
     :returns: :class:`numpy.ma.MaskedArray` or (:class:`numpy.ma.MaskedArray', {'row':slice(...),'col':slice(...)})
     """
-
     assert arr.ndim <= 2
 
     has_col = False
@@ -709,52 +730,38 @@ def get_trimmed_array_by_mask(arr, return_adjustments=False):
 
     # Row 0 to end.
     start_row = 0
-    masked_rows = [start_row]
     for idx_row in range(arr.shape[0]):
-        if _mask[idx_row, ...].all():
-            start_row += 1
-            masked_rows.append(start_row)
-        else:
+        if not _mask[idx_row, ...].all():
+            start_row = idx_row
             break
-    start_row = max(masked_rows)
 
     # Row end to 0.
-    stop_row = _mask.shape[0]
-    masked_rows = [stop_row]
-    for adjust in range(arr.shape[0]):
-        adjust += 1
-        row_to_test = stop_row - adjust
-        if _mask[row_to_test, ...].all():
-            masked_rows.append(row_to_test)
-        else:
+    row_count = _mask.shape[0]
+    stop_row = row_count
+    for idx_row in range(row_count):
+        row_to_test = row_count - (idx_row + 1)
+        if not _mask[row_to_test, ...].all():
+            stop_row = row_to_test + 1
             break
-    stop_row = min(masked_rows)
 
     if arr.ndim == 2:
         has_col = True
 
         # col 0 to end.
         start_col = 0
-        masked_cols = [start_col]
         for idx_col in range(arr.shape[1]):
-            if _mask[:, idx_col].all():
-                start_col += 1
-                masked_cols.append(start_col)
-            else:
+            if not _mask[:, idx_col].all():
+                start_col = idx_col
                 break
-        start_col = max(masked_cols)
 
         # col end to 0.
-        stop_col = _mask.shape[1]
-        masked_cols = [stop_col]
-        for adjust in range(arr.shape[1]):
-            adjust += 1
-            col_to_test = stop_col - adjust
-            if _mask[:, col_to_test].all():
-                masked_cols.append(col_to_test)
-            else:
+        col_count = _mask.shape[1]
+        stop_col = col_count
+        for idx_col in range(col_count):
+            col_to_test = col_count - (idx_col + 1)
+            if not _mask[:, col_to_test].all():
+                stop_col = col_to_test + 1
                 break
-        stop_col = min(masked_cols)
 
     slc = [slice(start_row, stop_row)]
 
@@ -1032,44 +1039,49 @@ def create_unique_global_array(arr):
     if arr is None:
         raise ValueError('Input must be a NumPy array.')
 
-    from ocgis.vmachine.mpi import rank_print
-    rank_print('starting np.unique')
     unique_local = np.unique(arr)
-    rank_print('finished np.unique')
-
-    rank_print('waiting at barrier1')
     vm.barrier()
 
-    tag_unique_count = MPITag.UNIQUE_GLOBAL_COUNT
-    tag_unique_check = MPITag.UNIQUE_GLOBAL_CHECK
+    local_bounds = min(unique_local), max(unique_local)
+    lb_global = vm.gather(local_bounds)
+    lb_global = vm.bcast(lb_global)
 
-    for root_rank in vm.ranks:
-        rank_print('root_rank=', root_rank)
-
-        if vm.rank == root_rank:
-            has_unique_local = len(unique_local) != 0
-        else:
-            has_unique_local = None
-        has_unique_local = vm.bcast(has_unique_local, root=root_rank)
-
-        if has_unique_local:
-            if vm.rank == root_rank:
-                for rank in vm.ranks:
-                    if rank != vm.rank:
-                        vm.comm.send(len(unique_local), dest=rank, tag=tag_unique_count)
-                for u in unique_local:
-                    for rank in vm.ranks:
-                        if rank != vm.rank:
-                            vm.comm.send(u, dest=rank, tag=tag_unique_check)
+    # Find the vm ranks the local rank cares about. It cares if unique values have overlapping unique bounds.
+    overlaps = []
+    for rank, lb in enumerate(lb_global):
+        if rank == vm.rank:
+            continue
+        contains = []
+        for lb2 in local_bounds:
+            if lb[0] <= lb2 <= lb[1]:
+                to_app = True
             else:
-                recv_count = vm.comm.recv(source=root_rank, tag=tag_unique_count)
-                for _ in range(recv_count):
-                    u = vm.comm.recv(source=root_rank, tag=tag_unique_check)
-                    if u in unique_local:
-                        select = np.invert(unique_local == u)
-                        unique_local = unique_local[select]
-        rank_print('waiting at barrier 2')
-        vm.barrier()
+                to_app = False
+            contains.append(to_app)
+        if any(contains) or (local_bounds[0] <= lb[0] and local_bounds[1] >= lb[1]):
+            overlaps.append(rank)
+
+    # Send out the overlapping sources.
+    tag_overlap = MPITag.OVERLAP_CHECK
+    vm.barrier()
+    for o in overlaps:
+        if vm.rank != o and vm.rank < o:
+            dest_rank_bounds = lb_global[o]
+            select_send = np.logical_and(unique_local >= dest_rank_bounds[0], unique_local <= dest_rank_bounds[1])
+            _ = vm.comm.isend(unique_local[select_send], dest=o, tag=tag_overlap)
+    # Receive and process conflicts to reduce the unique local values.
+    if vm.rank != 0:
+        for o in overlaps:
+            if vm.rank != o and vm.rank > o:
+                req = vm.comm.irecv(source=o, tag=tag_overlap)
+                u_src = req.wait()
+                utokeep = np.ones_like(unique_local, dtype=bool)
+                for uidx, u in enumerate(unique_local.flat):
+                    if u in u_src:
+                        utokeep[uidx] = False
+                unique_local = unique_local[utokeep]
+
+    vm.barrier()
     return unique_local
 
 
@@ -1235,14 +1247,6 @@ def get_temp_path(suffix='', name=None, nest=False, only_dir=False, wd=None, dir
     return str(ret)
 
 
-def get_local_to_global_slices(slices_global, slices_local):
-    # tdk: optimize: remove np.arange
-    ga = [np.arange(s.start, s.stop) for s in slices_global]
-    lm = [get_optimal_slice_from_array(ga[idx][slices_local[idx]]) for idx in range(len(slices_local))]
-    lm = tuple(lm)
-    return lm
-
-
 def get_group(ddict, keyseq, has_root=True, create=False, last=None):
     keyseq = deepcopy(keyseq)
     if last is None:
@@ -1282,3 +1286,36 @@ def get_or_create_dict(dct, key, default):
     if key not in dct:
         dct[key] = default
     return dct[key]
+
+
+def find_index(seqs, to_find):
+    """
+    Find the first matching index of a sequence of scalar values in ``to_find`` that match the first unique index
+    in the sequence of arrays in ``seq``.
+
+    :param seqs: A sequence of :class:`numpy.ndarray` objects with the same length as ``to_find``.
+    :type seqs: sequence
+    :param to_find: A sequence of scalar objects to search ``seqs`` for.
+    :type to_find: sequence
+    :return: The integer index value for ``to_find``'s location in ``seqs``.
+    :rtype: int
+    """
+    seqs = [np.array(s) for s in seqs]
+
+    selects = []
+    for seq_idx, seq in enumerate(seqs):
+        selects.append(seq == to_find[seq_idx])
+
+    reduced = None
+    for idx, curr_select in enumerate(selects):
+        if reduced is None:
+            reduced = curr_select
+        else:
+            reduced = np.logical_and(reduced, curr_select)
+
+    try:
+        found_idx = np.where(reduced)[0][0]
+    except IndexError:
+        found_idx = None
+
+    return found_idx

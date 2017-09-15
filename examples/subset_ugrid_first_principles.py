@@ -36,7 +36,7 @@ ocgis.env.CLOBBER_UNITS_ON_BOUNDS = False
 def get_subset(bbox, subset_filename, buffer_width, rhs_tol=10.):
     rd = ocgis.RequestDataset(uri=IN_PATH)
     rd.metadata['dimensions']['nlandmesh_face']['dist'] = True
-    vc = rd.get_variable_collection()
+    vc = rd.get_raw_field()
 
     # ------------------------------------------------------------------------------------------------------------------
     # Subset the face centers and accumulate the indices of face centers occurring inside the bounding box selection.

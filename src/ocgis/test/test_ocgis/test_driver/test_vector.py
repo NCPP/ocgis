@@ -220,13 +220,13 @@ class TestDriverVector(TestBase):
         driver = self.get_driver()
         actual = driver.get_dist().mapping[MPI_RANK]
         desired = {None: {
-            'variables': {'STATE_FIPS': {'dimensions': ('ocgis_geom',)},
-                          'STATE_ABBR': {'dimensions': ('ocgis_geom',)},
-                          'UGID': {'dimensions': ('ocgis_geom',)},
-                          'ID': {'dimensions': ('ocgis_geom',)},
-                          'STATE_NAME': {'dimensions': ('ocgis_geom',)}},
+            'variables': {'STATE_FIPS': {'dimensions': ('ocgis_ngeom',)},
+                          'STATE_ABBR': {'dimensions': ('ocgis_ngeom',)},
+                          'UGID': {'dimensions': ('ocgis_ngeom',)},
+                          'ID': {'dimensions': ('ocgis_ngeom',)},
+                          'STATE_NAME': {'dimensions': ('ocgis_ngeom',)}},
             'dimensions': {
-                'ocgis_geom': Dimension(name='ocgis_geom', size=51, size_current=51, dist=True, src_idx='auto')},
+                'ocgis_ngeom': Dimension(name='ocgis_ngeom', size=51, size_current=51, dist=True, src_idx='auto')},
             'groups': {}}}
         self.assertEqual(actual, desired)
 
@@ -254,9 +254,9 @@ class TestDriverVector(TestBase):
         self.assertPrivateValueIsNone(sub)
         self.assertEqual(len(sub.dimensions[DimensionName.GEOMETRY_DIMENSION]), 3)
 
-    def test_get_variable_collection(self):
+    def test_get_raw_field(self):
         driver = self.get_driver()
-        vc = driver.get_variable_collection()
+        vc = driver.get_raw_field()
         self.assertEqual(len(vc), 7)
         for v in list(vc.values()):
             if not isinstance(v, CoordinateReferenceSystem):

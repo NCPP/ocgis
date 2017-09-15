@@ -1,4 +1,3 @@
-import subprocess
 import time
 from copy import deepcopy
 
@@ -52,7 +51,8 @@ class Test(TestBase):
                                   geom='state_boundaries',
                                   select_ugid=[2, 9, 12, 23, 25],
                                   add_auxiliary_files=False,
-                                  callback=callback)
+                                  callback=callback,
+                                  agg_selection=True)
         ret = compute(ops, 3, verbose=False)
         hundreds = np.array(percentages)
         hundreds = hundreds >= 100.0
@@ -72,7 +72,8 @@ class Test(TestBase):
                                           geom='state_boundaries',
                                           select_ugid=[2, 9, 12, 23, 25],
                                           add_auxiliary_files=False,
-                                          prefix=str(ii) + str(use_optimizations))
+                                          prefix=str(ii) + str(use_optimizations),
+                                          agg_selection=True)
                 compute(ops, 5, verbose=False, use_optimizations=use_optimizations)
                 t2 = time.time()
                 t[use_optimizations].append(t2 - t1)
@@ -89,7 +90,8 @@ class Test(TestBase):
         ops = ocgis.OcgOperations(dataset=[rd, rd2], calc=calc, calc_grouping=['month'], output_format='nc',
                                   geom='state_boundaries',
                                   select_ugid=[2, 9, 12, 23, 25],
-                                  add_auxiliary_files=False)
+                                  add_auxiliary_files=False,
+                                  agg_selection=True)
         ret = compute(ops, 5, verbose=False)
 
         ops.prefix = 'ocgis'
@@ -105,7 +107,8 @@ class Test(TestBase):
                                   calc_grouping=None, output_format='nc',
                                   geom='state_boundaries',
                                   select_ugid=[2, 9, 12, 23, 25],
-                                  add_auxiliary_files=False)
+                                  add_auxiliary_files=False,
+                                  agg_selection=True)
         ret = compute(ops, 5, verbose=False)
 
         ops.prefix = 'ocgis'
@@ -120,7 +123,8 @@ class Test(TestBase):
                                   calc_grouping=['month'], output_format='nc',
                                   geom='state_boundaries',
                                   select_ugid=[2, 9, 12, 23, 25],
-                                  add_auxiliary_files=False)
+                                  add_auxiliary_files=False,
+                                  agg_selection=True)
         ret = compute(ops, 5, verbose=False)
 
         ops.prefix = 'ocgis'
@@ -135,7 +139,8 @@ class Test(TestBase):
                                   calc_grouping=['month'], output_format='nc',
                                   geom='state_boundaries',
                                   select_ugid=[2, 9, 12, 23, 25],
-                                  add_auxiliary_files=False)
+                                  add_auxiliary_files=False,
+                                  agg_selection=True)
         ret = compute(ops, 5, verbose=False)
 
         ops.prefix = 'ocgis'
@@ -154,7 +159,8 @@ class Test(TestBase):
                                   select_ugid=[2, 9, 12, 23, 25],
                                   output_format='nc',
                                   prefix='sub',
-                                  add_auxiliary_files=False)
+                                  add_auxiliary_files=False,
+                                  agg_selection=True)
         sub = ops.execute()
 
         # use the compute function

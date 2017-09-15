@@ -89,10 +89,11 @@ class SpatialSubsetOperation(AbstractOcgisObject):
         # Buffer the subset if a buffer value is provided.
         if buffer_value is not None:
             geom = self._get_buffered_geometry_(geom, buffer_value, buffer_crs=buffer_crs)
-
-        self._prepare_target_()
         prepared = self._prepare_geometry_(geom)
         base_geometry = prepared.get_value().flatten()[0]
+
+        # Prepare the target field.
+        self._prepare_target_()
 
         # execute the spatial operation
         if operation == 'intersects':
@@ -178,12 +179,12 @@ class SpatialSubsetOperation(AbstractOcgisObject):
 
     def _prepare_geometry_(self, geom):
         """
-        Compare ``subset_sdim`` geographic state with ``target`` and perform any necessary transformations to ensure a
+        Compare ``geom`` geographic state with the target field and perform any necessary transformations to ensure a
         smooth subset operation.
 
-        :param subset_sdim: The input object to use for subsetting of ``target``.
-        :type subset_sdim: :class:`ocgis.interface.base.dimension.spatial.SpatialDimension`
-        :rtype: :class:`ocgis.interface.base.dimension.spatial.SpatialDimension`
+        :param geom: The input geometry to use for subsetting.
+        :type geom: :class:`~ocgis.GeometryVariable`
+        :rtype: :class:`~ocgis.GeometryVariable`
         """
         assert isinstance(geom, GeometryVariable)
 

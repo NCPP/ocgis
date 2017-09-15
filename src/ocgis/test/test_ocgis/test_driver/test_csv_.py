@@ -36,7 +36,7 @@ class TestDriverCSV(TestBase):
         path_out = self.get_temporary_file_path('foo_out.csv')
 
         rd = RequestDataset(uri=path)
-        vc = rd.get_variable_collection()
+        vc = rd.get_raw_field()
 
         for v in list(vc.values()):
             self.assertIsNotNone(v.get_value())
@@ -44,7 +44,7 @@ class TestDriverCSV(TestBase):
         field = rd.get()
         self.assertIsInstance(field, Field)
 
-        vc.write(path_out, driver=DriverCSV)
+        field.write(path_out, driver=DriverCSV)
 
         self.assertCSVFilesEqual(path, path_out)
 
@@ -68,11 +68,11 @@ class TestDriverCSV(TestBase):
 
         rd = RequestDataset(in_path)
         list(rd.metadata['dimensions'].values())[0]['dist'] = True
-        vc = rd.get_variable_collection()
+        field = rd.get_field()
 
-        with vm.scoped_by_emptyable('vc.write', vc):
+        with vm.scoped_by_emptyable('vc.write', field):
             if not vm.is_null:
-                vc.write(out_path, driver=DriverCSV)
+                field.write(out_path, driver=DriverCSV)
 
         if MPI_RANK == 0:
             self.assertCSVFilesEqual(in_path, out_path)

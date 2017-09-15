@@ -16,7 +16,7 @@ from ocgis.driver.dimension_map import DimensionMap
 from ocgis.exc import DefinitionValidationError, NoDataVariablesFound, DimensionMapError, VariableMissingMetadataError
 from ocgis.util.helpers import get_group
 from ocgis.util.logging_ocgis import ocgis_lh
-from ocgis.variable.base import SourcedVariable, VariableCollection
+from ocgis.variable.base import SourcedVariable
 from ocgis.variable.dimension import Dimension
 from ocgis.vmachine.mpi import find_dimension_in_sequence, OcgDist
 
@@ -48,9 +48,10 @@ class AbstractDriver(AbstractOcgisObject):
     def __str__(self):
         return '"{0}"'.format(self.key)
 
-    # tdk: remove me
     @property
     def crs(self):
+        """Blocks setting the CRS attribute on a driver."""
+
         raise NotImplementedError
 
     @property
@@ -65,7 +66,7 @@ class AbstractDriver(AbstractOcgisObject):
     @property
     def dimension_map_raw(self):
         if self._dimension_map_raw is None:
-            self._dimension_map_raw = get_dimension_map_raw(self, self.metadata_raw)
+            self._dimension_map_raw = create_dimension_map_raw(self, self.metadata_raw)
         return self._dimension_map_raw
 
     @property
@@ -124,9 +125,16 @@ class AbstractDriver(AbstractOcgisObject):
             ret = crs
         return ret
 
-    def get_dimension_map(self, group_metadata):
-        """:rtype: :class:`ocgis.DimensionMap`"""
-        return DimensionMap()
+    def create_dimension_map(self, group_metadata, **kwargs):
+        """
+        Create a dimension map for a group from its metadata.
+
+        :param dict group_metadata: Group metadata to use when creating the dimension map.
+        :rtype: :class:`~ocgis.DimensionMap`
+        """
+        ret = DimensionMap()
+        ret.set_driver(self.key)
+        return ret
 
     @staticmethod
     def get_data_variable_names(group_metadata, group_dimension_map):
@@ -175,7 +183,6 @@ class AbstractDriver(AbstractOcgisObject):
             for variable_name, variable_meta in list(group_meta['variables'].items()):
                 ompi.add_variable(variable_name, dimensions=variable_meta['dimensions'], group=group_index)
 
-        # tdk: this will have to be moved to account for slicing
         ompi.update_dimension_bounds()
         return ompi
 
@@ -203,23 +210,20 @@ class AbstractDriver(AbstractOcgisObject):
         return lines
 
     def get_field(self, *args, **kwargs):
-        vc = kwargs.pop('vc', None)
+        raw_field = kwargs.pop('raw_field', None)
         format_time = kwargs.pop(KeywordArgument.FORMAT_TIME, True)
-        if KeywordArgument.GRID_ABSTRACTION in kwargs:
-            grid_abstraction = kwargs.pop(KeywordArgument.GRID_ABSTRACTION)
-        else:
-            grid_abstraction = constants.UNINITIALIZED
+        grid_abstraction = kwargs.pop(KeywordArgument.GRID_ABSTRACTION, self.rd.grid_abstraction)
 
-        if vc is None:
+        if raw_field is None:
             # Get the raw variable collection from source.
             new_kwargs = kwargs.copy()
             new_kwargs['source_name'] = None
-            vc = self.get_variable_collection(*args, **new_kwargs)
+            raw_field = self.get_raw_field(*args, **new_kwargs)
 
         # Get the appropriate metadata for the collection.
-        group_metadata = self.get_group_metadata(vc.group, self.metadata_source)
+        group_metadata = self.get_group_metadata(raw_field.group, self.metadata_source)
         # Always pull the dimension map from the request dataset. This allows it to be overloaded.
-        dimension_map = self.get_group_metadata(vc.group, self.rd.dimension_map)
+        dimension_map = self.get_group_metadata(raw_field.group, self.rd.dimension_map)
 
         # Modify the coordinate system variable. If it is overloaded on the request dataset, then the variable
         # collection needs to be updated to hold the variable and any alternative coordinate systems needs to be
@@ -239,9 +243,9 @@ class AbstractDriver(AbstractOcgisObject):
             elif crs is not None:
                 to_add = crs
         if to_remove is not None:
-            vc.pop(to_remove, None)
+            raw_field.pop(to_remove, None)
         if to_add is not None:
-            vc.add_variable(to_add, force=True)
+            raw_field.add_variable(to_add, force=True)
         # Overload the dimension map with the CRS.
         if to_add is not None:
             # dimension_map[DimensionMapKey.CRS][DimensionMapKey.VARIABLE] = to_add.name
@@ -249,14 +253,15 @@ class AbstractDriver(AbstractOcgisObject):
 
         # Remove the mask variable if present in the raw dimension map and the source dimension map is set to None.
         if self.rd.dimension_map.get_spatial_mask() is None and self.dimension_map_raw.get_spatial_mask() is not None:
-            vc.pop(self.dimension_map_raw.get_spatial_mask())
+            raw_field.pop(self.dimension_map_raw.get_spatial_mask())
 
         # Convert the raw variable collection to a field.
-        kwargs['dimension_map'] = dimension_map
+        # TODO: Identify a way to remove this code block; field should be appropriately initialized; format_time and grid_abstraction are part of a dimension map.
+        kwargs[KeywordArgument.DIMENSION_MAP] = dimension_map
         kwargs[KeywordArgument.FORMAT_TIME] = format_time
         if grid_abstraction != constants.UNINITIALIZED:
             kwargs[KeywordArgument.GRID_ABSTRACTION] = grid_abstraction
-        field = Field.from_variable_collection(vc, *args, **kwargs)
+        field = Field.from_variable_collection(raw_field, *args, **kwargs)
 
         # If this is a source grid for regridding, ensure the flag is updated.
         field.regrid_source = self.rd.regrid_source
@@ -286,10 +291,21 @@ class AbstractDriver(AbstractOcgisObject):
 
         # Load child fields.
         for child in list(field.children.values()):
-            kwargs['vc'] = child
+            kwargs['raw_field'] = child
             field.children[child.name] = self.get_field(*args, **kwargs)
 
         return field
+
+    @staticmethod
+    def get_grid(field):
+        """
+        Construct a grid object and return it. If a grid object may not be constructed, return ``None``.
+
+        :param field: The field object to use for constructing the grid.
+        :type field: :class:`~ocgis.Field`
+        :rtype: :class:`ocgis.spatial.grid.AbstractGrid` | ``None``
+        """
+        raise NotImplementedError
 
     @staticmethod
     def get_group_metadata(group_index, metadata, has_root=False):
@@ -316,7 +332,6 @@ class AbstractDriver(AbstractOcgisObject):
         return metadata_subclass
 
     def get_source_metadata_as_json(self):
-        # tdk: test
 
         def _jsonformat_(d):
             for k, v in d.items():
@@ -334,19 +349,24 @@ class AbstractDriver(AbstractOcgisObject):
         _jsonformat_(meta)
         return json.dumps(meta)
 
-    def get_variable_collection(self, **kwargs):
+    def get_raw_field(self, **kwargs):
         """
-        :rtype: :class:`ocgis.new_interface.variable.VariableCollection`
+        Create a raw field object by adding variables to it. The dimension map creation is handled by the superclass in
+        :meth:`ocgis.driver.base.AbstractDriver`. This may be overloaded by subclasses.
+
+        :rtype: :class:`~ocgis.Field`
         """
 
-        if KeywordArgument.DRIVER not in kwargs:
-            kwargs[KeywordArgument.DRIVER] = self
         dimension = list(self.dist.get_group(rank=vm.rank)['dimensions'].values())[0]
-        ret = VariableCollection(**kwargs)
+        ret = Field(**kwargs)
         for v in list(self.metadata_source['variables'].values()):
             nvar = SourcedVariable(name=v['name'], dimensions=dimension, dtype=v['dtype'], request_dataset=self.rd)
             ret.add_variable(nvar)
         return ret
+
+    def get_variable_collection(self, **kwargs):
+        """Here for backwards compatibility."""
+        return self.get_raw_field(**kwargs)
 
     def get_variable_metadata(self, variable_object):
         variable_metadata = get_variable_metadata_from_request_dataset(self, variable_object)
@@ -697,7 +717,7 @@ def format_attribute_for_dump_report(attr_value):
     return ret
 
 
-def get_dimension_map_raw(driver, group_metadata):
+def create_dimension_map_raw(driver, group_metadata):
     ret = DimensionMap.from_metadata(driver, group_metadata)
     return ret
 

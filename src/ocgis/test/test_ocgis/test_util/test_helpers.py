@@ -235,6 +235,16 @@ class Test2(TestBase):
             records = list(sci)
         self.assertAsSetEqual([6, 60], [xx['properties']['new_id'] for xx in records])
 
+    def test_arange_from_bool_ndarray(self):
+        arr = np.array([False, True, True, False, True])
+        actual = arange_from_bool_ndarray(arr, start=2, dtype=np.int32)
+        actual = actual.tolist()
+        self.assertEqual(actual, [3, 4, 6])
+
+        arr = np.array([False, False, False])
+        actual = arange_from_bool_ndarray(arr)
+        self.assertEqual(actual.shape, (0,))
+
     @attr('mpi')
     def test_arange_from_dimension(self):
         dist = OcgDist()
@@ -293,13 +303,17 @@ class Test2(TestBase):
 
     @attr('mpi')
     def test_create_unique_global_array(self):
+        self.add_barrier = False
         dist = OcgDist()
         dist.create_dimension('dim', 9, dist=True)
         dist.update_dimension_bounds()
 
-        values = [[4, 2, 1, 2, 1, 4, 1, 4, 2],
+        values = [
+            [4, 2, 1, 2, 1, 4, 1, 4, 2],
                   [44, 25, 16, 27, 18, 49, 10, 41, 22],
-                  [44, 25, 16, 27, 44, 49, 10, 41, 44]]
+            [44, 25, 16, 27, 44, 49, 10, 41, 44],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1]
+        ]
 
         for v in values:
             if vm.rank == 0:

@@ -146,12 +146,12 @@ class TemporalVariable(SourcedVariable):
             ret = False
         return ret
 
-    def as_record(self, *args, **kwargs):
+    def _as_record_(self, *args, **kwargs):
         add_parts = kwargs.pop('add_parts', True)
         pytype_primitives = kwargs.get('pytype_primitives', False)
         if pytype_primitives:
             kwargs['formatter'] = str
-        ret = super(TemporalVariable, self).as_record(*args, **kwargs)
+        ret = super(TemporalVariable, self)._as_record_(*args, **kwargs)
         if add_parts and self.format_time:
             value = self._get_iter_value_().flatten()[0]
 
@@ -1078,13 +1078,12 @@ def iter_boolean_groups_from_time_regions(time_regions, tvar, yield_subset=False
     >>> [[{'month':[1,2],'year':[2024]},...],...]
 
     :param tvar: A temporal variable object.
-    :type tvar: :class:`ocgis.interface.base.dimension.temporal.TemporalDimension`
+    :type tvar: :class:`ocgis.TemporalVariable`
     :param bool yield_subset: If ``True``, yield a tuple with the subset of ``tvar``.
     :param bool raise_if_incomplete: If ``True``, raise an exception if the season is incomplete.
     :returns: boolean ndarray vector with yld.shape == tvar.shape
     :raises: IncompleteSeasonError
     """
-    # tdk: fix doc for tvar
     for sub_time_regions in time_regions:
         # incomplete seasons are searched for in the nested loop. this indicates if a time region group should be
         # considered a season.

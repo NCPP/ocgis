@@ -33,18 +33,19 @@ class SpatialIndex(object):
 
     def iter_intersects(self, shapely_geom, arr, keep_touches=True):
         """
-        Return an interator for the unique identifiers of the geometries intersecting the target geometry.
+        Return an iterator for the unique identifiers of the geometries intersecting the target geometry.
 
-        :param :class:`shapely.geometry.Geometry` shapely_geom: The geometry to use for subsetting. It is the ``bounds``
-         attribute fo the geometry that is actually tested.
-        :param dict geom_mapping: The collection of geometries to do the full intersects test on. The keys of the
-         dictionary correspond to the integer unique identifiers. The values are Shapely geometries.
+        :param shapely_geom: The geometry to use for subsetting. It is the ``bounds`` attribute fo the geometry that is
+         actually tested.
+        :type shapely_geom: :class:`shapely.geometry.Geometry`
+        :param arr: Array of geometry objects to spatially evaluate.
+        :type arr: :class:`~numpy.ndarray`
         :param bool keep_touches: If ``True``, return the unique identifiers of geometries only touching the subset
          geometry.
         :returns: Generator yield integer unique identifiers.
         :rtype: int
         """
-        # tdk: update doc
+
         # Create the geometry iterator. If it is a multi-geometry, we want to iterator over those individually.
         try:
             itr = iter(shapely_geom)

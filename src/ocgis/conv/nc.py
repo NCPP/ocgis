@@ -1,26 +1,23 @@
 import datetime
-import os
 
-import six
-import logging
 import numpy as np
+import six
+
 import ocgis
 from ocgis import RequestDataset
-from ocgis import env, vm
+from ocgis import env
 from ocgis.calc.base import AbstractMultivariateFunction, AbstractKeyedOutputFunction
 from ocgis.calc.engine import CalculationEngine
 from ocgis.calc.eval_function import MultivariateEvalFunction
+from ocgis.constants import DimensionName
 from ocgis.constants import HeaderName, VariableName
-from ocgis.constants import MPIWriteMode, DimensionName
-from ocgis.conv.base import _write_dataset_identifier_file_, _write_source_meta_
 from ocgis.constants import KeywordArgument
 from ocgis.conv.base import AbstractCollectionConverter
 from ocgis.driver.nc import DriverNetcdf
-from ocgis.exc import DefinitionValidationError
-from ocgis.util.logging_ocgis import ocgis_lh
-from ocgis.vmachine.mpi import MPI_RANK
-from ocgis.ops.engine import get_data_model
 from ocgis.environment import get_dtype
+from ocgis.exc import DefinitionValidationError
+from ocgis.ops.engine import get_data_model
+
 
 class NcConverter(AbstractCollectionConverter):
     """
@@ -111,10 +108,9 @@ class NcConverter(AbstractCollectionConverter):
             _raise_(msg, OutputFormat)
 
         if not ops.aggregate and not ops.agg_selection and ops.geom and len(ops.geom) > 1:
-            msg = 'Multiple geometries must either be unioned (agg_selection) ' \
-                  'or aggregated (aggregate).'
+            msg = 'Multiple geometries must either be unioned (agg_selection=True) ' \
+                  'or aggregated (aggregate=True).'
             _raise_(msg, OutputFormat)
-
 
     def _preformatting_(self, i, coll):
         """

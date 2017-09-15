@@ -10,12 +10,12 @@ from shapely.geometry import Point
 from shapely.geometry import box
 from shapely.geometry.base import BaseGeometry
 
-from ocgis import RequestDataset, vm
+from ocgis import RequestDataset, vm, DimensionMap
 from ocgis import constants
 from ocgis.base import get_variable_names
 from ocgis.collection.field import Field
 from ocgis.collection.spatial import SpatialCollection
-from ocgis.constants import HeaderName, KeywordArgument, DriverKey, DimensionMapKey
+from ocgis.constants import HeaderName, KeywordArgument, DriverKey, DimensionMapKey, DMK
 from ocgis.conv.nc import NcConverter
 from ocgis.driver.csv_ import DriverCSV
 from ocgis.driver.nc import DriverNetcdf
@@ -72,6 +72,11 @@ class TestField(AbstractTestInterface):
         f = Field(geom=g)
         actual = f.dimension_map.get_dimension(DimensionMapKey.GEOM)
         self.assertEqual(actual, ['the_geom_dim'])
+
+        # Test dimension map does not have any entries at initialization.
+        actual = Field()
+        desired = actual.dimension_map.as_dict()
+        self.assertEqual(len(desired), 0)
 
     def test_system_crs_and_grid_abstraction(self):
         f = Field(grid_abstraction='point')
@@ -270,16 +275,31 @@ class TestField(AbstractTestInterface):
 
     def test_grid(self):
         # Test mask variable information is propagated through property.
-        grid = self.get_gridxy()
+        grid = self.get_gridxy(with_xy_bounds=True)
+        self.assertTrue(grid.is_vectorized)
+        self.assertTrue(grid.has_bounds)
         np.random.seed(1)
         value = np.random.rand(*grid.shape)
         select = value > 0.4
         mask_var = create_grid_mask_variable('nonstandard', select, grid.dimensions)
         grid.set_mask(mask_var)
         field = Field(grid=grid)
+        self.assertTrue(field.grid.has_bounds)
         self.assertEqual(field.dimension_map.get_spatial_mask(), mask_var.name)
-        # field.dimension_map.pprint()
         self.assertNumpyAll(field.grid.get_mask(), mask_var.get_mask())
+
+        # Test dimension map bounds are updated appropriately.
+        dim = Dimension('count', 2)
+        x = Variable(name='x', value=[1., 2.], dimensions=dim)
+        y = Variable(name='y', value=[1., 2.], dimensions=dim)
+        xb = Variable(name='xb', value=[[0., 1.5], [1.5, 2.5]], dimensions=[dim, 'bounds'])
+        yb = Variable(name='yb', value=[[0., 1.5], [1.5, 2.5]], dimensions=[dim, 'bounds'])
+        variables = [x, y, xb, yb]
+        dmap = DimensionMap()
+        dmap.set_variable(DMK.X, x, bounds=xb)
+        dmap.set_variable(DMK.Y, y, bounds=yb)
+        f = Field(dimension_map=dmap, variables=variables)
+        self.assertTrue(f.grid.has_bounds)
 
     def test_iter(self):
         field = self.get_ocgfield_example()
@@ -288,7 +308,7 @@ class TestField(AbstractTestInterface):
 
         geom2 = field.geom.deepcopy()
         geom2.set_name('geom2')
-        geom2.extract()
+        geom2 = geom2.extract()
         field.add_variable(geom2)
         self.assertIn(geom2.name, field)
 
@@ -350,10 +370,32 @@ class TestField(AbstractTestInterface):
 
         tas2 = field['tas'].deepcopy()
         tas2.set_name('tas2')
-        tas2.extract()
+        tas2 = tas2.extract()
 
         field.add_variable(tas2, is_data=True)
         self.assertIsNotNone(list(field.iter(melted=True)))
+
+    def test_set_geom(self):
+        f = Field()
+        self.assertIsNone(f.crs)
+
+        g = GeometryVariable(value=[Point(1, 2)], dimensions='geom', crs=Spherical())
+
+        f.set_geom(g)
+
+    def test_set_x(self):
+        f = Field()
+        var = Variable('x', value=[1, 2], dimensions='xdim')
+        f.set_x(var, 'xdim')
+
+        var2 = Variable('x2', value=[3, 4], dimensions='xdim2')
+        f.set_x(var2, 'xdim2')
+
+        self.assertNotIn(var.name, f)
+
+        f.set_x(None, None)
+        self.assertEqual(len(f), 0)
+        self.assertIsNone(f.x)
 
     def test_time(self):
         units = [None, 'days since 2012-1-1']
@@ -372,7 +414,7 @@ class TestField(AbstractTestInterface):
             var = k.variable_type(name='time', value=value, attrs=attrs, dimensions=['one'])
             bounds_var = k.bounds_variable_type(name='time_bnds', value=bounds, dimensions=['one', 'two'])
             f = Field(variables=[var, bounds_var], dimension_map=dimension_map)
-            self.assertTrue(len(f.dimension_map._storage) > 1)
+            self.assertTrue(len(f.dimension_map._storage) == 1)
             self.assertTrue(f.time.has_bounds)
             self.assertIsInstance(f.time, TemporalVariable)
             self.assertIsInstance(f.time.bounds, TemporalVariable)

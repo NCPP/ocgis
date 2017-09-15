@@ -7,26 +7,14 @@ import numpy as np
 from ocgis import vm
 from ocgis.constants import DataType
 from ocgis.test.base import attr, AbstractTestInterface
-from ocgis.util.helpers import get_local_to_global_slices
 from ocgis.variable.base import Variable, VariableCollection
 from ocgis.variable.dimension import Dimension
 from ocgis.vmachine.mpi import MPI_SIZE, MPI_COMM, create_nd_slices, hgather, \
     get_optimal_splits, get_rank_bounds, OcgDist, get_global_to_local_slice, MPI_RANK, variable_scatter, \
-    variable_collection_scatter, variable_gather, gather_ranks, get_standard_comm_state, \
-    get_nonempty_ranks, barrier_ranks, bcast_ranks
+    variable_collection_scatter, variable_gather, get_standard_comm_state, get_nonempty_ranks
 
 
 class Test(AbstractTestInterface):
-    @attr('mpi')
-    def test_barrier_ranks(self):
-        if MPI_SIZE != 3 and MPI_SIZE != 1:
-            raise SkipTest('serial or mpi-3 only')
-
-        barrier_ranks([0])
-
-        ranks = [0, 2]
-        if MPI_RANK != 1:
-            barrier_ranks(ranks)
 
     @attr('mpi')
     def test_groups(self):
@@ -48,28 +36,6 @@ class Test(AbstractTestInterface):
         if new_comm != COMM_NULL:
             sub_group.Free()
             new_comm.Free()
-
-    @attr('mpi')
-    def test_gather_ranks(self):
-        if MPI_SIZE != 3 and MPI_SIZE != 1:
-            raise SkipTest('serial or mpi-3 only')
-
-        value = 33
-        for root in range(MPI_SIZE):
-            gathered = gather_ranks([0], value, root=root)
-            if MPI_RANK == root:
-                self.assertEqual(gathered, [33])
-            else:
-                self.assertIsNone(gathered)
-
-        if MPI_SIZE == 3:
-            for root in range(MPI_SIZE):
-                ranks = [1, 2]
-                gathered = gather_ranks(ranks, MPI_RANK + 10, root=root)
-                if MPI_RANK == root:
-                    self.assertEqual(gathered, [11, 12])
-                else:
-                    self.assertIsNone(gathered)
 
     @attr('mpi')
     def test_get_nonempty_ranks(self):
@@ -179,14 +145,6 @@ class Test(AbstractTestInterface):
         res = get_rank_bounds(6, size=5, rank=6)
         self.assertIsNone(res)
 
-    def test_get_local_to_global_slices(self):
-        # tdk: consider removing this function
-        slices_global = (slice(2, 4, None), slice(0, 2, None))
-        slices_local = (slice(0, 1, None), slice(0, 2, None))
-
-        lm = get_local_to_global_slices(slices_global, slices_local)
-        self.assertEqual(lm, (slice(2, 3, None), slice(0, 2, None)))
-
     def test_get_global_to_local_slice(self):
         start_stop = (1, 4)
         bounds_local = (0, 3)
@@ -228,28 +186,6 @@ class Test(AbstractTestInterface):
         bounds_local = (12, 15)
         with self.assertRaises(ValueError):
             _ = get_global_to_local_slice(start_stop, bounds_local)
-
-    @attr('mpi')
-    def test_bcast_ranks(self):
-        if MPI_SIZE != 3 and MPI_SIZE != 1:
-            raise SkipTest('serial or mpi-3 only')
-
-        actual = bcast_ranks([0], 50)
-
-        if MPI_RANK == 0:
-            self.assertEqual(actual, 50)
-        else:
-            self.assertIsNone(actual)
-
-        actual = bcast_ranks([0, 2], 50)
-        if MPI_RANK == 1:
-            self.assertEqual(actual, None)
-        else:
-            self.assertEqual(actual, 50)
-
-        if MPI_RANK != 1:
-            actual = bcast_ranks([0, 2], 50)
-            self.assertEqual(actual, 50)
 
     @attr('mpi')
     def test_variable_collection_scatter(self):
@@ -361,6 +297,7 @@ class Test(AbstractTestInterface):
 
         dest_dist = OcgDist()
         five = dest_dist.create_dimension('five', 5, src_idx=np.arange(5), dist=True)
+        bounds = dest_dist.create_dimension('bounds', 2)
         dest_dist.update_dimension_bounds()
 
         if MPI_RANK == 0:

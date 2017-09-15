@@ -12,7 +12,7 @@ from ocgis.driver.request.core import RequestDataset
 from ocgis.driver.request.multi_request import MultiRequestDataset
 from ocgis.ops.core import OcgOperations
 from ocgis.calc.library.register import FunctionRegistry
-from ocgis.spatial.grid import Grid
+from ocgis.spatial.grid import Grid, GridUnstruct
 from ocgis.spatial.geom_cabinet import GeomCabinet, GeomCabinetIterator, ShpCabinet, ShpCabinetIterator
 from ocgis.util.zipper import format_return
 from ocgis.variable import crs
@@ -21,6 +21,7 @@ from ocgis.collection.field import Field
 from ocgis.collection.spatial import SpatialCollection
 from ocgis.variable.temporal import TemporalVariable
 from ocgis.variable.geom import GeometryVariable
+from ocgis.spatial.geomc import PolygonGC, LineGC, PointGC
 
-__version__ = '2.0.0'
-__release__ = '2.0.0'
+__version__ = '2.0.0.dev'
+__release__ = '2.0.0.dev'

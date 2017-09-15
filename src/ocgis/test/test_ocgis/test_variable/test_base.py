@@ -173,6 +173,10 @@ class TestVariable(AbstractTestInterface):
         var = Variable('woot', uid=50)
         self.assertEqual(var.uid, 50)
 
+        # Test setting is_empty to True.
+        v = Variable(is_empty=True)
+        self.assertTrue(v.is_empty)
+
     def test_init_dtype(self):
         """Test automatic data type detection."""
 
@@ -390,7 +394,7 @@ class TestVariable(AbstractTestInterface):
                        repeat_record=OrderedDict([('key', 'min'), ('src', 'foo_origin')]))
 
         desired = OrderedDict([('DID', None), ('foo', 1), ('key', 'min'), ('src', 'foo_origin')])
-        actual = var.as_record()
+        actual = var._as_record_()
         self.assertDictEqual(actual, desired)
 
     def test_bounds(self):
@@ -540,7 +544,7 @@ class TestVariable(AbstractTestInterface):
         ancillary = Variable('ancillary')
         src = Variable('src', parent=ancillary.parent)
         csrc = src.copy()
-        csrc.extract()
+        csrc = csrc.extract()
 
         self.assertNotIn(ancillary.name, csrc.parent)
         self.assertIn(ancillary.name, src.parent)
@@ -703,12 +707,7 @@ class TestVariable(AbstractTestInterface):
 
         var = Variable(name='data', value=[1, 2, 3, 4], dtype=float, dimensions='dim')
         var.set_extrapolated_bounds('data_bounds', 'bounds')
-        # print var.get_value()
-        # print var.bounds.get_value()
-
         sub = var.get_between(2., 3.)
-        # print sub.get_value()
-        # print sub.bounds.get_value()
 
     def test_get_between_use_bounds(self):
         value = [3., 5.]
@@ -755,7 +754,7 @@ class TestVariable(AbstractTestInterface):
             raise SkipTest('vm.size != 2')
 
         dist = OcgDist()
-        dim1 = dist.create_dimension('dim1', size=7, dist=True)
+        dim1 = dist.create_dimension('dim1', size=7, dist=True, src_idx='auto')
         dim2 = dist.create_dimension('dim2', size=4)
         dist.update_dimension_bounds()
 
@@ -782,6 +781,20 @@ class TestVariable(AbstractTestInterface):
             desired = [[1.0, 1.0, 1.0, 1.0], [3.0, 3.0, 3.0, 3.0], [5.0, 5.0, 5.0, 5.0]]
             actual = gvar.get_value().tolist()
             self.assertEqual(actual, desired)
+
+        # Test when all are False.
+        slices = {0: np.array([False, False, False, False]),
+                  1: np.array([True, True, True])}
+        for k, v in slices.items():
+            v = [v, slice(None)]
+            slices[k] = v
+        sub = var.get_distributed_slice(slices[vm.rank])
+        if vm.rank == 0:
+            self.assertTrue(sub.is_empty)
+        else:
+            self.assertFalse(sub.is_empty)
+            self.assertEqual(sub.get_value().sum(), 60)
+            self.assertEqual(sub.dimensions[0]._src_idx.tolist(), [4, 5, 6])
 
     @attr('mpi')
     def test_get_distributed_slice_parent_variables(self):
@@ -823,6 +836,7 @@ class TestVariable(AbstractTestInterface):
 
     @attr('mpi')
     def test_get_distributed_slice_simple(self):
+        self.add_barrier = False
         if MPI_RANK == 0:
             path = self.get_temporary_file_path('out.nc')
         else:
@@ -1314,7 +1328,7 @@ class TestSourcedVariable(AbstractTestInterface):
         vc.write(path)
 
         rd = RequestDataset(path)
-        vc_ff = rd.get_variable_collection()
+        vc_ff = rd.get_raw_field()
         svar = vc_ff[var1.name]
         svar2 = vc_ff[var2.name]
         svar.protected = True
@@ -1557,7 +1571,7 @@ class TestVariableCollection(AbstractTestInterface):
         self.assertNotIn(v2.name, vc)
         self.assertNotIn('two', vc.dimensions)
 
-        vc.remove_variable(v1)
+        v1 = vc.remove_variable(v1)
         self.assertNotIn(v1.name, vc)
         self.assertNotIn(v1.bounds.name, vc)
         self.assertNotIn(v1.bounds.dimensions[1].name, vc.dimensions)

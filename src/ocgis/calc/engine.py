@@ -148,6 +148,11 @@ class CalculationEngine(object):
                 # Tag the calculation data as data variables.
                 out_field.append_to_tags(function_tag, list(out_vc.keys()))
 
+                # Update the field if there is a CRS. This will ensure accurate tagging of data variables.
+                if out_field.crs is not None:
+                    # print 'here'
+                    out_field.crs.format_spatial_object(out_field)
+
                 coll.children[ugid].children[field_name] = out_field
         return coll
 

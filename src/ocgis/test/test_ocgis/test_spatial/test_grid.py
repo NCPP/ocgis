@@ -4,6 +4,7 @@ from copy import deepcopy
 from unittest import SkipTest
 
 import fiona
+import mock
 import numpy as np
 from numpy.testing.utils import assert_equal
 from shapely import wkt
@@ -14,11 +15,15 @@ from shapely.geometry.base import BaseGeometry
 from ocgis import RequestDataset, vm
 from ocgis.base import get_variable_names
 from ocgis.collection.field import Field
-from ocgis.constants import KeywordArgument
+from ocgis.constants import KeywordArgument, GridAbstraction, DMK, VariableName, Topology
+from ocgis.driver.dimension_map import DimensionMap
 from ocgis.driver.nc import DriverNetcdfCF
+from ocgis.driver.nc_ugrid import DriverNetcdfUGRID
 from ocgis.exc import EmptySubsetError, BoundsAlreadyAvailableError
-from ocgis.spatial.grid import Grid, expand_grid, GridGeometryProcessor
-from ocgis.test.base import attr, AbstractTestInterface, create_gridxy_global
+from ocgis.spatial.geomc import AbstractGeometryCoordinates, PointGC, PolygonGC
+from ocgis.spatial.grid import Grid, expand_grid, GridGeometryProcessor, GridUnstruct, create_grid_mask_variable
+from ocgis.test.base import attr, AbstractTestInterface, create_gridxy_global, TestBase
+from ocgis.test.test_ocgis.test_spatial.test_geomc import FixturePointGC, FixturePolygonGC
 from ocgis.util.helpers import make_poly, iter_array
 from ocgis.variable.base import Variable, SourcedVariable
 from ocgis.variable.crs import WGS84, CoordinateReferenceSystem, Spherical, Cartesian
@@ -135,6 +140,8 @@ class TestGrid(AbstractTestInterface):
         # Test a field is always the parent of a grid.
         grid = self.get_gridxy()
         self.assertIsInstance(grid.parent, Field)
+        self.assertIsInstance(grid.parent.grid, Grid)
+        self.assertIsNotNone(grid.abstraction)
 
         crs = WGS84()
         grid = self.get_gridxy(crs=crs)
@@ -171,6 +178,48 @@ class TestGrid(AbstractTestInterface):
             self.assertIsInstance(t, GeometryVariable)
         self.assertTrue(grid.is_vectorized)
 
+        # Test initializing with 2D variables.
+        grid = self.get_gridxy(with_2d_variables=True)
+        self.assertEqual(grid.x.name, grid.parent.x.name)
+
+        # Create a grid with a parent only.
+        for with_level in [False, True]:
+            x = Variable(name='x', value=[1, 2], dimensions='dx')
+            y = Variable(name='y', value=[1, 2, 3], dimensions='dy')
+            variables = [x, y]
+            if with_level:
+                z = Variable(name='z', value=[10, 20, 30], dimensions='dz')
+                variables.append(z)
+            dmap = DimensionMap()
+            dmap.set_variable(DMK.X, x)
+            dmap.set_variable(DMK.Y, y)
+            if with_level:
+                dmap.set_variable(DMK.LEVEL, z)
+            field = Field(variables=variables, dimension_map=dmap)
+            grid = Grid(parent=field)
+            actual = grid.parent.dimension_map._storage
+            desired = field.dimension_map._storage
+            self.assertDictEqual(actual, desired)
+            self.assertEqual(id(actual), id(desired))
+            self.assertNumpyAll(y.get_value(), grid.y.get_value())
+            if with_level:
+                self.assertNumpyAll(z.get_value(), grid.z.get_value())
+
+        # Test with a 2D level.
+        grid = self.get_gridxy(with_2d_variables=True)
+        z = Variable(name='z', value=grid.x.get_value() + 100, dimensions=grid.dimensions)
+        grid2 = Grid(x=grid.x, y=grid.y, z=z)
+        self.assertNumpyAll(z.get_value(), grid2.z.get_value())
+
+        # Test with a mask.
+        mask_value = [[True, False], [False, True]]
+        x = Variable(name='x', value=[1, 2], dimensions='x')
+        y = Variable(name='y', value=[3, 4], dimensions='y')
+        mask_var = create_grid_mask_variable('mask', mask_value, [y.dimensions[0], x.dimensions[0]])
+        for v in [mask_value, mask_var]:
+            grid = Grid(x=x, y=y, mask=v)
+            self.assertNumpyAll(mask_var.get_mask(), grid.mask_variable.get_mask())
+
     def test_init_from_file(self):
         """Test loading from file."""
 
@@ -184,8 +233,8 @@ class TestGrid(AbstractTestInterface):
         self.assertIsNone(y._value)
         fgrid = Grid(x, y)
         self.assertEqual(len(fgrid.dimensions), 2)
-        for target in [fgrid._y_name, fgrid._x_name]:
-            fgrid.parent[target].protected = False
+        for target in [fgrid.y, fgrid.x]:
+            fgrid.parent[target.name].protected = False
         actual = np.mean([fgrid.x.get_value().mean(), fgrid.y.get_value().mean()])
         self.assertEqual(actual, 71.75)
 
@@ -209,7 +258,7 @@ class TestGrid(AbstractTestInterface):
         actual = grid.get_mask()
         self.assertNumpyAll(actual, new_mask)
         actual = get_variable_names(grid.get_member_variables())
-        desired = [x.name, y.name, grid._mask_name]
+        desired = [x.name, y.name, VariableName.SPATIAL_MASK]
         self.assertAsSetEqual(actual, desired)
         self.assertNumpyAll(grid.get_mask(), data.get_mask())
 
@@ -229,6 +278,10 @@ class TestGrid(AbstractTestInterface):
         actual_field.set_abstraction_geom()
         self.assertNumpyAll(actual_field.geom.get_mask(), grid.get_mask())
 
+    def test_abstraction(self):
+        grid = self.get_gridxy(abstraction=GridAbstraction.POINT)
+        self.assertEqual(grid.abstraction, grid.parent.grid_abstraction)
+
     def test_copy(self):
         grid = self.get_gridxy()
 
@@ -236,6 +289,10 @@ class TestGrid(AbstractTestInterface):
         nuisance = Variable(name='nuisance')
         grid_copy.parent.add_variable(nuisance)
         self.assertNotIn(nuisance.name, grid.parent)
+
+    def test_crs(self):
+        dst_grid = create_gridxy_global(resolution=10.0, wrapped=False, crs=Spherical())
+        self.assertEqual(dst_grid.parent.crs, dst_grid.crs)
 
     @attr('mpi')
     def test_extent_global(self):
@@ -256,6 +313,19 @@ class TestGrid(AbstractTestInterface):
             else:
                 actual = None
         self.assertEqual(actual, desired)
+
+    def test_coordinate_variables(self):
+        grid = self.get_gridxy_global()
+        actual = grid.coordinate_variables
+        self.assertEqual(actual[0].name, grid.x.name)
+        self.assertEqual(actual[1].name, grid.y.name)
+
+    def test_extract(self):
+        grid = self.get_gridxy(with_xy_bounds=True, with_parent=True)
+        original_parent = grid.parent
+        egrid = grid.extract(clean_break=True)
+        for mem in egrid.get_member_variables():
+            self.assertNotIn(mem.name, original_parent)
 
     def test_getitem(self):
         grid = self.get_gridxy()
@@ -502,7 +572,7 @@ class TestGrid(AbstractTestInterface):
             if not vm.is_null:
                 rd = RequestDataset(path)
                 out_field = rd.get()
-                target = out_field[out_field.grid._mask_name].get_value()
+                target = out_field[out_field.grid.mask_variable.name].get_value()
                 select = target != 0
                 self.assertEqual(select.sum(), 4)
 
@@ -683,8 +753,8 @@ class TestGrid(AbstractTestInterface):
 
         grid = Grid(x, y)
 
-        for target in [grid._y_name, grid._x_name]:
-            self.assertIsNone(grid.parent[target]._value)
+        for target in [grid.y, grid.x]:
+            self.assertIsNone(grid.parent[target.name]._value)
         self.assertTrue(grid.is_vectorized)
 
         with vm.scoped_by_emptyable('intersects', grid):
@@ -990,7 +1060,7 @@ class TestGrid(AbstractTestInterface):
         self.assertIn('coordinate_system', grid.parent)
         self.assertTrue(grid.is_vectorized)
         for mvar in grid.get_member_variables():
-            if mvar.name != grid._mask_name:
+            if mvar.name != VariableName.SPATIAL_MASK:
                 self.assertIsNone(mvar.get_mask())
 
         path = self.get_temporary_file_path('foo.nc')
@@ -1058,7 +1128,8 @@ class TestGrid(AbstractTestInterface):
         grid = create_gridxy_global(resolution=30.0, wrapped=True, crs=Spherical())
         z_value = np.ones(grid.shape, dtype=grid.dtype)
         zvar = Variable('ocgis_zc', value=z_value, dimensions=grid.dimensions)
-        grid.z = zvar
+        grid.parent.add_variable(zvar)
+        grid.dimension_map.set_variable(DMK.LEVEL, zvar, dimensionless=True)
 
         z_bounds_value = np.ones((list(zvar.shape) + [4]), dtype=grid.dtype)
         zvar_bounds = Variable('ocgis_zc_bounds', z_bounds_value, list(grid.dimensions) + ['corners'])
@@ -1081,3 +1152,118 @@ class TestGrid(AbstractTestInterface):
         self.assertNumpyAllClose(original_grid.x.bounds.get_value(), grid.x.bounds.get_value())
         self.assertNumpyAllClose(original_grid.y.bounds.get_value(), grid.y.bounds.get_value())
         self.assertEqual(grid.z.get_value().sum(), 72)
+
+
+class TestGridUnstruct(TestBase):
+    def fixture(self, **kwargs):
+        f = FixturePointGC()
+        pgc = f.fixture()
+        ugc = GridUnstruct(pgc, **kwargs)
+        return ugc
+
+    def fixture_with_polygongc(self, **kwargs):
+        f = FixturePolygonGC()
+        pgc = f.fixture()
+        ugc = GridUnstruct(pgc, **kwargs)
+        return ugc
+
+    @mock.patch('ocgis.spatial.geomc.PointGC', spec=PointGC)
+    @mock.patch('ocgis.spatial.geomc.PolygonGC', spec=PolygonGC)
+    def fixture_mock(self, mock_pt, mock_poly):
+        # Shared parents are a requirement of unstructured grids.
+        mock_pt.parent = mock_poly.parent
+        ug = GridUnstruct(geoms=[mock_pt, mock_poly])
+        return ug
+
+    def test_init(self):
+        ug = self.fixture()
+        self.assertIsInstance(ug.geoms[0], AbstractGeometryCoordinates)
+        self.assertEqual(ug.dimension_map._storage, ug.parent.dimension_map._storage)
+        self.assertIsInstance(ug.parent.grid, GridUnstruct)
+        for g in ug.geoms:
+            self.assertTrue(g.hosted)
+
+    def test_system_setting_on_field(self):
+        field = Field(driver=DriverNetcdfUGRID)
+        self.assertIsNone(field.grid)
+
+        f = self.fixture()
+        field = Field(grid=f)
+        self.assertEqual(field.dimension_map.get_driver(as_class=True), DriverNetcdfUGRID)
+
+        f = self.fixture()
+        field = Field(grid=f, driver=DriverNetcdfUGRID)
+        self.assertEqual(id(f.archetype.archetype), id(field.grid.archetype.archetype))
+
+        f = self.fixture_with_polygongc()
+        field = Field(grid=f, driver=DriverNetcdfUGRID)
+        actual = field.grid
+        self.assertEqual(actual.abstraction, f.abstraction)
+        self.assertIsNotNone(actual.cindex)
+
+    def test_abstraction(self):
+        for abstraction in ['auto', GridAbstraction.POINT]:
+            ug = self.fixture(abstraction=abstraction)
+            self.assertEqual(ug.abstraction, GridAbstraction.POINT)
+
+    def test_coordinate_variables(self):
+        vars = [Variable(name='x', value=[0, 1, 2], dimensions='d'),
+                Variable(name='y', value=[2, 3, 4], dimensions='d'),
+                Variable(name='xc', value=[4, 5, 6, 7], dimensions='c'),
+                Variable(name='yc', value=[6, 7, 8, 9], dimensions='c')]
+        dmap = DimensionMap()
+        pt = dmap.get_topology(Topology.POINT, create=True)
+        pt.set_variable(DMK.X, 'x')
+        pt.set_variable(DMK.Y, 'y')
+        poly = dmap.get_topology(Topology.POLYGON, create=True)
+        poly.set_variable(DMK.X, 'xc')
+        poly.set_variable(DMK.Y, 'yc')
+        field = Field(variables=vars, dimension_map=dmap)
+        grid = GridUnstruct(parent=field)
+        actual = get_variable_names(grid.coordinate_variables)
+        self.assertAsSetEqual(get_variable_names(vars), actual)
+        field_vnames = get_variable_names(field.coordinate_variables)
+        self.assertEqual(actual, field_vnames)
+        for c in field.coordinate_variables:
+            self.assertEqual(len(c.attrs), 0)
+        field.set_crs(Spherical())
+        for c in field.coordinate_variables:
+            self.assertTrue(len(c.attrs) > 1)
+
+    def test_dimensions(self):
+        ug = self.fixture()
+        self.assertEqual(ug.dimensions[0].name, 'dnodes')
+
+    def test_extent(self):
+        ug = self.fixture()
+        self.assertEqual(ug.extent, (0.0, 6.0, 5.0, 11.0))
+
+    def test_extent_global(self):
+        ug = self.fixture()
+        self.assertEqual(ug.extent_global, (0.0, 6.0, 5.0, 11.0))
+
+    def test_get_intersects(self):
+        f = self.fixture()
+        sg = (1.0, 7.0, 4.0, 10.0)
+        sg = box(*sg)
+        self.assertIsInstance(f, GridUnstruct)
+        actual = f.get_intersects(sg)
+        self.assertIsInstance(actual, GridUnstruct)
+        self.assertNotEqual(actual.parent.shapes, f.parent.shapes)
+
+    def test_is_vectorized(self):
+        ug = self.fixture()
+        self.assertFalse(ug.is_vectorized)
+
+    def test_resolution(self):
+        ug = self.fixture()
+        with self.assertRaises(NotImplementedError):
+            ug.resolution
+
+    def test_update_crs(self):
+        f = self.fixture_mock()
+        for g in f.geoms:
+            g.update_crs = mock.Mock(return_value=None)
+        f.update_crs(Spherical())
+        for g in f.geoms:
+            g.update_crs.assert_called_once_with(Spherical())

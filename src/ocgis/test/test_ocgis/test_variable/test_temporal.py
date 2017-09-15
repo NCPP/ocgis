@@ -222,7 +222,7 @@ class TestTemporalVariable(AbstractTestTemporal):
 
             sub = tv[0]
             kwds = {KeywordArgument.BOUNDS_NAMES: k.bounds_names}
-            record = sub.as_record(**kwds)
+            record = sub._as_record_(**kwds)
             for v in list(record.values()):
                 self.assertNotIsInstance(v, float)
             self.assertEqual(len(record), 7)

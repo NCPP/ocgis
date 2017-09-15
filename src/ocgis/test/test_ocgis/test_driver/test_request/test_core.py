@@ -15,9 +15,6 @@ from ocgis.test.test_simple.test_simple import TestSimpleBase
 from ocgis.variable.crs import CoordinateReferenceSystem, Tripole
 
 
-# tdk: clean-up file
-
-
 class Test(TestBase):
     def test_get_autodiscovered_driver(self):
         # Test the priority driver is chosen for netcdf.

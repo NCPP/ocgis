@@ -1,21 +1,26 @@
+import abc
 import itertools
+from collections import OrderedDict
 
 import numpy as np
-from pyproj import Proj, transform
+import six
 from shapely.geometry import Polygon, Point, box
 from shapely.geometry.base import BaseGeometry, BaseMultipartGeometry
 
+import ocgis
 from ocgis import Variable, vm
 from ocgis import constants
-from ocgis.base import get_dimension_names, raise_if_empty
-from ocgis.constants import WrappedState, KeywordArgument, VariableName, CFName
-from ocgis.environment import ogr
+from ocgis.base import get_dimension_names, raise_if_empty, AbstractOcgisObject, get_variable_names
+from ocgis.constants import WrappedState, VariableName, KeywordArgument, GridAbstraction, DriverKey, \
+    GridSplitterConstants, RegriddingRole, Topology, DMK, CFName
+from ocgis.environment import ogr, env
 from ocgis.exc import GridDeficientError, EmptySubsetError, AllElementsMaskedError
-from ocgis.util.helpers import get_formatted_slice
+from ocgis.spatial.base import AbstractXYZSpatialContainer
+from ocgis.spatial.geomc import AbstractGeometryCoordinates, PolygonGC, PointGC, LineGC
+from ocgis.util.helpers import get_formatted_slice, get_iter
 from ocgis.variable.base import get_dslice, get_dimension_lengths
-from ocgis.variable.crs import CFRotatedPole, Cartesian
 from ocgis.variable.dimension import Dimension
-from ocgis.variable.geom import GeometryVariable, AbstractSpatialContainer, get_masking_slice, GeometryProcessor
+from ocgis.variable.geom import GeometryVariable, get_masking_slice, GeometryProcessor
 from ocgis.vmachine.mpi import MPI_SIZE
 
 CreateGeometryFromWkb, Geometry, wkbGeometryCollection, wkbPoint = ogr.CreateGeometryFromWkb, ogr.Geometry, \
@@ -77,7 +82,7 @@ class GridGeometryProcessor(GeometryProcessor):
                             polygon = box(min_x, min_y, max_x, max_y)
                         yield (row, col), polygon
                 else:
-                    # tdk: we should be able to avoid the creation of this corners array
+                    # TODO: We should be able to avoid the creation of this corners array.
                     corners = np.vstack((y_bounds, x_bounds))
                     corners = corners.reshape([2] + list(x_bounds.shape))
                     for row, col in itertools.product(range_row, range_col):
@@ -96,7 +101,85 @@ class GridGeometryProcessor(GeometryProcessor):
             raise NotImplementedError(abstraction)
 
 
-class Grid(AbstractSpatialContainer):
+@six.add_metaclass(abc.ABCMeta)
+class AbstractGrid(AbstractOcgisObject):
+    """
+    Base class for grid objects.
+
+    :param abstraction: The grid abstraction to use. If ``'auto'`` (the default), use the highest order abstraction
+     available.
+    :type abstraction: :attr:`ocgis.constants.Topology`
+    """
+
+    def __init__(self, abstraction=KeywordArgument.Defaults.ABSTRACTION):
+        if abstraction is None:
+            raise ValueError("'abstraction' may not be None.")
+        self.abstraction = abstraction
+
+    @property
+    def abstraction(self):
+        """
+        Get or set the spatial abstraction for the grid.
+
+        :param abstraction: The grid's overloaded or highest order topology or spatial abstraction.
+         :attr:`~ocgis.constants.Topology.AUTO` should not be returned.
+        :type abstraction: :attr:`~ocgis.constants.Topology`.
+        :rtype: :attr:`~ocgis.constants.Topology`
+        """
+        abstraction = self.dimension_map.get_grid_abstraction()
+        if abstraction == Topology.AUTO:
+            abstraction = self._get_auto_abstraction_()
+        return abstraction
+
+    @abstraction.setter
+    def abstraction(self, abstraction):
+        if not abstraction == Topology.AUTO:
+            self.dimension_map.set_grid_abstraction(abstraction)
+
+    @property
+    def abstractions_available(self):
+        """
+        Get the topologies / spatial abstractions available on the object. Tuple elements are of type
+        :attr:`ocgis.constants.Topology`.
+
+        :rtype: tuple
+        """
+        return self._get_available_abstractions_()
+
+    @abc.abstractmethod
+    def get_abstraction_geometry(self, **kwargs):
+        """
+        Get the abstraction geometry variable for the grid.
+
+        :param kwargs: Keyword arguments to the geometry get method. See :meth:`~ocgis.Grid.get_point` for example.
+        :rtype: :class:`~ocgis.GeometryVariable`
+        """
+        raise NotImplementedError
+
+    def is_abstraction_available(self, abstraction):
+        """
+        Return ``True`` if the spatial abstraction is available on the grid.
+
+        :param abstraction: The spatial abstraction to check.
+        :type abstraction: :attr:`ocgis.constants.GridAbstraction`
+        :rtype: bool
+        """
+        return abstraction in self._get_available_abstractions_()
+
+    @abc.abstractmethod
+    def _get_auto_abstraction_(self):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _get_available_abstractions_(self):
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def _gs_create_index_bounds_(self, *args, **kwargs):
+        raise NotImplementedError
+
+
+class Grid(AbstractGrid, AbstractXYZSpatialContainer):
     """
     Grids are structured, rectilinear x/y-coordinate representations. x/y-coordinate variables may have bounds. The
     z-coordinate is supported only to allow its access from the grid. All subsetting operations, slicing, etc.
@@ -114,11 +197,11 @@ class Grid(AbstractSpatialContainer):
     ============= ======================================================================================================
     Value         Description
     ============= ======================================================================================================
-    ``'auto'``    Automatically choose spatial abstraction. `'polygon'` if x/y-coordinates have bounds and `'point'` if 
+    ``'auto'``    Automatically choose spatial abstraction. `'polygon'` if x/y-coordinates have bounds and `'point'` if
                   they do not.
-    ``'point'``   Use representative value from x/y-coordinate variables to construct point geometries. Typically this 
+    ``'point'``   Use representative value from x/y-coordinate variables to construct point geometries. Typically this
                   is considered the center value.
-    ``'polygon'`` Use bounds from x/y-coordinates to construct polygon geometries. 
+    ``'polygon'`` Use bounds from x/y-coordinates to construct polygon geometries.
     ============= ======================================================================================================
 
     :param crs: See :class:`~ocgis.variable.geom.AbstractSpatialObject`
@@ -126,58 +209,30 @@ class Grid(AbstractSpatialContainer):
     :type parent: :class:`~ocgis.Field`
     :param mask: The mask variable for the grid. Coordinate variables should not be masked. The mask must be managed
      independently. The mask variable should use the its mask to indicate masked values.
+    :param sequence pos: If coordinate variables ``x`` and ``y`` are two-dimensional, these are the dimension indices
+     for them in the grid's dimensions. Defaults to ``(0, 1)`` or `(y/latitude, x/longitude)`.
     :type mask: :class:`~ocgis.Variable`
     """
+    # TODO: Should this respond to level (i.e. ndim=3)?
     ndim = 2
+    _point_name = VariableName.GEOMETRY_POINT
+    _polygon_name = VariableName.GEOMETRY_POLYGON
 
-    def __init__(self, x, y, z=None, abstraction='auto', crs=None, parent=None, mask=None):
-        if x.dimensions is None or y.dimensions is None or (z is not None and z.dimensions is None):
-            raise ValueError('Grid variables must have dimensions.')
-        if abstraction is None:
-            raise ValueError('"abstraction" may not be None.')
-        if parent is not None:
-            from ocgis import Field
-            if not isinstance(parent, Field):
-                raise ValueError("'parent' objects must be fields")
+    def __init__(self, x=None, y=None, z=None, pos=(0, 1), **kwargs):
+        kwargs = kwargs.copy()
+        kwargs[KeywordArgument.X] = x
+        kwargs[KeywordArgument.Y] = y
+        kwargs[KeywordArgument.Z] = z
+        kwargs[KeywordArgument.POS] = pos
+        abstraction = kwargs.pop(KeywordArgument.ABSTRACTION, KeywordArgument.Defaults.ABSTRACTION)
 
-        self._abstraction = None
+        AbstractXYZSpatialContainer.__init__(self, **kwargs)
+        AbstractGrid.__init__(self, abstraction=abstraction)
 
-        self.abstraction = abstraction
-
-        x.attrs[CFName.AXIS] = 'X'
-        y.attrs[CFName.AXIS] = 'Y'
-        if z is not None:
-            z.attrs[CFName.AXIS] = 'Z'
-
-        self._x_name = x.name
-        self._y_name = y.name
-        if z is None:
-            self._z_name = None
-        else:
-            self._z_name = z.name
-
-        if mask is None:
-            self._mask_name = VariableName.SPATIAL_MASK
-        else:
-            self._mask_name = mask.name
-
-        self._point_name = VariableName.GEOMETRY_POINT
-        self._polygon_name = VariableName.GEOMETRY_POLYGON
-
-        new_variables = [x, y]
-
-        if z is not None:
-            new_variables.append(z)
-        if mask is not None:
-            new_variables.append(mask)
-        if parent is None:
-            from ocgis import Field
-            parent = Field(variables=new_variables)
-        else:
-            for var in new_variables:
-                parent.add_variable(var, force=True)
-
-        super(Grid, self).__init__(crs=crs, parent=parent)
+        self.x.attrs[CFName.AXIS] = 'X'
+        self.y.attrs[CFName.AXIS] = 'Y'
+        if self.z is not None:
+            self.z.attrs[CFName.AXIS] = 'Z'
 
     def __getitem__(self, slc):
         """
@@ -189,7 +244,7 @@ class Grid(AbstractSpatialContainer):
         0     row/y dimension
         1     column/x dimension
         ===== ==================
-        
+
         ``slc`` may also be a dictionary with grid dimensions as keys.
 
         :returns: Shallow copy of the sliced grid.
@@ -206,7 +261,7 @@ class Grid(AbstractSpatialContainer):
     def __setitem__(self, slc, grid):
         """
         Set the grid values and mask to match ``grid`` in the index space defined by ``slc``.
-        
+
         :param slc: The set slice for the target. Must have length matching the grid dimension count.
         :type slc: `sequence` of :class:`slice`-like object
         :param grid: The grid object containing the values to set in the target.
@@ -228,29 +283,6 @@ class Grid(AbstractSpatialContainer):
             current_mask[slc] = new_mask
             self.set_mask(current_mask)
 
-    def get_member_variables(self, include_bounds=True):
-        """
-        A grid is composed of numerous member variables defining coordinates, bounds, masks, and geometries. This method
-        returns those variables if present on the current grid object.
-        
-        :param include_bounds: If ``True``, include any bounds variables associated with the grid members.
-        :rtype: :class:`list` of :class:`~ocgis.Variable`
-        """
-
-        targets = [self._x_name, self._y_name, self._point_name, self._polygon_name, self._mask_name]
-
-        ret = []
-        for target in targets:
-            try:
-                var = self.parent[target]
-            except KeyError:
-                pass
-            else:
-                ret.append(var)
-                if include_bounds and var.has_bounds:
-                    ret.append(var.bounds)
-        return ret
-
     @property
     def dtype(self):
         """
@@ -260,15 +292,17 @@ class Grid(AbstractSpatialContainer):
         return self.archetype.dtype
 
     @property
-    def extent_global(self):
+    def has_allocated_abstraction_geometry(self):
         """
-        Return the global extent of the grid collective across the current :class:`~ocgis.OcgVM`. The returned tuple is
-        in the form: ``(minx, miny, maxx, maxy)``.
-        
-        :rtype: tuple
-        :raises: :class:`~ocgis.exc.EmptyObjectError`
+        :return: ``True`` if the geometry abstraction variable is allocated on the grid.
+        :rtype: bool
         """
-        return get_extent_global(self)
+        if self.abstraction == 'point':
+            return self.has_allocated_point
+        elif self.abstraction == 'polygon':
+            return self.has_allocated_polygon
+        else:
+            raise NotImplementedError(self.abstraction)
 
     @property
     def has_allocated_point(self):
@@ -293,33 +327,13 @@ class Grid(AbstractSpatialContainer):
             return False
 
     @property
-    def has_allocated_abstraction_geometry(self):
+    def has_bounds(self):
         """
-        :return: ``True`` if the geometry abstraction variable is allocated on the grid.
-        :rtype: bool
-        """
-        if self.abstraction == 'point':
-            return self.has_allocated_point
-        elif self.abstraction == 'polygon':
-            return self.has_allocated_polygon
-        else:
-            raise NotImplementedError(self.abstraction)
+        Return ``True`` if the grid coordinate variables have bounds.
 
-    @property
-    def has_mask(self):
-        """
-        :return: ``True`` if the geometry abstraction variable is allocated on the grid.
         :rtype: bool
         """
-        return self._mask_name in self.parent
-
-    @property
-    def has_z(self):
-        """
-        :return: ``True`` if the grid has a z-coordinate.
-        :rtype: bool
-        """
-        return self._z_name is not None
+        return self.archetype.has_bounds
 
     @property
     def is_vectorized(self):
@@ -328,6 +342,7 @@ class Grid(AbstractSpatialContainer):
          coordinate variables.
         :rtype: bool
         """
+
         ndim = self.archetype.ndim
         if ndim == 1:
             ret = True
@@ -336,132 +351,7 @@ class Grid(AbstractSpatialContainer):
         return ret
 
     @property
-    def dimensions(self):
-        """
-        Grid dimensions are always:
-        
-        ===== ==================
-        Index Description
-        ===== ==================
-        0     row/y-dimension
-        1     column/x-dimension
-        ===== ==================
-        
-        :rtype: `tuple` of :class:`~ocgis.Dimension`
-        """
-        ret = self.archetype.dimensions
-        if len(ret) == 1:
-            ret = (self.parent[self._y_name].dimensions[0], self.parent[self._x_name].dimensions[0])
-        return tuple(ret)
-
-    # tdk: REMOVE
-    @property
-    def dist(self):
-        raise NotImplementedError
-
-    @property
-    def has_bounds(self):
-        """
-        :return: ``True`` if the grid coordinate variables have bounds.
-        :rtype: bool
-        """
-        return self.archetype.has_bounds
-
-    @property
-    def is_empty(self):
-        """
-        :return: ``True`` if the grid is empty.
-        :rtype: bool
-        """
-        return self.parent.is_empty
-
-    @property
-    def mask_variable(self):
-        """
-        :return: The mask variable associated with the grid. This will be ``None`` if no mask is present.
-        :rtype: :class:`~ocgis.Variable` 
-        """
-        return self.parent.get(self._mask_name)
-
-    def get_point(self, value=None, mask=None):
-        """
-        Construct a point geometry variable using the grid's representative coordinates.
-        
-        :param value: Overload the default value for the point variable.
-        :type value: :class:`numpy.ndarray`
-        :param mask: Overload the default mask for the point variable.
-        :type value: :class:`numpy.ndarray`
-        :rtype: :class:`~ocgis.GeometryVariable`
-        """
-        return get_geometry_variable(self, value=value, mask=mask, use_bounds=False)
-
-    def get_polygon(self, value=None, mask=None):
-        """
-        Construct a polygon geometry variable using the grid's representative coordinates.
-
-        :param value: Overload the default value for the polygon variable.
-        :type value: :class:`numpy.ndarray`
-        :param mask: Overload the default mask for the polygon variable.
-        :type value: :class:`numpy.ndarray`
-        :rtype: :class:`~ocgis.GeometryVariable`
-        """
-        return get_geometry_variable(self, value=value, mask=mask, use_bounds=True)
-
-    @property
-    def x(self):
-        """
-        Get or set the x-coordinate variable for the grid.
-        
-        :rtype: :class:`~ocgis.Variable`
-        """
-        ret = self.parent[self._x_name]
-        return ret
-
-    @x.setter
-    def x(self, value):
-        self.parent[self._x_name] = value
-
-    @property
-    def y(self):
-        """
-        Get or set the y-coordinate variable for the grid.
-
-        :rtype: :class:`~ocgis.Variable`
-        """
-        ret = self.parent[self._y_name]
-        return ret
-
-    @y.setter
-    def y(self, value):
-        self.parent[self._y_name] = value
-
-    @property
-    def z(self):
-        """
-        Get or set the z-coordinate variable for the grid.
-
-        :rtype: :class:`~ocgis.Variable`
-        """
-        if self._z_name is not None:
-            ret = self.parent[self._z_name]
-        else:
-            ret = None
-        return ret
-
-    @z.setter
-    def z(self, value):
-        assert value is not None
-        assert not self.has_z
-        self._z_name = value.name
-        self.parent[self._z_name] = value
-
-    @property
     def resolution(self):
-        """
-        Calculate the grid resolution using the sample count defined by :attr:`ocgis.constants.RESOLUTION_LIMIT`.
-        
-        :rtype: int 
-        """
         y_value = self.y.get_value()
         x_value = self.x.get_value()
         resolution_limit = constants.RESOLUTION_LIMIT
@@ -486,158 +376,78 @@ class Grid(AbstractSpatialContainer):
     @property
     def shape(self):
         """
-        :rtype: :class:`tuple` of :class:`int` 
+        :rtype: :class:`tuple` of :class:`int`
         """
 
         return get_dimension_lengths(self.dimensions)
-
-    @property
-    def shape_global(self):
-        """
-        Get the global shape of the grid across the current :class:`~ocgis.OcgVM`.
-        
-        :rtype: :class:`tuple` of :class:`int` 
-        :raises: :class:`~ocgis.exc.EmptyObjectError`
-        """
-
-        raise_if_empty(self)
-
-        maxd = [max(d.bounds_global) for d in self.dimensions]
-        shapes = vm.gather(maxd)
-        if vm.rank == 0:
-            shape_global = tuple(np.max(shapes, axis=0))
-        else:
-            shape_global = None
-        shape_global = vm.bcast(shape_global)
-
-        return shape_global
-
-    def get_value_stacked(self):
-        """
-        Create a stacked array containing x- and y-coordinates.
-        
-        ============= ===========================
-        Index         Description
-        ============= ===========================
-        ``(0, :, :)`` Retrieve the y-coordinates.
-        ``(1, :, :)`` Retrieve the x-coordinates.
-        ============= ===========================
-        
-        :rtype: :class:`numpy.ndarray` 
-        """
-
-        y = self.y.get_value()
-        x = self.x.get_value()
-
-        if self.is_vectorized:
-            x, y = np.meshgrid(x, y)
-
-        fill = np.zeros([2] + list(y.shape))
-        fill[0, :, :] = y
-        fill[1, :, :] = x
-        return fill
-
-    @property
-    def archetype(self):
-        """
-        :return: archetype coordinate variable
-        :rtype: :class:`~ocgis.Variable`
-        """
-        return self.parent[self._y_name]
-
-    def expand(self):
-        """
-        Convert vectorized (factorized) grid coordinate variables from one-dimensional to two-dimensional.
-        """
-        expand_grid(self)
-
-    def get_mask(self, *args, **kwargs):
-        """
-        The grid's mask is stored independently from the coordinate variables' masks. The mask is actually a variable
-        containing a mask. This approach ensures the mask may be persisted to file and retrieved/modified leaving all
-        coordinate variables intact.
-        
-        .. note:: See :meth:`~ocgis.Variable.get_mask` for documentation.
-        """
-        create = kwargs.get(KeywordArgument.CREATE, False)
-        mask_variable = self.mask_variable
-        ret = None
-        if mask_variable is None:
-            if create:
-                mask_variable = create_grid_mask_variable(self._mask_name, None, self.dimensions)
-                self.set_mask(mask_variable)
-        if mask_variable is not None:
-            ret = mask_variable.get_mask(*args, **kwargs)
-            if mask_variable.attrs.get('ocgis_role') != 'spatial_mask':
-                msg = 'Mask variable "{}" must have an "ocgis_role" attribute with a value of "spatial_mask".'.format(
-                    ret.name)
-                raise ValueError(msg)
-        return ret
-
-    def is_abstraction_available(self, abstraction):
-        """
-        :param str abstraction: The spatial abstraction to check.
-        :return: ``True`` if the spatial abstraction is available on the grid.
-        :rtype: bool
-        """
-        if abstraction == 'auto':
-            ret = True
-        elif abstraction == 'point':
-            ret = True
-        elif abstraction == 'polygon':
-            if self.archetype.has_bounds:
-                ret = True
-            else:
-                ret = False
-        else:
-            raise NotImplementedError(abstraction)
-        return ret
-
-    def set_mask(self, value, cascade=False):
-        """
-        Set the grid's mask from boolean array or variable.
-        
-        :param value: A mask array having the same shape as the grid. This may also be a variable with the same 
-         dimensions.
-        :type value: :class:`numpy.ndarray` | :class:`~ocgis.Variable`
-        :param cascade: 
-        :return: 
-        """
-
-        if isinstance(value, Variable):
-            self.parent.add_variable(value, force=True)
-            self._mask_name = value.name
-        else:
-            mask_variable = self.mask_variable
-            if mask_variable is None:
-                mask_variable = create_grid_mask_variable(self._mask_name, value, self.dimensions)
-                self.parent.add_variable(mask_variable)
-            else:
-                mask_variable.set_mask(value)
-
-        if cascade:
-            grid_set_mask_cascade(self)
-
-        self.parent.dimension_map.set_spatial_mask(self.mask_variable)
 
     def copy(self):
         """
         :return: shallow copy of the grid
         :rtype: :class:`~ocgis.Grid`
         """
-        ret = super(Grid, self).copy()
+
+        ret = super(AbstractGrid, self).copy()
         ret.parent = ret.parent.copy()
+        return ret
+
+    def extract(self, clean_break=False):
+        """
+        Extract the grid from its parent collection.
+
+        See :meth:`~ocgis.Variable.extract` for documentation.
+        """
+
+        new_parent = self.parent.copy()
+        original_parent = self.parent
+        members = get_variable_names(self.get_member_variables())
+        for v in new_parent.values():
+            if v.name not in members:
+                new_parent.remove_variable(v, remove_bounds=False)
+        if clean_break:
+            to_remove = []
+            for v in original_parent.values():
+                if v.name in members:
+                    to_remove.append(v.name)
+            for tr in to_remove:
+                original_parent.remove_variable(tr, remove_bounds=False)
+        self.parent = new_parent
+
+        return self
+
+    def expand(self):
+        """
+        If the grid is vectorized/factorized (spatial coordinate represented using one-dimensional arrays), convert
+        spatial coordinates to two-dimensional arrays. If the grid is already two-dimensional, pass through.
+        """
+        expand_grid(self)
+
+    def get_abstraction_geometry(self, **kwargs):
+        """
+        Get the abstraction geometry variable for the grid.
+
+        :param kwargs: Keyword arguments to the geometry get method. See :meth:`~ocgis.Grid.get_point` for example.
+        :rtype: :class:`~ocgis.GeometryVariable`
+        """
+
+        if self.abstraction == GridAbstraction.POINT:
+            ret = self.get_point(**kwargs)
+        elif self.abstraction == GridAbstraction.POLYGON:
+            ret = self.get_polygon(**kwargs)
+        else:
+            raise NotImplementedError(self.abstraction)
         return ret
 
     def get_distributed_slice(self, slc, **kwargs):
         """
-        Slice the grid in parallel. This is collective across the current :class:`~ocgis.OcgVM`.
-        
-        :param slc: See :meth:`~ocgis.Grid.__getitem__`. 
+        Slice the grid in parallel and return a shallow copy. This is collective across the current
+        :class:`~ocgis.OcgVM`.
+
+        :param slc: See :meth:`~ocgis.Grid.__getitem__`.
         :param kwargs: Keyword arguments to :meth:`~ocgis.Variable.get_distributed_slice`.
-        :return: shallow copy of the grid object (may be empty)
-        :rtype: :class:`~ocgis.Grid`
+        :rtype: :class:`~ocgis.AbstractGrid`
         """
+        # TODO: This should be generalized for grid objects and use a standardized set of dimensions.
         raise_if_empty(self)
 
         if isinstance(slc, dict):
@@ -655,40 +465,45 @@ class Grid(AbstractSpatialContainer):
             ret.parent = self.archetype.get_distributed_slice(slc, **kwargs).parent
         return ret
 
-    def get_intersects(self, subset_geom, **kwargs):
-        """
-        Perform a spatial intersects operation on the grid.
-        
-        :param subset_geom: The subset Shapely geometry. All geometry types are accepted.
-        :type subset_geom: :class:`shapely.geometry.base.BaseGeometry`
-        :param kwargs: See :meth:`~ocgis.Grid.get_spatial_operation`
-        :return: shallow copy of the sliced grid with an updated mask
-        :rtype: :class:`~ocgis.Grid`
-        """
+    def get_nearest(self, *args, **kwargs):
+        return self.get_abstraction_geometry().get_nearest(*args, **kwargs).parent.grid
 
-        args = ['intersects', subset_geom]
-        return self.get_spatial_operation(*args, **kwargs)
+    def get_point(self, value=None, mask=None):
+        return get_geometry_variable(self, value=value, mask=mask, use_bounds=False)
 
-    def get_intersection(self, subset_geom, **kwargs):
+    def get_polygon(self, value=None, mask=None):
+        return get_geometry_variable(self, value=value, mask=mask, use_bounds=True)
+
+    def get_spatial_index(self, *args, **kwargs):
+        return self.get_abstraction_geometry().get_spatial_index(*args, **kwargs)
+
+    def get_report(self):
         """
-        Perform a spatial intersection operation on the grid. A geometry variable is returned. An intersection
-        operation modifies the grid underlying structure and regularity may no longer be guaranteed.
-
-        :param subset_geom: The subset Shapely geometry. All geometry types are accepted.
-        :type subset_geom: :class:`shapely.geometry.base.BaseGeometry`
-        :param kwargs: See :meth:`~ocgis.Grid.get_spatial_operation`
-        :rtype: :class:`~ocgis.GeometryVariable`
+        :return: sequence of strings containing explanatory grid information
+        :rtype: :class:`list` of :class:`str`
         """
 
-        args = ['intersection', subset_geom]
-        return self.get_spatial_operation(*args, **kwargs)
+        if self.crs is None:
+            projection = 'NA (no coordinate system)'
+            sref = projection
+        else:
+            projection = self.crs.sr.ExportToProj4()
+            sref = self.crs.__class__.__name__
 
-    def get_spatial_operation(self, spatial_op, subset_geom, return_slice=False, use_bounds='auto', original_mask=None,
-                              keep_touches='auto', cascade=True, optimized_bbox_subset=False, apply_slice=True):
+        lines = ['Spatial Reference = {0}'.format(sref),
+                 'Proj4 String = {0}'.format(projection),
+                 'Extent = {0}'.format(self.extent),
+                 'Resolution = {0}'.format(self.resolution)]
+
+        return lines
+
+    def get_spatial_subset_operation(self, spatial_op, subset_geom, return_slice=False, use_bounds='auto',
+                                     original_mask=None,
+                                     keep_touches='auto', cascade=True, optimized_bbox_subset=False, apply_slice=True):
         """
         Perform intersects or intersection operations on the grid object.
-        
-        :param str spatial_op: Either an ``'intersects'`` or an ``'intersection'`` spatial operation. 
+
+        :param str spatial_op: Either an ``'intersects'`` or an ``'intersection'`` spatial operation.
         :param subset_geom: The subset Shapely geometry. All geometry types are accepted.
         :type subset_geom: :class:`shapely.geometry.base.BaseGeometry`
         :param bool return_slice: If ``True``, also return the slices used to limit the grid's extent.
@@ -706,13 +521,23 @@ class Grid(AbstractSpatialContainer):
          use the grid's representative coordinates ignoring bounds, geometries, etc.
         :param apply_slice: If ``True`` (the default), apply the slice to the grid object in addition to updating its
          mask.
-        :return: If ``return_slice`` is ``False`` (the default), return a shallow copy of the sliced grid. If 
-         ``return_slice`` is ``True``, this will be a tuple with the subsetted object as the first element and the slice 
+        :return: If ``return_slice`` is ``False`` (the default), return a shallow copy of the sliced grid. If
+         ``return_slice`` is ``True``, this will be a tuple with the subsetted object as the first element and the slice
          used as the second. If ``spatial_op`` is ``'intersection'``, the returned object is a geometry variable.
         :rtype: :class:`~ocgis.Grid` | :class:`~ocgis.GeometryVariable` | :class:`tuple` of ``(<returned object>, <slice used>)``
         """
-
+        # TODO: This should be merged with geometry coordinates spatial subset operation.
         raise_if_empty(self)
+
+        try:
+            subset_geom.prepare()
+        except AttributeError:
+            if not isinstance(subset_geom, BaseGeometry):
+                msg = 'Only Shapely geometries allowed for subsetting. Subset type is "{}".'.format(
+                    type(subset_geom))
+                raise ValueError(msg)
+        else:
+            subset_geom = subset_geom.get_value()[0]
 
         if self.get_mask() is None:
             original_grid_has_mask = False
@@ -780,7 +605,13 @@ class Grid(AbstractSpatialContainer):
             ret.set_mask(ret.get_mask().copy())
 
         if optimized_bbox_subset:
+            if original_mask is not None and original_mask.any():
+                # TODO: OPTIMIZE: Can we avoid the cascade? There is no reason to cascade the mask if it is going to be sliced off anyway.
+                ret.set_mask(original_mask, cascade=True)
             sliced_grid, _, the_slice = get_masking_slice(original_mask, ret, apply_slice=apply_slice)
+            sliced_grid_mask = sliced_grid.get_mask()
+            if not original_grid_has_mask and sliced_grid_mask is not None and not sliced_grid_mask.any():
+                sliced_grid.set_mask(None)
         else:
             fill_mask = original_mask
             geometry_fill = None
@@ -832,214 +663,31 @@ class Grid(AbstractSpatialContainer):
 
         return ret
 
-    def set_extrapolated_bounds(self, name_x_variable, name_y_variable, name_dimension):
-        """
-        Extrapolate corners from grid centroids.
-        
-        :param str name_x_variable: Name for the x-coordinate bounds variable.
-        :param str name_y_variable: Name for the y-coordinate bounds variable.
-        :param str name_dimension: Name for the bounds/corner dimension.
-        """
-        self.x.set_extrapolated_bounds(name_x_variable, name_dimension)
-        self.y.set_extrapolated_bounds(name_y_variable, name_dimension)
-        self.parent = self.y.parent
+    def get_value_stacked(self):
+        y = self.y.get_value()
+        x = self.x.get_value()
 
-    def update_crs(self, to_crs):
-        """
-        Update the coordinate system in place.
+        if self.is_vectorized:
+            x, y = np.meshgrid(x, y)
 
-        :param to_crs: The destination coordinate system.
-        :type to_crs: :class:`~ocgis.variable.crs.AbstractCRS`
-        """
-        super(Grid, self).update_crs(to_crs)
-
-        if isinstance(self.crs, Cartesian) or isinstance(to_crs, Cartesian):
-            if isinstance(to_crs, Cartesian):
-                inverse = False
-            else:
-                inverse = True
-            self.crs.transform_grid(to_crs, self, inverse=inverse)
-        elif isinstance(self.crs, CFRotatedPole):
-            self.crs.update_with_rotated_pole_transformation(self, inverse=False)
-        elif isinstance(to_crs, CFRotatedPole):
-            to_crs.update_with_rotated_pole_transformation(self, inverse=True)
-        else:
-            # Grid must be expanded for a CRS transform.
-            expand_grid(self)
-
-            src_proj4 = self.crs.proj4
-            dst_proj4 = to_crs.proj4
-
-            src_proj4 = Proj(src_proj4)
-            dst_proj4 = Proj(dst_proj4)
-
-            y = self.y
-            x = self.x
-
-            value_row = self.y.get_value().reshape(-1)
-            value_col = self.x.get_value().reshape(-1)
-
-            tvalue_col, tvalue_row = transform(src_proj4, dst_proj4, value_col, value_row)
-
-            self.x.set_value(tvalue_col.reshape(self.shape))
-            self.y.set_value(tvalue_row.reshape(self.shape))
-
-            if self.has_bounds:
-                corner_row = y.bounds.get_value().reshape(-1)
-                corner_col = x.bounds.get_value().reshape(-1)
-                tvalue_col, tvalue_row = transform(src_proj4, dst_proj4, corner_col, corner_row)
-                y.bounds.set_value(tvalue_row.reshape(y.bounds.shape))
-                x.bounds.set_value(tvalue_col.reshape(x.bounds.shape))
-
-        self.crs = to_crs
-
-        self.crs.format_field(self, is_transform=True)
-
-    def _get_extent_(self):
-        if self.is_empty:
-            return None
-
-        if not self.is_vectorized:
-            if self.has_bounds:
-                x_bounds = self.x.bounds.get_value()
-                y_bounds = self.y.bounds.get_value()
-                minx = x_bounds.min()
-                miny = y_bounds.min()
-                maxx = x_bounds.max()
-                maxy = y_bounds.max()
-            else:
-                x_value = self.x.get_value()
-                y_value = self.y.get_value()
-                minx = x_value.min()
-                miny = y_value.min()
-                maxx = x_value.max()
-                maxy = y_value.max()
-        else:
-            row = self.y
-            col = self.x
-            if not self.has_bounds:
-                minx = col.get_value().min()
-                miny = row.get_value().min()
-                maxx = col.get_value().max()
-                maxy = row.get_value().max()
-            else:
-                minx = col.bounds.get_value().min()
-                miny = row.bounds.get_value().min()
-                maxx = col.bounds.get_value().max()
-                maxy = row.bounds.get_value().max()
-        return minx, miny, maxx, maxy
-
-    @property
-    def abstraction(self):
-        """
-        Get or set the spatial abstraction for the grid.
-        
-        :param str abstraction: The grid's spatial abstraction.
-        :rtype: str
-        """
-        if self._abstraction == 'auto':
-            if self.has_bounds:
-                ret = 'polygon'
-            else:
-                ret = 'point'
-        else:
-            ret = self._abstraction
-        return ret
-
-    @abstraction.setter
-    def abstraction(self, abstraction):
-        self._abstraction = abstraction
-
-    def extract(self, clean_break=False):
-        """
-        Extract the grid from its parent collection.
-        
-        See :meth:`~ocgis.Variable.extract` for documentation.
-        """
-        build = True
-        for member in self.get_member_variables():
-            if build:
-                new_parent = member.extract(clean_break=clean_break, keep_bounds=False).parent
-                build = False
-            else:
-                extracted = member.extract(clean_break=clean_break, keep_bounds=False)
-                new_parent.add_variable(extracted)
-        self.parent = new_parent
-        return self
-
-    def get_abstraction_geometry(self, **kwargs):
-        """
-        Get the abstraction geometry variable for the grid.
-        
-        :param kwargs: Keyword arguments to the geometry get method. See :meth:`~ocgis.Grid.get_point` for example.
-        :rtype: :class:`~ocgis.GeometryVariable`
-        """
-
-        if self.abstraction == 'point':
-            ret = self.get_point(**kwargs)
-        elif self.abstraction == 'polygon':
-            ret = self.get_polygon(**kwargs)
-        else:
-            raise NotImplementedError(self.abstraction)
-        return ret
-
-    def get_nearest(self, *args, **kwargs):
-        """
-        Get the grid elements closest to a geometry object.
-        
-        See :meth:`~ocgis.GeometryVariable.get_nearest` for documentation.
-        """
-
-        ret = self.copy()
-        _, slc = self.get_abstraction_geometry().get_nearest(*args, **kwargs)
-        ret = ret.__getitem__(slc)
-        return ret
-
-    def get_report(self):
-        """
-        :return: sequence of strings containing explanatory grid information
-        :rtype: :class:`list` of :class:`str`
-        """
-
-        if self.crs is None:
-            projection = 'NA (no coordinate system)'
-            sref = projection
-        else:
-            projection = self.crs.sr.ExportToProj4()
-            sref = self.crs.__class__.__name__
-
-        lines = ['Spatial Reference = {0}'.format(sref),
-                 'Proj4 String = {0}'.format(projection),
-                 'Extent = {0}'.format(self.extent),
-                 'Resolution = {0}'.format(self.resolution)]
-
-        return lines
-
-    def get_spatial_index(self, *args, **kwargs):
-        """
-        Get the abstraction geometry's spatial index.
-        
-        See :meth:`~ocgis.GeometryVariable.get_spatial_index`.
-        """
-
-        return self.abstraction_geometry.get_spatial_index(*args, **kwargs)
+        fill = np.zeros([2] + list(y.shape))
+        fill[0, :, :] = y
+        fill[1, :, :] = x
+        return fill
 
     def iter_records(self, *args, **kwargs):
-        return self.abstraction_geometry.iter_records(self, *args, **kwargs)
+        return self.get_abstraction_geometry().iter_records(*args, **kwargs)
 
     def remove_bounds(self):
-        """Set the grid coordinate variables to ``None``."""
+        """Set the grid coordinate variable bounds to ``None``."""
 
         self.x.set_bounds(None)
         self.y.set_bounds(None)
+        dmap = self.dimension_map
+        dmap.set_bounds(DMK.X, None)
+        dmap.set_bounds(DMK.Y, None)
 
     def reorder(self):
-        """
-        Reorder the x-coordinates and associated parent variables into logical ordering depending on the wrapped state.
-        
-        :raises: ValueError
-        """
-
         if self.wrapped_state != WrappedState.WRAPPED:
             raise ValueError('Only wrapped coordinates may be reordered.')
 
@@ -1083,27 +731,273 @@ class Grid(AbstractSpatialContainer):
                         reorder_array(shift_indices, mask, arr_dimension_names, reorder_dimension, varying_dimension)
                         var.set_mask(mask)
 
-    def write_fiona(self, *args, **kwargs):
-        return self.abstraction_geometry.write_fiona(*args, **kwargs)
+    def set_extrapolated_bounds(self, name_x_variable, name_y_variable, name_dimension):
+        """
+        Extrapolate corners from grid centroids.
+
+        :param str name_x_variable: Name for the x-coordinate bounds variable.
+        :param str name_y_variable: Name for the y-coordinate bounds variable.
+        :param str name_dimension: Name for the bounds/corner dimension.
+        """
+        self.x.set_extrapolated_bounds(name_x_variable, name_dimension)
+        self.y.set_extrapolated_bounds(name_y_variable, name_dimension)
+        self.parent = self.y.parent
+
+    def update_crs(self, to_crs):
+        self.expand()
+        super(AbstractGrid, self).update_crs(to_crs)
 
     def write(self, *args, **kwargs):
         """
-        Write the grid to file.
-        
-        .. note: Accepts all parameters to :class:`~ocgis.Field.write`.
-        
-        An additional keyword parameter is:
-        
-        :keyword driver: The driver used for writing the grid.
-        :type driver: :class:`str` | :class:`~ocgis.driver.base.AbstractDriver`
+        See :meth:`~ocgis.Field.write`.
+        """
+        self.parent.write(*args, **kwargs)
+
+    def _get_auto_abstraction_(self):
+        if self.has_bounds:
+            ret = GridAbstraction.POLYGON
+        else:
+            ret = GridAbstraction.POINT
+        return ret
+
+    def _get_available_abstractions_(self):
+        ret = [GridAbstraction.POINT]
+        if self.archetype.has_bounds:
+            ret.append(GridAbstraction.POLYGON)
+        return ret
+
+    def _get_canonical_dimension_map_(self, field=None, create=False):
+        if field is None:
+            field = self.parent
+        return field.dimension_map
+
+    def _get_dimensions_(self):
+        """
+        Grid dimensions are always:
+
+        ===== ==================
+        Index Description
+        ===== ==================
+        0     row/y-dimension
+        1     column/x-dimension
+        ===== ==================
+
+        See superclass for additional documentation.
         """
 
-        from ocgis.driver.nc import DriverNetcdfCF
-        from ocgis.collection.field import Field
+        ret = self.archetype.dimensions
+        if len(ret) == 1:
+            ret = (self.y.dimensions[0], self.x.dimensions[0])
+        return tuple(ret)
 
-        kwargs['driver'] = kwargs.pop('driver', DriverNetcdfCF)
-        field_to_write = Field(grid=self)
-        field_to_write.write(*args, **kwargs)
+    def _get_extent_(self):
+        if self.is_empty:
+            return None
+
+        if not self.is_vectorized:
+            if self.has_bounds:
+                x_bounds = self.x.bounds.get_value()
+                y_bounds = self.y.bounds.get_value()
+                minx = x_bounds.min()
+                miny = y_bounds.min()
+                maxx = x_bounds.max()
+                maxy = y_bounds.max()
+            else:
+                x_value = self.x.get_value()
+                y_value = self.y.get_value()
+                minx = x_value.min()
+                miny = y_value.min()
+                maxx = x_value.max()
+                maxy = y_value.max()
+        else:
+            row = self.y
+            col = self.x
+            if not self.has_bounds:
+                minx = col.get_value().min()
+                miny = row.get_value().min()
+                maxx = col.get_value().max()
+                maxy = row.get_value().max()
+            else:
+                minx = col.bounds.get_value().min()
+                miny = row.bounds.get_value().min()
+                maxx = col.bounds.get_value().max()
+                maxy = row.bounds.get_value().max()
+        return minx, miny, maxx, maxy
+
+    def _get_is_empty_(self):
+        return self.parent.is_empty
+
+    @staticmethod
+    def _gs_create_global_indices_(global_shape, **kwargs):
+        return np.arange(1, reduce(lambda x, y: x * y, global_shape) + 1, **kwargs).reshape(*global_shape, order='C')
+
+    def _gs_create_index_bounds_(self, regridding_role, host_attribute_variable, parent, slices, split_dimension,
+                                 bounds_dimension):
+        raise_if_empty(self)
+
+        constants_gci = GridSplitterConstants.IndexFile
+        if regridding_role == RegriddingRole.DESTINATION:
+            name_x_bounds = constants_gci.NAME_X_DST_BOUNDS_VARIABLE
+            name_y_bounds = constants_gci.NAME_Y_DST_BOUNDS_VARIABLE
+            erole_x = constants_gci.ESMF_ROLE_DST_BOUNDS_X
+            erole_y = constants_gci.ESMF_ROLE_DST_BOUNDS_Y
+        elif regridding_role == RegriddingRole.SOURCE:
+            name_x_bounds = constants_gci.NAME_X_SRC_BOUNDS_VARIABLE
+            name_y_bounds = constants_gci.NAME_Y_SRC_BOUNDS_VARIABLE
+            erole_x = constants_gci.ESMF_ROLE_SRC_BOUNDS_X
+            erole_y = constants_gci.ESMF_ROLE_SRC_BOUNDS_Y
+        else:
+            raise NotImplementedError(regridding_role)
+
+        host_attribute_variable.attrs[name_x_bounds] = name_x_bounds
+        host_attribute_variable.attrs[name_y_bounds] = name_y_bounds
+
+        xb = Variable(name=name_x_bounds, dimensions=[split_dimension, bounds_dimension],
+                      attrs={'esmf_role': erole_x},
+                      dtype=env.NP_INT)
+        yb = Variable(name=name_y_bounds, dimensions=[split_dimension, bounds_dimension],
+                      attrs={'esmf_role': erole_y},
+                      dtype=env.NP_INT)
+        x_name = self.x.dimensions[0].name
+        y_name = self.y.dimensions[0].name
+        for idx, slc in enumerate(slices):
+            xb.get_value()[idx, :] = slc[x_name].start, slc[x_name].stop
+            yb.get_value()[idx, :] = slc[y_name].start, slc[y_name].stop
+        parent.add_variable(xb)
+        parent.add_variable(yb)
+
+    def _gs_initialize_(self, regridding_role):
+        pass
+
+    def _initialize_parent_(self, *args, **kwargs):
+        return self._get_parent_class_()(*args, **kwargs)
+
+
+class GridUnstruct(AbstractGrid):
+    """
+    Unstructured grids manage operations across geometry coordinate objects. It overloads some operations but generally
+    delegates complex operations to underlying geometry coordinate objects. It will broadcast operations across multiple
+    geometry coordinate objects as necessary. Hence, geometry coordinate objects' documentation should be used when
+    interpreting unstructured grid operations.
+
+    :param geoms: One or more geometry coordinate variables for representing the unstructured grid. If ``None``, use the
+     parent's dimension map to construct the object.
+    :type geoms: sequence of :class:`~ocgis.spatial.geomc.AbstractGeometryCoordinates` | None
+    :param abstraction: See :attr:`ocgis.spatial.grid.AbstractGrid.abstraction`.
+    :param parent: The parent field object. Required if not geometry coordinate objects are provided.
+    :type parent: :class:`~ocgis.Field`
+    """
+
+    __internal_attrs__ = ('__customizers__', 'abstraction', 'abstractions_available', 'archetype',
+                          'coordinate_variables', 'dimension_map', 'geoms', 'get_abstraction_geometry', 'reduce_global',
+                          'update_crs', '_get_auto_abstraction_', '_get_available_abstractions_',
+                          '_gs_create_index_bounds_')
+    __customizers__ = {Topology.POLYGON: PolygonGC, Topology.LINE: LineGC, Topology.POINT: PointGC}
+
+    def __init__(self, geoms=None, abstraction=GridAbstraction.AUTO, parent=None):
+        if geoms is None:
+            dimension_map = parent.dimension_map
+            if dimension_map.has_topology:
+                topologies = dimension_map.get_available_topologies()
+                c = self.__customizers__
+                poss = [c[p] for p in c.keys() if p in topologies]
+            else:
+                poss = []
+            geoms = [p(parent=parent) for p in poss]
+
+            if len(geoms) == 0:
+                raise GridDeficientError('Cannot construct any geometry coordinate objects from parent')
+
+        self.geoms = tuple(get_iter(geoms, dtype=AbstractGeometryCoordinates))
+
+        # Quick test to make sure the parents of the geometry coordinate objects are the same reference.
+        geoms = self.geoms
+        t = id(geoms[0].parent)
+        for g in geoms:
+            assert t == id(g.parent)
+
+        # Let the geometry coordinate objects know they are hosted. They will return grids instead of themselves
+        # following the return format decorator.
+        for g in geoms:
+            g.hosted = True
+
+        self.dimension_map.set_driver(DriverKey.NETCDF_UGRID)
+        super(GridUnstruct, self).__init__(abstraction=abstraction)
+
+    def __getattribute__(self, name):
+        if name == '__internal_attrs__' or name in self.__internal_attrs__:
+            ret = object.__getattribute__(self, name)
+        else:
+            ret = getattr(self.archetype, name)
+        return ret
+
+    @property
+    def archetype(self):
+        hierarchy = [GridAbstraction.POLYGON, GridAbstraction.LINE, GridAbstraction.POINT]
+        possible = {g.abstraction: g for g in self.geoms}
+        if self.abstraction == GridAbstraction.AUTO:
+            for h in hierarchy:
+                try:
+                    return possible[h]
+                except KeyError:
+                    continue
+        else:
+            return possible[self.abstraction]
+
+    @property
+    def coordinate_variables(self):
+        """
+        See :meth:`~ocgis.collection.field.Field.coordinate_variables`
+        """
+        ret = []
+        for g in self.geoms:
+            for c in g.coordinate_variables:
+                if c.name not in ret:
+                    ret.append(c)
+        return tuple(ret)
+
+    @property
+    def dimension_map(self):
+        return self.geoms[0].dimension_map
+
+    def get_abstraction_geometry(self):
+        arch = self.archetype
+
+        geoms = [g[1] for g in arch.iter_geometries()]
+        mask = self.get_mask()
+
+        kwargs = {}
+        kwargs[KeywordArgument.VALUE] = geoms
+        kwargs[KeywordArgument.MASK] = mask
+        kwargs[KeywordArgument.CRS] = self.crs
+        kwargs[KeywordArgument.ATTRS] = {'axis': 'ocgis_geom'}
+        kwargs[KeywordArgument.DIMENSIONS] = self.element_dim
+        ret = GeometryVariable(**kwargs)
+        return ret
+
+    def reduce_global(self, *args, **kwargs):
+        for a in self.abstractions_available.values():
+            a = a.reduce_global(*args, **kwargs)
+            return a.parent.grid
+
+    def update_crs(self, *args, **kwargs):
+        for g in self.geoms:
+            g.update_crs(*args, **kwargs)
+
+    def _get_auto_abstraction_(self):
+        return self.abstractions_available.keys()[0]
+
+    def _get_available_abstractions_(self):
+        hierarchy = [GridAbstraction.POLYGON, GridAbstraction.LINE, GridAbstraction.POINT]
+        possible = {g.abstraction: g for g in self.geoms}
+        ret = OrderedDict()
+        for h in hierarchy:
+            if h in possible:
+                ret[h] = possible[h]
+        return ret
+
+    def _gs_create_index_bounds_(self, *args, **kwargs):
+        pass
 
 
 def create_grid_mask_variable(name, mask_value, dimensions):
@@ -1156,7 +1050,7 @@ def get_polygon_geometry_array(grid, fill):
                 polygon = box(min_x, min_y, max_x, max_y)
                 fill[row, col] = polygon
         else:
-            # tdk: we should be able to avoid the creation of this corners array
+            # TODO: We should be able to avoid the creation of this corners array.
             corners = np.vstack((y_bounds, x_bounds))
             corners = corners.reshape([2] + list(x_bounds.shape))
             for row, col in itertools.product(range_row, range_col):
@@ -1249,29 +1143,6 @@ def remove_nones(target):
     return ret
 
 
-def get_extent_global(grid):
-    raise_if_empty(grid)
-    assert isinstance(grid, Grid)
-
-    extent = grid.extent
-    extents = vm.gather(extent)
-
-    if vm.rank == 0:
-        extents = [e for e in extents if e is not None]
-        extents = np.array(extents)
-        ret = [None] * 4
-        ret[0] = np.min(extents[:, 0])
-        ret[1] = np.min(extents[:, 1])
-        ret[2] = np.max(extents[:, 2])
-        ret[3] = np.max(extents[:, 3])
-        ret = tuple(ret)
-    else:
-        ret = None
-    ret = vm.bcast(ret)
-
-    return ret
-
-
 def get_coordinate_boolean_array(grid_target, keep_touches, max_target, min_target):
     target_centers = grid_target.get_value()
 
@@ -1319,8 +1190,8 @@ def grid_set_mask_cascade(grid):
 
 
 def expand_grid(grid):
-    y = grid.parent[grid._y_name]
-    x = grid.parent[grid._x_name]
+    y = grid.y
+    x = grid.x
     grid_is_empty = grid.is_empty
 
     if y.ndim == 1:

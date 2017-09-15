@@ -1,117 +1,163 @@
-import numpy as np
+from ocgis import Variable
+from ocgis.constants import DriverKey, DMK, VariableName, Topology, KeywordArgument
+from ocgis.driver.nc import DriverNetcdfCF
+from ocgis.exc import GridDeficientError
+from ocgis.spatial.grid import GridUnstruct
 
-from ocgis import vm
-from ocgis.constants import MPITag
-from ocgis.util.helpers import create_unique_global_array
 
-
-def reduce_reindex_coordinate_variables(cindex, start_index=0):
+class DriverNetcdfUGRID(DriverNetcdfCF):
     """
-    Reindex a subset of global coordinate indices contained in the ``cindex`` variable. The coordinate values contained
-    in ``coords`` will be reduced to match the coordinates required by the indices in ``cindex``.
-
-    The starting index value (``0`` or ``1``) is set by ``start_index`` for the re-indexing procedure.
-
-    Function will not respect masks.
-
-    The function returns a two-element tuple:
-
-     * First element --> A :class:`numpy.ndarray` with the same dimension as ``cindex`` containing the new indexing.
-     * Second element --> A :class:`numpy.ndarray` containing the unique indices that may be used to reduce an external
-       coordinate storage variable or array.
-
-    :param cindex: A variable containing coordinate index integer values. This variable may be distributed. This may
-     also be a NumPy array.
-    :type cindex: :class:`~ocgis.Variable` || :class:`~numpy.ndarray`
-    :param int start_index: The first index to use for the re-indexing of ``cindex``. This may be ``0`` or ``1``.
-    :rtype: tuple
+    Driver for NetCDF data following the UGRID convention. It will also interpret CF convention for axes not overloaded
+    by UGRID.
     """
 
-    # Get the coordinate index values as a NumPy array.
-    try:
-        cindex = cindex.get_value()
-    except AttributeError:
-        # Assume this is already a NumPy array.
-        pass
+    _priority = False
+    key = DriverKey.NETCDF_UGRID
 
-    # Create the unique coordinte index array.
-    u = np.array(create_unique_global_array(cindex))
+    @staticmethod
+    def create_host_attribute_variable(dimension_map, name=VariableName.UGRID_HOST_VARIABLE):
+        point = dimension_map.get_topology(Topology.POINT)
+        dkeys = [DMK.X, DMK.Y, DMK.LEVEL]
+        face_coordinates = None
+        if point is not None and point != Topology.AUTO:
+            x_repr, y_repr, z_repr = [point.get_variable(k) for k in dkeys]
+            if x_repr is not None:
+                face_coordinates = [x_repr, y_repr]
+                if z_repr is not None:
+                    face_coordinates.append(z_repr)
+                face_coordinates = ' '.join(face_coordinates)
 
-    # Holds re-indexed values.
-    new_cindex = np.empty_like(cindex)
-    # Caches the local re-indexing for the process.
-    cache = {}
-    # Increment the indexing values based on its presence in the cache.
-    curr_idx = 0
-    for idx, to_reindex in enumerate(u.flat):
-        if to_reindex not in cache:
-            cache[to_reindex] = curr_idx
-            curr_idx += 1
-
-    # MPI communication tags.
-    tag_cache_create = MPITag.REINDEX_CACHE_CREATE
-    tag_cache_get_recv = MPITag.REINDEX_CACHE_GET_RECV
-    tag_cache_get_send = MPITag.REINDEX_CACHE_GET_SEND
-
-    # This is the local offset to move sequentially across processes. If the local cache is empty, there is no
-    # offsetting to move between tasks.
-    if len(cache) > 0:
-        offset = max(cache.values()) + 1
-    else:
-        offset = 0
-
-    # Synchronize the processes with the appropriate local offset.
-    for idx, rank in enumerate(vm.ranks):
-        try:
-            dest_rank = vm.ranks[idx + 1]
-        except IndexError:
-            break
+        poly = dimension_map.get_topology(Topology.POLYGON)
+        x, y, z = [poly.get_variable(k) for k in dkeys]
+        if x is None:
+            node_coordinates = None
         else:
-            if vm.rank == rank:
-                vm.comm.send(start_index + offset, dest=dest_rank, tag=tag_cache_create)
-            elif vm.rank == dest_rank:
-                offset_previous = vm.comm.recv(source=rank, tag=tag_cache_create)
-                start_index = offset_previous
-    vm.barrier()
+            node_coordinates = [x, y]
+            if z is not None:
+                node_coordinates.append(z)
+            node_coordinates = ' '.join(node_coordinates)
 
-    # Find any missing local coordinate indices that are not mapped by the local cache.
-    is_missing = False
-    is_missing_indices = []
-    for idx, to_reindex in enumerate(cindex.flat):
-        try:
-            local_new_cindex = cache[to_reindex]
-        except KeyError:
-            is_missing = True
-            is_missing_indices.append(idx)
+        face_node_connectivity = poly.get_variable(DMK.ELEMENT_NODE_CONNECTIVITY)
+
+        if z is None:
+            dimension = 2
         else:
-            new_cindex[idx] = local_new_cindex + start_index
+            dimension = 3
 
-    # Check if there are any processors missing their new index values.
-    is_missing_global = vm.gather(is_missing)
-    if vm.rank == 0:
-        is_missing_global = any(is_missing_global)
-    is_missing_global = vm.bcast(is_missing_global)
+        locations = []
+        if point is not None:
+            locations.append('face')
+        if poly is not None:
+            locations.append('node')
+        locations = ' '.join(locations)
 
-    # Execute a search across the process caches for any missing coordinate index values.
-    if is_missing_global:
-        for rank in vm.ranks:
-            is_missing_rank = vm.bcast(is_missing, root=rank)
-            if is_missing_rank:
-                n_missing = vm.bcast(len(is_missing_indices), root=rank)
-                if vm.rank == rank:
-                    for imi in is_missing_indices:
-                        for subrank in vm.ranks:
-                            if vm.rank != subrank:
-                                vm.comm.send(cindex[imi], dest=subrank, tag=tag_cache_get_recv)
-                                new_cindex_element = vm.comm.recv(source=subrank, tag=tag_cache_get_send)
-                                if new_cindex_element is not None:
-                                    new_cindex[imi] = new_cindex_element
-                else:
-                    for _ in range(n_missing):
-                        curr_missing = vm.comm.recv(source=rank, tag=tag_cache_get_recv)
-                        new_cindex_element = cache.get(curr_missing)
-                        if new_cindex_element is not None:
-                            new_cindex_element += start_index
-                        vm.comm.send(new_cindex_element, dest=rank, tag=tag_cache_get_send)
+        attrs = {'standard_name': 'mesh_topology',
+                 'cf_role': 'mesh_topology',
+                 'dimension': dimension,
+                 'locations': locations,
+                 'node_coordinates': node_coordinates,
+                 'face_coordinates': face_coordinates,
+                 'face_node_connectivity': face_node_connectivity}
 
-    return new_cindex, u
+        return Variable(name=name, attrs=attrs)
+
+    def create_dimension_map(self, group_metadata, strict=False):
+        dmap = super(DriverNetcdfUGRID, self).create_dimension_map(group_metadata, strict=strict)
+        variables = group_metadata['variables']
+
+        # Find the attribute host.
+        attr_host = None
+        for v in variables.values():
+            if v['attrs'].get('cf_role') == 'mesh_topology':
+                attr_host = v
+                dmap.set_variable(DMK.ATTRIBUTE_HOST, v['name'], attrs=v['attrs'].copy())
+        if attr_host is None:
+            raise ValueError('Attribute host variable not found on UGRID file.')
+
+        # Check for representative coordinates.
+        target_host_attr = 'face_coordinates'
+        set_coordinate_dmap_variables(attr_host, dmap, target_host_attr, variables, Topology.POINT)
+
+        # Check for nodes.
+        target_host_attr = 'node_coordinates'
+        has_nodes = set_coordinate_dmap_variables(attr_host, dmap, target_host_attr, variables, Topology.POLYGON)
+        if has_nodes:
+            face_node_connectivity = attr_host['attrs'].get('face_node_connectivity')
+            tdmap = dmap.get_topology(Topology.POLYGON)
+            tdmap.set_variable(DMK.ELEMENT_NODE_CONNECTIVITY, face_node_connectivity,
+                               dimension=variables[face_node_connectivity]['dimensions'][0])
+        return dmap
+
+    def get_distributed_dimension_name(self, dimension_map, dimensions_metadata):
+        ret = None
+        poly = dimension_map.get_topology(Topology.POLYGON, create=False)
+        if poly is not None:
+            ret = poly.get_variable(DMK.ELEMENT_NODE_CONNECTIVITY)
+            if ret is not None:
+                ret = poly.get_dimension(DMK.ELEMENT_NODE_CONNECTIVITY)[0]
+
+        if ret is None:
+            line = dimension_map.get_topology(Topology.LINE, create=False)
+            if line is not None:
+                ret = line.get_variable(DMK.ELEMENT_NODE_CONNECTIVITY)
+                if ret is not None:
+                    ret = line.get_dimension(DMK.ELEMENT_NODE_CONNECTIVITY)[0]
+
+        if ret is None:
+            point = dimension_map.get_topology(Topology.POLYGON, create=False)
+            if point is not None:
+                ret = point.get_dimension(DMK.X)[0]
+
+        if ret is None:
+            msg = 'Cannot identify distributed dimension. Checked element, x, and representative x dimensions.'
+            raise ValueError(msg)
+        return ret
+
+    @staticmethod
+    def get_grid(field):
+        try:
+            ret = GridUnstruct(parent=field)
+        except GridDeficientError:
+            ret = None
+        return ret
+
+    @classmethod
+    def _get_field_write_target_(cls, field):
+        """Collective!"""
+
+        if field.crs is not None:
+            field.crs.format_spatial_object(field)
+
+        attr_host = field.dimension_map.get_variable(DMK.ATTRIBUTE_HOST)
+        if attr_host is None or attr_host not in field:
+            attr_host = cls.create_host_attribute_variable(field.dimension_map)
+            field.dimension_map.set_variable(DMK.ATTRIBUTE_HOST, attr_host)
+            field.add_variable(attr_host)
+
+        return field
+
+
+def set_coordinate_dmap_variables(attr_host, dmap, target_host_attr, variables, topology):
+    """
+    Set coordinate variables on the target dimension map. This will pass-through if the the target host attribute
+    contains no coordinate variable names. Return ``True`` if the dimension map was updated.
+
+    :param dict attr_host: The attribute host variable metadata.
+    :param dmap: Dimension map to set variable on.
+    :type dmap: :class:`~ocgis.DimensionMap`
+    :param str target_host_attr: Name of the host attribute containing coordinate variable names.
+    :param dict variables: Group-level metadata for variables.
+    :param topology: The destination topology for setting on the dimension map.
+    :type topology: :class:`~ocgis.constants.Topology`
+    :rtype: bool
+    """
+    coordinates = attr_host.get('attrs', {}).get(target_host_attr)
+    ret = False
+    dmap_keys = [DMK.X, DMK.Y, DMK.LEVEL]
+    if coordinates is not None:
+        coordinates = coordinates.split(' ')
+        tdmap = dmap.get_topology(topology, create=True)
+        for idx, fc in enumerate(coordinates):
+            tdmap.set_variable(dmap_keys[idx], fc, dimension=variables[fc][KeywordArgument.DIMENSIONS][0])
+        ret = True
+    return ret

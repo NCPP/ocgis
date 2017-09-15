@@ -60,13 +60,13 @@ Building from Source
 Testing the Installation
 ------------------------
 
-It is recommended that a simple suite of tests are run to verify the new installation. Testing requires the Python ``nose`` library (https://nose.readthedocs.io/en/latest/):
+It is recommended that a simple suite of tests are run to verify the new installation. Testing requires the Python ``nose`` library (https://nose.readthedocs.io/en/latest/) and ``mock`` (included by default with Python 3+):
 
 .. code-block:: sh
 
-    [sudo] pip install nose
+    [sudo] pip install nose mock
         # OR
-    conda install nose
+    conda install nose mock
 
 Run tests:
 

@@ -563,6 +563,9 @@ These are global parameters used by OpenClimateGIS. For those familiar with :mod
 :attr:`env.USE_CFUNITS` = ``True``
  If ``True``, use :mod:`cfunits` for any unit transformations. This will be automatically set to ``False`` if :mod:`cfunits` is not available for import.
 
+:attr:`env.USE_MEMORY_OPTIMIZATIONS` = ``False``
+ If ``True``, some methods will attempt to minimize their memory usage at the expense of computational time.
+
 :attr:`env.USE_SPATIAL_INDEX` = ``True``
  If ``True``, use :mod:`rtree` to create spatial indices for spatial operations. This will be automatically set to ``False`` if :mod:`rtree` is not available for import.
 
@@ -577,7 +580,7 @@ These are global parameters used by OpenClimateGIS. For those familiar with :mod
 Inspecting Data
 ===============
 
-See :ref:`inspection` for guidance on inspecing datasets.
+See :ref:`inspection` for guidance on inspecting datasets.
 
 Spatial Collections
 ===================

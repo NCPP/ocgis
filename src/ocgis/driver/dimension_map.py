@@ -2,11 +2,11 @@ from copy import deepcopy
 
 import six
 
-from ocgis.base import AbstractOcgisObject, get_variables
+from ocgis.base import AbstractOcgisObject
 from ocgis.base import get_dimension_names
 from ocgis.base import get_variable_names
-from ocgis.constants import DIMENSION_MAP_TEMPLATE, DMK
-from ocgis.exc import DimensionMapError
+from ocgis.constants import DIMENSION_MAP_TEMPLATE, DMK, DEFAULT_DRIVER, GridAbstraction
+from ocgis.exc import DimensionMapError, VariableNotInCollection
 from ocgis.util.helpers import pprint_dict, get_or_create_dict
 
 
@@ -18,10 +18,28 @@ class DimensionMap(AbstractOcgisObject):
     """
 
     _allowed_entry_keys = DMK.get_entry_keys()
-    _allowed_element_keys = (DMK.VARIABLE, DMK.DIMENSION, DMK.BOUNDS, DMK.ATTRS)
+    _allowed_element_keys = DMK.get_element_keys()
+    _special_entry_keys = DMK.get_special_entry_keys()
 
     def __init__(self):
         self._storage = {}
+
+    def __eq__(self, other):
+        ret = True
+        if type(other) != self.__class__:
+            ret = False
+        elif self._storage != other._storage:
+            ret = False
+        return ret
+
+    @property
+    def has_topology(self):
+        """
+        Return ``True`` if the dimension map has topology entries.
+
+        :rtype: bool
+        """
+        return DMK.TOPOLOGY in self._storage
 
     def as_dict(self, curr=None):
         """
@@ -34,6 +52,9 @@ class DimensionMap(AbstractOcgisObject):
         if DMK.GROUPS in curr:
             for group_name, group_dmap in curr[DMK.GROUPS].items():
                 curr[DMK.GROUPS][group_name] = group_dmap.as_dict(curr=group_dmap._storage)
+        if DMK.TOPOLOGY in curr:
+            for k, v in curr[DMK.TOPOLOGY].items():
+                curr[DMK.TOPOLOGY][k] = v.as_dict(curr=v._storage)
         return curr
 
     @classmethod
@@ -75,7 +96,7 @@ class DimensionMap(AbstractOcgisObject):
         :param str group_name: The current group name. 
         :rtype: :class:`~ocgis.DimensionMap`
         """
-        dimension_map = driver.get_dimension_map(group_metadata)
+        dimension_map = driver.create_dimension_map(group_metadata)
         if curr is None:
             curr = dimension_map
         if group_name is not None:
@@ -113,6 +134,20 @@ class DimensionMap(AbstractOcgisObject):
         """
         return self._get_element_(entry_key, DMK.ATTRS, self._storage.__class__())
 
+    def get_available_topologies(self):
+        """
+        Get a list of available topologies keys. Keys are of type :class:`ocgis.constants.Topology`. The returned tuple
+        may be of zero length if no topologies are present on the dimension map.
+
+        :rtype: tuple
+        """
+        if not self.has_topology:
+            ret = tuple()
+        else:
+            topologies = self._storage.get(DMK.TOPOLOGY)
+            ret = topologies.keys()
+        return ret
+
     def get_bounds(self, entry_key):
         """
         Get the bounds variable name for the dimension map entry ``entry_key``.
@@ -122,14 +157,17 @@ class DimensionMap(AbstractOcgisObject):
         """
         return self._get_element_(entry_key, DMK.BOUNDS, None)
 
-    def get_crs(self):
+    def get_crs(self, parent=None, nullable=False):
         """
         Get the coordinate reference system variable name for the dimension map entry ``entry_key``.
 
-        :rtype: str
+        :rtype: str | :class:`~ocgis.CRS`
         """
         entry = self._get_entry_(DMK.CRS)
-        return get_or_create_dict(entry, DMK.VARIABLE, None)
+        ret = get_or_create_dict(entry, DMK.VARIABLE, None)
+        if parent is not None:
+            ret = get_variable_from_field(ret, parent, nullable)
+        return ret
 
     def get_dimension(self, entry_key):
         """
@@ -140,38 +178,132 @@ class DimensionMap(AbstractOcgisObject):
         """
         return self._get_element_(entry_key, DMK.DIMENSION, [])
 
+    def get_driver(self, as_class=False):
+        """
+        Return the driver key or class associated with the dimension map.
+
+        :param bool as_class: If ``True``, return the driver class instead of the driver string key.
+        :rtype: str | :class:`ocgis.driver.base.AbstractDriver`
+        """
+        from ocgis.driver.registry import get_driver_class
+        ret = self._storage.get(DMK.DRIVER, DEFAULT_DRIVER)
+        if as_class:
+            ret = get_driver_class(ret)
+        return ret
+
+    def get_grid_abstraction(self, default=GridAbstraction.AUTO):
+        """
+        Get the grid abstraction or, if absent on the dimension map, return ``default``.
+
+        :param default: Default return value.
+        :type default: :class:`ocgis.constants.GridAbstraction`
+        :rtype: str | :class:`ocgis.constants.GridAbstraction`
+        """
+        return self._storage.get(DMK.GRID_ABSTRACTION, default)
+
     def get_group(self, group_key):
         """
         Get the dimension map for a group indexed by ``group_key`` starting from the root group.
-        
+
         :param group_key: The group indexing key.
         :rtype: :class:`list` of :class:`str`
         """
         if DMK.GROUPS not in self._storage:
             self._storage[DMK.GROUPS] = {}
         try:
-            return _get_dmap_group_(self, group_key)
+            return get_dmap_group(self, group_key)
         except KeyError:
             raise DimensionMapError(DMK.GROUPS, "Group key not found: {}".format(group_key))
 
     def get_spatial_mask(self):
         """
         Get the spatial mask variable name.
-        
+
         :rtype: str
         """
 
         entry = self._get_entry_(DMK.SPATIAL_MASK)
         return get_or_create_dict(entry, DMK.VARIABLE, None)
 
-    def get_variable(self, entry_key):
+    def get_topology(self, topology, create=False):
+        """
+        Get a child dimension map for a given topology. If ``create`` is ``True``, the child dimension map will be
+        created if it is not present on the dimension map. If create is ``False``, ``None`` will be returned if the
+        topology does not exist.
+
+        :param topology: The target topology to get or create.
+        :type topology: :class:`ocgis.constants.Topology`
+        :param bool create: Flag for creation behavior if the child dimension map does not exist.
+        :rtype: :class:`~ocgis.DimensionMap` | ``None``
+        """
+        if create:
+            default = self.__class__()
+        else:
+            default = None
+
+        if DMK.TOPOLOGY not in self._storage:
+            if create:
+                self._storage[DMK.TOPOLOGY] = {}
+                ret = self._storage[DMK.TOPOLOGY]
+            else:
+                ret = None
+        else:
+            ret = self._storage[DMK.TOPOLOGY]
+
+        if ret is not None:
+            ret = self._storage[DMK.TOPOLOGY].get(topology, default)
+            self._storage[DMK.TOPOLOGY][topology] = ret
+
+        if ret is None:
+            ret = GridAbstraction.AUTO
+        return ret
+
+    def get_variable(self, entry_key, parent=None, nullable=False):
         """
         Get the coordinate variable name for the dimension map entry ``entry_key``.
 
         :param str entry_key: See :class:`ocgis.constants.DimensionMapKey` for valid entry keys.
+        :param parent: If present, use the returned variable name to return the variable object form ``parent``.
+        :type parent: :class:`~ocgis.VariableCollection`
+        :param bool nullable: If ``True`` and ``parent`` is not ``None``, return ``None`` if the variable is not found
+         in ``parent``.
         :rtype: str
         """
-        return self._get_element_(entry_key, DMK.VARIABLE, None)
+        ret = self._get_element_(entry_key, DMK.VARIABLE, None)
+        if ret is not None and parent is not None:
+            # Check if the variable has bounds.
+            bnds = self.get_bounds(entry_key)
+            ret = get_variable_from_field(ret, parent, nullable)
+            # Set the bounds on the outgoing variable if they are not already set by the object.
+            if bnds is not None and not ret.has_bounds:
+                ret.set_bounds(get_variable_from_field(bnds, parent, False), force=True)
+        return ret
+
+    def inquire_is_xyz(self, variable):
+        """
+        Inquire the dimension map to identify a variable's spatial classification.
+
+        :param variable: The target variable to identify.
+        :type variable: str | :class:`~ocgis.Variable`
+        :rtype: :class:`ocgis.constants.DimensionMapKey`
+        """
+        name = get_variable_names(variable)[0]
+        x = self.get_variable(DMK.X)
+        y = self.get_variable(DMK.Y)
+        z = self.get_variable(DMK.LEVEL)
+        poss = {x: DMK.X, y: DMK.Y, z: DMK.LEVEL}
+        ret = poss.get(name)
+        if ret is None and self.has_topology:
+            poss = {}
+            topologies = self.get_available_topologies()
+            for t in topologies:
+                curr = self.get_topology(t)
+                x = curr.get_variable(DMK.X)
+                y = curr.get_variable(DMK.Y)
+                z = curr.get_variable(DMK.LEVEL)
+                poss.update({x: DMK.X, y: DMK.Y, z: DMK.LEVEL})
+            ret = poss.get(name)
+        return ret
 
     def pprint(self, as_dict=False):
         """
@@ -201,22 +333,31 @@ class DimensionMap(AbstractOcgisObject):
     def set_crs(self, variable):
         """
         Set the coordinate reference system variable name.
-        
+
         :param variable: :class:`str` | :class:`~ocgis.Variable`
         """
         variable = get_variable_names(variable)[0]
         entry = self._get_entry_(DMK.CRS)
         entry[DMK.VARIABLE] = variable
 
+    def set_driver(self, driver):
+        from ocgis.driver.registry import get_driver_class
+
+        klass = get_driver_class(driver)
+        self._storage[DMK.DRIVER] = klass.key
+
+    def set_grid_abstraction(self, abstraction):
+        self._storage[DMK.GRID_ABSTRACTION] = abstraction
+
     def set_group(self, group_key, dimension_map):
         """
         Set the group dimension map for ``group_key``.
-        
+
         :param group_key: See :meth:`~ocgis.DimensionMap.get_group`.
         :param dimension_map: The dimension map to insert.
         :type dimension_map: :class:`~ocgis.DimensionMap`
         """
-        _ = _get_dmap_group_(self, group_key, create=True, last=dimension_map)
+        _ = get_dmap_group(self, group_key, create=True, last=dimension_map)
 
     def set_spatial_mask(self, variable, attrs=None):
         """
@@ -263,10 +404,8 @@ class DimensionMap(AbstractOcgisObject):
          which dimension position is representative for the latitude variable when slicing.
         :param bool dimensionless: If ``True``, this variable has no canonical dimension.
         """
-        if entry_key == DMK.CRS:
-            raise DimensionMapError(entry_key, "Use 'set_crs' to set CRS variable.")
-        elif entry_key == DMK.SPATIAL_MASK:
-            raise DimensionMapError(entry_key, "Use 'set_spatial_mask' to set the spatial mask variable.")
+        if entry_key in self._special_entry_keys:
+            raise DimensionMapError(entry_key, "The entry '{}' has a special set method.".format(entry_key))
 
         entry = self._get_entry_(entry_key)
 
@@ -303,39 +442,36 @@ class DimensionMap(AbstractOcgisObject):
             dimension = list(get_dimension_names(dimension))
 
         if attrs is None:
-            attrs = self._storage.__class__(deepcopy(DIMENSION_MAP_TEMPLATE[entry_key][DMK.ATTRS]))
+            try:
+                attrs = self._storage.__class__(deepcopy(DIMENSION_MAP_TEMPLATE[entry_key][DMK.ATTRS]))
+            except KeyError:
+                # Default attributes are empty.
+                attrs = self._storage.__class__()
         entry[DMK.VARIABLE] = value
         entry[DMK.BOUNDS] = bounds
         entry[DMK.DIMENSION] = dimension
         entry[DMK.ATTRS] = attrs
 
-    def update_dimensions_from_field(self, field):
+    def update(self, other):
         """
-        Update dimension names for coordinate variables using a ``field`` object.
-        
-        :param field: The field to pull data from.
-        :type field: :class:`~ocgis.Field`
-        :raises: ValueError
+        Update this dimension map with another dimension map.
+
+        :param other:
+        :type other: :class:`~ocgis.DimensionMap`
         """
-        to_update = (DMK.REALIZATION, DMK.TIME, DMK.LEVEL, DMK.Y, DMK.X)
-        for k in to_update:
-            variable_name = self.get_variable(k)
-            dimension_names = self.get_dimension(k)
-            if variable_name is not None and len(dimension_names) == 0:
-                try:
-                    vc_var = get_variables(variable_name, field)[0]
-                except KeyError:
-                    msg = "Variable '{}' list in dimension map, but it is not present in the field.".format(
-                        variable_name)
-                    raise ValueError(msg)
-                if vc_var.ndim == 1:
-                    dimension_names.append(vc_var.dimensions[0].name)
+        for other_k, other_v in other._storage.items():
+            if other_k == DMK.TOPOLOGY:
+                if DMK.TOPOLOGY not in self._storage:
+                    self._storage[DMK.TOPOLOGY] = {}
+                self._storage[DMK.TOPOLOGY].update(other_v)
+            else:
+                self._storage[other_k] = other_v
 
     def update_dimensions_from_metadata(self, metadata):
         """
         Update dimension names for coordinate variables using a metadata dictionary.
 
-        :param dict metadata: A metadata dictionary containg dimension names for variables.
+        :param dict metadata: A metadata dictionary containing dimension names for variables.
         """
         to_update = (DMK.REALIZATION, DMK.TIME, DMK.LEVEL, DMK.Y, DMK.X)
         for k in to_update:
@@ -360,7 +496,19 @@ class DimensionMap(AbstractOcgisObject):
             return get_or_create_dict(self._storage, key, self._storage.__class__())
 
 
-def _get_dmap_group_(dmap, keyseq, create=False, last=None):
+def get_variable_from_field(name, field, nullable):
+    ret = None
+    if name is None and nullable:
+        pass
+    elif field is not None:
+        try:
+            ret = field[name]
+        except KeyError:
+            raise VariableNotInCollection(name)
+    return ret
+
+
+def get_dmap_group(dmap, keyseq, create=False, last=None):
     keyseq = deepcopy(keyseq)
     if last is None:
         last = {}

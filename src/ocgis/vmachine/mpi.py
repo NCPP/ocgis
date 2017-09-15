@@ -1,4 +1,5 @@
 import itertools
+from collections import OrderedDict
 from contextlib import contextmanager
 from functools import reduce
 
@@ -7,7 +8,7 @@ import six
 
 from ocgis import constants
 from ocgis.base import AbstractOcgisObject, raise_if_empty
-from ocgis.constants import DataType, MPITag, SourceIndexType
+from ocgis.constants import DataType, SourceIndexType
 from ocgis.exc import DimensionNotFound
 from ocgis.util.helpers import get_optimal_slice_from_array, get_iter, get_group
 
@@ -133,7 +134,6 @@ class OcgDist(AbstractOcgisObject):
         """
         from ocgis.variable.base import Variable
         from ocgis.variable.dimension import Dimension
-
         if isinstance(name_or_variable, Variable):
             group = group or name_or_variable.group
             name = name_or_variable.name
@@ -190,11 +190,16 @@ class OcgDist(AbstractOcgisObject):
 
     def get_dimension(self, name, group=None, rank=MPI_RANK):
         group_data = self.get_group(group=group, rank=rank)
-        return group_data['dimensions'][name]
+        d = group_data['dimensions']
+        try:
+            ret = d[name]
+        except KeyError:
+            raise DimensionNotFound(name)
+        return ret
 
     def get_dimensions(self, names, **kwargs):
         ret = [self.get_dimension(name, **kwargs) for name in names]
-        return ret
+        return tuple(ret)
 
     def get_empty_ranks(self, group=None, inverse=False):
         ret = []
@@ -327,27 +332,8 @@ def barrier_print(*args):
         MPI_COMM.Barrier()
 
 
-def barrier_ranks(ranks, comm=None):
-    comm, rank, _ = get_standard_comm_state(comm=comm)
-    if len(ranks) > 1:
-        if rank in ranks:
-            root = ranks[0]
-            if rank == root:
-                received = [root]
-                for irank in ranks:
-                    if irank != root:
-                        comm.recv(source=irank, tag=MPITag.BARRIER)
-                        received.append(irank)
-                for irank in ranks:
-                    if irank != root:
-                        comm.send(True, dest=irank, tag=MPITag.BARRIER)
-            else:
-                comm.send(True, dest=root, tag=MPITag.BARRIER)
-                comm.recv(source=root, tag=MPITag.BARRIER)
-
-
 def create_slices(length, size):
-    # tdk: optimize: remove np.arange
+    # TODO: Optimize by removing numpy.arange
     r = np.arange(length)
     sections = np.array_split(r, size)
     sections = [get_optimal_slice_from_array(s, check_diff=False) for s in sections]
@@ -405,30 +391,6 @@ def dict_get_or_create(ddict, key, default):
     except KeyError:
         ret = ddict[key] = default
     return ret
-
-
-def gather_ranks(ranks, value, root=0, comm=None):
-    comm, rank, size = get_standard_comm_state(comm=comm)
-
-    if rank == root:
-        gathered = [None] * len(ranks)
-    else:
-        gathered = None
-
-    for idx, curr_rank in enumerate(ranks):
-        if rank == root:
-            if rank == curr_rank:
-                gathered[idx] = value
-        elif rank == curr_rank:
-            comm.send(value, dest=root, tag=MPITag.GATHER)
-
-    if rank == root:
-        for idx, recv_rank in enumerate(ranks):
-            if recv_rank != root:
-                recv = comm.recv(source=recv_rank, tag=MPITag.GATHER)
-                gathered[idx] = recv
-
-    return gathered
 
 
 def get_rank_bounds(nelements, size, rank, esplit=None):
@@ -518,38 +480,6 @@ def mpi_group_scope(ranks, comm=None):
         if new_comm != COMM_NULL:
             new_comm.Free()
             sub_group.Free()
-
-
-def bcast_ranks(ranks, value, root=0, comm=None):
-    comm, rank, size = get_standard_comm_state(comm=comm)
-
-    if rank == root:
-        for target_rank in ranks:
-            if target_rank != root:
-                comm.send(value, dest=target_rank, tag=MPITag.BCAST)
-    elif rank in ranks:
-        value = comm.recv(source=root, tag=MPITag.BCAST)
-    else:
-        value = None
-
-    return value
-
-
-def scatter_ranks(ranks, value, root=0, comm=None):
-    comm, rank, size = get_standard_comm_state(comm=comm)
-
-    if rank == root:
-        for target_rank, target_value in zip(ranks, value):
-            if target_rank != root:
-                comm.send(target_value, dest=target_rank, tag=MPITag.SCATTER)
-            else:
-                ret_value = target_value
-    elif rank in ranks:
-        ret_value = comm.recv(source=root, tag=MPITag.SCATTER)
-    else:
-        ret_value = None
-
-    return ret_value
 
 
 def ogather(elements):
@@ -714,7 +644,7 @@ def variable_gather(variable, root=0):
         return new_variable
 
 
-def variable_scatter(variable, dest_dist, root=0):
+def variable_scatter(variable, dest_dist, root=0, strict=False):
     from ocgis import vm
 
     if variable is not None:
@@ -726,26 +656,52 @@ def variable_scatter(variable, dest_dist, root=0):
         if not dest_dist.has_updated_dimensions:
             raise ValueError('The destination distribution must have updated dimensions.')
 
-    # Synchronize distribution across processors.
-    dest_dist = vm.bcast(dest_dist)
-
     # Find the appropriate group for the dimensions.
     if vm.rank == root:
         group = variable.group
-        dimension_names = [dim.name for dim in variable.dimensions]
+        # dimension_names = [dim.name for dim in variable.dimensions]
+        dimension_names = variable.parent.dimensions.keys()
     else:
         group = None
         dimension_names = None
 
+    # Depending on the strictness level, not all dimensions may be present in the distribution. This is allowed for
+    # processes to more flexibly add undistributed dimensions. Distributed dimensions should be part of the destination
+    # distribution already.
+    not_in_dist = {}
+    if vm.rank == 0:
+        for dest_dimension_name in dimension_names:
+            try:
+                _ = dest_dist.get_dimension(dest_dimension_name, group=group)
+            except DimensionNotFound:
+                if strict:
+                    raise
+                else:
+                    not_in_dist[dest_dimension_name] = variable.parent.dimensions[dest_dimension_name]
+    not_in_dist = vm.bcast(not_in_dist)
+
     # Synchronize the processes with the MPI distribution and the group containing the dimensions.
-    dest_dist = vm.bcast(dest_dist)
-    group = vm.bcast(group)
-    dimension_names = vm.bcast(dimension_names)
+    dest_dist = vm.bcast(dest_dist, root=root)
+    group = vm.bcast(group, root=root)
+    dimension_names = vm.bcast(dimension_names, root=root)
 
     # These are the dimensions for the local process.
-    dest_dimensions = dest_dist.get_dimensions(dimension_names, group=group)
+    dest_dimensions = [None] * len(dimension_names)
+    for ii, dest_dimension_name in enumerate(dimension_names):
+        try:
+            d = dest_dist.get_dimension(dest_dimension_name, group=group)
+        except DimensionNotFound:
+            if strict:
+                raise
+            else:
+                # Dimensions not in the distribution should have been received from the root process.
+                d = not_in_dist[dest_dimension_name]
+        dest_dimensions[ii] = d
 
-    # barrier_print('dest_dimensions bounds_global: ', [(d.name, d.bounds_global) for d in dest_dimensions])
+    # Populate the local destination dimensions dictionary.
+    dd_dict = OrderedDict()
+    for d in dest_dimensions:
+        dd_dict[d.name] = d
 
     # Slice the variables collecting the sequence to scatter to the MPI procs.
     if vm.rank == root:
@@ -778,9 +734,9 @@ def variable_scatter(variable, dest_dist, root=0):
 
     # Scatter the variable across processes.
     scattered_variable = vm.scatter(variables_to_scatter, root=root)
-    # Update the scattered variable dimensions with the destination dimensions on the process. Everything should align
-    # shape-wise. If they don't, an exception will be raised.
-    scattered_variable.set_dimensions(dest_dimensions, force=True)
+    # Update the scattered variable collection dimensions with the destination dimensions on the process. Everything
+    # should align shape-wise.
+    scattered_variable.parent._dimensions = dd_dict
 
     return scattered_variable
 
@@ -789,6 +745,10 @@ def variable_collection_scatter(variable_collection, dest_dist):
     from ocgis import vm
 
     if vm.rank == 0:
+        for v in variable_collection.values():
+            if v.dist:
+                msg = "Only variables with no prior distribution may be scattered. '{}' is distributed."
+                raise ValueError(msg.format(v.name))
         target = variable_collection.first()
     else:
         target = None
@@ -823,3 +783,12 @@ def vgather(elements):
         fill[start:stop, :] = e
         start = stop
     return fill
+
+
+def cancel_free_requests(request_sequence):
+    for r in request_sequence:
+        try:
+            r.Cancel()
+            r.Free()
+        except:
+            pass

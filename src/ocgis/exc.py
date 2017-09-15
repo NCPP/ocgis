@@ -65,6 +65,19 @@ class MultipleElementsFound(OcgException):
         return msg
 
 
+class RequestableFeature(OcgException):
+    """Raised when a feature is not implemented but could be provided there is a use case available."""
+
+    def __init__(self, message=None):
+        from ocgis import constants
+        self.message = 'This feature is not implemented. Do you need it? Please post an issue: {}. {}'
+        if message is None:
+            second_format = ''
+        else:
+            second_format = "Custom message is: '{}'".format(message)
+        self.message.format(constants.GITHUB_ISSUES, second_format)
+
+
 class ShapeError(OcgException):
     """
     Raised when an array has an incompatible shape with an operation.
@@ -144,12 +157,8 @@ class ProjectionDoesNotMatch(CFException):
 
 
 class DimensionNotFound(CFException):
-    def __init__(self, axis):
-        self.axis = axis
-
-    def __str__(self):
-        msg = 'Dimension data not found for axis: {0}'.format(self.axis)
-        return msg
+    def __init__(self, name):
+        self.message = "Dimension not found: '{}'".format(name)
 
 
 class DefinitionValidationError(OcgException):
@@ -324,6 +333,13 @@ class VariableNotFoundError(OcgException):
     def __str__(self):
         msg = 'The variable "{0}" was not found in the dataset with URI: {1}'.format(self.variable, self.uri)
         return msg
+
+
+class VariableNotInCollection(OcgException):
+    """Raised when a variable is not present in a collection."""
+
+    def __init__(self, variable_name):
+        self.message = "The variable '{}' was not found in the collection.".format(variable_name)
 
 
 class RegriddingError(OcgException):

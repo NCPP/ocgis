@@ -1,8 +1,10 @@
 import numpy as np
 
 from ocgis import Variable, Dimension
-from ocgis.constants import DMK
+from ocgis.constants import DMK, GridAbstraction
 from ocgis.driver.dimension_map import DimensionMap
+from ocgis.driver.nc import DriverNetcdfCF
+from ocgis.driver.nc_ugrid import DriverNetcdfUGRID
 from ocgis.exc import DimensionMapError
 from ocgis.spatial.grid import create_grid_mask_variable
 from ocgis.test.base import TestBase
@@ -25,7 +27,7 @@ class TestDimensionMap(TestBase):
 
         desired = {'crs': {'variable': 'latitude_longitude'},
                    'x': {'attrs': {}, 'bounds': None, 'dimension': [], 'variable': None},
-                   'y': {'attrs': {'axis': 'Y'},
+                   'y': {'attrs': {},
                          'bounds': 'lat_bounds',
                          'dimension': ['ache'],
                          'variable': 'latitude'}}
@@ -55,7 +57,7 @@ class TestDimensionMap(TestBase):
                      'T': {'variable': u'time', 'bounds': u'time_bnds', 'dimension': u'time', 'pos': 0}}
         new_style = DimensionMap.from_old_style_dimension_map(old_style)
 
-        desired = {'level': {'attrs': {'axis': 'Z'},
+        desired = {'level': {'attrs': {},
                              'bounds': None,
                              'dimension': [],
                              'variable': u'height'},
@@ -63,15 +65,19 @@ class TestDimensionMap(TestBase):
                             'bounds': u'time_bnds',
                             'dimension': [u'time'],
                             'variable': u'time'},
-                   'x': {'attrs': {'axis': 'X'},
+                   'x': {'attrs': {},
                          'bounds': u'lon_bnds',
                          'dimension': [u'lon'],
                          'variable': u'lon'},
-                   'y': {'attrs': {'axis': 'Y'},
+                   'y': {'attrs': {},
                          'bounds': u'lat_bnds',
                          'dimension': [u'lat'],
                          'variable': u'lat'}}
         self.assertEqual(new_style.as_dict(), desired)
+
+    def test_get_driver(self):
+        dmap = DimensionMap()
+        self.assertEqual(dmap.get_driver(), DriverNetcdfCF.key)
 
     def test_get_group(self):
         dmap = DimensionMap()
@@ -88,7 +94,7 @@ class TestDimensionMap(TestBase):
         level_1.set_variable(DMK.LEVEL, 'level_1')
         dmap.set_group('level_1', level_1)
         desired = {'crs': {'variable': 'what'},
-                   'groups': {'level_1': {'level': {'attrs': {'axis': 'Z'},
+                   'groups': {'level_1': {'level': {'attrs': {},
                                                     'bounds': None,
                                                     'dimension': [],
                                                     'variable': 'level_1'}}}}
@@ -99,16 +105,30 @@ class TestDimensionMap(TestBase):
         level_1_1.set_variable(DMK.X, 'longitude')
         level_1.set_group('level_1_1', level_1_1)
         desired = {'crs': {'variable': 'what'},
-                   'groups': {'level_1': {'groups': {'level_1_1': {'x': {'attrs': {'axis': 'X'},
+                   'groups': {'level_1': {'groups': {'level_1_1': {'x': {'attrs': {},
                                                                          'bounds': None,
                                                                          'dimension': [],
                                                                          'variable': 'longitude'}}},
-                                          'level': {'attrs': {'axis': 'Z'},
+                                          'level': {'attrs': {},
                                                     'bounds': None,
                                                     'dimension': [],
                                                     'variable': 'level_1'}}}}
         actual = dmap.as_dict()
         self.assertEqual(actual, desired)
+
+    def test_get_topology(self):
+        dmap = DimensionMap()
+        self.assertEqual(dmap.get_topology(GridAbstraction.POINT), GridAbstraction.AUTO)
+
+        dmap_poly = dmap.get_topology(GridAbstraction.POLYGON, create=True)
+        self.assertEqual(dmap_poly, DimensionMap())
+
+        dmap_poly.set_variable(DMK.X, 'polyx')
+        dmap_poly.set_variable(DMK.ELEMENT_NODE_CONNECTIVITY, 'element_connectivity')
+
+        dmap_point = dmap.get_topology(GridAbstraction.POINT, create=True)
+        dmap_point.set_variable(DMK.Y, 'point_y')
+        self.assertEqual(dmap.get_topology(GridAbstraction.POINT).get_variable(DMK.Y), 'point_y')
 
     def test_set_bounds(self):
         dmap = DimensionMap()
@@ -118,6 +138,11 @@ class TestDimensionMap(TestBase):
         dmap.set_bounds(DMK.X, None)
         actual = dmap.get_bounds(DMK.X)
         self.assertIsNone(actual)
+
+    def test_set_driver(self):
+        dmap = DimensionMap()
+        dmap.set_driver(DriverNetcdfUGRID)
+        self.assertEqual(dmap.get_driver(), DriverNetcdfUGRID.key)
 
     def test_set_spatial_mask(self):
         dmap = DimensionMap()

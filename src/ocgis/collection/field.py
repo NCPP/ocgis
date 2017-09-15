@@ -9,8 +9,7 @@ from ocgis import env, DimensionMap, VariableCollection
 from ocgis.base import get_dimension_names, get_variable_names, get_variables, renamed_dimensions_on_variables, \
     revert_renamed_dimensions_on_variables, raise_if_empty
 from ocgis.constants import DimensionMapKey, WrapAction, TagName, HeaderName, DimensionName, UNINITIALIZED, \
-    KeywordArgument
-from ocgis.spatial.grid import Grid
+    KeywordArgument, DMK
 from ocgis.util.helpers import get_iter
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import Variable, get_bounds_names_1d, create_typed_variable_from_data_model
@@ -58,10 +57,8 @@ class Field(VariableCollection):
     """
 
     def __init__(self, **kwargs):
-        dimension_map = deepcopy(kwargs.pop('dimension_map', DimensionMap()))
-        if isinstance(dimension_map, dict):
-            dimension_map = DimensionMap.from_dict(dimension_map)
-        self.dimension_map = dimension_map
+        kwargs = kwargs.copy()
+        dimension_map = kwargs.pop('dimension_map', None)
 
         # Flag updated by driver to indicate if the coordinate system is assigned or implied.
         self._has_assigned_coordinate_system = False
@@ -71,63 +68,47 @@ class Field(VariableCollection):
         self.regrid_source = kwargs.pop('regrid_source', True)
 
         # Other incoming data objects may have a coordinate system which should be used.
-        crs = kwargs.pop('crs', 'auto')
+        crs = kwargs.pop(KeywordArgument.CRS, 'auto')
 
         # Add grid variable metadata to dimension map.
-        grid = kwargs.pop('grid', None)
-        if grid is not None:
-            update_dimension_map_with_variable(self.dimension_map, DimensionMapKey.X, grid.x, grid.dimensions[1])
-            update_dimension_map_with_variable(self.dimension_map, DimensionMapKey.Y, grid.y, grid.dimensions[0])
-            if grid.mask_variable is not None:
-                self.dimension_map.set_spatial_mask(grid.mask_variable)
-            if grid.crs is not None:
-                if crs == 'auto':
-                    crs = grid.crs
-                else:
-                    if grid.crs != crs:
-                        raise ValueError("'grid' CRS differs from field CRS.")
-        # Add realization variable metadata to dimension map.
-        rvar = kwargs.pop('realization', None)
-        if rvar is not None:
-            update_dimension_map_with_variable(self.dimension_map, DimensionMapKey.REALIZATION, rvar,
-                                               rvar.dimensions[0])
-        # Add time variable metadata to dimension map.
-        tvar = kwargs.pop('time', None)
-        if tvar is not None:
-            update_dimension_map_with_variable(self.dimension_map, DimensionMapKey.TIME, tvar, tvar.dimensions[0])
-        # Add level variable metadata to dimension map.
-        lvar = kwargs.pop('level', None)
-        if lvar is not None:
-            update_dimension_map_with_variable(self.dimension_map, DimensionMapKey.LEVEL, lvar, lvar.dimensions[0])
-        # Add the geometry variable.
-        geom = kwargs.pop('geom', None)
-        if geom is not None:
-            if geom.ndim > 1:
-                dimensionless = True
-            else:
-                dimensionless = False
-            update_dimension_map_with_variable(self.dimension_map, DimensionMapKey.GEOM, geom, None,
-                                               dimensionless=dimensionless)
-            if geom.crs is not None:
-                if crs == 'auto':
-                    crs = geom.crs
-                else:
-                    if geom.crs != crs:
-                        raise ValueError("'geom' CRS differs from field CRS.")
-        # Add the coordinate system.
-        if crs != 'auto' and crs is not None:
-            self.dimension_map.set_crs(crs)
+        grid = kwargs.pop(KeywordArgument.GRID, 'auto')
 
-        self.grid_abstraction = kwargs.pop('grid_abstraction', 'auto')
-        if self.grid_abstraction is None:
-            raise ValueError('"grid_abstraction" may not be None.')
+        # Configure the driver.
+        driver = kwargs.pop(KeywordArgument.DRIVER, 'auto')
 
-        self.format_time = kwargs.pop('format_time', True)
+        # Extract standard coordinate variables from the field keyword arguments.
+        k = (DimensionMapKey.GEOM, DimensionMapKey.REALIZATION, DimensionMapKey.TIME, DimensionMapKey.LEVEL)
+        s = OrderedDict()
+        for ii in k:
+            s[ii] = kwargs.pop(ii, None)
+
+        grid_abstraction = kwargs.pop(KeywordArgument.GRID_ABSTRACTION, 'auto')
+        if grid_abstraction is None:
+            raise ValueError("'{}' may not be None.".format(KeywordArgument.GRID_ABSTRACTION))
+
+        # TODO: This should maybe be part of the dimension map? Time variables are not dependent on fields.
+        self.format_time = kwargs.pop(KeywordArgument.FORMAT_TIME, True)
 
         # Use tags to set data variables.
         is_data = kwargs.pop(KeywordArgument.IS_DATA, [])
 
         VariableCollection.__init__(self, **kwargs)
+
+        # if dimension_map is not None and grid is not None:
+        #     raise ValueError("A 'dimension_map' cannot be provided when a 'grid' is provided.")
+
+        dimension_map = deepcopy(dimension_map)
+        if dimension_map is None:
+            dimension_map = DimensionMap()
+        elif isinstance(dimension_map, dict):
+            dimension_map = DimensionMap.from_dict(dimension_map)
+        self.dimension_map = dimension_map
+
+        self.set_grid(grid, crs=crs)
+        if driver != 'auto':
+            self.dimension_map.set_driver(driver)
+        if grid_abstraction != 'auto':
+            self.dimension_map.set_grid_abstraction(grid_abstraction)
 
         # Append the data variable tagged variable names.
         is_data = list(get_iter(is_data, dtype=Variable))
@@ -139,21 +120,21 @@ class Field(VariableCollection):
                 if isinstance(is_data[idx], Variable):
                     self.add_variable(is_data[idx])
 
-        if grid is not None:
-            for var in grid.parent.values():
-                self.add_variable(var, force=True)
-        if tvar is not None:
-            self.add_variable(tvar, force=True)
-        if rvar is not None:
-            self.add_variable(rvar, force=True)
-        if lvar is not None:
-            self.add_variable(lvar, force=True)
-        if crs != 'auto' and crs is not None:
-            self.add_variable(crs, force=True)
-        if geom is not None:
-            self.add_variable(geom, force=True)
-
-        self.dimension_map.update_dimensions_from_field(self)
+        # Configure the field updating the dimension map in the process.
+        cvar = s[DimensionMapKey.REALIZATION]
+        if cvar is not None:
+            self.set_realization(cvar)
+        cvar = s[DimensionMapKey.TIME]
+        if cvar is not None:
+            self.set_time(cvar)
+        cvar = s[DimensionMapKey.LEVEL]
+        if cvar is not None:
+            self.set_level(cvar)
+        cvar = s[DimensionMapKey.GEOM]
+        if cvar is not None:
+            self.set_geom(cvar, crs=crs)
+        if crs != 'auto':
+            self.set_crs(crs)
 
     @property
     def _should_regrid(self):
@@ -194,16 +175,30 @@ class Field(VariableCollection):
         return ret
 
     @property
+    def coordinate_variables(self):
+        """
+        Return a tuple of spatial coordinate variables. This will attempt to access coordinate variables on the field's
+        grid. If no grid is available, spatial coordinates will be pulled from the dimension map. The tuple may have a
+        length of zero if no coordinate variables are available on the field.
+
+        :rtype: tuple
+        """
+        grid = self.grid
+        if grid is not None:
+            ret = grid.coordinate_variables
+        else:
+            poss = [self.x, self.y, self.level]
+            poss = [p for p in poss if p is not None]
+            ret = tuple(poss)
+        return ret
+
+    @property
     def crs(self):
         """
         :return: Get the field's coordinate reference system. Return ``None`` if no coordinate system is assigned.
         :rtype: :class:`~ocgis.variable.crs.AbstractCRS`
         """
-        crs_name = self.dimension_map.get_crs()
-        if crs_name is None:
-            ret = None
-        else:
-            ret = self[crs_name]
+        ret = self.dimension_map.get_crs(parent=self, nullable=True)
         return ret
 
     @property
@@ -220,6 +215,15 @@ class Field(VariableCollection):
         except KeyError:
             ret = tuple()
         return ret
+
+    @property
+    def driver(self):
+        """
+        Return the driver class associated with the dimension map.
+
+        :rtype: :class:`ocgis.driver.base.AbstractDriver`
+        """
+        return self.dimension_map.get_driver(as_class=True)
 
     @property
     def realization(self):
@@ -253,6 +257,7 @@ class Field(VariableCollection):
         :rtype: :attr:`ocgis.constants.WrappedState`
         :raises: :class:`~ocgis.exc.EmptyObjectError`
         """
+
         raise_if_empty(self)
 
         if self.crs is None:
@@ -268,16 +273,7 @@ class Field(VariableCollection):
         :rtype: :class:`~ocgis.Variable` | ``None``
         """
 
-        return get_field_property(self, 'level')
-
-    @property
-    def y(self):
-        """
-        :return: Get the field's y-coordinate variable. Return ``None`` if no y-coordinate is assigned.
-        :rtype: :class:`~ocgis.Variable` | ``None``
-        """
-
-        return get_field_property(self, 'y')
+        return get_field_property(self, DMK.LEVEL)
 
     @property
     def x(self):
@@ -286,7 +282,16 @@ class Field(VariableCollection):
         :rtype: :class:`~ocgis.Variable` | ``None``
         """
 
-        return get_field_property(self, 'x')
+        return get_field_property(self, DMK.X)
+
+    @property
+    def y(self):
+        """
+        :return: Get the field's y-coordinate variable. Return ``None`` if no y-coordinate is assigned.
+        :rtype: :class:`~ocgis.Variable` | ``None``
+        """
+
+        return get_field_property(self, DMK.Y)
 
     @property
     def z(self):
@@ -298,20 +303,9 @@ class Field(VariableCollection):
     def grid(self):
         """
         :return: Get the field's grid object. Return ``None`` if no grid is present.
-        :rtype: :class:`~ocgis.Grid` | ``None``
+        :rtype: :class:`~ocgis.spatial.grid.AbstractGrid` | ``None``
         """
-
-        x = self.x
-        y = self.y
-        if x is None or y is None:
-            ret = None
-        else:
-            spatial_mask_variable = self.dimension_map.get_spatial_mask()
-            if spatial_mask_variable is not None:
-                spatial_mask_variable = self[spatial_mask_variable]
-            ret = Grid(self.x, self.y, parent=self, crs=self.crs, abstraction=self.grid_abstraction, z=self.level,
-                       mask=spatial_mask_variable)
-        return ret
+        return self.driver.get_grid(self)
 
     @property
     def geom(self):
@@ -328,6 +322,10 @@ class Field(VariableCollection):
             if crs is not None:
                 ret.crs = crs
         return ret
+
+    @property
+    def grid_abstraction(self):
+        return self.dimension_map.get_grid_abstraction()
 
     @property
     def has_data_variables(self):
@@ -519,7 +517,6 @@ class Field(VariableCollection):
         kwargs['parent'] = vc.parent
         kwargs['children'] = vc.children
         kwargs[KeywordArgument.UID] = vc.uid
-        kwargs[KeywordArgument.DRIVER] = vc.driver
         kwargs['variables'] = vc.values()
         if 'force' not in kwargs:
             kwargs['force'] = True
@@ -762,31 +759,51 @@ class Field(VariableCollection):
         if set_ugid_as_data:
             self.add_variable(self.geom.ugid, force=True, is_data=True)
 
-    def set_crs(self, value):
+    def set_crs(self, value, force=True, should_add=True):
         """
         Set the field's coordinate reference system. If coordinate system is already present on the field. Remove this
         variable.
         
         :param value: The coordinate reference system variable or ``None``.
         :type value: :class:`~ocgis.variable.crs.AbstractCRS` | ``None``
+        :param force: See :meth:`~ocgis.VariableCollection.add_variable`
+        :param bool should_add: If ``True``, add the variable to the field object. If ``False``, do not add the
+         variable to the field variable storage. This is useful for updating metadata on the dimension map only.
         """
 
         if self.crs is not None:
             self.pop(self.crs.name)
         if value is not None:
-            self.add_variable(value)
-            value.format_field(self)
+            if should_add:
+                self.add_variable(value, force=force)
+            value.format_spatial_object(self)
         self.dimension_map.set_crs(value)
 
-    def set_geom(self, variable, force=True, dimensionless='auto'):
+    def set_element_node_connectivity(self, value, force=True, should_add=True):
+        """
+        Set the element node connectivity variable. This variable maps coordinate values to element nodes using an
+        index.
+
+        :param value: The element node connectivity variable.
+        :type value: :class:`~ocgis.Variable`
+        :param bool force: See :meth:`~ocgis.VariableCollection.add_variable`.
+        :param bool should_add: If ``True`` (the default), add the variable to collection.
+        """
+        set_field_property(self, DimensionMapKey.ELEMENT_NODE_CONNECTIVITY, value, force, dimension=value.dimensions[0],
+                           should_add=should_add)
+
+    def set_geom(self, variable, crs='auto', force=True, dimensionless='auto', should_add=True):
         """
         Set the field's geometry variable. 
 
-        :param value: The coordinate reference system variable or ``None``.
-        :type value: :class:`~ocgis.variable.crs.AbstractCRS` | ``None``
+        :param variable: The geometry variable or ``None``.
+        :type variable: :class:`~ocgis.GeometryVariable` | ``None``
+        :param crs: If ``'auto'`` (the default), use the coordinate system of the incoming geometry variable.
         :param bool force: If ``True`` (the default), clobber any existing geometry variable.
         :param bool dimensionless: If ``'auto'``, automatically determine dimensionless state for the variable. See
          :meth:`~ocgis.Dimension.set_variable`.
+        :param bool should_add: If ``True``, add the variable to the field object. If ``False``, do not add the
+         variable to the field variable storage. This is useful for updating metadata on the dimension map only.
         :raises: ValueError
         """
         if dimensionless == 'auto':
@@ -795,25 +812,36 @@ class Field(VariableCollection):
             else:
                 dimensionless = False
 
-        self.dimension_map.set_variable(DimensionMapKey.GEOM, variable, dimensionless=dimensionless)
-        if variable.crs != self.crs and not self.is_empty:
-            raise ValueError('Geometry and field do not have matching coordinate reference systems.')
-        self.add_variable(variable, force=force)
+        variable_crs = variable.crs
+        if crs != 'auto':
+            if variable_crs is not None and variable_crs != crs:
+                raise ValueError('Geometry and field do not have matching coordinate reference systems.')
+        else:
+            self.set_crs(variable_crs, should_add=should_add)
+        set_field_property(self, DimensionMapKey.GEOM, variable, force, dimensionless=dimensionless,
+                           should_add=should_add)
 
-    def set_grid(self, grid, force=True):
+    def set_grid(self, grid, crs='auto', force=True, should_add=True):
         """
         Set the field's grid.
 
-        :param grid: The grid object.
-        :type grid: :class:`~ocgis.Grid`
+        :param grid: The grid object. If ``'auto'``, pass-through.
+        :type grid: :class:`~ocgis.Grid` | None | str
+        :param crs: If ``'auto'`` (the default), use the coordinate system of the incoming grid object.
         :param bool force: If ``True`` (the default), clobber any existing grid member variables.
+        :param bool should_add: If ``True``, add the variable to the field object. If ``False``, do not add the
+         variable to the field variable storage. This is useful for updating metadata on the dimension map only.
         """
+        if grid is None:
+            raise ValueError("'grid' may not be None.")
+        if grid != 'auto':
+            if crs != 'auto' and grid.crs is not None and crs != grid.crs:
+                raise ValueError('Grid and field coordinate systems do not match.')
 
-        for member in grid.get_member_variables():
-            self.add_variable(member, force=force)
-        self.grid_abstraction = grid.abstraction
-        self.set_x(grid.x, grid.dimensions[1])
-        self.set_y(grid.y, grid.dimensions[0])
+            if should_add:
+                for v in grid.parent.values():
+                    self.add_variable(v, force=force)
+            self.dimension_map.update(grid.dimension_map)
 
     def set_geom_from_grid(self, force=True):
         """
@@ -825,19 +853,59 @@ class Field(VariableCollection):
         new_geom = self.grid.get_abstraction_geometry()
         self.set_geom(new_geom, force=force)
 
-    def set_time(self, variable, force=True):
+    def set_level(self, variable, force=True, should_add=True):
+        """
+        Set the field's level variable.
+
+        :param variable: The variable to use.
+        :type variable: :class:`~ocgis.TemporalVariable` | ``None``
+        :param force: See :meth:`~ocgis.VariableCollection.add_variable`
+        :param bool should_add: If ``True``, add the variable to the field object. If ``False``, do not add the
+         variable to the field variable storage. This is useful for updating metadata on the dimension map only.
+        """
+
+        set_field_property(self, DimensionMapKey.LEVEL, variable, force, dimension=None, should_add=should_add)
+
+    def set_level_repr(self, variable, force=True, should_add=True):
+        """
+        Set the field's representative level variable.
+
+        :param variable: The variable to use.
+        :type variable: :class:`~ocgis.TemporalVariable` | ``None``
+        :param force: See :meth:`~ocgis.VariableCollection.add_variable`
+        :param bool should_add: If ``True``, add the variable to the field object. If ``False``, do not add the
+         variable to the field variable storage. This is useful for updating metadata on the dimension map only.
+        """
+
+        set_field_property(self, DimensionMapKey.LEVEL_REPR, variable, force, dimension=None, should_add=should_add)
+
+    def set_realization(self, variable, force=True, should_add=True):
+        """
+        Set the field's realization variable.
+
+        :param variable: The variable to use.
+        :type variable: :class:`~ocgis.TemporalVariable` | ``None``
+        :param force: See :meth:`~ocgis.VariableCollection.add_variable`
+        :param bool should_add: If ``True``, add the variable to the field object. If ``False``, do not add the
+         variable to the field variable storage. This is useful for updating metadata on the dimension map only.
+        """
+
+        set_field_property(self, DimensionMapKey.REALIZATION, variable, force, dimension=None, should_add=should_add)
+
+    def set_time(self, variable, force=True, should_add=True):
         """
         Set the field's time variable.
 
-        :param variable: The time variable to use.
+        :param variable: The variable to use.
         :type variable: :class:`~ocgis.TemporalVariable` | ``None``
-        :param bool force: If ``True`` (the default), clobber any existing geometry variables. 
+        :param force: See :meth:`~ocgis.VariableCollection.add_variable`
+        :param bool should_add: If ``True``, add the variable to the field object. If ``False``, do not add the
+         variable to the field variable storage. This is useful for updating metadata on the dimension map only.
         """
 
-        self.add_variable(variable, force=force)
-        self.dimension_map.set_variable(DimensionMapKey.TIME, variable)
+        set_field_property(self, DimensionMapKey.TIME, variable, force, dimension=None, should_add=should_add)
 
-    def set_x(self, variable, dimension, force=True):
+    def set_x(self, variable, dimension, force=True, should_add=True):
         """
         Set the field's x-coordinate variable.
 
@@ -846,13 +914,14 @@ class Field(VariableCollection):
         :param dimension: The representative field dimension for the variable. Required as the representative dimension
          cannot be determined with greater than one dimension on the coordinate variable.
         :type dimension: :class:`~ocgis.Dimension`
-        :param bool force: If ``True`` (the default), clobber any existing geometry variables. 
+        :param bool force: If ``True`` (the default), clobber any existing geometry variables.
+        :param bool should_add: If ``True``, add the variable to the field object. If ``False``, do not add the
+         variable to the field variable storage. This is useful for updating metadata on the dimension map only.
         """
 
-        self.add_variable(variable, force=force)
-        update_dimension_map_with_variable(self.dimension_map, DimensionMapKey.X, variable, dimension)
+        set_field_property(self, DimensionMapKey.X, variable, force, dimension=dimension, should_add=should_add)
 
-    def set_y(self, variable, dimension, force=True):
+    def set_y(self, variable, dimension, force=True, should_add=True):
         """
         Set the field's y-coordinate variable.
 
@@ -861,11 +930,12 @@ class Field(VariableCollection):
         :param dimension: The representative field dimension for the variable. Required as the representative dimension
          cannot be determined with greater than one dimension on the coordinate variable.
         :type dimension: :class:`~ocgis.Dimension`
-        :param bool force: If ``True`` (the default), clobber any existing geometry variables. 
+        :param force: See :meth:`~ocgis.VariableCollection.add_variable`
+        :param bool should_add: If ``True``, add the variable to the field object. If ``False``, do not add the
+         variable to the field variable storage. This is useful for updating metadata on the dimension map only.
         """
 
-        self.add_variable(variable, force=force)
-        update_dimension_map_with_variable(self.dimension_map, DimensionMapKey.Y, variable, dimension)
+        set_field_property(self, DimensionMapKey.Y, variable, force, dimension=dimension, should_add=should_add)
 
     def unwrap(self):
         """
@@ -910,9 +980,11 @@ class Field(VariableCollection):
         raise NotImplementedError("Use request dataset 'get' method.")
 
     def write(self, *args, **kwargs):
-        """See :meth:`ocgis.VariableCollection.write`"""
+        """
+        See :meth:`ocgis.VariableCollection.write`.
 
-        from ocgis.driver.nc import DriverNetcdfCF
+        .. note:: If no ``driver`` is provided, then the field's dimension map driver will be used.
+        """
         from ocgis.driver.registry import get_driver_class
 
         to_load = (DimensionMapKey.REALIZATION, DimensionMapKey.TIME, DimensionMapKey.LEVEL, DimensionMapKey.Y,
@@ -923,8 +995,11 @@ class Field(VariableCollection):
         for k in to_load:
             getattr(self, k)
 
-        driver = kwargs.pop('driver', DriverNetcdfCF)
-        driver = get_driver_class(driver, default=driver)
+        driver = kwargs.pop('driver', None)
+        if driver is None:
+            driver = self.dimension_map.get_driver(as_class=True)
+        else:
+            driver = get_driver_class(driver)
         args = list(args)
         args.insert(0, self)
         return driver.write_field(*args, **kwargs)
@@ -970,6 +1045,23 @@ def get_name_mapping(dimension_map):
                 dimension_names.append(dimension_name)
             name_mapping[k] = dimension_names
     return name_mapping
+
+
+def set_field_property(field, dmap_key, variable, force, dimension=None, dimensionless=False, nullable=True,
+                       should_add=True):
+    dimension_map = field.dimension_map
+    curr = dimension_map.get_variable(dmap_key)
+    # Remove the variable if it exists in the field. The "in field" check is needed when the field initialization has an
+    # incoming dimension map so this function thinks the variable should exist in the field.
+    if should_add and curr is not None and curr in field:
+        field.remove_variable(curr)
+    if variable is None:
+        if not nullable:
+            raise ValueError("'variable' is None and the property has 'nullable=False'")
+    else:
+        if should_add:
+            field.add_variable(variable, force=force)
+    update_dimension_map_with_variable(dimension_map, dmap_key, variable, dimension, dimensionless=dimensionless)
 
 
 def update_dimension_map_with_variable(dimension_map, key, variable, dimension, dimensionless=False):

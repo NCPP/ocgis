@@ -111,13 +111,9 @@ class AbstractNamedObject(AbstractInterfaceObject):
         self._aliases = aliases
 
 
-def is_empty_decorator(*args, **kwargs):
-    print('a', args, kwargs)
-
-    def wrapped_f(*args, **kwargs):
-        print(args, kwargs)
-
-    return wrapped_f
+def is_field(target):
+    from ocgis import Field
+    return isinstance(target, Field)
 
 
 def get_dimension_names(target):

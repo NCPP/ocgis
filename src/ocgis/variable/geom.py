@@ -1,174 +1,35 @@
-import abc
-from abc import abstractmethod
 from collections import deque
 from copy import deepcopy
 from itertools import product
 
 import numpy as np
-import six
 from numpy.core.multiarray import ndarray
 from shapely import wkb
 from shapely.geometry import Point, Polygon, MultiPolygon, mapping, MultiPoint, box
 from shapely.geometry.base import BaseGeometry
+from shapely.geometry.polygon import orient
 from shapely.ops import cascaded_union
 from shapely.prepared import prep
 
-from ocgis import SourcedVariable, Variable, vm
+from ocgis import Variable, vm
 from ocgis import constants
 from ocgis import env
-from ocgis.base import AbstractInterfaceObject, get_dimension_names, get_variable_names, raise_if_empty
 from ocgis.base import AbstractOcgisObject
-from ocgis.constants import WrapAction, KeywordArgument, HeaderName
+from ocgis.base import get_dimension_names, get_variable_names, raise_if_empty
+from ocgis.constants import KeywordArgument, HeaderName, VariableName, DimensionName, ConversionTarget
 from ocgis.environment import ogr
-from ocgis.exc import EmptySubsetError
-from ocgis.util.helpers import iter_array, get_trimmed_array_by_mask, get_swap_chain
-from ocgis.variable.base import AbstractContainer, get_dimension_lengths
+from ocgis.exc import EmptySubsetError, RequestableFeature
+from ocgis.spatial.base import AbstractSpatialVariable
+from ocgis.util.helpers import iter_array, get_trimmed_array_by_mask, get_swap_chain, find_index
+from ocgis.variable.base import get_dimension_lengths
 from ocgis.variable.crs import Cartesian
+from ocgis.variable.dimension import create_distributed_dimension, Dimension
 from ocgis.variable.iterator import Iterator
 
 CreateGeometryFromWkb, Geometry, wkbGeometryCollection, wkbPoint = ogr.CreateGeometryFromWkb, ogr.Geometry, \
                                                                    ogr.wkbGeometryCollection, ogr.wkbPoint
 
 GEOM_TYPE_MAPPING = {'Polygon': Polygon, 'Point': Point, 'MultiPoint': MultiPoint, 'MultiPolygon': MultiPolygon}
-
-
-class AbstractSpatialObject(AbstractInterfaceObject):
-    """
-    :keyword crs: (``=None``) Coordinate reference system for the spatial object.
-    :type crs: :class:`ocgis.variable.crs.AbstractCRS`
-    """
-
-    def __init__(self, *args, **kwargs):
-        self._crs_name = None
-        self.crs = kwargs.pop('crs', None)
-        super(AbstractInterfaceObject, self).__init__(*args, **kwargs)
-
-    @property
-    def crs(self):
-        if self.parent is not None and self._crs_name is not None:
-            ret = self.parent.get(self._crs_name)
-        else:
-            ret = None
-        return ret
-
-    @crs.setter
-    def crs(self, value):
-        if value is None:
-            if self.crs is not None:
-                self.parent.pop(self._crs_name)
-                self._crs_name = None
-        else:
-            if self.parent is None:
-                self.initialize_parent()
-            if self._crs_name is not None:
-                self.parent.pop(self._crs_name)
-            self.parent.add_variable(value, force=True)
-            self._crs_name = value.name
-            value.format_field(self)
-
-    @property
-    def wrapped_state(self):
-        raise_if_empty(self)
-
-        if self.crs is None:
-            ret = None
-        else:
-            ret = self.crs.get_wrapped_state(self)
-        return ret
-
-    def unwrap(self):
-        raise_if_empty(self)
-
-        if self.crs is None or not self.crs.is_geographic:
-            raise ValueError("Only spherical coordinate systems may be wrapped/unwrapped.")
-        else:
-            self.crs.wrap_or_unwrap(WrapAction.UNWRAP, self)
-
-    def wrap(self):
-        raise_if_empty(self)
-
-        if self.crs is None or not self.crs.is_geographic:
-            raise ValueError("Only spherical coordinate systems may be wrapped/unwrapped.")
-        else:
-            self.crs.wrap_or_unwrap(WrapAction.WRAP, self)
-
-
-@six.add_metaclass(abc.ABCMeta)
-class AbstractOperationsSpatialObject(AbstractSpatialObject):
-    @property
-    def envelope(self):
-        return box(*self.extent)
-
-    @property
-    def extent(self):
-        return self._get_extent_()
-
-    @abstractmethod
-    def update_crs(self, to_crs):
-        """Update coordinate system in-place."""
-        raise_if_empty(self)
-
-        if self.crs is None:
-            msg = 'The current CRS is None and cannot be updated. Has the coordinate system been assigned ' \
-                  'appropriately?'
-            raise ValueError(msg)
-        if to_crs is None:
-            msg = 'The destination CRS may not be None. Has the coordinate system been assigned appropriately?'
-            raise ValueError(msg)
-
-    @abstractmethod
-    def _get_extent_(self):
-        """
-        :returns: A tuple with order (minx, miny, maxx, maxy).
-        :rtype: tuple
-        """
-
-    @abstractmethod
-    def get_intersects(self, *args, **kwargs):
-        """Perform an intersects operations."""
-
-    @abstractmethod
-    def get_nearest(self, target, return_indices=False):
-        """Get nearest element to target geometry."""
-
-    @abstractmethod
-    def get_spatial_index(self):
-        """Get the spatial index."""
-
-    @abstractmethod
-    def iter_records(self, use_mask=True):
-        """Generate fiona-compatible records."""
-
-
-@six.add_metaclass(abc.ABCMeta)
-class AbstractSpatialContainer(AbstractContainer, AbstractOperationsSpatialObject):
-    def __init__(self, **kwargs):
-        crs = kwargs.pop('crs', None)
-        parent = kwargs.pop('parent', None)
-        name = kwargs.pop('name', None)
-        AbstractContainer.__init__(self, name, parent=parent)
-        AbstractOperationsSpatialObject.__init__(self, crs=crs)
-
-
-@six.add_metaclass(abc.ABCMeta)
-class AbstractSpatialVariable(SourcedVariable, AbstractOperationsSpatialObject):
-    def __init__(self, **kwargs):
-        crs = kwargs.pop('crs', None)
-        SourcedVariable.__init__(self, **kwargs)
-        AbstractOperationsSpatialObject.__init__(self, crs=crs)
-
-    def deepcopy(self, eager=False):
-        ret = super(AbstractSpatialVariable, self).deepcopy(eager)
-        if ret.crs is not None:
-            ret.crs = ret.crs.deepcopy()
-        return ret
-
-    def extract(self, **kwargs):
-        crs = self.crs
-        ret = super(AbstractSpatialVariable, self).extract(**kwargs)
-        if crs is not None:
-            self.parent.add_variable(crs)
-        return ret
 
 
 class GeometryProcessor(AbstractOcgisObject):
@@ -248,20 +109,23 @@ class GeometryVariable(AbstractSpatialVariable):
     :type crs: :class:`~ocgis.variable.crs.AbstractCRS`
     :param str geom_type: (``='auto'``) See http://toblerity.org/shapely/manual.html#object.geom_type. If ``'auto'``,
      the geometry type will be automatically determined from the object array. Providing a default prevents iterating
-     over the obejct array to identify the geometry type.
+     over the object array to identify the geometry type.
     :param ugid: (``=None``) An integer array with same shape as the geometry variable. This array will be converted to
      a :class:`~ocgis.Variable`.
     :type ugid: :class:`numpy.ndarray`
+    :param bool is_bbox: If ``True``, treat the polygon geometry as a bounding box geometry.
     """
 
     def __init__(self, **kwargs):
-        self._name_ugid = None
+        kwargs = kwargs.copy()
         self._geom_type = kwargs.pop(KeywordArgument.GEOM_TYPE, 'auto')
 
         if kwargs.get(KeywordArgument.NAME) is None:
-            kwargs[KeywordArgument.NAME] = 'geom'
+            kwargs[KeywordArgument.NAME] = VariableName.GEOMETRY_VARIABLE
 
         ugid = kwargs.pop(KeywordArgument.UGID, None)
+        self.is_bbox = kwargs.pop('is_bbox', False)
+        self.is_prepared = kwargs.pop('is_prepared', False)
 
         super(GeometryVariable, self).__init__(**kwargs)
 
@@ -334,14 +198,28 @@ class GeometryVariable(AbstractSpatialVariable):
         return vm.bcast(g)
 
     @property
+    def has_z(self):
+        """
+        Return ``True`` if the variable has a z-coordinate.
+
+        :rtype: bool
+        """
+
+        if self.is_empty:
+            ret = False
+        else:
+            ret = self.get_masked_value().compressed()[0].has_z
+        return ret
+
+    @property
     def weights(self):
         """
         Weights are defined as:
-        
+
         >>> self.area / self.area.max()
-        
+
         Any geometries with zero area (points) are given an area of ``1.0`` for the purposes of weight calculation.
-        
+
         :return:  weights as a float masked array
         :rtype: :class:`numpy.ma.MaskedArray`
         """
@@ -350,67 +228,183 @@ class GeometryVariable(AbstractSpatialVariable):
         area.data[area.data == 0] = 1.0
         return area / area.max()
 
-    @property
-    def ugid(self):
+    def as_shapely(self):
         """
-        :return: unique identifier variable
-        :rtype: :class:`~ocgis.Variable`
+        Convert to a Shapely geometry provided this is a singleton geometry variable.
+
+        :rtype: :class:`shapely.geometry.base.BaseGeometry`
+        """
+        f = self.get_value().flatten()
+        assert f.size == 1
+        return f[0]
+
+    def convert_to(self, target=ConversionTarget.GEOMETRY_COORDS, **kwargs):
+        """
+        Convert to a target type. Some common manipulations are shared between conversion targets:
+
+        * Always orients polygons CCW.
+
+        :param target: The target type.
+        :type target: :attr:`ocgis.constants.ConversionTarget`
+        :keyword dtype: ``(=None)`` Array data type for the coordinate variables.
+        :keyword xname: ``(=constants.DEFAULT_NAME_COL_COORDINATES)`` Name of the x-coordinate variable.
+        :keyword yname: ``(=constants.DEFAULT_NAME_ROW_COORDINATES)`` Name of the y-coordinate variable.
+        :keyword zname: ``(=constants.DEFAULT_NAME_LVL_COORDINATES)`` Name of the z-coordinate variable.
+        :keyword node_dim_name: ``(='n_node')`` Name of the node count dimension.
+        :keyword element_index_name: ``(='element_index')`` Name of the element node connectivity variable.
+        :keyword pack: ``(=True)`` If ``True``, de-duplicate coordinate vectors.
+        :keyword repeat_last_node: ``(=False)`` If ``False``, do not repeat the last node coordinate for polygon
+         geometries.
+        :keyword max_element_coords: ``(=None)`` If provided, the maximum number of coordinates across all polygon
+         geometries to convert. This fixes the column count for element node connectivity arrays. Otherwise, ragged
+         arrays are used.
+        :type max_element_coords: int
         """
 
-        if self._name_ugid is None:
-            return None
+        # TODO: This needs to handle multi-geometries.
+        # TODO: This needs to handle geometry holes/interiors.
+        # TODO: Implement line conversion.
+
+        from ocgis.spatial.geomc import PointGC, PolygonGC
+
+        assert self.ndim == 1
+
+        kwargs = kwargs.copy()
+        dtype = kwargs.pop(KeywordArgument.DTYPE, None)
+        xname = kwargs.pop('xname', constants.DEFAULT_NAME_COL_COORDINATES)
+        yname = kwargs.pop('yname', constants.DEFAULT_NAME_ROW_COORDINATES)
+        zname = kwargs.pop('zname', constants.DEFAULT_NAME_LVL_COORDINATES)
+        node_dim_name = kwargs.pop('node_dim_name', 'n_node')
+        element_index_name = kwargs.pop('element_index_name', 'element_index')
+        pack = kwargs.pop('pack', True)
+        repeat_last_node = kwargs.pop('repeat_last_node', False)
+        max_element_coords = kwargs.pop('max_element_coords', None)
+        assert len(kwargs) == 0
+
+        geom_type = self.geom_type
+        if target == ConversionTarget.GEOMETRY_COORDS:
+            has_z = self.has_z
+            geom_itr = self.get_value().flat
+            if geom_type == 'Point':
+                if has_z:
+                    ndim = 3
+                else:
+                    ndim = 2
+                fill = np.zeros([self.size, ndim], dtype=dtype)
+                for idx, geom in enumerate(geom_itr):
+                    fill[idx] = np.array(geom)
+                xv = fill[:, 0]
+                yv = fill[:, 1]
+                if has_z:
+                    zv = fill[:, 2]
+                else:
+                    zv = None
+            elif geom_type == 'Polygon':
+                if max_element_coords is not None:
+                    element_index = np.zeros((self.size, max_element_coords), dtype=env.NP_INT)
+                else:
+                    element_index = np.zeros(self.size, dtype=object)
+                cidx = 0
+                xv = deque()
+                yv = deque()
+                zv = deque()
+                seqs = [xv, yv]
+                if has_z:
+                    seqs.append(zv)
+                for idx, geom in enumerate(geom_itr):
+                    geom = get_ccw_oriented_and_valid_shapely_polygon(geom)
+                    coords = np.array(geom.exterior.coords)
+                    if repeat_last_node:
+                        coords_shape = coords.shape[0]
+                    else:
+                        coords_shape = coords.shape[0] - 1
+                    if pack:
+                        curr_element_index = np.zeros(coords_shape, dtype=env.NP_INT)
+                        for coords_row_idx in range(coords_shape):
+                            coords_row = coords[coords_row_idx, :].flatten()
+                            found_index = find_index(seqs, coords_row)
+                            if found_index is None:
+                                xv.append(coords_row[0])
+                                yv.append(coords_row[1])
+                                if has_z:
+                                    zv.append(coords_row[2])
+                                found_index = cidx
+                                cidx += 1
+                            curr_element_index[coords_row_idx] = found_index
+                        element_index[idx] = curr_element_index
+                    else:
+                        xv.extend(coords[0:coords_shape, 0].flatten().tolist())
+                        yv.extend(coords[0:coords_shape, 1].flatten().tolist())
+                        if has_z:
+                            zv.extend(coords[0:coords_shape, 2].flatten().tolist())
+                        fill = np.arange(cidx, cidx + coords_shape, dtype=env.NP_INT)
+                        if max_element_coords is None:
+                            element_index[idx] = fill
+                        else:
+                            element_index[idx, :] = fill
+                        cidx += coords_shape
+                if max_element_coords is None:
+                    element_index_dims = self.dimensions[0]
+                else:
+                    element_index_dims = [self.dimensions[0],
+                                          Dimension(name=DimensionName.UGRID_MAX_ELEMENT_COORDS,
+                                                    size=max_element_coords)]
+                element_index = Variable(name=element_index_name, value=element_index, dimensions=element_index_dims)
+            else:
+                msg = "Conversion for this geometry type is not implemented: '{}'".format(geom_type)
+                raise RequestableFeature(message=msg)
+
+            names = [xname, yname, zname]
+            values = [xv, yv, zv]
+            variables = [None] * 3
+
+            if geom_type == 'Point':
+                dim = self.dimensions[0]
+            elif geom_type == 'Polygon':
+                dim = create_distributed_dimension(len(xv), name=node_dim_name)
+            else:
+                raise NotImplementedError(geom_type)
+
+            for idx in range(len(names)):
+                if not has_z and idx == 2:
+                    break
+                variables[idx] = Variable(name=names[idx], value=values[idx], dimensions=dim)
+
+            if geom_type == 'Point':
+                klass = PointGC
+            elif geom_type == 'Polygon':
+                klass = PolygonGC
+            else:
+                raise NotImplementedError(geom_type)
+
+            kwds = dict(z=variables[2], crs=self.crs)
+            if geom_type == 'Polygon':
+                kwds['cindex'] = element_index
+                kwds['packed'] = pack
+            if self.has_mask:
+                kwds[KeywordArgument.MASK] = self.get_mask()
+            ret = klass(variables[0], variables[1], **kwds)
+
         else:
-            return self.parent[self._name_ugid]
-
-    def create_ugid(self, name, start=1):
-        """
-        Create a unique identifier variable for the geometry variable. The returned variable will have the same
-        dimensions.
-        
-        :param str name: The name for the new geometry variable. 
-        :param int start: Starting value for the unique identifier. 
-        :rtype: :class:`~ocgis.Variable`
-        """
-
-        if self.is_empty:
-            value = None
-        else:
-            value = np.arange(start, start + self.size).reshape(self.shape)
-        ret = Variable(name=name, value=value, dimensions=self.dimensions, is_empty=self.is_empty)
-        self.set_ugid(ret)
+            raise NotImplementedError(target)
         return ret
 
-    def create_ugid_global(self, name, start=1):
-        """
-        Same as :meth:`~ocgis.GeometryVariable.create_ugid` but collective across the current :class:`~ocgis.OcgVM`.
-        
-        :raises: :class:`~ocgis.exc.EmptyObjectError`
-        """
-
-        raise_if_empty(self)
-
-        sizes = vm.gather(self.size)
-        if vm.rank == 0:
-            start = start
-            for idx, n in enumerate(vm.ranks):
-                if n == vm.rank:
-                    rank_start = start
-                else:
-                    vm.comm.send(start, dest=n)
-                start += sizes[idx]
-        else:
-            rank_start = vm.comm.recv(source=0)
-
-        return self.create_ugid(name, start=rank_start)
+    @classmethod
+    def from_shapely(cls, geom, **kwargs):
+        kwargs = kwargs.copy()
+        kwargs[KeywordArgument.VALUE] = [geom]
+        if KeywordArgument.DIMENSIONS not in kwargs:
+            kwargs[KeywordArgument.DIMENSIONS] = DimensionName.GEOMETRY_DIMENSION
+        return cls(**kwargs)
 
     def get_buffer(self, *args, **kwargs):
         """
         Return a shallow copy of the geometry variable with geometries buffered.
-        
+
         .. note:: Accepts all parameters to :meth:`shapely.geometry.base.BaseGeometry.buffer`.
-        
+
         An additional keyword argument is:
-        
+
         :keyword str geom_type: The geometry type for the new buffered geometry if known in advance.
         :rtype: :class:`~ocgis.GeometryVariable`
         :raises: :class:`~ocgis.exc.EmptyObjectError`
@@ -439,7 +433,7 @@ class GeometryVariable(AbstractSpatialVariable):
     def get_intersects(self, *args, **kwargs):
         """
         Perform an intersects spatial operations on the geometry variable.
-        
+
         :keyword bool return_slice: (``=False``) If ``True``, return the _global_ slice that will guarantee no masked
          elements outside the subset geometry as the second element in the return value.
         :keyword bool cascade: (``=True``) If ``True`` (the default), set the mask following the spatial operation on
@@ -482,9 +476,9 @@ class GeometryVariable(AbstractSpatialVariable):
 
         Additional arguments and/or keyword arguments are:
 
-        :keyword bool inplace: (``=False``) If ``False`` (the default), deep copy the geometry array on the output 
+        :keyword bool inplace: (``=False``) If ``False`` (the default), deep copy the geometry array on the output
          before executing an intersection. If ``True``, modify the geometries in-place.
-        :keyword bool intersects_check: (``=True``) If ``True`` (the default), first perform an intersects operation to 
+        :keyword bool intersects_check: (``=True``) If ``True`` (the default), first perform an intersects operation to
          limit the geometries tests for intersection. If ``False``, perform the intersection as is.
         """
 
@@ -564,7 +558,7 @@ class GeometryVariable(AbstractSpatialVariable):
         """
         :param target: The Shapely geometry to use for proximity.
         :type target: :class:`shapely.geometry.base.BaseGeometry`
-        :param bool return_indices: If ``True``, also return the indices used for slicing the geometry variable. 
+        :param bool return_indices: If ``True``, also return the indices used for slicing the geometry variable.
         :return: shallow copy of the geometry variable and optionally slices
         :rtype: :class:`~ocgis.GeometryVariable` | ``(<geometry variable>, <slice>)``
         """
@@ -617,6 +611,15 @@ class GeometryVariable(AbstractSpatialVariable):
             r_add(idx[0], geom)
 
         return si
+
+    def get_spatial_subset_operation(self, spatial_op, subset_geom, **kwargs):
+        if spatial_op == 'intersects':
+            ret = self.get_intersects(*[subset_geom], **kwargs)
+        elif spatial_op == 'intersection':
+            ret = self.get_intersection(*[subset_geom], **kwargs)
+        else:
+            raise NotImplementedError(spatial_op)
+        return ret
 
     def get_unioned(self, dimensions=None, union_dimension=None, spatial_average=None, root=0):
         """
@@ -815,6 +818,20 @@ class GeometryVariable(AbstractSpatialVariable):
         else:
             return
 
+    def prepare(self):
+        """
+        Prepare the geometry variable for spatial operations by calling its coordinate system's :meth:`ocgis.variable.crs.AbstractCRS.prepare_geometry_variable`
+         method. Updates the :attr:`ocgis.GeometryVariable.is_prepared` attribute to ``True``.
+        """
+
+        # TODO: This could do things like update the coordinate system, wrapping, etc.
+
+        if not self.is_prepared:
+            crs = self.crs
+            if crs is not None:
+                crs.prepare_geometry_variable(self)
+            self.is_prepared = True
+
     def update_crs(self, to_crs):
         """
         Update the coordinate system of the geometry variable in-place.
@@ -863,21 +880,12 @@ class GeometryVariable(AbstractSpatialVariable):
             feature = {'properties': {}, 'geometry': mapping(geom)}
             yield feature
 
-    def set_ugid(self, variable):
+    def set_ugid(self, variable, attr_link_name=constants.AttributeName.UNIQUE_GEOMETRY_IDENTIFIER):
         """
-        Set the unique identifier for the geometry variable.
-        
-        :param variable: The unqiue identifier variable.
-        :type variable: :class:`~ocgis.Variable` | ``None``
+        Same as :meth:`~ocgis.Variable.set_ugid`, except the unique identifier name has a default value.
         """
 
-        if variable is None:
-            self._name_ugid = None
-            self.attrs.pop(constants.AttributeName.UNIQUE_GEOMETRY_IDENTIFIER, None)
-        else:
-            self.parent.add_variable(variable, force=True)
-            self._name_ugid = variable.name
-            self.attrs[constants.AttributeName.UNIQUE_GEOMETRY_IDENTIFIER] = variable.name
+        super(GeometryVariable, self).set_ugid(variable, attr_link_name=attr_link_name)
 
     def set_value(self, value, **kwargs):
         if not isinstance(value, ndarray) and value is not None:
@@ -895,7 +903,7 @@ class GeometryVariable(AbstractSpatialVariable):
     def write_vector(self, *args, **kwargs):
         from ocgis.collection.field import Field
         from ocgis.driver.vector import DriverVector
-        field = Field(geom=self, crs=self.crs)
+        field = Field(geom=self, crs=self.crs, parent=self.parent, tags=self.parent._tags)
         kwargs[KeywordArgument.DRIVER] = DriverVector
         field.write(*args, **kwargs)
 
@@ -948,6 +956,7 @@ def get_masking_slice(intersects_mask_value, target, apply_slice=True):
     else:
         global_slice = None
         raise_empty_subset = None
+
     raise_empty_subset = vm.bcast(raise_empty_subset)
     if raise_empty_subset:
         raise EmptySubsetError
@@ -992,6 +1001,19 @@ def get_grid_or_geom_attr(sc, attr):
     else:
         ret = getattr(sc.grid, attr)
     return ret
+
+
+def get_ccw_oriented_and_valid_shapely_polygon(geom):
+    try:
+        assert geom.is_valid
+    except AssertionError:
+        geom = geom.buffer(0)
+        assert geom.is_valid
+
+    if not geom.exterior.is_ccw:
+        geom = orient(geom)
+
+    return geom
 
 
 def geometryvariable_get_mask_from_intersects(gvar, geometry, use_spatial_index=env.USE_SPATIAL_INDEX,

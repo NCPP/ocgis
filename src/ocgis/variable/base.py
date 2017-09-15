@@ -1,6 +1,6 @@
 import abc
 import itertools
-from abc import abstractproperty, abstractmethod
+from abc import abstractmethod
 from collections import OrderedDict
 from copy import deepcopy
 
@@ -10,7 +10,7 @@ from numpy.core.multiarray import ndarray
 from numpy.ma import MaskedArray
 from numpy.ma.core import MaskedConstant
 
-from ocgis import constants
+from ocgis import constants, vm
 from ocgis.base import AbstractNamedObject, get_dimension_names, get_variable_names, get_variables, iter_dict_slices, \
     orphaned, raise_if_empty
 from ocgis.collection.base import AbstractCollection
@@ -19,7 +19,7 @@ from ocgis.environment import get_dtype, env
 from ocgis.exc import VariableInCollectionError, BoundsAlreadyAvailableError, EmptySubsetError, \
     ResolutionError, NoUnitsError, DimensionsRequiredError, DimensionMismatchError, MaskedDataFound
 from ocgis.util.helpers import get_iter, get_formatted_slice, get_bounds_from_1d, get_extrapolated_corners_esmf, \
-    get_ocgis_corners_from_esmf_corners, is_crs_variable
+    get_ocgis_corners_from_esmf_corners, is_crs_variable, arange_from_bool_ndarray
 from ocgis.util.helpers import is_auto_dtype
 from ocgis.util.units import get_units_object, get_conformed_units
 from ocgis.variable.attributes import Attributes
@@ -37,17 +37,16 @@ class AbstractContainer(AbstractNamedObject):
 
     Additional keyword arguments are:
 
-    :param parent: (``=None``) The parent collection for this container. A variable will always become a member of its
+    :keyword parent: (``=None``) The parent collection for this container. A variable will always become a member of its
      parent.
-    :type parent: :class:`ocgis.VariableCollection`
+    :type parent: ``None`` | :class:`~ocgis.VariableCollection`
+    :keyword is_empty: (``=None``) Set to True if this is an empty object.
+    :type is_empty: None | bool
     """
 
-    def __init__(self, name, aliases=None, source_name=constants.UNINITIALIZED, parent=None, uid=None):
+    def __init__(self, name, aliases=None, source_name=constants.UNINITIALIZED, parent=None, uid=None, is_empty=None):
+        self._is_empty = is_empty
         self._parent = parent
-
-        if parent is None:
-            self._initialize_parent_()
-
         super(AbstractContainer, self).__init__(name, aliases=aliases, source_name=source_name, uid=uid)
 
     def __getitem__(self, slc):
@@ -67,13 +66,13 @@ class AbstractContainer(AbstractNamedObject):
             ret = new_parent[ret.name]
         return ret
 
-    @abstractproperty
+    @property
     def dimensions(self):
         """
         :return: A dimension dictionary containing all dimensions on associated with variables in the collection.
         :rtype: :class:`~collections.OrderedDict`
         """
-        pass
+        return self._get_dimensions_()
 
     @property
     def group(self):
@@ -81,16 +80,19 @@ class AbstractContainer(AbstractNamedObject):
         :return: The group index in the parent/child hierarchy. Returns ``None`` if this collection is the head.
         :rtype: ``None`` | :class:`list` of :class:`str`
         """
-
         curr = self.parent
-        ret = [curr.source_name]
-        while True:
-            if curr.parent is None:
-                break
-            else:
-                curr = curr.parent
-                ret.append(curr.source_name)
-        ret.reverse()
+        # Collections may not always have a parent, unlike variables.
+        if curr is None:
+            ret = None
+        else:
+            ret = [curr.source_name]
+            while True:
+                if curr.parent is None:
+                    break
+                else:
+                    curr = curr.parent
+                    ret.append(curr.source_name)
+            ret.reverse()
         return ret
 
     @property
@@ -100,6 +102,14 @@ class AbstractContainer(AbstractNamedObject):
         :rtype: bool
         """
         return self._parent is not None
+
+    @property
+    def is_empty(self):
+        """
+        :return: ``True`` if the object is empty..
+        :rtype: bool
+        """
+        return self._get_is_empty_()
 
     @property
     def parent(self):
@@ -136,12 +146,22 @@ class AbstractContainer(AbstractNamedObject):
     def set_name(self, name, aliases=None):
         """
         Set the name for the object.
-        
-        :param name: See :class:`~ocgis.base.AbstractNamedObject`.
+
+        See :class:`~ocgis.base.AbstractNamedObject` for documentation.
         """
-        if self.name in self.parent:
-            self.parent[name] = self.parent.pop(self.name)
+        parent = self._parent
+        if parent is not None and self.name in parent:
+            parent[name] = parent.pop(self.name)
         super(AbstractContainer, self).set_name(name, aliases=aliases)
+
+    @abstractmethod
+    def _get_dimensions_(self):
+        raise NotImplementedError
+
+    @staticmethod
+    def _get_parent_class_():
+        from ocgis import Field
+        return Field
 
     def _getitem_initialize_(self, slc):
         try:
@@ -154,14 +174,19 @@ class AbstractContainer(AbstractNamedObject):
                 raise e
         return self, slc
 
+    @abstractmethod
+    def _get_is_empty_(self):
+        raise NotImplementedError
+
     def _getitem_main_(self, ret, slc):
         """Perform major slicing operations in-place."""
 
     def _getitem_finalize_(self, ret, slc):
         """Finalize the returned sliced object in-place."""
 
-    def _initialize_parent_(self):
-        self._parent = VariableCollection()
+    @abstractmethod
+    def _initialize_parent_(self, *args, **kwargs):
+        raise NotImplementedError
 
 
 class ObjectType(object):
@@ -183,7 +208,6 @@ class ObjectType(object):
         return dataset.createVLType(self.dtype, name)
 
 
-# tdk: order methods
 class Variable(AbstractContainer, Attributes):
     """
     A variable contains data values. They may be masked and have attributes.
@@ -253,14 +277,14 @@ class Variable(AbstractContainer, Attributes):
         self._value = None
         self._dtype = dtype
         self._mask = None
-        self._is_empty = is_empty
         self._bounds_name = None
+        self._name_ugid = None
 
         self.dtype = dtype
 
         self._fill_value = fill_value
 
-        AbstractContainer.__init__(self, name, parent=parent, source_name=source_name, uid=uid)
+        AbstractContainer.__init__(self, name, parent=parent, source_name=source_name, uid=uid, is_empty=is_empty)
 
         # The variable will always be a member of the parent. Note this clobbers the name in the parent.
         self.parent[self.name] = self
@@ -341,38 +365,6 @@ class Variable(AbstractContainer, Attributes):
             ret = self.parent[self._bounds_name]
         return ret
 
-    def set_bounds(self, value, force=False, clobber_units=None):
-        """
-        Set the bounds variable.
-        
-        :param value: The variable containing bounds for the target.
-        :type value: :class:`~ocgis.Variable`
-        :param bool force: If ``True``, clobber the bounds if they exist in :attr:`~ocgis.Variable.parent`.
-        :param bool clobber_units: If ``True``, clobber ``value.units`` to match ``self.units``. If ``None``, default to
-         :attr:`ocgis.env.CLOBBER_UNITS_ON_BOUNDS`
-        """
-
-        if clobber_units is None:
-            clobber_units = env.CLOBBER_UNITS_ON_BOUNDS
-
-        bounds_attr_name = self._bounds_attribute_name
-        if value is None:
-            if self._bounds_name is not None:
-                self.parent.pop(self._bounds_name)
-                self.attrs.pop(bounds_attr_name, None)
-            self._bounds_name = None
-        else:
-            self._bounds_name = value.name
-            self.attrs[bounds_attr_name] = value.name
-            self.parent.add_variable(value, force=force)
-            if clobber_units:
-                value.units = self.units
-
-            # This will synchronize the bounds mask with the variable's mask.
-            if not self.is_empty:
-                if self.has_allocated_value:
-                    self.set_mask(self.get_mask())
-
     @property
     def cfunits(self):
         """
@@ -385,11 +377,11 @@ class Variable(AbstractContainer, Attributes):
     @property
     def dtype(self):
         """
-        Get or set the variable's data type. If ``'auto'``, this will be chosen automatically from the variable's 
+        Get or set the variable's data type. If ``'auto'``, this will be chosen automatically from the variable's
         ``numpy`` data type. Setting does not do any type conversion.
-        
+
         :return: The data type for variable.
-        :rtype: type 
+        :rtype: type
         """
         is_auto = is_auto_dtype(self._dtype)
         if is_auto:
@@ -413,18 +405,10 @@ class Variable(AbstractContainer, Attributes):
         self._dtype = value
 
     @property
-    def dimensions(self):
-        """
-        :return: A tuple of dimension objects. 
-        :rtype: :class:`tuple` of :class:`~ocgis.Dimension`
-        """
-        return self._get_dimensions_()
-
-    @property
     def dimensions_dict(self):
         """
         :return: Dimensions as a dictionary. Keys are the dimension names. Values are the dimension objects.
-        :rtype: :class:`~collections.OrderedDict` 
+        :rtype: :class:`~collections.OrderedDict`
         """
 
         ret = OrderedDict()
@@ -457,7 +441,7 @@ class Variable(AbstractContainer, Attributes):
     def set_dimensions(self, dimensions, force=False):
         """
         Set dimensions for the variable. These may be set to ``None``.
-        
+
         :param dimensions: The new dimensions. Should be congruent with the target variable.
         :type dimensions: `sequence` of :class:`~ocgis.Dimension`
         :param bool force: If ``True``, clobber any existing dimensions on :attr:`~ocgis.Variable.parent`
@@ -562,7 +546,7 @@ class Variable(AbstractContainer, Attributes):
     def has_mask(self):
         """
         :return: ``True`` if the variable has a mask.
-        :rtype: bool 
+        :rtype: bool
         """
         if self._mask is None:
             ret = False
@@ -607,7 +591,7 @@ class Variable(AbstractContainer, Attributes):
         """
         Variables are always part of collections. "Orphaning" is used to isolate variables to avoid infinite recursion
         when operating on variable collections.
-        
+
         :return: ``True`` if the variable has no parent.
         :rtype: bool
         """
@@ -628,9 +612,9 @@ class Variable(AbstractContainer, Attributes):
     @property
     def resolution(self):
         """
-        Resolution is computed using the differences between successive values up to 
+        Resolution is computed using the differences between successive values up to
         :attr:`ocgis.constants.RESOLUTION_LIMIT`. Applicable mostly for spatial coordinate variables.
-        
+
         :rtype: :class:`float` or :class:`int`
         :raises: ResolutionError
         """
@@ -669,6 +653,18 @@ class Variable(AbstractContainer, Attributes):
                 ret *= s
         return ret
 
+    @property
+    def ugid(self):
+        """
+        :return: unique identifier variable
+        :rtype: :class:`~ocgis.Variable`
+        """
+
+        if self._name_ugid is None:
+            return None
+        else:
+            return self.parent[self._name_ugid]
+
     def _get_shape_(self):
         return get_shape_from_variable(self)
 
@@ -676,7 +672,7 @@ class Variable(AbstractContainer, Attributes):
     def units(self):
         """
         Get or set the units.
-        
+
         :return: Units for the object.
         :rtype: str
         """
@@ -722,8 +718,8 @@ class Variable(AbstractContainer, Attributes):
     def set_value(self, value, update_mask=False):
         """
         Set the variable value.
-        
-        :param value: :class:`numpy.ndarray` | `sequence` 
+
+        :param value: :class:`numpy.ndarray` | `sequence`
         :param update_mask: See :class:`~ocgis.Variable.set_mask`
         """
 
@@ -992,64 +988,58 @@ class Variable(AbstractContainer, Attributes):
         the_zeros = variable_get_zeros(self.dimensions, self.dtype, fill=fill)
         self.set_value(the_zeros)
 
-    # tdk: remove me or document
-    def as_record(self, add_bounds=True, formatter=None, pytypes=False, allow_masked=True, pytype_primitives=False,
-                  clobber_masked=True, bounds_names=None):
+    def create_ugid(self, name, start=1, is_current=True, **kwargs):
+        """
+        Create a unique identifier variable for the variable. The returned variable will have the same dimensions.
+
+        :param str name: The name for the new global identifier variable.
+        :param int start: Starting value for the unique identifier.
+        :param bool is_current: If ``True`` (the default) set this variable using :meth:`~ocgis.Variable.set_ugid`.
+        :param dict kwargs: Additional arguments to variable creation.
+        :rtype: :class:`~ocgis.Variable`
+        """
+
         if self.is_empty:
-            return {}
-
-        name = self.name
-        if self.ndim == 0:
-            ret = OrderedDict(([HeaderName.DATASET_IDENTIFER, self.parent.uid], [name, None]))
+            value = None
         else:
-            assert self.shape[0] == 1
-            value = self._get_iter_value_().flatten()[0]
-            if self.has_mask:
-                mask = self.get_mask()[0]
-            else:
-                mask = False
-            if mask:
-                if not allow_masked:
-                    raise MaskedDataFound
-                if clobber_masked:
-                    value = self.fill_value
-                else:
-                    value = self.get_value().flatten()[0]
-            if pytypes:
-                value = np.array(value).tolist()
-            ret = OrderedDict(([HeaderName.DATASET_IDENTIFER, self.parent.uid], [name, value]))
-
-            if self.has_bounds and add_bounds:
-                name_bounds = self.bounds.name
-                values = self.bounds._get_iter_value_().flatten()
-                if mask:
-                    values = [self.fill_value] * len(values)
-                for index, v in enumerate(values):
-                    if pytypes:
-                        v = np.array(v).tolist()
-                    if bounds_names is None:
-                        ret['{}_{}'.format(index, name_bounds)] = v
-                    else:
-                        ret[bounds_names[index]] = v
-
-            if formatter:
-                for k, v in list(ret.items()):
-                    ret[k] = formatter(v)
-
-            # Add the repeat record. Assume this is formatted appropriately by the client.
-            if self.repeat_record is not None:
-                ret.update(self.repeat_record)
-
+            value = np.arange(start, start + self.size).reshape(self.shape)
+        ret = Variable(name=name, value=value, dimensions=self.dimensions, is_empty=self.is_empty, **kwargs)
+        if is_current:
+            self.set_ugid(ret)
         return ret
+
+    def create_ugid_global(self, name, start=1):
+        """
+        Same as :meth:`~ocgis.Variable.create_ugid` but collective across the current :class:`~ocgis.OcgVM`.
+
+        :raises: :class:`~ocgis.exc.EmptyObjectError`
+        """
+
+        raise_if_empty(self)
+
+        sizes = vm.gather(self.size)
+        if vm.rank == 0:
+            for idx, n in enumerate(vm.ranks):
+                if n == vm.rank:
+                    rank_start = start
+                else:
+                    vm.comm.send(start, dest=n)
+                start += sizes[idx]
+        else:
+            rank_start = vm.comm.recv(source=0)
+
+        return self.create_ugid(name, start=rank_start)
 
     def extract(self, keep_bounds=True, clean_break=False):
         """
         Extract the variable from its collection.
-        
-        :param bool keep_bounds: If ``True``, maintain any bounds associated with the target variable. 
-        :param bool clean_break: If ``True``, remove the target from the containing collection entirely. 
+
+        :param bool keep_bounds: If ``True``, maintain any bounds associated with the target variable.
+        :param bool clean_break: If ``True``, remove the target from the containing collection entirely.
         :rtype: :class:`~ocgis.Variable`
         """
+
+        ret = self.copy()
         if self.has_initialized_parent:
             to_keep = [self.name]
             if keep_bounds and self.has_bounds:
@@ -1057,20 +1047,18 @@ class Variable(AbstractContainer, Attributes):
 
             if clean_break:
                 original_parent = self.parent
-                new_parent = self.parent.copy()
+                new_parent = ret.parent
                 to_pop_in_new = set(original_parent.keys()).difference(set(to_keep))
                 for tk in to_keep:
                     original_parent.remove_variable(tk)
                 for tp in to_pop_in_new:
                     new_parent.pop(tp)
-                self.parent = new_parent
             else:
-                self.parent = self.parent.copy()
-                for var in list(self.parent.values()):
+                for var in list(ret.parent.values()):
                     if var.name not in to_keep:
-                        self.parent.pop(var.name)
+                        ret.parent.pop(var.name)
 
-        ret = self.parent[self.name]
+        ret = ret.parent[self.name]
 
         # Remove any dimensions not associated with the extracted variable from its parent collection.
         dimensions_to_keep = list(get_dimension_names(ret.dimensions))
@@ -1080,7 +1068,7 @@ class Variable(AbstractContainer, Attributes):
         dimensions_remaining = set(self.parent.dimensions.keys())
         dimensions_to_pop = dimensions_remaining.difference(dimensions_to_keep)
         for d in dimensions_to_pop:
-            self.parent.dimensions.pop(d)
+            ret.parent.dimensions.pop(d)
 
         return ret
 
@@ -1089,9 +1077,9 @@ class Variable(AbstractContainer, Attributes):
         :param lower: The lower value.
         :param upper: The upper value.
         :param bool return_indices: If ``True``, also return the indices used to slice the variable.
-        :param bool closed: If ``False`` (the default), operate on the open interval (``>=``, ``<=``). If ``True``, 
+        :param bool closed: If ``False`` (the default), operate on the open interval (``>=``, ``<=``). If ``True``,
          operate on the closed interval (``>``, ``<``).
-        :param bool use_bounds: If ``True``, use the bounds values for the between operation. 
+        :param bool use_bounds: If ``True``, use the bounds values for the between operation.
         :return: A sliced variable.
         :rtype: :class:`~ocgis.Variable`
         """
@@ -1173,7 +1161,7 @@ class Variable(AbstractContainer, Attributes):
     def get_distributed_slice(self, slc):
         """
         Slice a distributed variable. Returned variable may be empty.
-        
+
         :param slc: The slice indices. The length of ``slc`` must match the number of variable dimensions.
         :rtype: :class:`~ocgis.Variable`
         """
@@ -1195,18 +1183,29 @@ class Variable(AbstractContainer, Attributes):
             slc = get_formatted_slice(slc, self.ndim)
             local_slc = [slice(None)] * self.ndim
             for idx in range(self.ndim):
-                if isinstance(slc[idx], slice):
-                    if slc[idx] != slice(None):
-                        local_slc_args = get_global_to_local_slice([slc[idx].start, slc[idx].stop],
+                slc_idx = slc[idx]
+                if isinstance(slc_idx, slice):
+                    if slc_idx != slice(None):
+                        local_slc_args = get_global_to_local_slice([slc_idx.start, slc_idx.stop],
                                                                    dimensions[idx].bounds_local)
                         local_slc[idx] = slice(*local_slc_args)
                 else:
                     # Allow for fancy slicing.
-                    local_slc[idx] = slc[idx]
-            ret = self[local_slc]
-
-        if not is_or_will_be_empty:
-            ret.set_dimensions(new_dimensions, force=True)
+                    if slc_idx.dtype == bool:
+                        f = arange_from_bool_ndarray(slc_idx, dtype=env.NP_INT)
+                        # The new arange is empty because the slice is boolean with all False. Convert the returned
+                        # object to empty.
+                        if f.shape[0] == 0:
+                            is_or_will_be_empty = True
+                            ret = self.copy()
+                            ret.convert_to_empty()
+                            break
+                        local_slc[idx] = f
+                    else:
+                        local_slc[idx] = slc_idx
+            if not is_or_will_be_empty:
+                ret = self[local_slc]
+                ret.set_dimensions(new_dimensions, force=True)
 
         return ret
 
@@ -1221,7 +1220,6 @@ class Variable(AbstractContainer, Attributes):
                  'Data Type = {0}'.format(self.dtype)]
         return lines
 
-    # tdk: remove me?
     def get_scatter_slices(self, splits):
         slices = create_nd_slices(splits, self.shape)
         return slices
@@ -1237,9 +1235,9 @@ class Variable(AbstractContainer, Attributes):
 
     def get_iter(self, **kwargs):
         """
-        :param kwargs: See source. 
+        :param kwargs: See source.
         :return: A variable iterator object.
-        :rtype: :class:`~ocgis.variable.iterator.Iterator` 
+        :rtype: :class:`~ocgis.variable.iterator.Iterator`
         """
 
         add_bounds = kwargs.pop(KeywordArgument.ADD_BOUNDS, False)
@@ -1321,7 +1319,7 @@ class Variable(AbstractContainer, Attributes):
     def reshape(self, *args):
         assert not self.has_bounds
 
-        new_shape = [len(dimension) for dimension in args[0]]
+        new_shape = [len(dimension) for dimension in get_iter(args[0], dtype=Dimension)]
 
         original_value = self.get_value()
         if self.has_mask:
@@ -1342,8 +1340,66 @@ class Variable(AbstractContainer, Attributes):
         self.set_value(original_value.reshape(*new_shape))
         self.set_mask(new_mask)
 
-    def _get_iter_value_(self):
-        return self.get_value()
+    def set_bounds(self, value, force=False, clobber_units=None):
+        """
+        Set the bounds variable.
+
+        :param value: The variable containing bounds for the target.
+        :type value: :class:`~ocgis.Variable`
+        :param bool force: If ``True``, clobber the bounds if they exist in :attr:`~ocgis.Variable.parent`.
+        :param bool clobber_units: If ``True``, clobber ``value.units`` to match ``self.units``. If ``None``, default to
+         :attr:`ocgis.env.CLOBBER_UNITS_ON_BOUNDS`
+        """
+
+        if clobber_units is None:
+            clobber_units = env.CLOBBER_UNITS_ON_BOUNDS
+
+        bounds_attr_name = self._bounds_attribute_name
+        parent = self.parent
+        if value is None:
+            if self._bounds_name is not None:
+                parent.pop(self._bounds_name)
+                self.attrs.pop(bounds_attr_name, None)
+            self._bounds_name = None
+        else:
+            self._bounds_name = value.name
+            self.attrs[bounds_attr_name] = value.name
+            parent.add_variable(value, force=force)
+            if clobber_units:
+                value.units = self.units
+
+            # This will synchronize the bounds mask with the variable's mask.
+            if not self.is_empty:
+                if self.has_allocated_value:
+                    self.set_mask(self.get_mask())
+
+        # Attempt to update the dimension map for bounds designation (variable collection parents do not have a
+        # dimension map).
+        if not self.is_empty and hasattr(parent, KeywordArgument.DIMENSION_MAP):
+            dmap = parent.dimension_map
+            dkey = dmap.inquire_is_xyz(self)
+            if dkey is not None:
+                dmap.set_bounds(dkey, value)
+
+    def set_ugid(self, variable, attr_link_name=None):
+        """
+        Set the unique identifier for the variable.
+
+        :param variable: The unique identifier variable.
+        :type variable: :class:`~ocgis.Variable` | ``None``
+        :param str attr_link_name: If provided, set an attribute with this name on the current variable with a value of
+         ``variable``'s name.
+        """
+
+        if variable is None:
+            self._name_ugid = None
+            if attr_link_name is not None:
+                self.attrs.pop(attr_link_name, None)
+        else:
+            self.parent.add_variable(variable, force=True)
+            self._name_ugid = variable.name
+            if attr_link_name is not None:
+                self.attrs[attr_link_name] = variable.name
 
     def write(self, *args, **kwargs):
         """
@@ -1363,8 +1419,67 @@ class Variable(AbstractContainer, Attributes):
         args.insert(0, self)
         driver.write_variable(*args, **kwargs)
 
+    def _as_record_(self, add_bounds=True, formatter=None, pytypes=False, allow_masked=True, pytype_primitives=False,
+                    clobber_masked=True, bounds_names=None):
+        # TODO: Remove this method. It has no known usages.
+        if self.is_empty:
+            return {}
+
+        name = self.name
+        if self.ndim == 0:
+            ret = OrderedDict(([HeaderName.DATASET_IDENTIFER, self.parent.uid], [name, None]))
+        else:
+            assert self.shape[0] == 1
+            value = self._get_iter_value_().flatten()[0]
+            if self.has_mask:
+                mask = self.get_mask()[0]
+            else:
+                mask = False
+            if mask:
+                if not allow_masked:
+                    raise MaskedDataFound
+                if clobber_masked:
+                    value = self.fill_value
+                else:
+                    value = self.get_value().flatten()[0]
+            if pytypes:
+                value = np.array(value).tolist()
+            ret = OrderedDict(([HeaderName.DATASET_IDENTIFER, self.parent.uid], [name, value]))
+
+            if self.has_bounds and add_bounds:
+                name_bounds = self.bounds.name
+                values = self.bounds._get_iter_value_().flatten()
+                if mask:
+                    values = [self.fill_value] * len(values)
+                for index, v in enumerate(values):
+                    if pytypes:
+                        v = np.array(v).tolist()
+                    if bounds_names is None:
+                        ret['{}_{}'.format(index, name_bounds)] = v
+                    else:
+                        ret[bounds_names[index]] = v
+
+            if formatter:
+                for k, v in list(ret.items()):
+                    ret[k] = formatter(v)
+
+            # Add the repeat record. Assume this is formatted appropriately by the client.
+            if self.repeat_record is not None:
+                ret.update(self.repeat_record)
+
+        return ret
+
+    def _get_is_empty_(self):
+        return self.parent.is_empty
+
+    def _get_iter_value_(self):
+        return self.get_value()
+
     def _get_to_conform_value_(self):
         return self.get_masked_value()
+
+    def _initialize_parent_(self, *args, **kwargs):
+        self._parent = self._get_parent_class_()(*args, **kwargs)
 
     def _set_to_conform_value_(self, value):
         self.set_value(value)
@@ -1475,8 +1590,7 @@ class SourcedVariable(Variable):
         return ret
 
 
-# TODO: Variable collection should inherit from abstract container.
-class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
+class VariableCollection(AbstractCollection, AbstractContainer, Attributes):
     """
     Variable collections behave like Python dictionaries. The keys are variable names and values are variable  objects. 
     A variable collection may have a parent and children (groups). Variable collections may be sliced using a 
@@ -1503,31 +1617,28 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
     :param source_name: See :class:`~ocgis.base.AbstractNamedObject`.
     :param uid: See :class:`~ocgis.base.AbstractNamedObject`.
     :param is_empty: If ``True``, this is an empty collection.
-    :param driver: A driver contains format-specific data transformations.
-    :type driver: :class:`~ocgis.driver.base.AbstractDriver`
     :param bool force: If ``True``, clobber any names that already exist in the collection.
+    :param initial_data: See :class:`ocgis.collection.base.AbstractCollection`.
     :param groups: Alias for ``children``.
     """
 
     def __init__(self, name=None, variables=None, attrs=None, parent=None, children=None, aliases=None, tags=None,
-                 source_name=constants.UNINITIALIZED, uid=None, is_empty=None, driver=constants.DEFAULT_DRIVER,
-                 force=False, groups=None):
-        self._is_empty = is_empty
+                 source_name=constants.UNINITIALIZED, uid=None, is_empty=None, force=False, groups=None,
+                 initial_data=None):
         self._dimensions = OrderedDict()
-        self.parent = parent
 
         if children is None and groups is not None:
             children = groups
         self.children = children or OrderedDict()
-        self._driver = driver
 
         if tags is None:
             tags = OrderedDict()
         self._tags = tags
 
-        AbstractCollection.__init__(self)
+        AbstractCollection.__init__(self, initial_data=initial_data)
         Attributes.__init__(self, attrs)
-        AbstractNamedObject.__init__(self, name, aliases=aliases, source_name=source_name, uid=uid)
+        AbstractContainer.__init__(self, name, aliases=aliases, source_name=source_name, uid=uid, parent=parent,
+                                   is_empty=is_empty)
 
         if variables is not None:
             for variable in get_iter(variables, dtype=Variable):
@@ -1570,54 +1681,9 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
         return ret
 
     @property
-    def dimensions(self):
-        """
-        :return: A dimension dictionary containing all dimensions on associated with variables in the collection.
-        :rtype: :class:`~collections.OrderedDict`
-        """
-        return self._dimensions
-
-    @property
-    def driver(self):
-        """
-        :return: Get the driver associated with the collection.
-        :rtype: :class:`~ocgis.AbstractDriver`
-        """
-        from ocgis.driver.registry import get_driver_class
-        return get_driver_class(self._driver)
-
-    @property
-    def group(self):
-        """
-        :return: The group index in the parent/child hierarchy. Returns ``None`` if this collection is the head.
-        :rtype: ``None`` | :class:`list` of :class:`str`
-        """
-        if self.parent is None:
-            ret = None
-        else:
-            curr = self.parent
-            ret = [curr.name]
-            while True:
-                if curr.parent is None:
-                    break
-                else:
-                    curr = curr.parent
-                    ret.append(curr.name)
-            ret.reverse()
-        return ret
-
-    @property
     def groups(self):
         """Alias for :attr:`~ocgis.VariableCollection.children`."""
         return self.children
-
-    @property
-    def is_empty(self):
-        """
-        :return: ``True`` if there is anything empty in the collection.
-        :rtype: bool
-        """
-        return get_is_empty_recursive(self)
 
     @property
     def shapes(self):
@@ -1661,6 +1727,11 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
                 raise DimensionMismatchError(dimension.name, self.name)
         else:
             self.dimensions[dimension.name] = dimension
+
+    def add_group(self, *args, **kwargs):
+        """Alias for :meth:`~ocgis.VariableCollection.add_child`."""
+
+        self.add_child(*args, **kwargs)
 
     def add_variable(self, variable, force=False):
         """
@@ -1805,19 +1876,17 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
         ret = tuple(ret)
         return ret
 
-    def load(self):
-        """Load all variable values (payloads) from source. Here for compatibility with sourced variables."""
+    def get_mask(self, *args, **kwargs):
+        super(VariableCollection, self).get_mask(*args, **kwargs)
 
-        for v in list(self.values()):
-            v.load()
-
-    # tdk: move implementation to function (also for field)
-    # TODO: Document kwargs.
     def iter(self, **kwargs):
         """
         :return: Yield record dictionaries for variables in the collection.
         :rtype: dict
         """
+
+        # TODO: Document kwargs.
+        # TODO: Move implementation to function to clean up class code. Do this for Field.iter as well.
 
         if self.is_empty:
             raise StopIteration
@@ -1903,6 +1972,12 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
             if len(set(var.dimension_names).intersection(names)) == len(names):
                 yield var
 
+    def load(self):
+        """Load all variable values (payloads) from source. Here for compatibility with sourced variables."""
+
+        for v in list(self.values()):
+            v.load()
+
     @staticmethod
     def read(*args, **kwargs):
         """
@@ -1915,7 +1990,7 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
 
         from ocgis import RequestDataset
         rd = RequestDataset(*args, **kwargs)
-        return rd.driver.get_variable_collection()
+        return rd.driver.get_raw_field()
 
     def remove_variable(self, variable, remove_bounds=True):
         """
@@ -1928,20 +2003,23 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
         """
 
         variable = get_variables(variable, self)[0]
-
-        variable = variable.extract()
+        dims_to_check = list(get_dimension_names(variable.dimensions))
+        remove_names = [variable.name]
         if remove_bounds and variable.has_bounds:
-            self.remove_variable(variable.bounds)
+            remove_names.append(variable.bounds.name)
+            dims_to_check.extend(list(get_dimension_names(variable.bounds.dimensions)))
+            dims_to_check = set(dims_to_check)
+
+        ret = variable.extract(keep_bounds=remove_bounds, clean_break=False)
 
         # Remove name from tags
-        variable_name = variable.name
-        for v in list(self._tags.values()):
-            if variable_name in v:
-                v.remove(variable_name)
-        self.pop(variable_name)
+        for rn in remove_names:
+            for v in list(self._tags.values()):
+                if rn in v:
+                    v.remove(rn)
+            self.pop(rn)
 
         # Check for orphaned dimensions.
-        dims_to_check = get_dimension_names(variable.dimensions)
         dims_to_pop = []
         for d in dims_to_check:
             found = False
@@ -1953,6 +2031,8 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
                 dims_to_pop.append(d)
         for d in dims_to_pop:
             self.dimensions.pop(d)
+
+        return ret
 
     def set_mask(self, variable, exclude=None, update=False):
         """
@@ -1988,7 +2068,7 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
     def write(self, *args, **kwargs):
         """
         Write the variable collection to file.
-        
+
         :keyword driver: (`=`:attr:`ocgis.constants.DriverKey.NETCDF`) The driver to use for writing.
         :param args: Arguments to the driver's :meth:`~ocgis.driver.base.AbstractDriver.write_variable_collection`
          method.
@@ -2002,6 +2082,28 @@ class VariableCollection(AbstractNamedObject, AbstractCollection, Attributes):
         args = list(args)
         args.insert(0, self)
         driver.write_variable_collection(*args, **kwargs)
+
+    def _get_dimensions_(self):
+        return self._dimensions
+
+    def _get_is_empty_(self):
+        return get_is_empty_recursive(self)
+
+    def _initialize_parent_(self, *args, **kwargs):
+        # Endless recursion if a collection always initializes a parent.
+        self._parent = None
+
+    def _validate_(self):
+        ids_not_equal = []
+        lens_not_equal = []
+        for v in self.values():
+            if id(v.parent) != id(self):
+                ids_not_equal.append(v.name)
+            if len(v.parent) != len(self):
+                lens_not_equal.append(v.name)
+        if len(ids_not_equal) > 0 or len(lens_not_equal) > 0:
+            msg = 'Issues with parent relationships: ids={}, lens={}'.format(ids_not_equal, lens_not_equal)
+            raise AssertionError(msg)
 
 
 def are_variable_and_dimensions_shape_equal(variable_value, dimensions):

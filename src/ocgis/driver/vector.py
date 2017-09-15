@@ -8,13 +8,15 @@ import numpy as np
 from shapely.geometry import mapping
 
 from ocgis import constants, vm
+from ocgis.collection.field import Field
 from ocgis.constants import MPIWriteMode, DimensionName, KeywordArgument, DriverKey, DMK, SourceIndexType
 from ocgis.driver.base import driver_scope, AbstractTabularDriver
 from ocgis.driver.dimension_map import DimensionMap
 from ocgis.environment import get_dtype
+from ocgis.exc import RequestableFeature
 from ocgis.util.helpers import is_auto_dtype
 from ocgis.util.logging_ocgis import ocgis_lh
-from ocgis.variable.base import SourcedVariable, VariableCollection
+from ocgis.variable.base import SourcedVariable
 from ocgis.variable.crs import CoordinateReferenceSystem
 from ocgis.variable.geom import GeometryVariable
 
@@ -63,7 +65,7 @@ class DriverVector(AbstractTabularDriver):
             ret = CoordinateReferenceSystem(value=crs)
         return ret
 
-    def get_dimension_map(self, group_metadata):
+    def create_dimension_map(self, group_metadata):
         ret = {DMK.GEOM: {DMK.VARIABLE: DimensionName.GEOMETRY_DIMENSION,
                           DMK.DIMENSION: DimensionName.GEOMETRY_DIMENSION}}
         ret = DimensionMap.from_dict(ret)
@@ -73,11 +75,12 @@ class DriverVector(AbstractTabularDriver):
         return ret
 
     def get_source_metadata_as_json(self):
-        # tdk: test on vector and netcdf
-        raise NotImplementedError
+        raise RequestableFeature
 
-    def get_variable_collection(self, **kwargs):
-        parent = VariableCollection(**kwargs)
+    def get_raw_field(self, **kwargs):
+        """See superclass :meth:`ocgis.driver.base.AbstractDriver.get_raw_field`."""
+
+        parent = Field(**kwargs)
         for n, v in list(self.metadata_source['variables'].items()):
             SourcedVariable(name=n, request_dataset=self.rd, parent=parent)
         GeometryVariable(name=DimensionName.GEOMETRY_DIMENSION, request_dataset=self.rd, parent=parent)

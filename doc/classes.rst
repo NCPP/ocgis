@@ -87,10 +87,15 @@ Field
     :members:
     :special-members:
 
-Grid
-++++
+Grids
++++++
 
 .. autoclass:: ocgis.Grid
+    :show-inheritance:
+    :members:
+    :special-members:
+
+.. autoclass:: ocgis.GridUnstruct
     :show-inheritance:
     :members:
     :special-members:
@@ -99,6 +104,24 @@ GeometryVariable
 ++++++++++++++++
 
 .. autoclass:: ocgis.GeometryVariable
+    :show-inheritance:
+    :members:
+    :special-members:
+
+Geometry Coordinate Variables
++++++++++++++++++++++++++++++
+
+.. autoclass:: ocgis.PolygonGC
+    :show-inheritance:
+    :members:
+    :special-members:
+
+.. autoclass:: ocgis.LineGC
+    :show-inheritance:
+    :members:
+    :special-members:
+
+.. autoclass:: ocgis.PointGC
     :show-inheritance:
     :members:
     :special-members:
@@ -180,69 +203,69 @@ SpatialSubsetOperation
 Drivers
 -------
 
-DriverNetcdf
-++++++++++++
-
 .. autoclass:: ocgis.driver.nc.DriverNetcdf
     :show-inheritance:
-
-DriverNetcdfCF
-++++++++++++++
 
 .. autoclass:: ocgis.driver.nc.DriverNetcdfCF
     :show-inheritance:
 
-DriverVector
-++++++++++++
+.. autoclass:: ocgis.driver.nc_ugrid.DriverNetcdfUGRID
+    :show-inheritance:
 
 .. autoclass:: ocgis.driver.vector.DriverVector
     :show-inheritance:
 
-DriverCSV
-+++++++++
-
 .. autoclass:: ocgis.driver.csv_.DriverCSV
     :show-inheritance:
+
+Grid Splitter
+-------------
+
+.. autoclass:: ocgis.spatial.grid_splitter.GridSplitter
 
 Base Classes
 ------------
 
-AbstractOcgisObject
-+++++++++++++++++++
-
 .. autoclass:: ocgis.base.AbstractOcgisObject
     :show-inheritance:
-
-AbstractInterfaceObject
-+++++++++++++++++++++++
 
 .. autoclass:: ocgis.base.AbstractInterfaceObject
     :show-inheritance:
     :members:
 
-AbstractNamedObject
-+++++++++++++++++++
-
 .. autoclass:: ocgis.base.AbstractNamedObject
     :show-inheritance:
     :members:
-
-AbstractContainer
-+++++++++++++++++
 
 .. autoclass:: ocgis.variable.base.AbstractContainer
     :show-inheritance:
     :members:
 
-Attributes
-++++++++++
+.. autoclass:: ocgis.spatial.grid.AbstractGrid
+    :show-inheritance:
+    :members:
 
 .. autoclass:: ocgis.variable.attributes.Attributes
     :show-inheritance:
     :members:
 
-AbstractCRS
-+++++++++++
+Spatial Objects
++++++++++++++++
+
+.. autoclass:: ocgis.spatial.base.AbstractSpatialContainer
+    :show-inheritance:
+    :members:
+
+.. autoclass:: ocgis.spatial.base.AbstractXYZSpatialContainer
+    :show-inheritance:
+    :members:
+
+.. autoclass:: ocgis.spatial.geomc.AbstractGeometryCoordinates
+    :show-inheritance:
+    :members:
+
+Coordinate Systems
+++++++++++++++++++
 
 .. autoclass:: ocgis.variable.crs.AbstractCRS
     :show-inheritance:
@@ -252,14 +275,14 @@ AbstractCRS
     :show-inheritance:
     :members:
 
-AbstractDriver
-++++++++++++++
+Abstract Drivers
+++++++++++++++++
 
 .. autoclass:: ocgis.driver.base.AbstractDriver
     :show-inheritance:
 
-AbstractTabularDriver
-+++++++++++++++++++++
+.. autoclass:: ocgis.driver.nc.AbstractDriverNetcdfCF
+    :show-inheritance:
 
 .. autoclass:: ocgis.driver.base.AbstractTabularDriver
     :show-inheritance:

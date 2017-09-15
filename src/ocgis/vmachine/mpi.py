@@ -683,6 +683,9 @@ def variable_scatter(variable, dest_dist, root=0, strict=False):
     # Synchronize the processes with the MPI distribution and the group containing the dimensions.
     dest_dist = vm.bcast(dest_dist, root=root)
     group = vm.bcast(group, root=root)
+    # Need to convert the object to a list to be compatible with Python 3.
+    if dimension_names is not None:
+        dimension_names = list(dimension_names)
     dimension_names = vm.bcast(dimension_names, root=root)
 
     # These are the dimensions for the local process.

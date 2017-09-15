@@ -6,7 +6,7 @@ env:
   global:
     - NESII_CHANNEL="nesii"
   matrix:
-    - CONDA_PYTHON="python=2.7", OCGIS_DEPS_ADDS="icclim esmpy mock"
+    - CONDA_PYTHON="python=2.7", OCGIS_DEPS_ADDS="icclim esmpy"
     - CONDA_PYTHON="python=3.5", OCGIS_DEPS_ADDS=""
     - CONDA_PYTHON="python=3.6", OCGIS_DEPS_ADDS=""
 
@@ -21,12 +21,12 @@ before_install:
   - conda info -a
 
 install:
-  - travis_retry conda create -n test-minimal -c $NESII_CHANNEL -c conda-forge $CONDA_PYTHON ocgis nose
+  - travis_retry conda create -n test-minimal -c $NESII_CHANNEL -c conda-forge $CONDA_PYTHON ocgis nose mock
   - source activate test-minimal
   - conda remove ocgis
   - python setup.py install
 
-  - travis_retry conda create -n test-full -c $NESII_CHANNEL -c conda-forge $CONDA_PYTHON ocgis nose rtree cf_units mpi4py $OCGIS_DEPS_ADDS
+  - travis_retry conda create -n test-full -c $NESII_CHANNEL -c conda-forge $CONDA_PYTHON ocgis nose mock rtree cf_units mpi4py $OCGIS_DEPS_ADDS
   - source activate test-full
   - conda remove ocgis
   - python setup.py install

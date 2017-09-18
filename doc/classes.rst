@@ -222,6 +222,7 @@ Grid Splitter
 -------------
 
 .. autoclass:: ocgis.spatial.grid_splitter.GridSplitter
+    :members:
 
 Base Classes
 ------------

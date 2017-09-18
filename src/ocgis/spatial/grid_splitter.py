@@ -13,7 +13,6 @@ from ocgis.collection.field import Field
 from ocgis.constants import GridSplitterConstants, RegriddingRole
 from ocgis.driver.request.core import RequestDataset
 from ocgis.spatial.grid import GridUnstruct
-from ocgis.test.base import nc_scope
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import VariableCollection
 from ocgis.variable.geom import GeometryVariable
@@ -226,7 +225,7 @@ class GridSplitter(AbstractOcgisObject):
                            dst_master_field.x.dimensions[0].name: slice(None)}
                     source_data = RequestDataset(source_path).get()[data_variable.name][slc]
                     assert not source_data.has_allocated_value
-                    with nc_scope(dst_master_path, 'a') as ds:
+                    with nc.Dataset(dst_master_path, 'a') as ds:
                         ds.variables[data_variable.name][time_index, y_bounds[vidx][0]:y_bounds[vidx][1],
                         x_bounds[vidx][0]:x_bounds[vidx][1]] = source_data.get_value()
 

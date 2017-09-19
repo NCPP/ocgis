@@ -1,6 +1,6 @@
 import os
 import sys
-from copy import deepcopy
+from copy import deepcopy, copy
 from unittest import SkipTest
 
 import netCDF4 as nc
@@ -220,6 +220,16 @@ class TestSpherical(TestBase):
         self.assertDictEqual(crs.value, {'a': 6370998.1, 'no_defs': True, 'b': 6370998.1, 'proj': 'longlat',
                                          'towgs84': '0,0,0,0,0,0,0'})
         self.assertEqual(crs.name, 'latitude_longitude')
+
+    def test_copy(self):
+        crs = Spherical()
+        for _ in range(10):
+            copy(crs)
+
+    def test_deepcopy(self):
+        crs = Spherical()
+        for _ in range(10):
+            deepcopy(crs)
 
     def test_place_prime_meridian_array(self):
         arr = np.array([123, 180, 200, 180], dtype=float)

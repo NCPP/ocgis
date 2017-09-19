@@ -3,12 +3,16 @@ import tempfile
 from copy import deepcopy
 
 import numpy as np
+from mock import mock
 from shapely import wkt
-from shapely.geometry import Point, MultiPoint, MultiPolygon, Polygon
+from shapely.geometry import Point, MultiPoint, MultiPolygon, Polygon, box
+from shapely.geometry.base import BaseMultipartGeometry
 
-from ocgis.spatial.wrap import GeometryWrapper, CoordinateArrayWrapper, apply_wrapping_index_map
+from ocgis.spatial.wrap import GeometryWrapper, CoordinateArrayWrapper, apply_wrapping_index_map, iter_exploded
 from ocgis.test.base import TestBase
 from ocgis.util.helpers import write_geom_dict, get_iter
+from ocgis.variable.crs import Spherical
+from ocgis.variable.geom import GeometryVariable
 
 
 class TestCoordinateWrapper(TestBase):
@@ -110,7 +114,7 @@ class TestGeometryWrapper(TestBase):
         return {
             'axis_multipoint': wkt.loads('MULTIPOINT(0.142094 64.038162, 13.393532 37.034936, 344.561927 31.202741)'),
             'axis_multipolygon': wkt.loads(
-                'MULTIPOLYGON(((349.212808 72.513808,360.000000 70.577645,360.000000 57.093250,352.418756 57.552720,349.212808 72.513808)),((0.000000 70.577645,10.051467 68.773536,10.051467 56.484070,0.000000 57.093250,0.000000 70.577645)),((7.914168 46.866228,23.409581 34.576763,13.257414 28.699192,6.311195 38.317035,7.914168 46.866228)),((345.472536 40.454333,354.021729 26.027569,339.594966 24.424596,336.923343 34.576763,345.472536 40.454333)))')}
+                'MULTIPOLYGON (((349.212808 72.513808, 360 70.57764539969908, 360 57.09325030185772, 352.418756 57.55272, 349.212808 72.513808)), ((0 70.57764539969908, 10.051467 68.77353599999999, 10.051467 56.48407, 0 57.09325030185772, 0 70.57764539969908)), ((7.914168 46.866228, 23.409581 34.576763, 13.257414 28.699192, 6.311195 38.317035, 6.311195 38.317035, 6.311195 38.317035, 7.914168 46.866228)), ((345.472536 40.454333, 354.021729 26.027569, 339.594966 24.424596, 336.923343 34.576763, 345.472536 40.454333)))')}
 
     def get_buffered(self, geom):
         ret = geom.buffer(0)
@@ -135,7 +139,17 @@ class TestGeometryWrapper(TestBase):
         for desc, geom in self.possible.items():
             unwrapped = wrapper.unwrap(geom)
             if desc in self.actual_unwrapped:
-                self.assertTrue(self.actual_unwrapped[desc].almost_equals(unwrapped, decimal=5))
+                try:
+                    self.assertTrue(self.actual_unwrapped[desc].almost_equals(unwrapped, decimal=5))
+                except:
+                    # gv = GeometryVariable.from_shapely(geom, crs=Spherical())
+                    # gv.write_vector(os.path.join('/tmp/tw-geom.shp'))
+                    # gv = GeometryVariable.from_shapely(unwrapped, crs=Spherical())
+                    # gv.write_vector(os.path.join('/tmp/tw-unwrapped.shp'))
+                    # gv = GeometryVariable.from_shapely(self.actual_unwrapped[desc], crs=Spherical())
+                    # gv.write_vector(os.path.join('/tmp/tw-actual-unwrapped.shp'))
+                    # print(unwrapped.wkt)
+                    raise
             try:
                 self.assertEqual(type(geom), type(unwrapped))
             except AssertionError:
@@ -159,6 +173,16 @@ class TestGeometryWrapper(TestBase):
             else:
                 self.assertFalse(np.any(np.array(unwrapped) > 360.0))
 
+    def test_unwrap_multipolygon(self):
+        """Test unwrapping a multi-polygon with one piece untouched and the other unwrapped."""
+
+        lhs = box(-180, 30, -177, 35)
+        rhs = box(160, 30, 180, 35)
+        geom = MultiPolygon([lhs, rhs])
+        wrapper = GeometryWrapper()
+        unwrapped = wrapper.unwrap(geom)
+        self.assertEqual(unwrapped.bounds, (160.0, 30.0, 183.0, 35.0))
+
     def test_wrap(self):
         """Test different geometry types are appropriately wrapped."""
 
@@ -179,4 +203,8 @@ class TestGeometryWrapper(TestBase):
                     self.assertNumpyAllClose(np.array(wrapped.bounds), np.array(geom.bounds))
                     self.assertEqual(len(wrapped), 2)
                 else:
+                    # gv = GeometryVariable.from_shapely(geom, crs=Spherical())
+                    # gv.write_vector(os.path.join('/tmp/tw-geom.shp'))
+                    # gv = GeometryVariable.from_shapely(wrapped, crs=Spherical())
+                    # gv.write_vector(os.path.join('/tmp/tw-wrapped.shp'))
                     raise

@@ -16,7 +16,7 @@ from ocgis import constants
 from ocgis import env
 from ocgis.base import AbstractOcgisObject
 from ocgis.base import get_dimension_names, get_variable_names, raise_if_empty
-from ocgis.constants import KeywordArgument, HeaderName, VariableName, DimensionName, ConversionTarget
+from ocgis.constants import KeywordArgument, HeaderName, VariableName, DimensionName, ConversionTarget, DriverKey
 from ocgis.environment import ogr
 from ocgis.exc import EmptySubsetError, RequestableFeature
 from ocgis.spatial.base import AbstractSpatialVariable
@@ -841,7 +841,6 @@ class GeometryVariable(AbstractSpatialVariable):
         """
 
         super(GeometryVariable, self).update_crs(to_crs)
-
         members = [self.crs, to_crs]
         contains_cartesian = any([isinstance(ii, Cartesian) for ii in members])
 
@@ -901,11 +900,13 @@ class GeometryVariable(AbstractSpatialVariable):
         super(GeometryVariable, self).set_value(value, **kwargs)
 
     def write_vector(self, *args, **kwargs):
-        from ocgis.collection.field import Field
-        from ocgis.driver.vector import DriverVector
-        field = Field(geom=self, crs=self.crs, parent=self.parent, tags=self.parent._tags)
-        kwargs[KeywordArgument.DRIVER] = DriverVector
-        field.write(*args, **kwargs)
+        kwargs = kwargs.copy()
+        lself = self.copy()
+        if lself.parent.geom is None:
+            lself.parent.set_geom(lself)
+        lself.parent.set_abstraction_geom(create_ugid=True, set_ugid_as_data=True)
+        kwargs[KeywordArgument.DRIVER] = DriverKey.VECTOR
+        lself.parent.write(*args, **kwargs)
 
     def _get_extent_(self):
         raise NotImplementedError

@@ -188,11 +188,14 @@ class SpatialSubsetOperation(AbstractOcgisObject):
         """
         assert isinstance(geom, GeometryVariable)
 
+        # The subset geometry may be modified during this transaction. Use a deep copy to preserve the original
+        # geometry's state to avoid error accumulations during transformations.
         prepared = geom.deepcopy()
 
         if geom.crs is not None:
             assert prepared.crs is not None
 
+        # Update the subset geometry's coordinate system to match the field's.
         if isinstance(self.field.crs, CFRotatedPole):
             prepared.update_crs(CFSpherical())
         else:
@@ -202,6 +205,8 @@ class SpatialSubsetOperation(AbstractOcgisObject):
                 raise ValueError(msg)
             if prepared.crs is not None and self.field.crs is not None:
                 prepared.update_crs(self.field.crs)
+
+        # Update the subset geometry's spatial wrapping to match the target field.
         field_wrapped_state = self.field.wrapped_state
         prepared_wrapped_state = prepared.wrapped_state
         if field_wrapped_state == WrappedState.UNWRAPPED:

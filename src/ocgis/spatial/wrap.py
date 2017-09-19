@@ -3,12 +3,15 @@ from abc import abstractmethod
 
 import numpy as np
 import six
+from shapely.geometry.base import BaseGeometry, BaseMultipartGeometry
 from shapely.geometry.linestring import LineString
 from shapely.geometry.multipoint import MultiPoint
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.point import Point
 from shapely.geometry.polygon import Polygon
+from shapely.ops import cascaded_union
 
+import ocgis
 from ocgis.base import AbstractOcgisObject
 from ocgis.util.helpers import make_poly
 
@@ -107,54 +110,52 @@ class GeometryWrapper(AbstractWrapper):
 
         assert type(geom) in [Polygon, MultiPolygon]
 
-        # Return the geometry iterator.
-        it = self._get_iter_(geom)
-        # Loop through the polygons determining if any coordinates need to be shifted and flag accordingly.
-        adjust = False
-        for polygon in it:
-            coords = np.array(polygon.exterior.coords)
-            if np.any(coords[:, 0] < self.center_axis):
-                adjust = True
-                break
-
         # Wrap the polygon if requested.
-        if adjust:
-            # Loop through individual polygon components. doing this operation on multipolygons causes unexpected
-            # behavior mostly due to the possibility of invalid geometries.
+        if self._should_unwrap_geom_(geom):
+            # Loop through individual polygon components. Doing this operation on multi-polygons causes unexpected
+            # behavior due to potential invalid geometries.
             processed_geometries = []
-            for to_process in self._get_iter_(geom):
+            for ctr, to_process in enumerate(iter_exploded(geom)):
                 try:
                     assert to_process.is_valid
                 except AssertionError:
                     # Attempt a simple buffering trick to make the geometry valid.
                     to_process = to_process.buffer(0)
                     assert to_process.is_valid
+                assert isinstance(to_process, Polygon)
 
                 # Intersection with the two regions.
-                left = to_process.intersection(self.clip1)
-                right = to_process.intersection(self.clip2)
+                if self._should_unwrap_geom_(to_process):
+                    left = to_process.intersection(self.clip1)
+                    right = to_process.intersection(self.clip2)
 
-                # Pull out the right side polygons.
-                right_polygons = [poly for poly in self._get_iter_(right)]
+                    # Pull out the right side polygons.
+                    right_polygons = [poly for poly in iter_exploded(right)]
 
-                # Adjust polygons falling the left window.
-                if isinstance(left, Polygon):
-                    left_polygons = [self._unwrap_shift_(left)]
+                    # Adjust polygons falling the left window.
+                    if isinstance(left, Polygon):
+                        left_polygons = [self._unwrap_shift_(left)]
+                    else:
+                        left_polygons = []
+                        for polygon in left:
+                            left_polygons.append(self._unwrap_shift_(polygon))
+
+                    # Merge polygons into single unit.
+                    try:
+                        processed = MultiPolygon(left_polygons + right_polygons)
+                    except TypeError:
+                        left = [x for x in left_polygons if type(x) != LineString]
+                        right = [x for x in right_polygons if type(x) != LineString]
+                        processed = MultiPolygon(left + right)
+
                 else:
-                    left_polygons = []
-                    for polygon in left:
-                        left_polygons.append(self._unwrap_shift_(polygon))
+                    if isinstance(to_process, Polygon):
+                        processed = [to_process]
+                    else:
+                        processed = to_process
+                # Return a single polygon if the output multi-geometry has only one component. Otherwise, explode the
+                # multi-geometry.
 
-                # Merge polygons into single unit.
-                try:
-                    processed = MultiPolygon(left_polygons + right_polygons)
-                except TypeError:
-                    left = [x for x in left_polygons if type(x) != LineString]
-                    right = [x for x in right_polygons if type(x) != LineString]
-                    processed = MultiPolygon(left + right)
-
-                # Return a single polygon if the output multigeometry has only one component. otherwise, explode the
-                # multigeometry.
                 if len(processed) == 1:
                     processed = [processed[0]]
                 else:
@@ -163,9 +164,12 @@ class GeometryWrapper(AbstractWrapper):
                 # Hold for final adjustment.
                 processed_geometries += processed
 
-            # Convert to a multigeometry if there are more than one output.
+            # Convert to a multigeometry if there is more than one output.
             if len(processed_geometries) > 1:
+                # HACK: Union geometries to avoid some potential issues with multi-geometries.
+                # ret = cascaded_union(processed_geometries)
                 ret = MultiPolygon(processed_geometries)
+                # assert ret.is_valid
             else:
                 ret = processed_geometries[0]
 
@@ -206,8 +210,8 @@ class GeometryWrapper(AbstractWrapper):
             # If a polygon crosses the 180 axis, then the polygon will need to be split with intersection and
             # recombined.
             elif bounds[1] <= self.wrap_axis < bounds[2]:
-                left = [poly for poly in self._get_iter_(geom.intersection(self.left_clip))]
-                right = [poly for poly in self._get_iter_(_shift_(geom.intersection(self.right_clip)))]
+                left = [poly for poly in iter_exploded(geom.intersection(self.left_clip))]
+                right = [poly for poly in iter_exploded(_shift_(geom.intersection(self.right_clip)))]
                 try:
                     new_geom = MultiPolygon(left + right)
                 except TypeError:
@@ -239,19 +243,15 @@ class GeometryWrapper(AbstractWrapper):
 
         return new_geom
 
-    @staticmethod
-    def _get_iter_(geom):
-        """
-        :param geom: The target geometry to adjust.
-        :type geom: :class:`shapely.geometry.base.BaseGeometry`
-        :rtype: sequence of :class:`shapely.geometry.base.BaseGeometry` objects
-        """
-
-        try:
-            it = iter(geom)
-        except TypeError:
-            it = [geom]
-        return it
+    def _should_unwrap_geom_(self, geom):
+        # Loop through the polygons determining if any coordinates need to be shifted and flag accordingly.
+        ret = False
+        for polygon in iter_exploded(geom):
+            coords = np.array(polygon.exterior.coords)
+            if np.any(coords[:, 0] < self.center_axis):
+                ret = True
+                break
+        return ret
 
     def _unwrap_point_(self, geom):
         """
@@ -303,3 +303,16 @@ def apply_wrapping_index_map(imap, to_remap):
     imap = imap.reshape(-1)
     to_remap = to_remap.reshape(-1)
     to_remap[:] = to_remap[imap]
+
+
+def iter_exploded(geom):
+    if isinstance(geom, BaseMultipartGeometry):
+        itr = iter(geom)
+    else:
+        itr = [geom]
+    for element1 in itr:
+        if isinstance(element1, BaseMultipartGeometry):
+            for element2 in iter_exploded(element1):
+                yield element2
+        else:
+            yield element1

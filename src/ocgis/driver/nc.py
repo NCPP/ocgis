@@ -525,13 +525,10 @@ def get_value_from_request_dataset(variable):
         ncvar = source.variables[desired_name]
 
         # Allow multi-unit time values for temporal variables.
-        if isinstance(variable, TemporalVariable) and isinstance(source, MFDataset):
+        if isinstance(variable, TemporalVariable) and isinstance(source, MFDataset) and rd.format_time:
             # MFTime may fail if time_bnds do not have a calendar attribute.
             # Use rd.dimension_map.set_bounds('time', None) to disable indexing on time_bnds.
             ncvar = MFTime(ncvar)
-
-
-
         ret = get_variable_value(ncvar, variable.dimensions)
     return ret
 

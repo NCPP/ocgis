@@ -23,5 +23,5 @@ from ocgis.variable.temporal import TemporalVariable
 from ocgis.variable.geom import GeometryVariable
 from ocgis.spatial.geomc import PolygonGC, LineGC, PointGC
 
-__version__ = '2.1.0.dev'
-__release__ = '2.1.0.dev'
+__version__ = '2.1.0.dev1'
+__release__ = '2.1.0.dev1'

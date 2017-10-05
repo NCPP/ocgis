@@ -65,5 +65,5 @@ def test():
 
 
 if __name__ == '__main__':
-    main(write_subsets=True, merge_weight_files=True)
+    main(write_subsets=True, merge_weight_files=False)
     # test()

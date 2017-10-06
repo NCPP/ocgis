@@ -6,7 +6,7 @@ from shapely import wkt
 from ocgis import CoordinateReferenceSystem, vm
 from ocgis import env
 from ocgis.collection.field import Field
-from ocgis.constants import WrappedState, DimensionMapKey
+from ocgis.constants import WrappedState, DimensionMapKey, KeywordArgument
 from ocgis.exc import EmptySubsetError
 from ocgis.spatial.spatial_subset import SpatialSubsetOperation
 from ocgis.test.base import TestBase, attr, get_geometry_dictionaries
@@ -46,15 +46,14 @@ class TestSpatialSubsetOperation(TestBase):
         return nebraska
 
     @property
-    def rd_rotated_pole(self):
-        rd = self.test_data.get_rd('rotated_pole_cccma')
-        return rd
-
-    @property
     def target(self):
         if self._target is None:
             self._target = self.get_target()
         return self._target
+
+    def fixture_rd_rotated_pole(self, **kwargs):
+        rd = self.test_data.get_rd('rotated_pole_cccma', kwds=kwargs)
+        return rd
 
     def get_buffered(self, geom):
         ret = geom.buffer(0)
@@ -80,7 +79,7 @@ class TestSpatialSubsetOperation(TestBase):
         field_standard = rd_standard.get()
 
         # 3: field with rotated pole coordinate system
-        field_rotated_pole = self.rd_rotated_pole.get()
+        field_rotated_pole = self.fixture_rd_rotated_pole().get()
 
         # 4: field with lambert conformal coordinate system
         lambert_dmap = {'crs': {'variable': 'Lambert_Conformal'}, 'groups': {},
@@ -229,16 +228,16 @@ class TestSpatialSubsetOperation(TestBase):
         self.assertAlmostEqual(ret.grid.get_value_stacked().mean(), -23341.955070198124)
 
         # test with an input rotated pole coordinate system
-        rd = self.rd_rotated_pole
+        rd = self.fixture_rd_rotated_pole()
         ss = SpatialSubsetOperation(rd.get(), output_crs=env.DEFAULT_COORDSYS)
         ret = ss.get_spatial_subset('intersects', self.germany['geom'], geom_crs=WGS84())
         self.assertEqual(ret.crs, env.DEFAULT_COORDSYS)
 
     @attr('data')
     def test_get_spatial_subset_rotated_pole(self):
-        """Test input has rotated pole with now output CRS."""
+        """Test a spatial subset with rotated pole data."""
 
-        rd = self.rd_rotated_pole
+        rd = self.fixture_rd_rotated_pole(**{KeywordArgument.ROTATED_POLE_PRIORITY: True})
         ss = SpatialSubsetOperation(rd.get())
         ret = ss.get_spatial_subset('intersects', self.germany['geom'], geom_crs=WGS84())
         self.assertEqual(ret.crs, rd.get().crs)

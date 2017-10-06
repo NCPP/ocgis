@@ -14,7 +14,7 @@ from ocgis import RequestDataset, vm
 from ocgis import constants
 from ocgis import env
 from ocgis.collection.field import Field
-from ocgis.constants import WrappedState, HeaderName, OutputFormatName, DMK
+from ocgis.constants import WrappedState, HeaderName, OutputFormatName, DMK, KeywordArgument
 from ocgis.exc import DefinitionValidationError
 from ocgis.ops.core import OcgOperations
 from ocgis.ops.parms import definition
@@ -201,30 +201,34 @@ class TestOcgOperations(TestBase):
         with self.assertRaises(DefinitionValidationError):
             kk('pt')
 
-    @attr('data')
+    @attr('data', 'slow')
     def test_keyword_aggregate(self):
-        rd = self.test_data.get_rd('rotated_pole_cnrm_cerfacs')
+        for rpp in [False, True]:
+            kwds = {KeywordArgument.ROTATED_POLE_PRIORITY: rpp}
+            rd = self.test_data.get_rd('rotated_pole_cnrm_cerfacs', kwds=kwds)
 
-        ofield = rd.get().get_field_slice({'time': slice(0, 10), 'y': slice(0, 10), 'x': slice(0, 10)})
-        ovalue = ofield['pr'].get_value()
-        manual_mean = ovalue[4, :, :].mean()
+            ofield = rd.get().get_field_slice({'time': slice(0, 10), 'y': slice(0, 10), 'x': slice(0, 10)})
+            ovalue = ofield['pr'].get_value()
+            manual_mean = ovalue[4, :, :].mean()
 
-        slc = [None, [0, 10], None, [0, 10], [0, 10]]
-        for output_format in [OutputFormatName.OCGIS, OutputFormatName.CSV]:
-            ops = OcgOperations(dataset=rd, output_format=output_format, aggregate=True, slice=slc, melted=True)
-            # Spatial operations on rotated pole require the output be spherical.
-            self.assertEqual(ops.output_crs, Spherical())
-            ret = ops.execute()
-            if output_format == constants.OutputFormatName.OCGIS:
-                field = ret.get_element()
-                self.assertEqual(field['pr'].shape, (10, 1))
-                self.assertAlmostEqual(float(manual_mean), float(field['pr'].get_value()[4]))
-            else:
-                with open(ret, 'r') as f:
-                    reader = csv.DictReader(f)
-                    rows = list(reader)
-                self.assertEqual(len(rows), 10)
-                self.assertAlmostEqual(float(rows[4]['VALUE']), manual_mean)
+            slc = [None, [0, 10], None, [0, 10], [0, 10]]
+            for output_format in [OutputFormatName.OCGIS, OutputFormatName.CSV]:
+                ops = OcgOperations(dataset=rd, output_format=output_format, aggregate=True, slice=slc, melted=True,
+                                    prefix='rpp_{}'.format(rpp))
+                # Spatial operations on rotated pole require the output be spherical.
+                if rpp:
+                    self.assertEqual(ops.output_crs, Spherical())
+                ret = ops.execute()
+                if output_format == constants.OutputFormatName.OCGIS:
+                    field = ret.get_element()
+                    self.assertEqual(field['pr'].shape, (10, 1))
+                    self.assertAlmostEqual(float(manual_mean), float(field['pr'].get_value()[4]))
+                else:
+                    with open(ret, 'r') as f:
+                        reader = csv.DictReader(f)
+                        rows = list(reader)
+                    self.assertEqual(len(rows), 10)
+                    self.assertAlmostEqual(float(rows[4]['VALUE']), manual_mean)
 
     @attr('data')
     def test_keyword_calc_grouping_none_date_parts(self):

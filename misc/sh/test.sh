@@ -17,7 +17,7 @@ WTIME=900
 rm ${OUT_FILE}
 rm .noseids
 
-timeout ${WTIME} bash test-core.sh
+timeout -k 5 --foreground ${WTIME} bash ./test-core.sh
 if [ $? == 124 ]; then
     echo -e "\\n\\nFAIL: Hit wall time (${WTIME}s) when running test-core.sh" | tee -a ${OUT_FILE}
     exit 1

@@ -408,7 +408,8 @@ class TestCFRotatedPole(TestBase):
 
     @attr('data')
     def test_load_from_metadata(self):
-        rd = self.test_data.get_rd('rotated_pole_ichec')
+        rd = self.test_data.get_rd('rotated_pole_ichec', kwds={'rotated_pole_priority': True})
+        self.assertTrue(rd.rotated_pole_priority)
         self.assertIsInstance(rd.get().crs, CFRotatedPole)
 
         # Test without the grid_mapping attribute attached to a variable.
@@ -419,7 +420,7 @@ class TestCFRotatedPole(TestBase):
 
     @attr('data')
     def test_write_to_rootgrp(self):
-        rd = self.test_data.get_rd('narccap_rotated_pole')
+        rd = self.test_data.get_rd('narccap_rotated_pole', kwds={'rotated_pole_priority': True})
         path = os.path.join(self.current_dir_output, 'foo.nc')
 
         with nc_scope(path, 'w') as ds:

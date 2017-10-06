@@ -71,6 +71,8 @@ class DimensionMap(AbstractOcgisObject):
         for k, v in dct.items():
             if k == DMK.GROUPS:
                 has_groups = True
+            elif k == DMK.DRIVER:
+                d.set_driver(v)
             else:
                 try:
                     variable = v.pop(DMK.VARIABLE)
@@ -78,6 +80,9 @@ class DimensionMap(AbstractOcgisObject):
                     raise DimensionMapError(k, "No 'variable' is available.")
                 if k == DMK.CRS:
                     d.set_crs(variable)
+                elif k == DMK.SPATIAL_MASK:
+                    if v != {}:
+                        d.set_spatial_mask(variable)
                 else:
                     d.set_variable(k, variable, **v)
         if has_groups:
@@ -454,7 +459,7 @@ class DimensionMap(AbstractOcgisObject):
 
     def update(self, other):
         """
-        Update this dimension map with another dimension map.
+        Update this dimension map from another dimension map.
 
         :param other:
         :type other: :class:`~ocgis.DimensionMap`

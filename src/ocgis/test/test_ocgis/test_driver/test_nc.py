@@ -4,6 +4,7 @@ from copy import deepcopy
 
 import fiona
 import numpy as np
+from mock import mock
 from shapely.geometry.geo import shape
 
 from ocgis import GeomCabinet, vm
@@ -19,6 +20,7 @@ from ocgis.exc import OcgWarning, CannotFormatTimeError, \
     NoDataVariablesFound
 from ocgis.spatial.grid import Grid
 from ocgis.test.base import TestBase, attr, create_gridxy_global
+from ocgis.util.addict import Dict
 from ocgis.util.helpers import get_group
 from ocgis.variable.base import Variable, ObjectType, VariableCollection, SourcedVariable
 from ocgis.variable.crs import WGS84, CoordinateReferenceSystem, CFSpherical, CFRotatedPole
@@ -46,7 +48,7 @@ class Test(TestBase):
                                                            u'grid_north_pole_longitude',
                                                            360.0)]),
                                                    'fill_value_packed': None}}}
-        var = get_crs_variable(metadata)
+        var = get_crs_variable(metadata, False)
         self.assertIsInstance(var, CFRotatedPole)
 
     def test_remove_netcdf_attribute(self):
@@ -328,6 +330,69 @@ class TestDriverNetcdf(TestBase):
 
 
 class TestDriverNetcdfCF(TestBase):
+    @property
+    def fixture_rotated_spherical_metadata(self):
+        ret = {'dimensions': {u'rlon': {'name': u'rlon', 'isunlimited': False, 'size': 194},
+                              u'bnds': {'name': u'bnds', 'isunlimited': False, 'size': 2},
+                              u'rlat': {'name': u'rlat', 'isunlimited': False, 'size': 201},
+                              u'time': {'name': u'time', 'isunlimited': True, 'size': 1826}},
+               'global_attributes': {u'model_id': u'DMI-HIRHAM5', u'rcm_version_id': u'v2', u'project_id': u'CORDEX',
+                                     u'driving_experiment_name': u'rcp45',
+                                     u'institution': u'Danish Meteorological Institute',
+                                     u'driving_experiment': u'ICHEC-EC-EARTH,rcp45,r3i1p1',
+                                     u'CDO': u'Climate Data Operators version 1.4.0.1 (http://www.mpimet.mpg.de/cdo)',
+                                     u'CDI': u'Climate Data Interface version 1.4.0.1', u'contact': u'obc@dmi.dk',
+                                     u'product': u'output', u'CORDEX_domain': u'AFR-44',
+                                     u'experiment': u'Scenario experiment with ICHEC-EC-EARTH forcing',
+                                     u'frequency': u'day', u'driving_model_ensemble_member': u'r3i1p1',
+                                     u'experiment_id': u'rcp45', u'NCO': u'4.0.9',
+                                     u'creation_date': u'2014-07-11 23:53:54', u'Conventions': u'CF-1.6',
+                                     u'driving_model_id': u'ICHEC-EC-EARTH',
+                                     u'tracking_id': u'9f58ce4e-0956-11e4-a2fa-6c626dd8513d', u'institute_id': u'DMI'},
+               'variables': {
+                   u'time_bnds': {'dimensions': (u'time', u'bnds'), 'dtype': np.dtype('float64'), 'fill_value': 'auto',
+                                  'fill_value_packed': None, 'dtype_packed': None,
+                                  'attrs': {u'units': u'days since 1949-12-01 00:00:00',
+                                            u'calendar': u'proleptic_gregorian'}, 'name': u'time_bnds'},
+                   u'tas': {'dimensions': (u'time', u'rlat', u'rlon'), 'dtype': np.dtype('float32'),
+                            'fill_value': 1e+20,
+                            'fill_value_packed': None, 'dtype_packed': None,
+                            'attrs': {u'_FillValue': 1e+20, u'coordinates': u'lon lat height',
+                                      u'long_name': u'Near-Surface Air Temperature',
+                                      u'standard_name': u'air_temperature', u'cell_methods': u'time: mean',
+                                      u'units': u'K', u'missing_value': 1e+20}, 'name': u'tas'},
+                   u'rlon': {'dimensions': (u'rlon',), 'dtype': np.dtype('float64'), 'fill_value': 'auto',
+                             'fill_value_packed': None, 'dtype_packed': None,
+                             'attrs': {u'units': u'degrees', u'long_name': u'longitude in rotated pole grid',
+                                       u'standard_name': u'grid_longitude', u'axis': u'X'}, 'name': u'rlon'},
+                   u'lon': {'dimensions': (u'rlat', u'rlon'), 'dtype': np.dtype('float64'), 'fill_value': 'auto',
+                            'fill_value_packed': None, 'dtype_packed': None,
+                            'attrs': {u'units': u'degrees_east', u'_CoordinateAxisType': u'Lon',
+                                      u'standard_name': u'longitude', u'long_name': u'longitude'}, 'name': u'lon'},
+                   u'height': {'dimensions': (), 'dtype': np.dtype('float64'), 'fill_value': 'auto',
+                               'fill_value_packed': None, 'dtype_packed': None,
+                               'attrs': {u'units': u'm', u'long_name': u'height', u'standard_name': u'height',
+                                         u'axis': u'Z', u'positive': u'up'}, 'name': u'height'},
+                   u'rotated_pole': {'dimensions': (), 'dtype': np.dtype('S1'), 'fill_value': 'auto',
+                                     'fill_value_packed': None, 'dtype_packed': None,
+                                     'attrs': {u'grid_north_pole_latitude': 90.0, u'grid_north_pole_longitude': 360.0,
+                                               u'grid_mapping_name': u'rotated_latitude_longitude'},
+                                     'name': u'rotated_pole'},
+                   u'time': {'dimensions': (u'time',), 'dtype': np.dtype('float64'), 'fill_value': 'auto',
+                             'fill_value_packed': None, 'dtype_packed': None,
+                             'attrs': {u'units': u'days since 1949-12-01 00:00:00', u'calendar': u'proleptic_gregorian',
+                                       u'bounds': u'time_bnds'}, 'name': u'time'},
+                   u'lat': {'dimensions': (u'rlat', u'rlon'), 'dtype': np.dtype('float64'), 'fill_value': 'auto',
+                            'fill_value_packed': None, 'dtype_packed': None,
+                            'attrs': {u'units': u'degrees_north', u'_CoordinateAxisType': u'Lat',
+                                      u'standard_name': u'latitude', u'long_name': u'latitude'}, 'name': u'lat'},
+                   u'rlat': {'dimensions': (u'rlat',), 'dtype': np.dtype('float64'), 'fill_value': 'auto',
+                             'fill_value_packed': None, 'dtype_packed': None,
+                             'attrs': {u'units': u'degrees', u'long_name': u'latitude in rotated pole grid',
+                                       u'standard_name': u'grid_latitude', u'axis': u'Y'}, 'name': u'rlat'}},
+               'groups': {}, 'file_format': 'NETCDF4_CLASSIC'}
+        return ret
+
     def get_drivernetcdf(self, **kwargs):
         path = self.get_drivernetcdf_file_path()
         kwargs['uri'] = path
@@ -522,13 +587,6 @@ class TestDriverNetcdfCF(TestBase):
         actual = f.dimension_map.get_dimension(DimensionMapKey.TIME)
         self.assertEqual(actual, ['time'])
 
-    def test_create_dimension_map_no_time_axis(self):
-        metadata = {'variables': {'time': {'name': 'time', 'attrs': {}, 'dimensions': ['time']}},
-                    'dimensions': {}}
-        d = self.get_drivernetcdf()
-        dmap = d.create_dimension_map(metadata)
-        self.assertEqual(dmap.get_variable(DimensionMapKey.TIME), 'time')
-
     def test_create_dimension_map_2d_spatial_coordinates(self):
         grid = create_gridxy_global()
         grid.expand()
@@ -545,6 +603,23 @@ class TestDriverNetcdfCF(TestBase):
 
         actual = f.dimension_map.get_dimension(DimensionMapKey.X)
         self.assertEqual(actual, ['x'])
+
+    def test_create_dimension_map_no_time_axis(self):
+        metadata = {'variables': {'time': {'name': 'time', 'attrs': {}, 'dimensions': ['time']}},
+                    'dimensions': {}}
+        d = self.get_drivernetcdf()
+        dmap = d.create_dimension_map(metadata)
+        self.assertEqual(dmap.get_variable(DimensionMapKey.TIME), 'time')
+
+    def test_create_dimension_map_rotated_spherical(self):
+        rd = mock.create_autospec(RequestDataset)
+        rd._has_assigned_coordinate_system = False
+        rd.rotated_pole_priority = False
+
+        driver = DriverNetcdfCF(rd)
+        dmap = driver.create_dimension_map(self.fixture_rotated_spherical_metadata)
+        self.assertEqual(dmap.get_variable(DMK.X), 'lon')
+        self.assertEqual(dmap.get_variable(DMK.Y), 'lat')
 
     def test_create_dimension_map_with_spatial_mask(self):
         path = self.get_temporary_file_path('foo.nc')
@@ -567,6 +642,31 @@ class TestDriverNetcdfCF(TestBase):
         # rd.dimension_map.pprint()
         field = rd.get()
         self.assertIsNone(field.grid.get_mask())
+
+    def test_get_crs(self):
+        group_metadata = self.fixture_rotated_spherical_metadata
+
+        rd = mock.create_autospec(RequestDataset)
+
+        keywords = Dict()
+        keywords.rpp = [True, False]
+        keywords.with_spherical = [True, False]
+
+        desired = Dict()
+        desired.rpp[True] = CFRotatedPole
+        desired.rpp[False] = CFSpherical
+
+        for k in self.iter_product_keywords(keywords):
+            cgm = deepcopy(group_metadata)
+            if not k.with_spherical:
+                cgm['variables'].pop('lat')
+                cgm['variables'].pop('lon')
+            rd.rotated_pole_priority = k.rpp
+            actual = DriverNetcdfCF(rd).get_crs(cgm)
+            if k.with_spherical:
+                self.assertIsInstance(actual, desired.rpp[k.rpp])
+            else:
+                self.assertIsInstance(actual, CFRotatedPole)
 
     def test_get_dump_report(self):
         d = self.get_drivernetcdf()

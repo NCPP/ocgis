@@ -1029,8 +1029,11 @@ def get_name_mapping(dimension_map):
     name_mapping = {}
     to_slice = [DimensionMapKey.REALIZATION, DimensionMapKey.TIME, DimensionMapKey.LEVEL, DimensionMapKey.Y,
                 DimensionMapKey.X]
+
+    # Slice the geometry variable as well if the dimension length is one. Not sure entirely why this is in there.
     if len(dimension_map.get_dimension(DimensionMapKey.GEOM)) == 1:
         to_slice.append(DimensionMapKey.GEOM)
+
     for k in to_slice:
         variable_name = dimension_map.get_variable(k)
         if variable_name is not None:

@@ -13,7 +13,7 @@ from shapely.geometry.base import BaseGeometry
 from ocgis import RequestDataset, vm, DimensionMap
 from ocgis import constants
 from ocgis.base import get_variable_names
-from ocgis.collection.field import Field
+from ocgis.collection.field import Field, get_name_mapping
 from ocgis.collection.spatial import SpatialCollection
 from ocgis.constants import HeaderName, KeywordArgument, DriverKey, DimensionMapKey, DMK
 from ocgis.conv.nc import NcConverter
@@ -272,6 +272,19 @@ class TestField(AbstractTestInterface):
         field = Field(variables=[v1, v2, v3], tags=tags)
         t = field.get_by_tag('other')
         self.assertAsSetEqual([ii.name for ii in t], tags['other'])
+
+    def test_get_name_mapping(self):
+        dimension_map = {'crs': {'variable': 'latitude_longitude'}, 'level': {'variable': None, 'dimension': []},
+                         'time': {'variable': u'time', 'attrs': {'axis': 'T'}, 'bounds': u'time_bnds',
+                                  'dimension': [u'time']}, 'driver': 'netcdf-cf', 'spatial_mask': {'variable': None},
+                         'groups': {}, 'realization': {'variable': None, 'dimension': []},
+                         'y': {'variable': u'lat', 'attrs': {}, 'bounds': u'lat_vertices', 'dimension': [u'rlat']},
+                         'x': {'variable': u'lon', 'attrs': {}, 'bounds': u'lon_vertices', 'dimension': [u'rlon']}}
+        dimension_map = DimensionMap.from_dict(dimension_map)
+
+        actual = get_name_mapping(dimension_map)
+        desired = {'y': [u'rlat'], 'x': [u'rlon'], 'time': [u'time']}
+        self.assertEqual(actual, desired)
 
     def test_grid(self):
         # Test mask variable information is propagated through property.

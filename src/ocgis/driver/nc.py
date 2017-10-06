@@ -20,7 +20,7 @@ from ocgis.exc import ProjectionDoesNotMatch, PayloadProtectedError, OcgWarning,
 from ocgis.util.helpers import itersubclasses, get_iter, get_formatted_slice, get_by_key_list, is_auto_dtype, get_group
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import SourcedVariable, ObjectType, get_slice_sequence_using_local_bounds
-from ocgis.variable.crs import CFCoordinateReferenceSystem, CoordinateReferenceSystem
+from ocgis.variable.crs import CFCoordinateReferenceSystem, CoordinateReferenceSystem, CFRotatedPole, CFSpherical
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.temporal import TemporalVariable
 
@@ -264,16 +264,15 @@ class AbstractDriverNetcdfCF(DriverNetcdf):
         return dmap
 
     @staticmethod
-    def _create_dimension_map_entries_dict_(axes, group_metadata, strict):
+    def _create_dimension_map_entries_dict_(axes, group_metadata, strict, attr_name='axis'):
         variables = group_metadata['variables']
-        dimensions = group_metadata['dimensions']
         check_bounds = list(axes.keys())
         if 'realization' in check_bounds:
             check_bounds.pop(check_bounds.index('realization'))
 
         # Get the main entry for each axis.
         for k, v in list(axes.items()):
-            axes[k] = create_dimension_map_entry(v, variables, dimensions, strict=strict)
+            axes[k] = create_dimension_map_entry(v, variables, strict=strict, attr_name=attr_name)
 
         # Attempt to find bounds for each entry (ignoring realizations).
         for k in check_bounds:
@@ -312,9 +311,25 @@ class DriverNetcdfCF(AbstractDriverNetcdfCF):
 
         # Get dimension variable metadata. This involves checking for the presence of any bounds variables.
         axes = {'x': 'X', 'y': 'Y'}
-        entries = self._create_dimension_map_entries_dict_(axes, group_metadata, strict)
+        entries = self._create_dimension_map_entries_dict_(axes, group_metadata, strict, attr_name='axis')
         self._update_dimension_map_with_entries_(entries, dmap)
 
+        # Hack to get the original coordinate system. Tell the driver to get rotated pole if it can from the metadata.
+        original_rpp = self.rd.rotated_pole_priority
+        try:
+            self.rd.rotated_pole_priority = True
+            raw_crs = self.get_crs(group_metadata)
+        finally:
+            self.rd.rotated_pole_priority = original_rpp
+        # Swap out correct axis variables for spherical as opposed to rotated latitude longitude
+        if not self.rd.rotated_pole_priority and isinstance(raw_crs, CFRotatedPole):
+            crs = self.get_crs(group_metadata)
+            if isinstance(crs, CFSpherical):
+                axes = {DimensionMapKey.X: {'value': CFName.StandardName.LONGITUDE, 'axis': 'X'},
+                        DimensionMapKey.Y: {'value': CFName.StandardName.LATITUDE, 'axis': 'Y'}}
+                crs_entries = self._create_dimension_map_entries_dict_(axes, group_metadata, strict,
+                                                                       attr_name=CFName.STANDARD_NAME)
+                self._update_dimension_map_with_entries_(crs_entries, dmap)
         return dmap
 
     @staticmethod
@@ -368,7 +383,7 @@ class DriverNetcdfCF(AbstractDriverNetcdfCF):
         return ret
 
     def _get_crs_main_(self, group_metadata):
-        return get_crs_variable(group_metadata)
+        return get_crs_variable(group_metadata, self.rd.rotated_pole_priority)
 
     @classmethod
     def _get_field_write_target_(cls, field):
@@ -581,7 +596,7 @@ def create_dimension_or_pass(dim, dataset, write_mode=MPIWriteMode.NORMAL):
         dataset.createDimension(dim.name, size)
 
 
-def get_crs_variable(metadata, to_search=None):
+def get_crs_variable(metadata, rotated_pole_priority, to_search=None):
     found = []
     variables = metadata['variables']
 
@@ -606,14 +621,41 @@ def get_crs_variable(metadata, to_search=None):
     else:
         crs = found[0]
 
+    # Allow spherical coordinate systems to overload rotated pole if they are present in the metadata.
+    if not rotated_pole_priority and isinstance(crs, CFRotatedPole):
+        try:
+            crs = CFSpherical.load_from_metadata(None, metadata, depth=2)
+        except ProjectionDoesNotMatch:
+            # No spherical coordinate system data available. Fall back on previous crs.
+            pass
     return crs
 
 
-def create_dimension_map_entry(axis, variables, dimensions, strict=False):
+def create_dimension_map_entry(src, variables, strict=False, attr_name='axis'):
+    """
+    Create a dimension map entry dictionary by searching variable metadata using attribute constraints.
+
+    :param src: The source information to use for constructing the entry. If ``src`` is a dictionary, it must have two
+     entries. The key ``'value'`` corresponds to the string attribute value. The key ``'axis'`` is the representative
+     axis to assign the source value (for example ``'X'`` or ``'Y'``).
+    :type src: str | dict
+    :param dict variables: The metadata entries for the group's variables.
+    :param bool strict: If ``False``, do not use a strict interpretation of metadata. Allow some standard approaches for
+     handling metadata exceptions.
+    :param str attr_name: Name of the attribute to use for checking the attribute values form ``src``.
+    :return: dict
+    """
+    if isinstance(src, dict):
+        axis = src['axis']
+        attr_value = src['value']
+    else:
+        axis = src
+        attr_value = src
+
     axis_vars = []
     for variable in list(variables.values()):
         vattrs = variable['attrs']
-        if vattrs.get('axis') == axis:
+        if vattrs.get(attr_name) == attr_value:
             if len(variable['dimensions']) == 0:
                 pass
             else:

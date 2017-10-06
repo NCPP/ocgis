@@ -36,7 +36,11 @@ for jj in "${tests[@]}"; do
     fi
 done
 
-echo -e "\\n\\ngrep results:\\n"
+echo ""
+echo "======================================================================"
+echo "grep results:"
+echo "======================================================================"
+echo ""
 grep FAIL ${OUT_FILE}
 grep ERROR ${OUT_FILE}
 echo ""

@@ -10,7 +10,7 @@ import ocgis
 from ocgis import RequestDataset
 from ocgis import constants
 from ocgis.base import get_variable_names
-from ocgis.constants import DimensionMapKey
+from ocgis.constants import DimensionMapKey, KeywordArgument
 from ocgis.exc import ExtentError, RequestValidationError
 from ocgis.ops.core import OcgOperations
 from ocgis.test.base import TestBase, nc_scope, attr
@@ -18,38 +18,43 @@ from ocgis.variable.crs import Spherical, CFLambertConformal
 
 
 class TestCnrmCerfacs(TestBase):
-    @property
-    def rd(self):
-        return self.test_data.get_rd('rotated_pole_cnrm_cerfacs')
+    def fixture_rd(self, **kwargs):
+        return self.test_data.get_rd('rotated_pole_cnrm_cerfacs', kwds=kwargs)
 
-    @attr('data')
+    @attr('data', 'slow')
     def test_system_subset(self):
         """Test data may be subsetted and that coordinate transformations return the same value arrays."""
 
-        ops = OcgOperations(dataset=self.rd, output_format=constants.OutputFormatName.OCGIS, snippet=True,
-                            geom='world_countries', select_ugid=[69])
-        ret = ops.execute()
+        for rpp in [False, True]:
+            kwds = {KeywordArgument.ROTATED_POLE_PRIORITY: rpp}
+            rd = self.fixture_rd(**kwds)
+            ops = OcgOperations(dataset=rd, output_format=constants.OutputFormatName.OCGIS, snippet=True,
+                                geom='world_countries', select_ugid=[69])
+            ret = ops.execute()
 
-        # Assert some of the geometry values are masked
-        actual = ret.get_element().grid.get_mask()
-        self.assertTrue(actual.any())
+            # Assert some of the geometry values are masked
+            actual = ret.get_element().grid.get_mask()
+            self.assertTrue(actual.any())
 
-        # Perform the operations but change the output coordinate system. The value arrays should be equivalent
-        # regardless of coordinate transformation.
-        ops2 = OcgOperations(dataset=self.rd, output_format=constants.OutputFormatName.OCGIS, snippet=True,
-                             geom='world_countries', select_ugid=[69], output_crs=Spherical())
-        ret2 = ops2.execute()
+            # Perform the operations but change the output coordinate system. The value arrays should be equivalent
+            # regardless of coordinate transformation.
+            ops2 = OcgOperations(dataset=rd, output_format=constants.OutputFormatName.OCGIS, snippet=True,
+                                 geom='world_countries', select_ugid=[69], output_crs=Spherical())
+            ret2 = ops2.execute()
 
-        # Value arrays should be the same
-        ret_value = ret.get_element(variable_name='pr').get_value()
-        ret2_value = ret2.get_element(variable_name='pr').get_value()
-        self.assertNumpyAll(ret_value, ret2_value)
-        # Grid coordinates should not be the same.
-        ret_grid_value = ret.get_element().grid.get_value_stacked()
-        ret2_grid_value = ret2.get_element().grid.get_value_stacked()
-        diff = np.abs(ret_grid_value - ret2_grid_value)
-        select = diff > 1
-        self.assertTrue(select.all())
+            # Value arrays should be the same
+            ret_value = ret.get_element(variable_name='pr').get_value()
+            ret2_value = ret2.get_element(variable_name='pr').get_value()
+            self.assertNumpyAll(ret_value, ret2_value)
+            # Grid coordinates should not be the same.
+            ret_grid_value = ret.get_element().grid.get_value_stacked()
+            ret2_grid_value = ret2.get_element().grid.get_value_stacked()
+            diff = np.abs(ret_grid_value - ret2_grid_value)
+            select = diff > 1
+            if rpp:
+                self.assertTrue(select.all())
+            else:
+                self.assertFalse(select.any())
 
     @attr('data', 'slow')
     def test_system_subset_shp(self):
@@ -57,7 +62,7 @@ class TestCnrmCerfacs(TestBase):
 
         for ii, output_crs in enumerate([None, Spherical()]):
             output_format = constants.OutputFormatName.SHAPEFILE
-            ops = OcgOperations(dataset=self.rd, output_format=output_format, snippet=True,
+            ops = OcgOperations(dataset=self.fixture_rd(), output_format=output_format, snippet=True,
                                 geom='world_countries', select_ugid=[69], output_crs=output_crs, prefix=str(ii))
             ret = ops.execute()
 

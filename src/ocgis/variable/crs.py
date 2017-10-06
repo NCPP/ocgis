@@ -101,6 +101,10 @@ class AbstractCRS(AbstractInterfaceObject):
     def convert_to_empty(self):
         pass
 
+    def create_dimension_map(self, group_metadata, strict=False):
+        from ocgis import DimensionMap
+        return DimensionMap()
+
     def format_spatial_object(self, spatial_obj, is_transform=False):
         """
         :param spatial_obj: The spatial object to format.

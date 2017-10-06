@@ -333,6 +333,7 @@ class KeywordArgument(object):
     REGRID_SOURCE = 'regrid_source'
     RENAME_VARIABLE = 'rename_variable'
     RETURN_SLICE = 'return_slice'
+    ROTATED_POLE_PRIORITY = 'rotated_pole_priority'
     SIZE = 'size'
     SNIPPET = 'snippet'
     STANDARDIZE = 'standardize'

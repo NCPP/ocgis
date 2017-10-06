@@ -330,6 +330,8 @@ class DriverNetcdfCF(AbstractDriverNetcdfCF):
                 crs_entries = self._create_dimension_map_entries_dict_(axes, group_metadata, strict,
                                                                        attr_name=CFName.STANDARD_NAME)
                 self._update_dimension_map_with_entries_(crs_entries, dmap)
+                env.SET_GRID_AXIS_ATTRS = False
+                env.COORDSYS_ACTUAL = raw_crs
         return dmap
 
     @staticmethod
@@ -412,6 +414,11 @@ class DriverNetcdfCF(AbstractDriverNetcdfCF):
                 field = field.copy()
                 field.x.bounds.attrs.pop('units', None)
                 field.y.bounds.attrs.pop('units', None)
+
+        # Remove the current coordinate system if this is a dummy coordinate system.
+        if env.COORDSYS_ACTUAL is not None:
+            field = field.copy()
+            field.set_crs(env.COORDSYS_ACTUAL, should_add=True)
 
         return field
 

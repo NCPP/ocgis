@@ -88,9 +88,17 @@ class Environment(AbstractOcgisObject):
         self.NETCDF_FILE_FORMAT = EnvParm('NETCDF_FILE_FORMAT', constants.NETCDF_DEFAULT_DATA_MODEL, formatter=str)
         self.NP_INT = EnvParm('NP_INT', constants.DEFAULT_NP_INT)
         self.NP_FLOAT = EnvParm('NP_FLOAT', constants.DEFAULT_NP_FLOAT)
+        # If True, place an MPI barrier following OCGIS operations.
         self.ADD_OPS_MPI_BARRIER = EnvParm('ADD_OPS_MPI_BARRIER', True, formatter=self._format_bool_)
+        # If True, prefer using netcdftime if available. If None, automatically detect which to use.
         self.PREFER_NETCDFTIME = EnvParm('PREFER_NETCDFTIME', None, formatter=self._format_bool_)
+        # If True, add units and possibly calendar for time variables on bounds variables.
         self.CLOBBER_UNITS_ON_BOUNDS = EnvParm('CLOBBER_UNITS_ON_BOUNDS', True, formatter=self._format_bool_)
+        # If True, add axis attributes to grid coordinate variables when the grid is initialized.
+        self.SET_GRID_AXIS_ATTRS = EnvParm('SET_GRID_AXIS_ATTRS', True, formatter=self._format_bool_)
+        # If a coordinate system object, the current coordinate system is a dummy coordinate system and should be
+        # removed before writing and replaced with the original.
+        self.COORDSYS_ACTUAL = EnvParm('COORDSYS_ACTUAL', None)
 
         if self.PREFER_NETCDFTIME is None:
             self.PREFER_NETCDFTIME = get_netcdftime_preference()

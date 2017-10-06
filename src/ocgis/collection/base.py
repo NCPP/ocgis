@@ -82,8 +82,7 @@ class AbstractCollection(AbstractOcgisObject):
             yield v
 
     def keys(self):
-        for key in self.iterkeys():
-            yield key
+        return self._storage.keys()
 
     def pop(self, *args, **kwargs):
         return self._storage.pop(*args, **kwargs)

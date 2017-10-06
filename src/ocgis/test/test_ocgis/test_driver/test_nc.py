@@ -612,12 +612,16 @@ class TestDriverNetcdfCF(TestBase):
         self.assertEqual(dmap.get_variable(DimensionMapKey.TIME), 'time')
 
     def test_create_dimension_map_rotated_spherical(self):
+        self.assertTrue(env.SET_GRID_AXIS_ATTRS)
+        self.assertIsNone(env.COORDSYS_ACTUAL)
         rd = mock.create_autospec(RequestDataset)
         rd._has_assigned_coordinate_system = False
         rd.rotated_pole_priority = False
 
         driver = DriverNetcdfCF(rd)
         dmap = driver.create_dimension_map(self.fixture_rotated_spherical_metadata)
+        self.assertFalse(env.SET_GRID_AXIS_ATTRS)
+        self.assertIsInstance(env.COORDSYS_ACTUAL, CFRotatedPole)
         self.assertEqual(dmap.get_variable(DMK.X), 'lon')
         self.assertEqual(dmap.get_variable(DMK.Y), 'lat')
 
@@ -745,6 +749,20 @@ class TestDriverNetcdfCF(TestBase):
         self.assertIsNone(actual[y.name].bounds.units)
         self.assertEqual(x.bounds.units, x.units)
         self.assertEqual(y.bounds.units, y.units)
+
+        # Test actual coordinate system is triggered.
+        field = Field()
+        src = CFSpherical()
+        dst = WGS84()
+        field.set_crs(src)
+        self.assertEqual(field.crs, src)
+        self.assertIsNone(env.COORDSYS_ACTUAL)
+        env.COORDSYS_ACTUAL = dst
+        actual = DriverNetcdfCF._get_field_write_target_(field)
+        self.assertEqual(actual.crs, dst)
+        self.assertEqual(field.crs, src)
+        self.assertNotIn(src.name, actual)
+        self.assertIn(dst.name, actual)
 
     def test_metadata_raw(self):
         d = self.get_drivernetcdf()

@@ -229,10 +229,11 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         AbstractXYZSpatialContainer.__init__(self, **kwargs)
         AbstractGrid.__init__(self, abstraction=abstraction)
 
-        self.x.attrs[CFName.AXIS] = 'X'
-        self.y.attrs[CFName.AXIS] = 'Y'
-        if self.z is not None:
-            self.z.attrs[CFName.AXIS] = 'Z'
+        if env.SET_GRID_AXIS_ATTRS:
+            self.x.attrs[CFName.AXIS] = 'X'
+            self.y.attrs[CFName.AXIS] = 'Y'
+            if self.z is not None:
+                self.z.attrs[CFName.AXIS] = 'Z'
 
     def __getitem__(self, slc):
         """

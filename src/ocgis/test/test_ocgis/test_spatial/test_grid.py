@@ -12,7 +12,7 @@ from shapely.geometry import Point, box, MultiPolygon, shape
 from shapely.geometry import Polygon
 from shapely.geometry.base import BaseGeometry
 
-from ocgis import RequestDataset, vm
+from ocgis import RequestDataset, vm, env
 from ocgis.base import get_variable_names
 from ocgis.collection.field import Field
 from ocgis.constants import KeywordArgument, GridAbstraction, DMK, VariableName, Topology
@@ -219,6 +219,14 @@ class TestGrid(AbstractTestInterface):
         for v in [mask_value, mask_var]:
             grid = Grid(x=x, y=y, mask=v)
             self.assertNumpyAll(mask_var.get_mask(), grid.mask_variable.get_mask())
+
+        # Test not applying axis attributes.
+        x = Variable(name='x', value=[1, 2], dimensions='x')
+        y = Variable(name='y', value=[3, 4], dimensions='y')
+        env.SET_GRID_AXIS_ATTRS = False
+        actual = Grid(x, y)
+        for v in [actual.x, actual.y]:
+            self.assertNotIn('axis', v.attrs)
 
     def test_init_from_file(self):
         """Test loading from file."""

@@ -5,7 +5,6 @@ from copy import deepcopy
 import fiona
 import numpy as np
 from mock import mock
-from netCDF4._netCDF4 import MFTime
 from shapely.geometry.geo import shape
 
 from ocgis import GeomCabinet, vm
@@ -13,10 +12,10 @@ from ocgis import RequestDataset
 from ocgis import env
 from ocgis.base import get_variable_names
 from ocgis.collection.field import Field
-from ocgis.constants import DimensionMapKey, DMK
+from ocgis.constants import DimensionMapKey, DMK, KeywordArgument
 from ocgis.driver.base import iter_all_group_keys
 from ocgis.driver.dimension_map import DimensionMap
-from ocgis.driver.nc import DriverNetcdf, DriverNetcdfCF, remove_netcdf_attribute, get_crs_variable, get_variable_value
+from ocgis.driver.nc import DriverNetcdf, DriverNetcdfCF, remove_netcdf_attribute, get_crs_variable
 from ocgis.exc import OcgWarning, CannotFormatTimeError, \
     NoDataVariablesFound
 from ocgis.spatial.grid import Grid
@@ -53,12 +52,20 @@ class Test(TestBase):
         self.assertIsInstance(var, CFRotatedPole)
 
     def test_get_variable_value(self):
-        # Test MFTime workaround occurs.
-        m = mock.create_autospec(MFTime)
-        m.__getitem__ = mock.Mock(side_effect=IndexError)
-        m._mastervar = mock.MagicMock(spec=MFTime)
-        dimensions = [Dimension('foo', 5)]
-        _ = get_variable_value(m, dimensions)
+        path1 = self.get_temporary_file_path('f1.nc')
+        path2 = self.get_temporary_file_path('f2.nc')
+
+        tdim = Dimension('time')
+        t1 = TemporalVariable(value=[1, 2, 3, 4, 5], dimensions=tdim, dtype=np.int32)
+        k = {KeywordArgument.DATASET_KWARGS: {KeywordArgument.FORMAT: 'NETCDF4_CLASSIC'}}
+        t1.parent.write(path1, **k)
+        t2 = TemporalVariable(value=[6, 7, 8, 9, 10], dimensions=tdim, dtype=np.int32)
+        t2.parent.write(path2, **k)
+
+        rd = RequestDataset([path1, path2])
+        tin = rd.get().time
+        sub = tin[2:8]
+        self.assertEqual(sub.get_value().tolist(), range(3, 9))
 
     def test_remove_netcdf_attribute(self):
         path = self.get_temporary_file_path('foo.nc')

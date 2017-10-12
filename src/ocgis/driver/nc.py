@@ -591,10 +591,7 @@ def get_variable_value(variable, dimensions):
         ret = variable.__getitem__(slc)
     except IndexError:
         # TODO: Hack! Slicing the top-level MFTime variable does not work with multifiles.
-        if isinstance(variable, MFTime):
-            ret = variable._mastervar.__getitem__(slc)
-        else:
-            raise
+        ret = super(MFTime, variable).__getitem__(slc)
     return ret
 
 

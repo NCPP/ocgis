@@ -406,7 +406,11 @@ def get_formatted_slice(slc, n_dims):
     def _format_singleton_(single_slc):
         # Avoid numpy typing by attempting to convert to an integer. Floats will be mangled, but whatever.
         try:
-            single_slc = int(single_slc)
+            do_int_conversion = True
+            if hasattr(single_slc, 'dtype') and single_slc.dtype == bool:
+                do_int_conversion = False
+            if do_int_conversion:
+                single_slc = int(single_slc)
         except:
             pass
 

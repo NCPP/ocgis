@@ -14,6 +14,7 @@ from ocgis.collection.field import Field
 from ocgis.constants import HeaderName
 from ocgis.exc import VariableInCollectionError, EmptySubsetError, NoUnitsError, PayloadProtectedError, \
     DimensionsRequiredError
+from ocgis.ops.core import OcgOperations
 from ocgis.test.base import attr, nc_scope, AbstractTestInterface, TestBase
 from ocgis.util.units import get_units_object, get_are_units_equal
 from ocgis.variable.base import Variable, SourcedVariable, VariableCollection, ObjectType, init_from_source, \
@@ -382,6 +383,23 @@ class TestVariable(AbstractTestInterface):
         var = Variable(name='host', value=[1.5, 3.5], dimensions='a', bounds=bounds, parent=parent)
         self.assertEqual(list(var.parent.keys()), ['remember', 'host', 'time_value', 'the_bounds'])
 
+    def test_system_subsetting_single_value(self):
+        # Test using data loaded from file.
+        field = self.get_field(nlevel=1)
+        level_value = field.level.get_value()[0]
+        path = self.get_temporary_file_path('foo.nc')
+        field.write(path)
+        infield = RequestDataset(path).get()
+        infield.level.get_between(level_value - 1, level_value + 1)
+        self.assertEqual(infield.level.get_value()[0], level_value)
+
+        # Test through operations.
+        level_range = [int(level_value - 1), int(level_value + 1)]
+        ops = OcgOperations(dataset={'uri': path}, level_range=level_range, output_format='nc')
+        actual = ops.execute()
+        actual = RequestDataset(actual).get().level.get_value()[0]
+        self.assertEqual(actual, level_value)
+
     def test_allocate_value(self):
         dim = Dimension('foo', 5)
         var = Variable(name='tester', dimensions=dim, dtype=np.int8)
@@ -571,85 +589,13 @@ class TestVariable(AbstractTestInterface):
         with self.assertRaises(EmptySubsetError):
             bv.get_between(100, 200)
 
-        bv = Variable('foo', value=[100, 200, 300, 400], dimensions='a')
+        dim = Dimension('a', 4, src_idx='auto')
+        bv = Variable('foo', value=[100, 200, 300, 400], dimensions=dim)
         vdim_between = bv.get_between(100, 200)
         self.assertEqual(vdim_between.shape[0], 2)
-
-    def test_getitem(self):
-        var = Variable(value=[1, 2, 3], name='three', dimensions='three')
-        sub = var[1]
-        self.assertEqual(var.shape, (3,))
-        self.assertEqual(sub.shape, (1,))
-
-        # Test a dictionary slice.
-        var = Variable(name='empty')
-        dslc = {'one': slice(2, 5), 'two': np.array([False, True, False, True]), 'three': 0}
-        with self.assertRaises(DimensionsRequiredError):
-            var[dslc]
-        value = np.ma.arange(5 * 4 * 7 * 10, fill_value=100).reshape(5, 4, 10, 7)
-        var = Variable(value=value, name='range', dimensions=['one', 'two', 'four', 'three'])
-        sub = var[dslc]
-        self.assertEqual(sub.shape, (3, 2, 10, 1))
-        sub_value = value[2:5, np.array([False, True, False, True], dtype=bool), slice(None), slice(0, 1)]
-        self.assertNumpyAll(sub.get_masked_value(), sub_value)
-
-        # Test with a parent.
-        var = Variable(name='a', value=[1, 2, 3], dimensions=['one'])
-        parent = VariableCollection(variables=[var])
-        var2 = Variable(name='b', value=[11, 22, 33], dimensions=['one'], parent=parent)
-        self.assertIn('b', var2.parent)
-        sub = var2[1]
-        self.assertEqual(var2.parent.shapes, OrderedDict([('a', (3,)), ('b', (3,))]))
-        self.assertEqual(sub.parent.shapes, OrderedDict([('a', (1,)), ('b', (1,))]))
-
-        # Test slicing a bounded variable.
-        bv = self.get_boundedvariable()
-        sub = bv[1]
-        self.assertEqual(sub.bounds.shape, (1, 2))
-        self.assertNumpyAll(sub.bounds.get_value(), bv.bounds[1, :].get_value())
-
-        # Test with a boolean array.
-        var = Variable(value=[1, 2, 3, 4, 5], name='five', dimensions='five')
-        sub = var[[False, True, True, True, False]]
-        self.assertEqual(sub.shape, (3,))
-
-        # Test filling the value on a sliced variable.
-        var = Variable(name='foo', dimensions=Dimension('one', 3), dtype=object)
-        self.assertIsNone(var._value)
-        var.allocate_value()
-        sub = var[{'one': 1}]
-        sub.get_value()[:] = 100.
-        self.assertEqual(var.get_value()[1], 100.)
-
-        # Test dimension bounds are updated.
-        var = Variable(name='foo', value=np.zeros((31, 360, 720)), dimensions=['time', 'row', 'col'])
-        desired_bounds_global = [(0, 31), (0, 360), (0, 720)]
-        bounds_global = [d.bounds_global for d in var.dimensions]
-        self.assertEqual(bounds_global, desired_bounds_global)
-        slc = {'time': 1, 'row': slice(0, 180), 'col': slice(0, 360)}
-        desired_bounds_global_slice = [(0, 1), (0, 180), (0, 360)]
-        sub = var[slc]
-        bounds_global = [d.bounds_global for d in sub.dimensions]
-        self.assertEqual(desired_bounds_global_slice, bounds_global)
-        self.assertEqual(desired_bounds_global_slice, [d.bounds_local for d in sub.dimensions])
-
-    def test_getitem_index_slice(self):
-        # Test with an index slice.
-        d_coords = Dimension('d_coords', 7, src_idx='auto')
-        coords = Variable(name='coords', value=[0, 11, 22, 33, 44, 55, 66], dimensions=d_coords)
-        d_cindex = Dimension('d_cindex', 9, src_idx='auto')
-        index = Variable(name='cindex', value=[4, 2, 1, 2, 1, 4, 1, 4, 2], dimensions=d_cindex, parent=coords.parent)
-
-        sub_coords = coords[index.get_value()]
-        self.assertEqual(sub_coords.dimensions[0].size, 9)
-
-        actual = sub_coords.get_value().tolist()
-        desired = [44, 22, 11, 22, 11, 44, 11, 44, 22]
-        self.assertEqual(actual, desired)
-
-        actual = sub_coords.dimensions[0]._src_idx.tolist()
-        desired = index.get_value().tolist()
-        self.assertEqual(actual, desired)
+        self.assertNumpyMayShareMemory(bv.get_value(), vdim_between.get_value())
+        actual = vdim_between.dimensions[0]._src_idx
+        self.assertEqual(actual, (0, 2))
 
     def test_get_between_bounds(self):
         value = [0., 5., 10.]
@@ -717,6 +663,12 @@ class TestVariable(AbstractTestInterface):
         ret = vdim.get_between(3, 4.5, use_bounds=False)
         self.assertNumpyAll(ret.get_masked_value(), np.ma.array([3.]))
         self.assertNumpyAll(ret.bounds.get_masked_value(), np.ma.array([[2., 4.]]))
+
+    def test_get_between_single_value(self):
+        var = Variable(name='tester', value=[3], dimensions='level')
+        sub = var.get_between(1, 5)
+        self.assertEqual(var.shape, sub.shape)
+        self.assertNumpyAll(var.get_value(), sub.get_value())
 
     @attr('mpi')
     def test_get_distributed_slice(self):
@@ -948,6 +900,82 @@ class TestVariable(AbstractTestInterface):
             self.assertEqual(id(vmask), id(var.get_mask()))
             self.assertTrue(var.get_mask()[1])
             self.assertTrue(var._mask[1])
+
+    def test_getitem(self):
+        var = Variable(value=[1, 2, 3], name='three', dimensions='three')
+        sub = var[1]
+        self.assertEqual(var.shape, (3,))
+        self.assertEqual(sub.shape, (1,))
+
+        # Test a dictionary slice.
+        var = Variable(name='empty')
+        dslc = {'one': slice(2, 5), 'two': np.array([False, True, False, True]), 'three': 0}
+        with self.assertRaises(DimensionsRequiredError):
+            var[dslc]
+        value = np.ma.arange(5 * 4 * 7 * 10, fill_value=100).reshape(5, 4, 10, 7)
+        var = Variable(value=value, name='range', dimensions=['one', 'two', 'four', 'three'])
+        sub = var[dslc]
+        self.assertEqual(sub.shape, (3, 2, 10, 1))
+        sub_value = value[2:5, np.array([False, True, False, True], dtype=bool), slice(None), slice(0, 1)]
+        self.assertNumpyAll(sub.get_masked_value(), sub_value)
+
+        # Test with a parent.
+        var = Variable(name='a', value=[1, 2, 3], dimensions=['one'])
+        parent = VariableCollection(variables=[var])
+        var2 = Variable(name='b', value=[11, 22, 33], dimensions=['one'], parent=parent)
+        self.assertIn('b', var2.parent)
+        sub = var2[1]
+        self.assertEqual(var2.parent.shapes, OrderedDict([('a', (3,)), ('b', (3,))]))
+        self.assertEqual(sub.parent.shapes, OrderedDict([('a', (1,)), ('b', (1,))]))
+
+        # Test slicing a bounded variable.
+        bv = self.get_boundedvariable()
+        sub = bv[1]
+        self.assertEqual(sub.bounds.shape, (1, 2))
+        self.assertNumpyAll(sub.bounds.get_value(), bv.bounds[1, :].get_value())
+
+        # Test with a boolean array.
+        var = Variable(value=[1, 2, 3, 4, 5], name='five', dimensions='five')
+        sub = var[[False, True, True, True, False]]
+        self.assertEqual(sub.shape, (3,))
+
+        # Test filling the value on a sliced variable.
+        var = Variable(name='foo', dimensions=Dimension('one', 3), dtype=object)
+        self.assertIsNone(var._value)
+        var.allocate_value()
+        sub = var[{'one': 1}]
+        sub.get_value()[:] = 100.
+        self.assertEqual(var.get_value()[1], 100.)
+
+        # Test dimension bounds are updated.
+        var = Variable(name='foo', value=np.zeros((31, 360, 720)), dimensions=['time', 'row', 'col'])
+        desired_bounds_global = [(0, 31), (0, 360), (0, 720)]
+        bounds_global = [d.bounds_global for d in var.dimensions]
+        self.assertEqual(bounds_global, desired_bounds_global)
+        slc = {'time': 1, 'row': slice(0, 180), 'col': slice(0, 360)}
+        desired_bounds_global_slice = [(0, 1), (0, 180), (0, 360)]
+        sub = var[slc]
+        bounds_global = [d.bounds_global for d in sub.dimensions]
+        self.assertEqual(desired_bounds_global_slice, bounds_global)
+        self.assertEqual(desired_bounds_global_slice, [d.bounds_local for d in sub.dimensions])
+
+    def test_getitem_index_slice(self):
+        # Test with an index slice.
+        d_coords = Dimension('d_coords', 7, src_idx='auto')
+        coords = Variable(name='coords', value=[0, 11, 22, 33, 44, 55, 66], dimensions=d_coords)
+        d_cindex = Dimension('d_cindex', 9, src_idx='auto')
+        index = Variable(name='cindex', value=[4, 2, 1, 2, 1, 4, 1, 4, 2], dimensions=d_cindex, parent=coords.parent)
+
+        sub_coords = coords[index.get_value()]
+        self.assertEqual(sub_coords.dimensions[0].size, 9)
+
+        actual = sub_coords.get_value().tolist()
+        desired = [44, 22, 11, 22, 11, 44, 11, 44, 22]
+        self.assertEqual(actual, desired)
+
+        actual = sub_coords.dimensions[0]._src_idx.tolist()
+        desired = index.get_value().tolist()
+        self.assertEqual(actual, desired)
 
     def test_group(self):
         var = Variable(name='lonely')
@@ -1222,6 +1250,22 @@ class TestSourcedVariable(AbstractTestInterface):
         self.assertEqual(sv.units, 'celsius')
         self.assertLess(sv.get_value().sum(), 200)
         self.assertEqual(sv.units, 'celsius')
+
+    def test_system_get_between_memory(self):
+        # Test memory usage is lower when subsetting from file.
+        def _get_kb_(dtype, elements):
+            nbytes = np.array([1], dtype=dtype).nbytes
+            return float((elements * nbytes) / 1024.0)
+
+        var = Variable(name='levels', value=range(100000), dimensions='level')
+        original_kb = _get_kb_(var.dtype, var.get_value().size)
+        path = self.get_temporary_file_path('foo.nc')
+        var.parent.write(path)
+        rd = RequestDataset(path)
+        field = rd.get_raw_field()
+        sub = field['levels'].get_between(5, 100)
+        actual_kb = _get_kb_(sub.dtype, sub.get_value().size)
+        self.assertLess(actual_kb, original_kb - 100)
 
     def test_system_using_source_name_from_netcdf(self):
         path = self.get_temporary_file_path('foo.nc')

@@ -614,6 +614,10 @@ class Test2(TestBase):
         ret = get_formatted_slice(slc, 1)
         self.assertNumpyAll(ret[0], slc)
 
+        slc = np.array([True], dtype=bool)
+        ret = get_formatted_slice(slc, 1)
+        self.assertNumpyAll(ret[0], slc)
+
     def test_set_name_attributes(self):
 
         class Foo(object):

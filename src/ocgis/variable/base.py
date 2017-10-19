@@ -1150,6 +1150,9 @@ class Variable(AbstractContainer, Attributes):
             else:
                 raise EmptySubsetError(origin=self.name)
         else:
+            slices = np.ma.clump_masked(np.ma.array(select, mask=select, dtype=bool))
+            if len(slices) == 1:
+                select = slices[0]
             ret = self[select]
 
         if return_indices:

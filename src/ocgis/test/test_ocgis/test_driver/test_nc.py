@@ -18,6 +18,7 @@ from ocgis.driver.dimension_map import DimensionMap
 from ocgis.driver.nc import DriverNetcdf, DriverNetcdfCF, remove_netcdf_attribute, get_crs_variable
 from ocgis.exc import OcgWarning, CannotFormatTimeError, \
     NoDataVariablesFound
+from ocgis.ops.core import OcgOperations
 from ocgis.spatial.grid import Grid
 from ocgis.test.base import TestBase, attr, create_gridxy_global
 from ocgis.util.addict import Dict
@@ -117,6 +118,23 @@ class TestDriverNetcdf(TestBase):
         # rd2.inspect()
         n2vc = rd2.get_raw_field()
         self.assertEqual(n2vc.children[nvc2.name].name, nvc2.name)
+
+    def test_system_concatenating_files(self):
+        field = self.get_field(ntime=5, nrlz=0, nlevel=0)
+        paths = []
+        for tidx in range(field.time.shape[0]):
+            sub = field.get_field_slice({'time': tidx})
+            path = self.get_temporary_file_path('time_subset_{}.nc'.format(tidx))
+            paths.append(path)
+            sub.write(path, dataset_kwargs={'format': 'NETCDF4_CLASSIC'})
+
+        rd = RequestDataset(paths)
+        ops = OcgOperations(dataset=rd, output_format='nc')
+        ret = ops.execute()
+        actual_field = RequestDataset(ret).get()
+        actual = actual_field.data_variables[0].get_value()
+        self.assertNumpyAll(actual, field.data_variables[0].get_value())
+        self.assertNumpyAll(actual_field.time.value_numtime, field.time.value_numtime)
 
     def test_get_dist(self):
 

@@ -471,7 +471,8 @@ class TestBase(unittest.TestCase):
                 value_temporal.append(start)
                 start += delta
                 ctr += 1
-        temporal = TemporalVariable(value=value_temporal, dimensions='time', name='time')
+        tdim = Dimension('time')
+        temporal = TemporalVariable(value=value_temporal, dimensions=tdim, name='time')
         variable_shape.append(temporal.shape[0])
         variable_dimensions.append('time')
 

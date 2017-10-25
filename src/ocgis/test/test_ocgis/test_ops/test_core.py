@@ -83,6 +83,52 @@ class TestOcgOperations(TestBase):
         self.assertTrue(str(ret).startswith('OcgOperations'))
         self.assertGreater(len(ret), 500)
 
+    def test_system_data_model_is_consistent(self):
+        """Test data model does not change when running through operations."""
+
+        env.OVERWRITE = True
+
+        formats = [{0: 'NETCDF3_CLASSIC',
+                    1: 'NETCDF3_CLASSIC'},
+                   {0: 'NETCDF3_CLASSIC',
+                    1: 'NETCDF3_64BIT'}
+                   ]
+
+        grid = create_gridxy_global()
+        field = create_exact_field(grid, 'foo')
+        path1 = self.get_temporary_file_path('out1.nc')
+        path2 = self.get_temporary_file_path('out2.nc')
+
+        for ii_f, f in enumerate(formats):
+            output_paths = []
+
+            desired_file_format = 'NETCDF3_CLASSIC'
+
+            paths = [path1, path2]
+            for ii, path in enumerate(paths):
+                k = {KeywordArgument.DATASET_KWARGS: {KeywordArgument.FORMAT: f[ii]}}
+                field.write(path, **k)
+
+            for ii, path in enumerate(paths):
+                rd = RequestDataset(path)
+                self.assertEqual(rd.metadata['file_format'], f[ii])
+
+            for ii, path in enumerate(paths):
+                rd = RequestDataset(path)
+                if ii_f == 0:
+                    ofo = None
+                else:
+                    ofo = {'data_model': desired_file_format}
+                ops = OcgOperations(dataset=rd, geom=[-80, 40, -60, 60], output_format='nc', prefix=str(ii),
+                                    output_format_options=ofo)
+                ret = ops.execute()
+                output_paths.append(ret)
+                actual = RequestDataset(ret)
+                self.assertEqual(actual.metadata['file_format'], desired_file_format)
+
+            rd = RequestDataset(output_paths)
+            self.assertAsSetEqual(rd.metadata['file_format'], [desired_file_format])
+
     @attr('data')
     def test_system_scalar_level_dimension(self):
         """Test scalar level dimensions are not dropped in netCDF output."""

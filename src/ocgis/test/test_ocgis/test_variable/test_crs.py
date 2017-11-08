@@ -90,8 +90,6 @@ class TestCoordinateReferenceSystem(TestBase):
         with nc_scope(path, 'w') as ds:
             variable = crs.write_to_rootgrp(ds)
             self.assertIsInstance(variable, nc.Variable)
-            with self.assertRaises(AttributeError):
-                variable.proj4
 
     def test_get_wrap_action(self):
         c = CoordinateReferenceSystem

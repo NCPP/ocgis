@@ -785,11 +785,12 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
 
         See superclass for additional documentation.
         """
-
-        ret = self.archetype.dimensions
-        if len(ret) == 1:
-            ret = (self.y.dimensions[0], self.x.dimensions[0])
-        return tuple(ret)
+        dmap = self._get_canonical_dimension_map_()
+        ydim_name = dmap.get_dimension(DMK.Y)[0]
+        xdim_name = dmap.get_dimension(DMK.X)[0]
+        dimensions = self.parent.dimensions
+        ret = (dimensions[ydim_name], dimensions[xdim_name])
+        return ret
 
     def _get_extent_(self):
         if self.is_empty:

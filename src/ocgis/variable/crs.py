@@ -524,7 +524,7 @@ class CoordinateReferenceSystem(AbstractProj4CRS, AbstractInterfaceObject):
         """Compatibility with variable."""
         pass
 
-    def write_to_rootgrp(self, rootgrp, with_proj4=False):
+    def write_to_rootgrp(self, rootgrp, with_proj4=True):
         """
         Write the coordinate system to an open netCDF file.
 
@@ -542,11 +542,18 @@ class CoordinateReferenceSystem(AbstractProj4CRS, AbstractInterfaceObject):
 
     def write(self, *args, **kwargs):
         write_mode = kwargs.pop('write_mode', MPIWriteMode.NORMAL)
-        with_proj4 = kwargs.pop('with_proj4', False)
+
+        # Let subclasses determin if proj4 should be written.
+        with_proj4 = kwargs.pop('with_proj4', None)
+
         # Fill operations set values on variables. Coordinate system variables have no inherent values constructed only
         # from attributes.
         if write_mode != MPIWriteMode.FILL:
-            return self.write_to_rootgrp(*args, with_proj4=with_proj4)
+            if with_proj4 is not None:
+                ret = self.write_to_rootgrp(*args, with_proj4=with_proj4)
+            else:
+                ret = self.write_to_rootgrp(*args)
+            return ret
 
 
 class CRS(CoordinateReferenceSystem):

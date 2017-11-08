@@ -10,7 +10,7 @@ from shapely.geometry import Point
 from shapely.geometry import box
 from shapely.geometry.base import BaseGeometry
 
-from ocgis import RequestDataset, vm, DimensionMap
+from ocgis import RequestDataset, vm, DimensionMap, env
 from ocgis import constants
 from ocgis.base import get_variable_names
 from ocgis.collection.field import Field, get_name_mapping
@@ -20,12 +20,13 @@ from ocgis.conv.nc import NcConverter
 from ocgis.driver.csv_ import DriverCSV
 from ocgis.driver.nc import DriverNetcdf
 from ocgis.driver.vector import DriverVector
+from ocgis.ops.core import OcgOperations
 from ocgis.spatial.geom_cabinet import GeomCabinetIterator
 from ocgis.spatial.grid import Grid, create_grid_mask_variable
 from ocgis.test.base import attr, AbstractTestInterface
 from ocgis.util.helpers import reduce_multiply
 from ocgis.variable.base import Variable
-from ocgis.variable.crs import CoordinateReferenceSystem, WGS84, Spherical
+from ocgis.variable.crs import CoordinateReferenceSystem, WGS84, Spherical, CRS
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.variable.temporal import TemporalVariable

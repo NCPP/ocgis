@@ -10,7 +10,7 @@ import numpy as np
 from shapely.geometry import Point, LineString
 
 import ocgis
-from ocgis import RequestDataset, vm
+from ocgis import RequestDataset, vm, Dimension
 from ocgis import constants
 from ocgis import env
 from ocgis.collection.field import Field
@@ -26,7 +26,7 @@ from ocgis.test.test_simple.test_dependencies import create_mftime_nc_files
 from ocgis.util.addict import Dict
 from ocgis.util.helpers import make_poly, create_exact_field_value
 from ocgis.variable.base import Variable
-from ocgis.variable.crs import Spherical, CoordinateReferenceSystem, WGS84
+from ocgis.variable.crs import Spherical, CoordinateReferenceSystem, WGS84, CRS
 from ocgis.variable.temporal import TemporalVariable
 from ocgis.vmachine.mpi import OcgDist, MPI_RANK, variable_collection_scatter, MPI_COMM, dgather, \
     hgather, MPI_SIZE
@@ -87,6 +87,60 @@ class TestOcgOperations(TestBase):
         ret = str(ops)
         self.assertTrue(str(ret).startswith('OcgOperations'))
         self.assertGreater(len(ret), 500)
+
+    def test_system_coordinates_with_time_dimension(self):
+        """Test a field built on coordinate variables with a time dimension."""
+
+        env.SET_GRID_AXIS_ATTRS = False
+
+        lat = Variable(name='XLAT', value=[1, 2, 3], dtype=float, dimensions='north_south')
+        lon = Variable(name='XLONG', value=[10, 20, 30, 40], dtype=float, dimensions='west_east')
+        grid = Grid(y=lat, x=lon)
+        grid.expand()
+
+        time = Dimension('Time', size_current=1)
+        dlat, dlon = lat.dimensions
+
+        for v in [lat, lon]:
+            v.reshape([time, dlat, dlon])
+
+        t2 = Variable(name='T2', dtype=float, dimensions=[time, dlat, dlon])
+        t2.get_value()[:] = np.arange(np.prod(grid.shape)).reshape(*grid.shape)
+        grid.parent.add_variable(t2)
+
+        self.assertEqual(grid.shape, (dlat.size, dlon.size))
+
+        path = self.get_temporary_file_path('foo.nc')
+        grid.parent.write(path, driver='netcdf')
+
+        lat_variable = 'XLAT'
+        lon_variable = 'XLONG'
+        lat_dimension = 'south_north'
+        lon_dimension = 'west_east'
+
+        env.SET_GRID_AXIS_ATTRS = True
+
+        # Load the field from disk and modify it before passing it to operations. Operations can take a request dataset
+        # a field.
+        field = RequestDataset(path, variable='T2').get()
+        # Remove the time dimension from the spatial coordinate variables.
+        for cv in [lat_variable, lon_variable]:
+            var = field[cv]
+            new_dimensions = var.dimensions[1:]
+            var.reshape(new_dimensions)
+        # Update the field's metadata so it knows where the x/y coordinate variables are.
+        field.set_x(field['XLONG'], dimension=lon_dimension)
+        field.set_y(field['XLAT'], dimension=lat_dimension)
+        # Create and set the coordinate system.
+        lcc = CRS(
+            proj4='+proj=lcc +a=6370000.0m +b=6370000.0m +lon_0=97.00w +lat_1=33.00n +lat_2=45.00n +lat_0=40.00n +units=m +no_defs',
+            name='rpolcc')
+        field.set_crs(lcc)
+
+        # Run operations and write to netCDF.
+        geom = [{'geom': Point(20, 2), 'crs': lcc}]
+        ops = OcgOperations(dataset=field, geom=geom, output_format='nc')
+        _ = ops.execute()
 
     def test_system_data_model_is_consistent(self):
         """Test data model does not change when running through operations."""

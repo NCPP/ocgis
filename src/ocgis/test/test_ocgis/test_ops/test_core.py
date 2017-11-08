@@ -33,18 +33,23 @@ from ocgis.vmachine.mpi import OcgDist, MPI_RANK, variable_collection_scatter, M
 
 
 class TestOcgOperations(TestBase):
-    def setUp(self):
-        TestBase.setUp(self)
 
+    @property
+    def datasets(self):
         rds = [self.test_data.get_rd('cancm4_tasmin_2001'), self.test_data.get_rd('cancm4_tasmax_2011'),
                self.test_data.get_rd('cancm4_tas')]
 
         time_range = [dt(2000, 1, 1), dt(2000, 12, 31)]
         level_range = [2, 2]
 
-        self.datasets = [{'uri': rd.uri, 'variable': rd.variable, 'time_range': time_range, 'level_range': level_range}
-                         for rd in rds]
-        self.datasets_no_range = [{'uri': rd.uri, 'variable': rd.variable} for rd in rds]
+        return [{'uri': rd.uri, 'variable': rd.variable, 'time_range': time_range, 'level_range': level_range} for rd in rds]
+
+    @property
+    def datasets_no_range(self):
+        rds = [self.test_data.get_rd('cancm4_tasmin_2001'), self.test_data.get_rd('cancm4_tasmax_2011'),
+               self.test_data.get_rd('cancm4_tas')]
+
+        return [{'uri': rd.uri, 'variable': rd.variable} for rd in rds]
 
     @attr('data')
     def test_init(self):

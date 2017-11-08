@@ -46,6 +46,9 @@ class TestFreezeThawCycles(AbstractTestField):
                       -5, ])
         self.assertEquals(freezethaw1d(x, 2), 5)
 
+        x = np.array([3,4,4,4,4,4,4,4])
+        self.assertEquals(freezethaw1d(x, 2), 0)
+
     def test_execute(self):
         # Just a smoke test for the class.
         field = self.get_field(with_value=True, month_count=23, name='tas', units='K')
@@ -56,6 +59,24 @@ class TestFreezeThawCycles(AbstractTestField):
         shp_out = (2, 2, 2, 3, 4)
         self.assertEqual(ret['freezethaw'].get_value().shape, shp_out)
         self.assertNumpyAll(ret['freezethaw'].get_value()[:], np.zeros(shp_out))
+
+    def test_ordering(self):
+        field = self.get_field(with_value=True, month_count=33, name='tas',
+                               units='K')
+        val = field['tas'].get_value()
+        # DIMs : realization time level lat lon
+        val[0,:,0,0,0] = np.nan
+        field['tas'].set_value(np.ma.masked_invalid(val))
+
+        tgd = field.temporal.get_grouping(['year'])
+        dv = FreezeThaw(field=field, parms={'threshold': 20}, tgd=tgd)
+        ret = dv.execute()
+        shp_out = (2, 3, 2, 3, 4)
+        out = ret['freezethaw'].get_value()
+        self.assertEqual(out.shape, shp_out)
+        np.testing.assert_array_equal(out[0,:,0,0,0], np.nan)
+        self.assertEqual(np.isnan(out).sum(), 3)
+
 
     def test_units_check(self):
         """Check that using a variable with units other than Kelvin raises an

@@ -1018,6 +1018,12 @@ class TestTemporalVariable(AbstractTestTemporal):
         target = get_time_regions(seasons, dates, raise_if_incomplete=raise_if_incomplete)
         self.assertEqual(actual, target)
 
+    def test_get_time_regions_one_year_with_interannual(self):
+        dates = [datetime.datetime(1950, 1, 1), datetime.datetime(1950, 2, 1), datetime.datetime(1950, 12, 1)]
+        seasons = [12, 1, 2]
+        trs = get_time_regions([seasons], dates, raise_if_incomplete=False)
+        self.assertEqual(trs, [[{'month': [12, 1, 2], 'year': [1950]}]])
+
     def test_time_range_subset(self):
         dt1 = datetime.datetime(1950, 0o1, 0o1, 12)
         dt2 = datetime.datetime(1950, 12, 31, 12)

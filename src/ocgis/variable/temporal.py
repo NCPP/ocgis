@@ -1008,11 +1008,15 @@ def get_time_regions(seasons, dates, raise_if_incomplete=True):
     # extract the years from the data vector collapsing them to a unique set then sort in ascending order
     years = list(set([d.year for d in dates]))
     years.sort()
-    # determine if any of the seasons are interannual
-    interannual_check = list(map(get_is_interannual, seasons))
     # holds the return value
     time_regions = []
-    # the interannual cases requires two time region sequences to properly extract
+    # the interannual cases requires two time region sequences to properly extract. there must be at least two years to
+    # care about interannual seasons.
+    if len(years) > 1:
+        # determine if any of the seasons are interannual
+        interannual_check = list(map(get_is_interannual, seasons))
+    else:
+        interannual_check = [False]
     if any(interannual_check):
         # loop over years first to ensure each year is accounted for in the time region output
         for ii_year, year in enumerate(years):
@@ -1054,7 +1058,6 @@ def get_time_regions(seasons, dates, raise_if_incomplete=True):
     else:
         for year, season in itertools.product(years, seasons):
             time_regions.append([{'year': [year], 'month': season}])
-
     # ensure each time region is valid. if it is not, remove it from the returned list
     td = TemporalVariable(value=dates, dimensions=constants.DimensionName.TEMPORAL)
     remove = []

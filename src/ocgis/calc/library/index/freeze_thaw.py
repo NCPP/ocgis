@@ -46,21 +46,8 @@ class FreezeThaw(base.AbstractUnivariateSetFunction, base.AbstractParameterizedF
                                                       try_cfunits=env.USE_CFUNITS):
             tas = values - 273.15
 
-        # Storage array for count
-        shp_out = values.shape[-2:]
-        out = np.zeros(shp_out, dtype=int).flatten()
-
-        # Actual computations, grid cell by grid cell.
-        for ii, (rowidx, colidx) in enumerate(iter_array(values[0, :, :], use_mask=True)):
-            x = tas[:, rowidx, colidx].reshape(-1)
-            out[ii] = freezethaw1d(x, threshold)
-
-        out.resize(shp_out)
-
-        # update the output mask. this only applies to geometries so pick the
-        # first masked time field
-        out = np.ma.array(out, mask=values.mask[0, :, :])
-        return out
+        out = np.apply_along_axis(freezethaw1d, 0, tas, threshold=threshold)
+        return np.ma.masked_invalid(out)
 
 
 def freezethaw1d(x, threshold):
@@ -83,7 +70,7 @@ def freezethaw1d(x, threshold):
     """
 
     # Masked values are just compressed.
-    if hasattr(x, 'mask'):
+    if isinstance(x, np.ma.MaskedArray):
         if x.mask.all():
             return np.nan
         else:
@@ -120,5 +107,5 @@ def freezethaw1d(x, threshold):
             if s != np.sign(cycles[-1]):
                 cycles.append(s * (w + ci))
 
-    # Return the numbe  r of transitions from frozen to thawed or vice-versa
-    return len(cycles) - 2 # There are two "artificial" transitions
+    # Return the number of transitions from frozen to thawed or vice-versa
+    return float(len(cycles) - 2) # There are two "artificial" transitions

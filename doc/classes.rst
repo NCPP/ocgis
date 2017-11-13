@@ -203,6 +203,15 @@ SpatialSubsetOperation
 Drivers
 -------
 
+.. autoclass:: ocgis.driver.base.AbstractDriver
+    :show-inheritance:
+
+.. autoclass:: ocgis.driver.base.AbstractTabularDriver
+    :show-inheritance:
+
+.. autoclass:: ocgis.driver.base.AbstractUnstructuredDriver
+    :show-inheritance:
+
 .. autoclass:: ocgis.driver.nc.DriverNetcdf
     :show-inheritance:
 

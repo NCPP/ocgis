@@ -6,7 +6,7 @@ Parallel Operations
 
 OpenClimateGIS operations may be run in parallel using MPI provided ``mpi4py`` is installed. By default, data is distributed across a single spatial dimension. Dimensions are distributed (local bounds calculation) using the :class:`~ocgis.vmachine.mpi.OcgDist` class. Parallel execution is controlled by the :class:`~ocgis.OcgVM`.
 
-All OpenClimateGIS operations are implemented in parallel with minimal inter-process communication. All `writes` are performed synchronously until suitable asynchronous IO packages are available for Python. OpenClimateGIS's parallelism handles extra ranks before and after subsetting through support for empty objects. Extra ranks following a subset are handled using subcommunicators by the :class:`~ocgis.OcgVM`.
+All OpenClimateGIS operations are implemented in parallel with minimal inter-process communication. Data `writes` are performed synchronously with the exception of netCDF which supports asynchronous writes provided the library is built appropriately (see the netCDF4-python `Dataset documentation <http://unidata.github.io/netcdf4-python/#netCDF4.Dataset>`_ for additional information). OpenClimateGIS's parallelism handles extra ranks before and after subsetting through support for empty objects. Extra ranks following a subset are handled using subcommunicators by the :class:`~ocgis.OcgVM`.
 
 For a standard OpenClimateGIS operations script, the script should be executed using ``mpirun``:
 

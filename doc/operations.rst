@@ -577,6 +577,9 @@ These are global parameters used by OpenClimateGIS. For those familiar with :mod
 :attr:`env.DEFAULT_COORDSYS` = :class:`ocgis.crs.Spherical`
  The default coordinate system used by OpenClimateGIS.
 
+:attr:`env.USE_NETCDF4_MPI` = ``None``
+ If ``None``, detect if it is possible to use ``netCDF4-python``'s MPI asynchronous write capability. Use it if available. If ``True``, do asynchronous writes with ``netCDF4-python``. Set to ``False`` to use synchronous writes always.
+
 Inspecting Data
 ===============
 

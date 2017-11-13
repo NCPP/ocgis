@@ -13,7 +13,7 @@ from ocgis import env
 from ocgis.base import get_variables, get_dimension_names, AbstractOcgisObject
 from ocgis.constants import TagName, DimensionMapKey, HeaderName
 from ocgis.exc import SampleSizeNotImplemented, DefinitionValidationError, UnitsValidationError
-from ocgis.util.conformer import conform_array_by_dimension_names
+from ocgis.util.broadcaster import broadcast_array_by_dimension_names
 from ocgis.util.helpers import get_default_or_apply, get_iter
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.util.units import get_are_units_equal_by_string_or_cfunits
@@ -546,12 +546,12 @@ class AbstractFunction(AbstractOcgisObject):
 
             # Swap axes for the calculation values, the fill array for the calculation result, and (potentially) the
             # sample size.
-            carr, carr_fill = [conform_array_by_dimension_names(t, src_names_extra_removed, STANDARD_DIMENSIONS)
+            carr, carr_fill = [broadcast_array_by_dimension_names(t, src_names_extra_removed, STANDARD_DIMENSIONS)
                                for t in [extras_removed, extras_removed_fill]]
             if calc_sample_size:
-                carr_fill_sample_size = conform_array_by_dimension_names(extras_removed_fill_sample_size,
-                                                                         src_names_extra_removed,
-                                                                         STANDARD_DIMENSIONS)
+                carr_fill_sample_size = broadcast_array_by_dimension_names(extras_removed_fill_sample_size,
+                                                                           src_names_extra_removed,
+                                                                           STANDARD_DIMENSIONS)
 
             if not calc_sample_size:
                 yld = (carr, carr_fill)

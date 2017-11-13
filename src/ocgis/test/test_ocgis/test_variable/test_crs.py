@@ -12,6 +12,7 @@ import ocgis
 from ocgis import constants, vm
 from ocgis.collection.field import Field
 from ocgis.constants import WrapAction, WrappedState, ConversionFactor, OcgisUnits, CFName
+from ocgis.driver.request.core import RequestDataset
 from ocgis.exc import CRSNotEquivalenError, CRSDepthNotImplemented
 from ocgis.spatial.grid import Grid
 from ocgis.test.base import TestBase, nc_scope, create_gridxy_global
@@ -20,8 +21,20 @@ from ocgis.util.helpers import make_poly
 from ocgis.util.itester import itr_products_keywords
 from ocgis.variable.base import Variable
 from ocgis.variable.crs import CoordinateReferenceSystem, CFAlbersEqualArea, CFLambertConformal, \
-    CFRotatedPole, WGS84, Spherical, CFSpherical, Tripole, Cartesian
+    CFRotatedPole, WGS84, Spherical, CFSpherical, Tripole, Cartesian, AbstractProj4CRS, create_crs
+from ocgis.variable.geom import GeometryVariable
 from ocgis.vmachine.mpi import OcgDist, MPI_RANK, variable_scatter
+
+
+class Test(TestBase):
+    def test_create_crs(self):
+        value = {'a': 6370997, 'no_defs': True, 'b': 6370997, 'proj': 'longlat'}
+        actual = create_crs(value)
+        self.assertIsInstance(actual, Spherical)
+
+        value = {'no_defs': True, 'datum': 'WGS84', 'proj': 'longlat'}
+        actual = create_crs(value)
+        self.assertIsInstance(actual, WGS84)
 
 
 class TestCoordinateReferenceSystem(TestBase):
@@ -63,13 +76,24 @@ class TestCoordinateReferenceSystem(TestBase):
 
         # test with a name parameter
         crs = CoordinateReferenceSystem(epsg=4326)
-        self.assertEqual(crs.name, constants.DEFAULT_COORDINATE_SYSTEM_NAME)
+        self.assertEqual(crs.name, constants.OcgisConvention.Name.COORDSYS)
         crs = CoordinateReferenceSystem(epsg=4326, name='foo')
         self.assertEqual(crs.name, 'foo')
 
         # test using the init parameter
         value = {'init': 'epsg:4326'}
         self.assertEqual(CoordinateReferenceSystem(value=value), WGS84())
+
+    def test_eq(self):
+        value_lhs = {'a': 6370997, 'b': 6370997, 'no_defs': True, 'proj': 'longlat', 'wktext': True,
+                     'towgs84': '0,0,0,0,0,0,0'}
+        lhs = CoordinateReferenceSystem(value=value_lhs)
+
+        value_rhs = value_lhs.copy()
+        value_rhs.pop('wktext')
+        rhs = CoordinateReferenceSystem(value=value_rhs)
+
+        self.assertEqual(lhs, rhs)
 
     def test_ne(self):
         crs1 = CoordinateReferenceSystem(epsg=4326)
@@ -80,7 +104,6 @@ class TestCoordinateReferenceSystem(TestBase):
         self.assertNotEqual(crs1, None)
         self.assertNotEqual(None, crs1)
 
-        # try nonetype and string
         self.assertNotEqual(None, crs1)
         self.assertNotEqual('input', crs1)
 
@@ -111,7 +134,7 @@ class TestCoordinateReferenceSystem(TestBase):
             else:
                 self.assertIsNone(ret)
 
-    @attr('mpi')
+    @attr('mpi', 'no-3.5')
     def test_get_wrapped_state(self):
         if sys.version_info.major == 3 and sys.version_info.minor == 5:
             raise SkipTest('undefined behavior with Python 3.5')
@@ -155,6 +178,14 @@ class TestCoordinateReferenceSystem(TestBase):
                 self.assertIsNone(wrapped_state)
             else:
                 self.assertEqual(wrapped_state, k.values['desired'])
+
+        # Test with masked geometries.
+        values = [Point(350, 2), Point(-90, 5), Point(340, 5)]
+        mask = [True, False, True]
+        gvar = GeometryVariable(name='geom', value=values, mask=mask, dimensions='ngeom')
+        crs = Spherical()
+        wrapped_state = crs.get_wrapped_state(gvar)
+        self.assertEqual(wrapped_state, WrappedState.WRAPPED)
 
     def test_get_wrapped_state_from_array(self):
 
@@ -266,6 +297,19 @@ class TestWGS84(TestBase):
         self.assertTrue(WGS84().is_geographic)
         self.assertNotIsInstance(WGS84(), Spherical)
         self.assertIn('towgs84', WGS84().value)
+
+    def test_system_writing_to_netcdf(self):
+        """Test coordinate system is retrievable from netCDF format."""
+
+        path = self.get_temporary_file_path('crs.nc')
+        with nc.Dataset(path, 'w') as rootgrp:
+            WGS84().write_to_rootgrp(rootgrp)
+        rd = RequestDataset(path)
+        infield = rd.get()
+        actual = infield.first()
+        self.assertEqual(actual, WGS84())
+        actual_crs = AbstractProj4CRS.load_from_metadata(rd.metadata)
+        self.assertEqual(actual_crs, WGS84())
 
 
 class TestCFAlbersEqualArea(TestBase):
@@ -429,6 +473,10 @@ class TestCFRotatedPole(TestBase):
 
 
 class TestCFSpherical(TestBase):
+    def test_eq(self):
+        other = CFSpherical()
+        sph = Spherical()
+        self.assertTrue(sph == other)
 
     def test_load_from_metadata(self):
         # Test with greater depth which checks variable attributes.

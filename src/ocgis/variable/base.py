@@ -17,9 +17,10 @@ from ocgis.collection.base import AbstractCollection
 from ocgis.constants import HeaderName, KeywordArgument, DriverKey
 from ocgis.environment import get_dtype, env
 from ocgis.exc import VariableInCollectionError, BoundsAlreadyAvailableError, EmptySubsetError, \
-    ResolutionError, NoUnitsError, DimensionsRequiredError, DimensionMismatchError, MaskedDataFound
+    ResolutionError, NoUnitsError, DimensionsRequiredError, DimensionMismatchError, MaskedDataFound, \
+    PayloadProtectedError
 from ocgis.util.helpers import get_iter, get_formatted_slice, get_bounds_from_1d, get_extrapolated_corners_esmf, \
-    get_ocgis_corners_from_esmf_corners, is_crs_variable, arange_from_bool_ndarray
+    create_ocgis_corners_from_esmf_corners, is_crs_variable, arange_from_bool_ndarray
 from ocgis.util.helpers import is_auto_dtype
 from ocgis.util.units import get_units_object, get_conformed_units
 from ocgis.variable.attributes import Attributes
@@ -304,6 +305,9 @@ class Variable(AbstractContainer, Attributes):
         if mask is not None:
             self.set_mask(mask)
 
+        # Holds the global string length for the variable.
+        self._string_max_length_global = None
+
         self._is_init = False
 
     def _getitem_main_(self, ret, slc):
@@ -325,9 +329,9 @@ class Variable(AbstractContainer, Attributes):
 
     def __setitem__(self, slc, variable):
         """
-        Set the this variable's value and mask to the other variable's value and mask in the index space defined by 
+        Set the this variable's value and mask to the other variable's value and mask in the index space defined by
         ``slc``.
-        
+
         :param slc: The index space for setting data from ``variable``. ``slc`` must have the same length as the
          target variable's dimension count.
         :type slc: (:class:`slice`-like, ...)
@@ -459,6 +463,8 @@ class Variable(AbstractContainer, Attributes):
                 if dimension_name not in self.parent.dimensions:
                     self.parent.add_dimension(Dimension(dimension_name, self.shape[idx]))
                 dimension_names[idx] = dimension_name
+            if len(set(dimension_names)) != len(dimension_names):
+                raise ValueError('Dimensions must be unique.')
             self._dimensions = tuple(dimension_names)
         else:
             self._dimensions = dimensions
@@ -598,6 +604,18 @@ class Variable(AbstractContainer, Attributes):
         return self._parent is None
 
     @property
+    def is_string_object(self):
+        """Return ``True`` if the variable contains string data."""
+        ret = False
+        dtype = self.dtype
+        if dtype == object or str(dtype).startswith('|S') or dtype in six.string_types or np.issubdtype(dtype, str):
+            if len(self.dimensions) > 0:
+                archetype = self.get_value()[0]
+                if isinstance(archetype, six.string_types):
+                    ret = True
+        return ret
+
+    @property
     def ndim(self):
         """
         :return: The dimension count for the variable.
@@ -652,6 +670,18 @@ class Variable(AbstractContainer, Attributes):
             for s in self.shape:
                 ret *= s
         return ret
+
+    @property
+    def string_max_length_global(self):
+        """
+        Get the max string length. This only returns the private value. Call :meth:`~ocgis.Variable.set_string_max_length_global`
+        to initialize the private value.
+
+        This is the maximum length of the strings contained in the object across the current :class:`ocgis.OcgVM`.
+
+        :return: int
+        """
+        return self._string_max_length_global
 
     @property
     def ugid(self):
@@ -715,6 +745,10 @@ class Variable(AbstractContainer, Attributes):
                     ret = variable_get_zeros(dimensions, self.dtype, fill=self.fill_value)
         return ret
 
+    def remove_value(self):
+        """Remove the value on the variable. The variable's value will be re-allocated when it is retrieved again."""
+        self._value = None
+
     def set_value(self, value, update_mask=False):
         """
         Set the variable value.
@@ -748,6 +782,8 @@ class Variable(AbstractContainer, Attributes):
                 desired_dtype = self._dtype
 
             if not isinstance(value, ndarray):
+                if isinstance(value, Dimension):
+                    raise ValueError('Value type not recognized: {}'.format(Dimension))
                 array_type = desired_dtype
                 if isinstance(array_type, ObjectType):
                     array_type = object
@@ -762,8 +798,12 @@ class Variable(AbstractContainer, Attributes):
                 except TypeError:
                     value = value.astype(desired_dtype)
 
-        if not self._is_init and value is not None:
-            update_unlimited_dimension_length(value, self.dimensions)
+        if not self._is_init:
+            if value is None:
+                if value is None and self.ndim > 0:
+                    raise ValueError('Only dimensionless variables may set their value to None.')
+            else:
+                update_unlimited_dimension_length(value, self.dimensions)
 
         self._value = value
         if should_set_mask:
@@ -788,7 +828,7 @@ class Variable(AbstractContainer, Attributes):
 
     def deepcopy(self, eager=False):
         """
-        :param bool eager: If ``True``, also deep copy the variable's :attr:`~ocgis.Variable.parent`. 
+        :param bool eager: If ``True``, also deep copy the variable's :attr:`~ocgis.Variable.parent`.
         :return: A deep copy of the variable.
         :rtype: :class:`~ocgis.Variable`
         """
@@ -849,8 +889,8 @@ class Variable(AbstractContainer, Attributes):
         """
 
         if self.is_orphaned:
-            self.set_mask(None)
-            self.set_value(None)
+            self._mask = None
+            self._value = None
             self._is_empty = True
         else:
             self.parent.convert_to_empty()
@@ -870,7 +910,7 @@ class Variable(AbstractContainer, Attributes):
     def set_extrapolated_bounds(self, name_variable, name_dimension):
         """
         Set the bounds variable using extrapolation.
-        
+
         :param str name_variable: Name of the bounds variable.
         :param str name_dimension: Name for the bounds dimension.
         """
@@ -889,7 +929,7 @@ class Variable(AbstractContainer, Attributes):
             # TODO: consider renaming this functions to get_bounds_from_2d.
             if not self.is_empty:
                 bounds_value = get_extrapolated_corners_esmf(self.get_value())
-                bounds_value = get_ocgis_corners_from_esmf_corners(bounds_value)
+                bounds_value = create_ocgis_corners_from_esmf_corners(bounds_value)
             bounds_dimension_size = 4
 
         dimensions = list(self.dimensions)
@@ -928,8 +968,8 @@ class Variable(AbstractContainer, Attributes):
 
     def get_mask(self, create=False, check_value=False, eager=True):
         """
-        :param bool create: If ``True``, create the mask if it does not exist. 
-        :param check_value: If ``True``, check the variable's value for values matching 
+        :param bool create: If ``True``, create the mask if it does not exist.
+        :param check_value: If ``True``, check the variable's value for values matching
          :attr:`~ocgis.Variabe.fill_value`. Matching indices are set to ``True`` in the created mask.
         :return: An array of ``bool`` data type with shape matching :attr:`~ocgis.Variable.shape`.
         :rtype: :class:`numpy.ndarray`
@@ -951,12 +991,12 @@ class Variable(AbstractContainer, Attributes):
     def set_mask(self, mask, cascade=False, update=False):
         """
         Set the variable's mask.
-        
+
         :param mask: A boolean array with shape matching :attr:`~ocgis.Variable.shape`.
         :type mask: :class:`numpy.ndarray` | `sequence`
         :param bool cascade: If ``True``, set the mask on variables in :attr:`~ocgis.Variable.parent` to match this
          mask. Only sets the masks along shared dimensions.
-        :param bool update: If ``True``, update the existing mask using a logical `or` operation. 
+        :param bool update: If ``True``, update the existing mask using a logical `or` operation.
         """
         if mask is not None:
             mask = np.array(mask, dtype=bool)
@@ -980,8 +1020,8 @@ class Variable(AbstractContainer, Attributes):
     def allocate_value(self, fill=None):
         """
         Allocate the value for the variable.
-        
-        :param fill: If ``None``, use :attr:`~ocgis.Variable.fill_value`. 
+
+        :param fill: If ``None``, use :attr:`~ocgis.Variable.fill_value`.
         """
         if fill is None:
             fill = self.fill_value
@@ -1195,7 +1235,7 @@ class Variable(AbstractContainer, Attributes):
                 else:
                     # Allow for fancy slicing.
                     if slc_idx.dtype == bool:
-                        f = arange_from_bool_ndarray(slc_idx, dtype=env.NP_INT)
+                        f = arange_from_bool_ndarray(slc_idx)
                         # The new arange is empty because the slice is boolean with all False. Convert the returned
                         # object to empty.
                         if f.shape[0] == 0:
@@ -1331,7 +1371,7 @@ class Variable(AbstractContainer, Attributes):
             original_mask = None
 
         self.set_mask(None)
-        self.set_value(None)
+        self._value = None
         self.set_dimensions(None)
 
         if original_mask is not None:
@@ -1383,6 +1423,26 @@ class Variable(AbstractContainer, Attributes):
             dkey = dmap.inquire_is_xyz(self)
             if dkey is not None:
                 dmap.set_bounds(dkey, value)
+
+    def set_string_max_length_global(self, value=None):
+        """
+        See :attr:`~ocgis.Variable.string_max_length_global`.
+
+        Call is collective across the current :class:`~ocgis.OcgVM`.
+        """
+
+        if value is None and self.is_string_object:
+            local_max = max([len(e) for e in self.get_value()])
+            rank_maxes = vm.gather(local_max)
+            if vm.rank == 0:
+                res = max(rank_maxes)
+            else:
+                res = None
+            self._string_max_length_global = vm.bcast(res)
+        elif value is not None:
+            self._string_max_length_global = value
+        else:
+            pass
 
     def set_ugid(self, variable, attr_link_name=None):
         """
@@ -1512,7 +1572,7 @@ class SourcedVariable(Variable):
         # If True, initialize from source. If False, assume all source data is passed during initialization.
         should_init_from_source = kwargs.pop('should_init_from_source', True)
 
-        # Flag to indicate if value has been loaded from sourced. This allows the value to be set to None and not have a
+        # Flag to indicate if value has been loaded from source. This allows the value to be set to None and not have a
         # reload from source.
         self._has_initialized_value = False
         self.protected = kwargs.pop('protected', False)
@@ -1578,14 +1638,10 @@ class SourcedVariable(Variable):
             for var in list(self.parent.values()):
                 var.load()
 
-    def set_value(self, value, **kwargs):
-        # Allow value to be set to None. This will remove dimensions.
-        if self._has_initialized_value and value is None:
-            self._dimensions = None
-        super(SourcedVariable, self).set_value(value, **kwargs)
-
     def _get_value_(self):
         if not self.is_empty and self._value is None and not self._has_initialized_value:
+            if self.protected:
+                raise PayloadProtectedError(self.name)
             self._request_dataset.driver.init_variable_value(self)
             ret = self._value
             self._has_initialized_value = True
@@ -1624,12 +1680,16 @@ class VariableCollection(AbstractCollection, AbstractContainer, Attributes):
     :param bool force: If ``True``, clobber any names that already exist in the collection.
     :param initial_data: See :class:`ocgis.collection.base.AbstractCollection`.
     :param groups: Alias for ``children``.
+    :param dict dimensions: A dictionary of dimension objects. The keys are the dimension names. The values are :class:`~ocgis.Dimension`
+     objects.
     """
 
     def __init__(self, name=None, variables=None, attrs=None, parent=None, children=None, aliases=None, tags=None,
                  source_name=constants.UNINITIALIZED, uid=None, is_empty=None, force=False, groups=None,
-                 initial_data=None):
-        self._dimensions = OrderedDict()
+                 initial_data=None, dimensions=None):
+        if dimensions is None:
+            dimensions = OrderedDict()
+        self._dimensions = dimensions
 
         if children is None and groups is not None:
             children = groups
@@ -1673,7 +1733,7 @@ class VariableCollection(AbstractCollection, AbstractContainer, Attributes):
                     if v.ndim > 0:
                         v_dimension_names = set(v.dimension_names)
                         if len(v_dimension_names.intersection(names)) > 0:
-                            mapped_slc = [None] * len(v_dimension_names)
+                            mapped_slc = [None] * len(v.dimension_names)
                             for idx, dname in enumerate(v.dimension_names):
                                 mapped_slc[idx] = item_or_slc.get(dname, slice(None))
                             v_sub = v.__getitem__(mapped_slc)
@@ -1994,13 +2054,35 @@ class VariableCollection(AbstractCollection, AbstractContainer, Attributes):
 
         from ocgis import RequestDataset
         rd = RequestDataset(*args, **kwargs)
-        return rd.driver.get_raw_field()
+        return rd.driver.create_raw_field()
+
+    def remove_orphaned_dimensions(self, dimensions=None):
+        """
+        Remove dimensions from the collection that are not associated with a variable in the current collection.
+
+        :param dimensions: A sequence of :class:`~ocgis.Dimension` objects or string dimension names to check. If ``None``,
+         check all dimensions in the collection.
+        """
+        if dimensions is None:
+            dimensions = self.dimensions.values()
+        dimensions = get_dimension_names(dimensions)
+        dims_to_pop = []
+        for d in dimensions:
+            found = False
+            for var in self.values():
+                if d in var.dimension_names:
+                    found = True
+                    break
+            if not found:
+                dims_to_pop.append(d)
+        for d in dims_to_pop:
+            self.dimensions.pop(d)
 
     def remove_variable(self, variable, remove_bounds=True):
         """
         Remove a variable from the collection. This removes the variable's bounds by default. Any orphaned dimensions
         are removed from the collection following variable removal.
-        
+
         :param variable: The variable or variable name to remove from the collection.
         :type variable: :class:`~ocgis.Variable` | :class:`str`
         :param bool remove_bounds: If ``True`` (the default), remove the variable's bounds from the collection.
@@ -2024,19 +2106,27 @@ class VariableCollection(AbstractCollection, AbstractContainer, Attributes):
             self.pop(rn)
 
         # Check for orphaned dimensions.
-        dims_to_pop = []
-        for d in dims_to_check:
-            found = False
-            for var in self.values():
-                if d in var.dimension_names:
-                    found = True
-                    break
-            if not found:
-                dims_to_pop.append(d)
-        for d in dims_to_pop:
-            self.dimensions.pop(d)
+        self.remove_orphaned_dimensions(dimensions=dims_to_check)
 
         return ret
+
+    def rename_dimension(self, old_name, new_name):
+        """
+        Rename a dimension on the variable collection in-place.
+
+        :param str old_name: The dimension's original name.
+        :param str new_name: The dimension's new name.
+        """
+        target_dimension = self.dimensions.pop(old_name)
+        target_dimension.set_name(new_name)
+        self.dimensions[new_name] = target_dimension
+        for var in self.values():
+            dimnames = var.dimension_names
+            if old_name in dimnames:
+                new_dimension_names = list(dimnames)
+                replace_idx = new_dimension_names.index(old_name)
+                new_dimension_names[replace_idx] = new_name
+                var._dimensions = tuple(new_dimension_names)
 
     def set_mask(self, variable, exclude=None, update=False):
         """

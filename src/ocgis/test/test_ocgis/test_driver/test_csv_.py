@@ -36,7 +36,7 @@ class TestDriverCSV(TestBase):
         path_out = self.get_temporary_file_path('foo_out.csv')
 
         rd = RequestDataset(uri=path)
-        vc = rd.get_raw_field()
+        vc = rd.create_raw_field()
 
         for v in list(vc.values()):
             self.assertIsNotNone(v.get_value())

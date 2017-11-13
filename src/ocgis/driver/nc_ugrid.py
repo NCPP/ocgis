@@ -1,11 +1,10 @@
 from ocgis import Variable
 from ocgis.constants import DriverKey, DMK, VariableName, Topology, KeywordArgument
+from ocgis.driver.base import AbstractUnstructuredDriver
 from ocgis.driver.nc import DriverNetcdfCF
-from ocgis.exc import GridDeficientError
-from ocgis.spatial.grid import GridUnstruct
 
 
-class DriverNetcdfUGRID(DriverNetcdfCF):
+class DriverNetcdfUGRID(AbstractUnstructuredDriver, DriverNetcdfCF):
     """
     Driver for NetCDF data following the UGRID convention. It will also interpret CF convention for axes not overloaded
     by UGRID.
@@ -28,16 +27,16 @@ class DriverNetcdfUGRID(DriverNetcdfCF):
                 face_coordinates = ' '.join(face_coordinates)
 
         poly = dimension_map.get_topology(Topology.POLYGON)
-        x, y, z = [poly.get_variable(k) for k in dkeys]
-        if x is None:
-            node_coordinates = None
-        else:
+        z = None
+        if poly is not None:
+            x, y, z = [poly.get_variable(k) for k in dkeys]
             node_coordinates = [x, y]
             if z is not None:
                 node_coordinates.append(z)
             node_coordinates = ' '.join(node_coordinates)
-
-        face_node_connectivity = poly.get_variable(DMK.ELEMENT_NODE_CONNECTIVITY)
+            face_node_connectivity = poly.get_variable(DMK.ELEMENT_NODE_CONNECTIVITY)
+        else:
+            node_coordinates = None
 
         if z is None:
             dimension = 2
@@ -56,8 +55,10 @@ class DriverNetcdfUGRID(DriverNetcdfCF):
                  'dimension': dimension,
                  'locations': locations,
                  'node_coordinates': node_coordinates,
-                 'face_coordinates': face_coordinates,
-                 'face_node_connectivity': face_node_connectivity}
+                 'face_coordinates': face_coordinates}
+
+        if poly is not None:
+            attrs['face_node_connectivity'] = face_node_connectivity
 
         return Variable(name=name, attrs=attrs)
 
@@ -111,14 +112,6 @@ class DriverNetcdfUGRID(DriverNetcdfCF):
         if ret is None:
             msg = 'Cannot identify distributed dimension. Checked element, x, and representative x dimensions.'
             raise ValueError(msg)
-        return ret
-
-    @staticmethod
-    def get_grid(field):
-        try:
-            ret = GridUnstruct(parent=field)
-        except GridDeficientError:
-            ret = None
         return ret
 
     @classmethod

@@ -4,14 +4,14 @@ from unittest import SkipTest
 
 import numpy as np
 
-from ocgis import vm
+from ocgis import vm, RequestDataset
 from ocgis.constants import DataType
 from ocgis.test.base import attr, AbstractTestInterface
 from ocgis.variable.base import Variable, VariableCollection
 from ocgis.variable.dimension import Dimension
 from ocgis.vmachine.mpi import MPI_SIZE, MPI_COMM, create_nd_slices, hgather, \
     get_optimal_splits, get_rank_bounds, OcgDist, get_global_to_local_slice, MPI_RANK, variable_scatter, \
-    variable_collection_scatter, variable_gather, get_standard_comm_state, get_nonempty_ranks
+    variable_collection_scatter, variable_gather, get_standard_comm_state, get_nonempty_ranks, redistribute_by_src_idx
 
 
 class Test(AbstractTestInterface):
@@ -186,6 +186,66 @@ class Test(AbstractTestInterface):
         bounds_local = (12, 15)
         with self.assertRaises(ValueError):
             _ = get_global_to_local_slice(start_stop, bounds_local)
+
+    @attr('mpi')
+    def test_redistribute_by_src_idx(self):
+        if vm.size != 4:
+            raise SkipTest('vm.size != 4')
+
+        dist = OcgDist()
+        dim1 = dist.create_dimension('dim1', 5 * vm.size, dist=True)
+        dim2 = dist.create_dimension('dim2', 2, dist=False)
+        dist.update_dimension_bounds()
+
+        rank_value = np.arange(5) + (10 * (vm.rank + 1))
+        var1 = Variable(name='dvar1', value=rank_value, dimensions=dim1)
+        var2 = Variable(name='dvar2', dimensions=[dim1, dim2])
+        var1.parent.add_variable(var2)
+        path = self.get_temporary_file_path('out.nc')
+        var1.parent.write(path)
+
+        desired_idx = np.array([1, 7, 9, 10, 14])
+        vdesired_value = variable_gather(var1)
+        if vm.rank == 0:
+            desired_value = vdesired_value.get_value()[desired_idx]
+
+        desired_idx_ranks = {0: slice(1, 2),
+                             1: [2, 4],
+                             2: [0, 4]}
+
+        rd = RequestDataset(path)
+        rd.metadata['dimensions'][dim1.name]['dist'] = True
+        field = rd.create_field()
+
+        indvar = field[var1.name]
+        field[var2.name].load()
+
+        try:
+            rank_slice = desired_idx_ranks[vm.rank]
+        except KeyError:
+            sub = Variable(is_empty=True)
+        else:
+            sub = indvar[rank_slice]
+
+        self.barrier_print(sub.is_empty)
+
+        redistribute_by_src_idx(indvar, dim1.name, sub.dimensions_dict.get(dim1.name))
+
+        with vm.scoped_by_emptyable('gather for test', indvar):
+            if vm.is_null:
+                self.assertIn(vm.rank_global, [2, 3])
+            else:
+                self.assertIn(vm.rank_global, [0, 1])
+                for v in [indvar, indvar.parent[var2.name]]:
+                    self.assertIsNone(v._value)
+                    self.assertIsNone(v._mask)
+                    self.assertIsNone(v._is_empty)
+                    self.assertFalse(v._has_initialized_value)
+                self.rank_print(indvar)
+                actual_value = variable_gather(indvar)
+                if vm.rank == 0:
+                    actual_value = actual_value.get_value()
+                    self.assertNumpyAll(actual_value, desired_value)
 
     @attr('mpi')
     def test_variable_collection_scatter(self):

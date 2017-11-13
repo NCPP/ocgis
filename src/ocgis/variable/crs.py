@@ -13,10 +13,10 @@ from shapely.geometry.multipolygon import MultiPolygon
 from ocgis import constants
 from ocgis.base import AbstractInterfaceObject, raise_if_empty, AbstractOcgisObject
 from ocgis.constants import MPIWriteMode, WrappedState, WrapAction, KeywordArgument, CFName, OcgisUnits, \
-    ConversionFactor, DimensionMapKey, DMK
+    ConversionFactor, DimensionMapKey, DMK, OcgisConvention
 from ocgis.environment import osr
 from ocgis.exc import ProjectionCoordinateNotFound, ProjectionDoesNotMatch, CRSNotEquivalenError, \
-    WrappedStateEvalTargetMissing, RequestableFeature, CRSDepthNotImplemented
+    WrappedStateEvalTargetMissing, CRSDepthNotImplemented
 from ocgis.spatial.wrap import GeometryWrapper, CoordinateArrayWrapper
 from ocgis.util.helpers import iter_array, get_iter
 
@@ -36,6 +36,8 @@ class AbstractCRS(AbstractInterfaceObject):
     """
     _cf_attributes = None
     _cf_attributes_to_remove = ('units', 'standard_name')
+    _default_towgs84 = None
+    _fuzzy_value = None
 
     def __init__(self, angular_units=OcgisUnits.DEGREES, linear_units=None):
         self._angular_units = angular_units
@@ -148,6 +150,32 @@ class AbstractCRS(AbstractInterfaceObject):
                         _update_attr_(target, k, v)
 
     @classmethod
+    def fuzzy_check(cls, value):
+        """
+        Coordinate system definitions are often changing in interpreters. This function allows coordinate system
+        definitions to vary slightly, but still be created appropriately.
+
+        This returns ``True`` if there is a fuzzy match.
+
+        :param dict value: The coordinate system dictionary definition.
+        :return: bool
+        """
+        req = cls._fuzzy_value
+        ret = True
+        for k, v in req.items():
+            if k not in value:
+                ret = False
+                break
+            else:
+                if v != value[k]:
+                    ret = False
+                    break
+        if ret:
+            if cls._default_towgs84 is not None and 'towgs84' in value:
+                ret = value['towgs84'] == cls._default_towgs84
+        return ret
+
+    @classmethod
     def get_wrap_action(cls, state_src, state_dst):
         """
         :param int state_src: The wrapped state of the source dataset. (:class:`ocgis.constants.WrappedState`)
@@ -194,7 +222,7 @@ class AbstractCRS(AbstractInterfaceObject):
         # TODO: Wrapped state should operate on the x-coordinate variable vectors or geometries only.
         # TODO: This should be a method on grids and geometry variables.
         from ocgis.collection.field import Field
-        from ocgis.spatial.grid import Grid, GridUnstruct
+        from ocgis.spatial.base import AbstractXYZSpatialContainer
         from ocgis import vm
 
         raise_if_empty(self)
@@ -210,24 +238,24 @@ class AbstractCRS(AbstractInterfaceObject):
                 else:
                     target = target.geom
 
-            if isinstance(target, GridUnstruct):
-                raise RequestableFeature('Wrapping not supported with unstructured grids.')
-
             if target is None:
                 raise WrappedStateEvalTargetMissing
             elif target.is_empty:
                 ret = None
-            elif isinstance(target, Grid):
+            elif isinstance(target, AbstractXYZSpatialContainer):
                 ret = self._get_wrapped_state_from_array_(target.x.get_value())
             else:
                 stops = (WrappedState.WRAPPED, WrappedState.UNWRAPPED)
                 ret = WrappedState.UNKNOWN
-                geoms = target.get_value().flat
+                geoms = target.get_masked_value().flat
+                _is_masked = np.ma.is_masked
+                _get_ws = self._get_wrapped_state_from_geometry_
                 for geom in geoms:
-                    flag = self._get_wrapped_state_from_geometry_(geom)
-                    if flag in stops:
-                        ret = flag
-                        break
+                    if not _is_masked(geom):
+                        flag = _get_ws(geom)
+                        if flag in stops:
+                            ret = flag
+                            break
 
         rets = vm.gather(ret)
         if vm.rank == 0:
@@ -244,7 +272,7 @@ class AbstractCRS(AbstractInterfaceObject):
 
         return ret
 
-    def prepare_geometry_variable(self, subset_geom, rhs_tol=10.0):
+    def prepare_geometry_variable(self, subset_geom, rhs_tol=10.0, inplace=True):
         """
         Prepared a geometry variable for subsetting. This method:
 
@@ -254,11 +282,13 @@ class AbstractCRS(AbstractInterfaceObject):
         :type subset_geom: :class:`~ocgis.GeometryVariable`
         :param float rhs_tol: The amount, in matching coordinate system units, to buffer the right hand selection
          geometry.
-        :return:
+        :param bool inplace: If ``True``, modify the object in-place.
         """
-
+        # TODO: This should work with arbitrary geometries not just bounding boxes.
         assert subset_geom.size == 1
         if self.is_wrappable and subset_geom.is_bbox and subset_geom.wrapped_state == WrappedState.UNWRAPPED:
+            if not inplace:
+                subset_geom = subset_geom.deepcopy()
             svalue = subset_geom.get_value()
             buffered_bbox = svalue[0].bounds
             if buffered_bbox[0] < 0.:
@@ -273,6 +303,11 @@ class AbstractCRS(AbstractInterfaceObject):
             if len(bboxes) > 1:
                 svalue[0] = MultiPolygon(bboxes)
 
+        return subset_geom
+
+    def set_string_max_length_global(self):
+        """Here for variable compatibility."""
+
     def wrap_or_unwrap(self, action, target):
         from ocgis.variable.geom import GeometryVariable
         from ocgis.spatial.grid import Grid
@@ -280,29 +315,30 @@ class AbstractCRS(AbstractInterfaceObject):
         if action not in (WrapAction.WRAP, WrapAction.UNWRAP):
             raise ValueError('"action" not recognized: {}'.format(action))
 
-        if action == WrapAction.WRAP:
-            attr = 'wrap'
-        else:
-            attr = 'unwrap'
+        if target.wrapped_state != action:
+            if action == WrapAction.WRAP:
+                attr = 'wrap'
+            else:
+                attr = 'unwrap'
 
-        if isinstance(target, GeometryVariable):
-            w = GeometryWrapper()
-            func = getattr(w, attr)
-            target_value = target.get_value()
-            for idx, target_geom in iter_array(target_value, use_mask=True, return_value=True,
-                                               mask=target.get_mask()):
-                target_value.__setitem__(idx, func(target_geom))
-        elif isinstance(target, Grid):
-            ca = CoordinateArrayWrapper()
-            func = getattr(ca, attr)
-            func(target.x.get_value())
-            target.remove_bounds()
-            if target.has_allocated_point:
-                getattr(target.get_point(), attr)()
-            if target.has_allocated_polygon:
-                getattr(target.get_polygon(), attr)()
-        else:
-            raise NotImplementedError(target)
+            if isinstance(target, GeometryVariable):
+                w = GeometryWrapper()
+                func = getattr(w, attr)
+                target_value = target.get_value()
+                for idx, target_geom in iter_array(target_value, use_mask=True, return_value=True,
+                                                   mask=target.get_mask()):
+                    target_value.__setitem__(idx, func(target_geom))
+            elif isinstance(target, Grid):
+                ca = CoordinateArrayWrapper()
+                func = getattr(ca, attr)
+                func(target.x.get_value())
+                target.remove_bounds()
+                if target.has_allocated_point:
+                    getattr(target.get_point(), attr)()
+                if target.has_allocated_polygon:
+                    getattr(target.get_polygon(), attr)()
+            else:
+                raise NotImplementedError(target)
 
     @classmethod
     def _get_wrapped_state_from_array_(cls, arr):
@@ -378,6 +414,32 @@ class AbstractProj4CRS(AbstractCRS):
     Base class for coordinate systems that may be transformed using PROJ.4.
     """
 
+    @classmethod
+    def load_from_metadata(cls, group_metadata):
+        """
+        Create a coordinate system object using group metadata.
+
+        :param dict group_metadata: The metdata to interpret. This should be for the current group only.
+        :return: :class:`~ocgis.CRS`
+        """
+        names = []
+        vmeta = group_metadata['variables']
+        for k, v in vmeta.items():
+            vattrs = v['attrs']
+            if vattrs.get(OcgisConvention.Name.OCGIS_ROLE) == OcgisConvention.Value.ROLE_COORDSYS:
+                if vattrs.get(OcgisConvention.Name.PROJ4) is not None:
+                    names.append(k)
+
+        len_names = len(names)
+        if len_names > 1:
+            raise ValueError('Multiple coordinate system variables found: {}'.format(names))
+        elif len_names == 0:
+            raise ProjectionDoesNotMatch
+        else:
+            v = vmeta[names[0]]
+            ret = CRS(name=v['name'], proj4=v['attrs'][OcgisConvention.Name.PROJ4])
+        return ret
+
 
 class CoordinateReferenceSystem(AbstractProj4CRS, AbstractInterfaceObject):
     """
@@ -393,7 +455,7 @@ class CoordinateReferenceSystem(AbstractProj4CRS, AbstractInterfaceObject):
     :type name: str
     """
 
-    def __init__(self, value=None, proj4=None, epsg=None, name=constants.DEFAULT_COORDINATE_SYSTEM_NAME):
+    def __init__(self, value=None, proj4=None, epsg=None, name=OcgisConvention.Name.COORDSYS):
         self.name = name
         # Allows operations on data variables to look through an empty dimension list. Alleviates instance checking.
         self.dimensions = tuple()
@@ -448,7 +510,15 @@ class CoordinateReferenceSystem(AbstractProj4CRS, AbstractInterfaceObject):
             if self.sr.IsSame(other.sr) == 1:
                 ret = True
             else:
-                ret = False
+                # Try a value comparison.
+                if self.value == other.value:
+                    ret = True
+                else:
+                    # Try without the "wktext" flag.
+                    new_values = [self.value.copy(), other.value.copy()]
+                    for n in new_values:
+                        n.pop('wktext', None)
+                    ret = new_values[0] == new_values[1]
         except AttributeError:
             # likely a nonetype of other object type
             if other is None or not isinstance(other, self.__class__):
@@ -460,8 +530,14 @@ class CoordinateReferenceSystem(AbstractProj4CRS, AbstractInterfaceObject):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def __str__(self):
-        return str(self.value)
+    def __repr__(self):
+        msg = [str(type(self))]
+        elements = []
+        elements.append("name  = {}".format(self.name))
+        elements.append("value = {}".format(self.value))
+        elements = [' {}'.format(e) for e in elements]
+        msg.extend(elements)
+        return '\n'.join(msg)
 
     @property
     def dtype(self):
@@ -524,7 +600,7 @@ class CoordinateReferenceSystem(AbstractProj4CRS, AbstractInterfaceObject):
         """Compatibility with variable."""
         pass
 
-    def write_to_rootgrp(self, rootgrp, with_proj4=True):
+    def write_to_rootgrp(self, rootgrp, with_proj4=True, **kwargs):
         """
         Write the coordinate system to an open netCDF file.
 
@@ -537,20 +613,21 @@ class CoordinateReferenceSystem(AbstractProj4CRS, AbstractInterfaceObject):
         """
         variable = rootgrp.createVariable(self.name, 'S1')
         if with_proj4:
-            variable.proj4 = self.proj4
+            setattr(variable, OcgisConvention.Name.PROJ4, self.proj4)
+            setattr(variable, OcgisConvention.Name.OCGIS_ROLE, OcgisConvention.Value.ROLE_COORDSYS)
         return variable
 
     def write(self, *args, **kwargs):
         write_mode = kwargs.pop('write_mode', MPIWriteMode.NORMAL)
 
-        # Let subclasses determin if proj4 should be written.
+        # Let subclasses determine if proj4 should be written.
         with_proj4 = kwargs.pop('with_proj4', None)
 
         # Fill operations set values on variables. Coordinate system variables have no inherent values constructed only
         # from attributes.
         if write_mode != MPIWriteMode.FILL:
             if with_proj4 is not None:
-                ret = self.write_to_rootgrp(*args, with_proj4=with_proj4)
+                ret = self.write_to_rootgrp(*args, **kwargs)
             else:
                 ret = self.write_to_rootgrp(*args)
             return ret
@@ -706,9 +783,11 @@ class Spherical(AbstractSphericalCoordinateReferenceSystem, CoordinateReferenceS
     :param units: Either degrees or radians.
     :type units: :class:`ocgis.constants.OcgisUnits`
     """
+    _default_towgs84 = '0,0,0,0,0,0,0'
+    _fuzzy_value = {'a': 6370997, 'b': 6370997, 'proj': 'longlat'}
 
     def __init__(self, semi_major_axis=6370997.0, angular_units=OcgisUnits.DEGREES):
-        value = {'proj': 'longlat', 'towgs84': '0,0,0,0,0,0,0', 'no_defs': '', 'a': semi_major_axis,
+        value = {'proj': 'longlat', 'towgs84': self._default_towgs84, 'no_defs': '', 'a': semi_major_axis,
                  'b': semi_major_axis}
         CoordinateReferenceSystem.__init__(self, value=value, name='latitude_longitude')
         AbstractCRS.__init__(self, angular_units=angular_units)
@@ -765,6 +844,8 @@ class WGS84(CoordinateReferenceSystem):
                                           CFName.STANDARD_NAME: 'longitude'},
                       DimensionMapKey.Y: {CFName.UNITS: 'degrees_north',
                                           CFName.STANDARD_NAME: 'latitude'}}
+    _default_towgs84 = '0,0,0,0,0,0,0'
+    _fuzzy_value = {'datum': 'WGS84', 'proj': 'longlat'}
 
     def __init__(self):
         value = {'no_defs': True, 'datum': 'WGS84', 'proj': 'longlat', 'towgs84': '0,0,0,0,0,0,0'}
@@ -920,7 +1001,7 @@ class CFCoordinateReferenceSystem(CoordinateReferenceSystem):
     def _load_from_metadata_finalize_(cls, kwds, var, meta):
         pass
 
-    def write_to_rootgrp(self, rootgrp, with_proj4=False):
+    def write_to_rootgrp(self, rootgrp, with_proj4=False, **kwargs):
         variable = super(CFCoordinateReferenceSystem, self).write_to_rootgrp(rootgrp, with_proj4=with_proj4)
         variable.grid_mapping_name = self.grid_mapping_name
         for k, v in self.map_parameters_values.items():
@@ -1076,6 +1157,34 @@ class CFRotatedPole(CFCoordinateReferenceSystem):
             variable.proj4 = ''
             variable.proj4_transform = self._trans_proj
         return variable
+
+
+def create_crs(value, **kwargs):
+    """
+    Create a coordinate system object from a dictionary definition. This will create a spherical coordinate system
+    object, for example, if there is a fuzzy match with that coordinate system.
+
+    :param dict value: The coordinate system's dictionary definition.
+    :param dict kwargs: Optional keyword arguments to the coordinate system's creation.
+    :return: :class:`ocgis.variable.crs.AbstractCRS`
+    """
+    if value is None:
+        ret = None
+    else:
+        if isinstance(value, AbstractCRS):
+            value = value.value
+        to_check = np.array([Spherical, WGS84], dtype=object)
+        match = np.zeros(len(to_check), dtype=bool)
+        for idx, t in enumerate(to_check):
+            match[idx] = t.fuzzy_check(value)
+        found = to_check[match]
+        if found.size > 1:
+            raise ValueError('Multiple coordinate systems found: {}'.format(found))
+        elif found.size == 0:
+            ret = CoordinateReferenceSystem(value=value, **kwargs)
+        else:
+            ret = found[0]()
+    return ret
 
 
 def get_lonlat_rotated_pole_transform(lon, lat, transform, inverse=False, is_vectorized=False):

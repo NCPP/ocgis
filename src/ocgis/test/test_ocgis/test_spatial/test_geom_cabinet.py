@@ -2,6 +2,7 @@ import os
 import shutil
 
 import fiona
+from mock import mock
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.polygon import Polygon
 
@@ -261,6 +262,20 @@ class TestGeomCabinet(TestBase):
                 self.assertTrue(item > 40)
 
         _run_(s, f)
+
+    def test_get_features_object_file_geodatabase(self):
+        ds = mock.create_autospec(ogr.DataSource, spec_set=True)
+        m_Driver = mock.Mock()
+        m_Driver.GetName = mock.Mock(return_value='OpenFileGDB')
+        ds.GetDriver = mock.Mock(return_value=m_Driver)
+        ds.GetLayerByName = mock.Mock()
+
+        with self.assertRaises(ValueError):
+            _ = GeomCabinet._get_features_object_(ds)
+
+        desired = {'feature_class': 'foo'}
+        _ = GeomCabinet._get_features_object_(ds, driver_kwargs=desired)
+        ds.GetLayerByName.assert_called_once_with(desired['feature_class'])
 
     def test_number_in_shapefile_name(self):
         """Test number in shapefile name."""

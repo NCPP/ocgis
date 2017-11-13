@@ -3,22 +3,27 @@ from collections import OrderedDict
 from copy import deepcopy
 
 import numpy as np
+from mock import mock
 from nose.plugins.skip import SkipTest
 from numpy.ma import MaskedArray
 from shapely import wkt
-from shapely.geometry import Point, box, MultiPoint, LineString
+from shapely.geometry import Point, box, MultiPoint, LineString, Polygon
+from shapely.geometry.base import BaseMultipartGeometry
 from shapely.geometry.multilinestring import MultiLineString
+from shapely.geometry.multipolygon import MultiPolygon
 
 from ocgis import RequestDataset, vm, Field
 from ocgis import env, CoordinateReferenceSystem
-from ocgis.constants import DMK, WrappedState
-from ocgis.exc import EmptySubsetError
+from ocgis.constants import DMK, WrappedState, OcgisConvention, DriverKey
+from ocgis.exc import EmptySubsetError, NoInteriorsError, RequestableFeature
 from ocgis.spatial.grid import Grid, get_geometry_variable
-from ocgis.test.base import attr, AbstractTestInterface, create_gridxy_global
+from ocgis.test import strings
+from ocgis.test.base import attr, AbstractTestInterface, create_gridxy_global, TestBase
 from ocgis.variable.base import Variable, VariableCollection
 from ocgis.variable.crs import WGS84, Spherical, Cartesian
 from ocgis.variable.dimension import Dimension
-from ocgis.variable.geom import GeometryVariable, GeometryProcessor
+from ocgis.variable.geom import GeometryVariable, GeometryProcessor, get_split_polygon_by_node_threshold, \
+    GeometrySplitter
 from ocgis.vmachine.mpi import OcgDist, MPI_RANK, variable_scatter, MPI_SIZE, variable_gather, MPI_COMM
 
 
@@ -81,7 +86,79 @@ class TestGeometryProcessor(AbstractTestInterface):
             list(gp.iter_intersects())
 
 
-class TestGeometryVariable(AbstractTestInterface):
+class FixturePolygonWithHole(object):
+    @property
+    def fixture_polygon_with_hole(self):
+        outer_box = box(2.0, 10.0, 4.0, 20.0)
+        inner_box = box(2.5, 10.5, 3.5, 15.5)
+
+        outer_coords = list(outer_box.exterior.coords)
+        inner_coords = [list(inner_box.exterior.coords)]
+
+        with_interior = Polygon(outer_coords, holes=inner_coords)
+
+        return with_interior
+
+
+class TestGeometrySplitter(TestBase, FixturePolygonWithHole):
+    def test_init(self):
+        ge = GeometrySplitter(self.fixture_polygon_with_hole)
+        self.assertIsInstance(ge.geometry, Polygon)
+
+        # Test a geometry with no holes.
+        with self.assertRaises(NoInteriorsError):
+            GeometrySplitter(box(1, 2, 3, 4))
+
+    def test_create_split_vector_dict(self):
+        ge = GeometrySplitter(self.fixture_polygon_with_hole)
+        desired = [{'rows': (9.999999, 13.0, 20.000001), 'cols': (1.999999, 3.0, 4.000001)}]
+        actual = list([ge.create_split_vector_dict(i) for i in ge.iter_interiors()])
+        self.assertEqual(actual, desired)
+
+    def test_create_split_polygons(self):
+        ge = GeometrySplitter(self.fixture_polygon_with_hole)
+        spolygons = ge.create_split_polygons(list(ge.iter_interiors())[0])
+        self.assertEqual(len(spolygons), 4)
+
+        actual = [sp.bounds for sp in spolygons]
+        desired = [(1.999999, 9.999999, 3.0, 13.0), (3.0, 9.999999, 4.000001, 13.0),
+                   (3.0, 13.0, 4.000001, 20.000001), (1.999999, 13.0, 3.0, 20.000001)]
+        self.assertEqual(actual, desired)
+
+    def test_split(self):
+        to_test = [self.fixture_polygon_with_hole,
+                   MultiPolygon([self.fixture_polygon_with_hole, box(200, 100, 300, 400)])]
+        desired_counts = {0: 4, 1: 5}
+
+        for ctr, t in enumerate(to_test):
+            ge = GeometrySplitter(t)
+            split = ge.split()
+
+            self.assertEqual(len(split), desired_counts[ctr])
+            self.assertEqual(split.area, t.area)
+
+            actual_bounds = [g.bounds for g in split]
+            actual_areas = [g.area for g in split]
+
+            desired_bounds = [(2.0, 10.0, 3.0, 13.0), (3.0, 10.0, 4.0, 13.0),
+                              (3.0, 13.0, 4.0, 20.0), (2.0, 13.0, 3.0, 20.0)]
+            desired_areas = [1.75, 1.75, 5.75, 5.75]
+
+            if ctr == 1:
+                desired_bounds.append((200.0, 100.0, 300.0, 400.0))
+                desired_areas.append(30000.0)
+
+            self.assertEqual(actual_bounds, desired_bounds)
+            self.assertEqual(actual_areas, desired_areas)
+
+    def test_iter_interiors(self):
+        ge = GeometrySplitter(self.fixture_polygon_with_hole)
+        actual = list([g.bounds for g in ge.iter_interiors()])
+        self.assertEqual(actual, [(2.5, 10.5, 3.5, 15.5)])
+
+
+class TestGeometryVariable(AbstractTestInterface, FixturePolygonWithHole):
+
     @staticmethod
     def get_geometryvariable_with_parent():
         vpa = np.array([None, None, None])
@@ -180,6 +257,60 @@ class TestGeometryVariable(AbstractTestInterface):
         geom = gvar.as_shapely()
         self.assertEqual(geom.bounds, coords)
 
+    def test_convert_to_geometry_coordinates_multipolygon(self):
+        p1 = 'Polygon ((-116.94238466549290933 52.12861711455555991, -82.00526805089285176 61.59075286434307372, -59.92695130138864101 31.0207758265680269, -107.72286778108455962 22.0438778075388484, -122.76523743459291893 37.08624746104720771, -116.94238466549290933 52.12861711455555991))'
+        p2 = 'Polygon ((-63.08099655131782413 21.31602121140134898, -42.70101185946779765 9.42769680782217279, -65.99242293586783603 9.912934538580501, -63.08099655131782413 21.31602121140134898))'
+        p1 = wkt.loads(p1)
+        p2 = wkt.loads(p2)
+
+        mp1 = MultiPolygon([p1, p2])
+        mp2 = mp1.buffer(0.1)
+        geoms = [mp1, mp2]
+        gvar = GeometryVariable(name='gc', value=geoms, dimensions='gd')
+
+        # Test the element node connectivity arrays.
+        results = []
+        for pack in [False, True]:
+            gc = gvar.convert_to(pack=pack)
+            self.assertEqual(gc.dimension_map.get_driver(), DriverKey.NETCDF_UGRID)
+            self.assertTrue(gc.has_multi)
+            self.assertIn(OcgisConvention.Name.MULTI_BREAK_VALUE, gc.cindex.attrs)
+            # Test multi-break values are part of the element node connectivity arrays.
+            actual = gc.cindex.get_value()
+            for idx, ii in enumerate(actual.flat):
+                self.assertGreater(np.sum(ii == OcgisConvention.Value.MULTI_BREAK_VALUE), 0)
+            results.append(actual)
+            self.assertIsNotNone(gc.x.get_value())
+            self.assertIsNotNone(gc.y.get_value())
+
+            maxes = []
+            for ii in actual.flat:
+                maxes.append(ii.max())
+            actual_max = max(maxes)
+            for c in [gc.x, gc.y]:
+                self.assertEqual(c.size - 1, actual_max)
+
+            geoms = list(gc.iter_geometries())
+            for ctr, g in enumerate(geoms):
+                self.assertIsInstance(g[1], BaseMultipartGeometry)
+            self.assertEqual(ctr, 1)
+
+            self.assertPolygonSimilar(geoms[0][1], mp1)
+            self.assertPolygonSimilar(geoms[1][1], mp2)
+
+        for idx in range(len(results[0])):
+            self.assertNumpyAll(results[0][idx], results[1][idx])
+
+    def test_convert_to_geometry_coordinates_multipolygon_node_threshold(self):
+        mp = wkt.loads(strings.S7)
+        desired_count = len(get_split_polygon_by_node_threshold(mp, 10))
+        self.assertGreater(desired_count, len(mp))
+        gvar = GeometryVariable.from_shapely(mp)
+        gc = gvar.convert_to(node_threshold=10)
+        actual_count = gc.cindex.get_value()[0]
+        actual_count = np.sum(actual_count == OcgisConvention.Value.MULTI_BREAK_VALUE) + 1
+        self.assertEqual(actual_count, desired_count)
+
     def test_convert_to_geometry_coordinates_points(self):
         pt1 = Point(1, 2, 3)
         pt2 = Point(3, 4, 4)
@@ -201,16 +332,33 @@ class TestGeometryVariable(AbstractTestInterface):
 
         self.assertEqual(actual.crs, crs)
 
+    def test_convert_to_geometry_coordinates_polygon_interior(self):
+        ph = self.fixture_polygon_with_hole
+        gvar = GeometryVariable.from_shapely(ph)
+        desired_count = len(GeometrySplitter(ph).split())
+
+        keywords = dict(split_interiors=[True, False])
+        for k in self.iter_product_keywords(keywords):
+            try:
+                gc = gvar.convert_to(split_interiors=k.split_interiors)
+            except ValueError:
+                self.assertFalse(k.split_interiors)
+                continue
+            actual_count = gc.cindex.get_value()[0]
+            actual_count = np.sum(actual_count == OcgisConvention.Value.MULTI_BREAK_VALUE) + 1
+            self.assertEqual(actual_count, desired_count)
+
     def test_convert_to_geometry_coordinates_polygons(self):
         grid = create_gridxy_global(resolution=45.0)
         geom = grid.get_abstraction_geometry()
         geom.reshape(Dimension('n_elements', geom.size))
 
-        keywords = dict(pack=[True, False], repeat_last_node=[False, True])
+        keywords = dict(pack=[True, False], repeat_last_node=[False, True], start_index=[0, 1])
         for k in self.iter_product_keywords(keywords):
-            # print k
-            actual = geom.convert_to(pack=k.pack, repeat_last_node=k.repeat_last_node)
-
+            actual = geom.convert_to(pack=k.pack, repeat_last_node=k.repeat_last_node, start_index=k.start_index)
+            self.assertEqual(actual.cindex.attrs['start_index'], k.start_index)
+            self.assertEqual(actual.start_index, k.start_index)
+            self.assertEqual(actual.cindex.get_value()[0].min(), k.start_index)
             self.assertEqual(actual.packed, k.pack)
             self.assertIsNotNone(actual.cindex)
 
@@ -473,6 +621,32 @@ class TestGeometryVariable(AbstractTestInterface):
         self.assertIsInstance(si, SpatialIndex)
         self.assertEqual(si._index.bounds, [1.0, 2.0, 3.0, 4.0])
 
+    def test_get_split_polygon_by_node_threshold(self):
+        geom = wkt.loads(strings.S7)
+        desired_areas = [8.625085418953529e-08, 1.079968352698555e-06, 4.1784871773306116e-05, 2.5076269922661793e-05,
+                         3.3855701685935655e-09, 2.8657206177145753e-06, 1.0972327342376188e-06, 8.786092310138479e-05,
+                         0.00010110750647968422, 9.000945595248119e-05, 8.294314903503167e-05, 3.771759628159003e-05,
+                         7.109809049616299e-05, 0.00010110750647961063, 0.0001011075064794719, 0.0001011075064794719,
+                         0.00010068346095469527, 4.5613938714394565e-05, 2.58521435096663e-05, 0.00010055844609512709,
+                         0.00010110750647961063, 0.0001011075064794719, 0.0001011075064794719, 0.00010110750647974937,
+                         0.00010102553077737228, 3.5445725182157024e-05, 2.3017920373339736e-06, 6.356456832123063e-05,
+                         0.00010110750647968422, 0.00010110750647954548, 0.00010110750647954548, 0.00010110750647982296,
+                         0.00010110750647940675, 0.00010077363977375008, 1.3861408815707898e-05, 5.540594942042427e-06,
+                         2.9946101143502452e-05, 8.322365017149943e-05, 0.0001011075064794719, 0.00010110750647974937,
+                         0.00010110750647933316, 0.00010110750647961063, 9.141939119146819e-05, 1.8935129580488383e-05,
+                         1.2868802415556094e-05, 6.997506385223853e-05, 0.00010110750647974937, 0.00010110750647933316,
+                         0.00010110750647961063, 8.961198923834417e-05, 2.210381570757395e-05, 5.629701317779406e-05,
+                         0.00010110750647982296, 0.00010110750647940675, 8.200102962203643e-05, 6.525027997827258e-06,
+                         2.3998405756057673e-05, 9.951035052363768e-05, 5.635100120283968e-05, 2.6333871794810716e-05,
+                         2.1377064578012194e-05]
+
+        actual = get_split_polygon_by_node_threshold(geom, 10)
+        self.assertAlmostEqual(geom.area, actual.area)
+
+        actual_areas = [g.area for g in actual]
+        for idx in range(len(desired_areas)):
+            self.assertAlmostEqual(actual_areas[idx], desired_areas[idx])
+
     def test_get_unioned(self):
         # TODO: Test with an n-dimensional mask.
 
@@ -576,15 +750,59 @@ class TestGeometryVariable(AbstractTestInterface):
         bbox = box(*coords)
         gvar = GeometryVariable(value=bbox, dimensions='geom', crs=Spherical(), is_bbox=True,
                                 wrapped_state=WrappedState.UNWRAPPED)
-        self.assertFalse(gvar.is_prepared)
+
         for _ in range(3):
-            gvar.prepare()
-            self.assertTrue(gvar.is_prepared)
+            prepared = gvar.prepare()
+            self.assertNotEqual(id(prepared), id(gvar))
             actual = []
             desired = [(-10.0, 40.0, 50.0, 50.0), (350.0, 40.0, 370.0, 50.0)]
-            for g in gvar.get_value().flatten()[0]:
+            for g in prepared.get_value().flatten()[0]:
                 actual.append(g.bounds)
             self.assertEqual(actual, desired)
+
+        # Test updating the coordinate system.
+        update_crs_call_count = {WGS84: 1, Spherical: 0, None: 1}
+        wrapped_state = [None, WrappedState.WRAPPED, WrappedState.UNWRAPPED, WrappedState.UNKNOWN]
+        keywords = dict(archetype_crs=update_crs_call_count.keys(), wrapped_state=wrapped_state)
+        for k in self.iter_product_keywords(keywords):
+            dgvar = deepcopy(gvar)
+            dgvar.update_crs = mock.Mock()
+            dgvar.deepcopy = mock.Mock(return_value=dgvar)
+            dgvar.copy = mock.Mock()
+            archetype = mock.create_autospec(GeometryVariable, spec_set=True)
+            archetype.wrapped_state = k.wrapped_state
+            try:
+                archetype.crs = k.archetype_crs()
+                archetype.crs.wrap_or_unwrap = mock.Mock()
+            except TypeError:
+                archetype.crs = None
+            _ = dgvar.prepare(archetype=archetype)
+            desired_count = update_crs_call_count[k.archetype_crs]
+            self.assertEqual(dgvar.update_crs.call_count, desired_count)
+            if desired_count > 0:
+                dgvar.update_crs.assert_called_once_with(archetype.crs)
+            if k.archetype_crs is not None and k.wrapped_state not in (WrappedState.UNKNOWN, None):
+                archetype.crs.wrap_or_unwrap.assert_called_once_with(archetype.wrapped_state, dgvar)
+            else:
+                if k.archetype_crs is not None:
+                    archetype.crs.wrap_or_unwrap.assert_not_called()
+            dgvar.deepcopy.assert_called_once()
+            dgvar.copy.assert_not_called()
+
+        # Test identical object is returned if nothing happens.
+        gvar = GeometryVariable()
+        gvar.deepcopy = mock.Mock(spec=GeometryVariable.deepcopy)
+        gvar.copy = mock.Mock(spec=GeometryVariable.copy)
+        actual = gvar.prepare()
+        self.assertNotEqual(id(actual), id(gvar))
+        gvar.deepcopy.assert_not_called()
+        gvar.copy.assert_called_once()
+
+        # Test exception for more than one geometry.
+        gvar = mock.create_autospec(GeometryVariable, spec_set=True)
+        gvar.size = 2
+        with self.assertRaises(RequestableFeature):
+            GeometryVariable.prepare(gvar)
 
     def test_unwrap(self):
         geom = box(195, -40, 225, -30)
@@ -656,9 +874,9 @@ class TestGeometryVariablePolygons(AbstractTestInterface):
         self.assertIsNone(grid.archetype.bounds)
 
         row = Variable(value=[2, 3], name='row', dimensions='y')
-        row.set_extrapolated_bounds('row_bounds', 'y')
+        row.set_extrapolated_bounds('row_bounds', 'bounds')
         col = Variable(value=[4, 5], name='col', dimensions='x')
-        col.set_extrapolated_bounds('col_bounds', 'x')
+        col.set_extrapolated_bounds('col_bounds', 'bounds')
         grid = Grid(y=row, x=col)
         self.assertEqual(grid.abstraction, 'polygon')
         poly = get_geometry_variable(grid)

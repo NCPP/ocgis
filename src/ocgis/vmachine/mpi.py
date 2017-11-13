@@ -17,11 +17,13 @@ try:
     from mpi4py.MPI import COMM_NULL
 except ImportError:
     MPI_ENABLED = False
+    MPI_TYPE_MAPPING = None
 else:
     if MPI.COMM_WORLD.Get_size() > 1:
         MPI_ENABLED = True
     else:
         MPI_ENABLED = False
+    MPI_TYPE_MAPPING = {np.int32: MPI.INT, np.int64: MPI.LONG_LONG}
 
 
 class DummyMPIComm(object):
@@ -52,6 +54,9 @@ class DummyMPIComm(object):
     def Incl(self, *args, **kwargs):
         return self
 
+    def Irecv(self, *args, **kwargs):
+        pass
+
     def recv(self, *args, **kwargs):
         pass
 
@@ -60,6 +65,9 @@ class DummyMPIComm(object):
 
     def scatter(self, *args, **kwargs):
         return args[0][0]
+
+    def Isend(self, *args, **kwargs):
+        pass
 
     def send(self, *args, **kwargs):
         pass
@@ -95,7 +103,7 @@ class OcgDist(AbstractOcgisObject):
         self.size = size
         self.mapping = {}
         for rank in self.ranks:
-            self.mapping[rank] = get_template_rank_dict()
+            self.mapping[rank] = create_template_rank_dict()
 
         self.has_updated_dimensions = False
 
@@ -115,7 +123,7 @@ class OcgDist(AbstractOcgisObject):
                 msg = 'Dimension with name "{}" already in group "{}" and "force=False".'
                 raise ValueError(msg.format(to_add_dim.name, group))
             else:
-                the_group['dimensions'][to_add_dim.name] = to_add_dim
+                the_group['dimensions'][to_add_dim.source_name] = to_add_dim
 
     def add_dimensions(self, dims, **kwargs):
         for dim in dims:
@@ -319,17 +327,23 @@ class OcgDist(AbstractOcgisObject):
         return ret
 
 
-def barrier_print(*args):
+def barrier_print(*args, **kwargs):
+    kwargs = kwargs.copy()
+    comm = kwargs.pop('comm', MPI_COMM)
+    assert len(kwargs) == 0
+
+    size = comm.Get_size()
+    rank = comm.Get_rank()
     if len(args) == 1:
         args = args[0]
-    ranks = list(range(MPI_SIZE))
-    MPI_COMM.Barrier()
-    for rank in ranks:
-        if rank == MPI_RANK:
+    ranks = list(range(size))
+    comm.Barrier()
+    for r in ranks:
+        if r == rank:
             print('')
-            print('(rank={}, barrier=True) {}'.format(MPI_RANK, args))
+            print('(rank={}, barrier=True) {}'.format(rank, args))
             print('')
-        MPI_COMM.Barrier()
+        comm.Barrier()
 
 
 def create_slices(length, size):
@@ -509,6 +523,10 @@ def create_nd_slices(splits, shape):
     return tuple(ret)
 
 
+def create_template_rank_dict():
+    return {None: {'dimensions': {}, 'groups': {}, 'variables': {}}}
+
+
 def find_dimension_in_sequence(dimension_name, dimensions):
     ret = None
     for dim in dimensions:
@@ -561,15 +579,132 @@ def get_standard_comm_state(comm=None):
     return comm, comm.Get_rank(), comm.Get_size()
 
 
-def get_template_rank_dict():
-    return {None: {'dimensions': {}, 'groups': {}, 'variables': {}}}
-
-
 def rank_print(*args):
     if len(args) == 1:
         args = args[0]
     msg = '(rank={}) {}'.format(MPI_RANK, args)
     print(msg)
+
+
+def redistribute_by_src_idx(variable, dimname, dimension):
+    """
+    Redistribute values in ``variable`` using the source index associated with ``dimension``. The reloads the data from
+    source and does not do an in-memory redistribution using MPI.
+
+    This function is collection across the current `~ocgis.OcgVM`.
+
+    * Uses fancy indexing only.
+    * Gathers all source indices to a single processor.
+
+    :param variable: The variable to redistribute.
+    :type variable: :class:`~ocgis.Variable`
+    :param str dimname: The name of the dimension holding the source indices.
+    :param dimension: The dimension object.
+    :type dimension: :class:`~ocgis.Dimension`
+    """
+    from ocgis import SourcedVariable, Variable, vm
+    from ocgis.variable.dimension import create_src_idx
+
+    assert isinstance(variable, SourcedVariable)
+    assert dimname is not None
+
+    # If this is a serial operation just return. The rank should be fully autonomous in terms of its source information.
+    if vm.size == 1:
+        return
+
+    # There needs to be at least one rank to redistribute.
+    live_ranks = vm.get_live_ranks_from_object(variable)
+    if len(live_ranks) == 0:
+        raise ValueError('There must be at least one rank to redistribute by source index.')
+
+    # Remove relevant values from a variable.
+    def _reset_variable_(target):
+        target._is_empty = None
+        target._mask = None
+        target._value = None
+        target._has_initialized_value = False
+
+    # Gather the sliced dimensions. This dimension hold the source indices that are redistributed.
+    dims_global = vm.gather(dimension)
+
+    if vm.rank == 0:
+        # Filter any none-type dimensions to handle currently empty ranks.
+        dims_global = [d for d in dims_global if d is not None]
+        # Convert any bounds-type source indices to fancy type.
+        # TODO: Support bounds-type source indices.
+        for d in dims_global:
+            if d._src_idx_type == SourceIndexType.BOUNDS:
+                d._src_idx = create_src_idx(*d._src_idx, si_type=SourceIndexType.FANCY)
+        # Create variable to scatter that holds the new global source indices.
+        global_src_idx = hgather([d._src_idx for d in dims_global])
+        global_src_idx = Variable(name='global_src_idx', value=global_src_idx, dimensions=dimname)
+        # The new size is also needed to create a regular distribution for the variable scatter.
+        global_src_idx_size = global_src_idx.size
+    else:
+        global_src_idx, global_src_idx_size = [None] * 2
+
+    # Build the new distribution based on the gathered source indices.
+    global_src_idx_size = vm.bcast(global_src_idx_size)
+    dest_dist = OcgDist()
+    new_dim = dest_dist.create_dimension(dimname, global_src_idx_size, dist=True)
+    dest_dist.update_dimension_bounds()
+
+    # This variable holds the new source indices.
+    new_rank_src_idx = variable_scatter(global_src_idx, dest_dist)
+
+    if new_rank_src_idx.is_empty:
+        # Support new empty ranks following the scatter.
+        variable.convert_to_empty()
+    else:
+        # Reset the variable so everything can be loaded from source.
+        _reset_variable_(variable)
+        # Update the source index on the target dimension.
+        new_dim._src_idx = new_rank_src_idx.get_value()
+        # Add the dimension with the new source index to the collection.
+        variable.parent.dimensions[dimname] = new_dim
+
+    # All emptiness should be pushed back to the dimensions.
+    variable.parent._is_empty = None
+    for var in variable.parent.values():
+        var._is_empty = None
+
+    # Any variables that have a shared dimension should also be reset.
+    for var in variable.parent.values():
+        if dimname in var.dimension_names:
+            if new_rank_src_idx.is_empty:
+                var.convert_to_empty()
+            else:
+                _reset_variable_(var)
+
+
+def variable_collection_scatter(variable_collection, dest_dist):
+    from ocgis import vm
+
+    if vm.rank == 0:
+        for v in variable_collection.values():
+            if v.dist:
+                msg = "Only variables with no prior distribution may be scattered. '{}' is distributed."
+                raise ValueError(msg.format(v.name))
+        target = variable_collection.first()
+    else:
+        target = None
+    sv = variable_scatter(target, dest_dist)
+    svc = sv.parent
+
+    if vm.rank == 0:
+        n_children = len(variable_collection.children)
+    else:
+        n_children = None
+    n_children = vm.bcast(n_children)
+    if vm.rank == 0:
+        children = list(variable_collection.children.values())
+    else:
+        children = [None] * n_children
+    for child in children:
+        scattered_child = variable_collection_scatter(child, dest_dist)[0]
+        svc.add_child(scattered_child, force=True)
+
+    return svc
 
 
 def variable_gather(variable, root=0):
@@ -582,9 +717,9 @@ def variable_gather(variable, root=0):
         if vm.rank == root:
             new_variable = variable.copy()
             new_variable.dtype = variable.dtype
-            new_variable.set_mask(None)
-            new_variable.set_value(None)
-            new_variable.set_dimensions(None)
+            new_variable._mask = None
+            new_variable._value = None
+            new_variable._dimensions = None
             assert not new_variable.has_allocated_value
         else:
             new_variable = None
@@ -742,36 +877,6 @@ def variable_scatter(variable, dest_dist, root=0, strict=False):
     scattered_variable.parent._dimensions = dd_dict
 
     return scattered_variable
-
-
-def variable_collection_scatter(variable_collection, dest_dist):
-    from ocgis import vm
-
-    if vm.rank == 0:
-        for v in variable_collection.values():
-            if v.dist:
-                msg = "Only variables with no prior distribution may be scattered. '{}' is distributed."
-                raise ValueError(msg.format(v.name))
-        target = variable_collection.first()
-    else:
-        target = None
-    sv = variable_scatter(target, dest_dist)
-    svc = sv.parent
-
-    if vm.rank == 0:
-        n_children = len(variable_collection.children)
-    else:
-        n_children = None
-    n_children = vm.bcast(n_children)
-    if vm.rank == 0:
-        children = list(variable_collection.children.values())
-    else:
-        children = [None] * n_children
-    for child in children:
-        scattered_child = variable_collection_scatter(child, dest_dist)[0]
-        svc.add_child(scattered_child, force=True)
-
-    return svc
 
 
 def vgather(elements):

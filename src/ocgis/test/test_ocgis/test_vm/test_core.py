@@ -1,6 +1,6 @@
 from unittest import SkipTest
 
-from ocgis import OcgVM, vm, Dimension
+from ocgis import OcgVM, vm, Dimension, env
 from ocgis.driver.request.core import RequestDataset
 from ocgis.test.base import TestBase, attr
 from ocgis.vmachine.mpi import MPI_SIZE, MPI_RANK, MPI_COMM
@@ -154,6 +154,14 @@ class TestOcgVM(TestBase):
         self.assertEqual(actual, (0, 2, 3))
 
         vm.finalize()
+
+    def test_get_mpi_type(self):
+        if env.USE_MPI4PY:
+            from mpi4py import MPI
+            actual = OcgVM.get_mpi_type(int)
+            self.assertEqual(actual, MPI.LONG_LONG)
+        else:
+            raise SkipTest('not env.USE_MPI4PY')
 
     @attr('mpi')
     def test_scoped(self):

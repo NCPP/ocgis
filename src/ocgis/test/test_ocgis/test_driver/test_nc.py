@@ -1,6 +1,7 @@
 import pickle
 from collections import OrderedDict
 from copy import deepcopy
+from unittest import SkipTest
 
 import fiona
 import numpy as np
@@ -12,8 +13,8 @@ from ocgis import RequestDataset
 from ocgis import env
 from ocgis.base import get_variable_names
 from ocgis.collection.field import Field
-from ocgis.constants import DimensionMapKey, DMK, KeywordArgument
-from ocgis.driver.base import iter_all_group_keys
+from ocgis.constants import DimensionMapKey, DMK, KeywordArgument, MPIWriteMode
+from ocgis.driver.base import iter_all_group_keys, driver_scope
 from ocgis.driver.dimension_map import DimensionMap
 from ocgis.driver.nc import DriverNetcdf, DriverNetcdfCF, remove_netcdf_attribute, get_crs_variable
 from ocgis.exc import OcgWarning, CannotFormatTimeError, \
@@ -81,13 +82,32 @@ class Test(TestBase):
 
 
 class TestDriverNetcdf(TestBase):
+    def create_rank_valued_netcdf(self):
+        rank_size = 10
+        size_global = vm.size_global
+        with vm.scoped('write rank netcdf', [0]):
+            if not vm.is_null:
+                path = self.get_temporary_file_path('dist_desired.nc')
+                dim = Dimension('dist_dim', rank_size * size_global)
+                var = Variable(name='data', dimensions=dim, attrs={'hi': 5})
+                for rank in range(size_global):
+                    value = np.ones(rank_size) + (10 * (rank + 1))
+                    bounds = (rank_size * rank, rank_size * rank + rank_size)
+                    var.get_value()[bounds[0]: bounds[1]] = value
+                var.parent.attrs = {'hi_dataset_level': 'whee'}
+                var.write(path)
+            else:
+                path = None
+        path = vm.bcast(path)
+        return path
+
     def test_init(self):
         path = self.get_temporary_file_path('foo.nc')
         with self.nc_scope(path, 'w') as ds:
             ds.createDimension('a', 2)
         rd = RequestDataset(uri=path, driver='netcdf')
         self.assertIsInstance(rd.driver, DriverNetcdf)
-        vc = rd.get_raw_field()
+        vc = rd.create_raw_field()
         self.assertEqual(len(vc), 0)
 
     def test_system_changing_field_name(self):
@@ -105,7 +125,7 @@ class TestDriverNetcdf(TestBase):
 
         rd = RequestDataset(path1)
         # rd.inspect()
-        nvc = rd.get_raw_field()
+        nvc = rd.create_raw_field()
         nvc2 = nvc.children['vc2']
         self.assertIsNone(nvc2['var2']._value)
         self.assertEqual(nvc2.name, 'vc2')
@@ -116,7 +136,7 @@ class TestDriverNetcdf(TestBase):
         nvc.write(path2)
         rd2 = RequestDataset(path2)
         # rd2.inspect()
-        n2vc = rd2.get_raw_field()
+        n2vc = rd2.create_raw_field()
         self.assertEqual(n2vc.children[nvc2.name].name, nvc2.name)
 
     def test_system_concatenating_files(self):
@@ -136,7 +156,53 @@ class TestDriverNetcdf(TestBase):
         self.assertNumpyAll(actual, field.data_variables[0].get_value())
         self.assertNumpyAll(actual_field.time.value_numtime, field.time.value_numtime)
 
-    def test_get_dist(self):
+    @mock.patch('netCDF4.Dataset')
+    @mock.patch('netCDF4.MFDataset')
+    @mock.patch('ocgis.RequestDataset', spec_set=True)
+    def test_system_driver_kwargs(self, m_RequestDataset, m_MFDataset, m_Dataset):
+        m_RequestDataset.driver_kwargs = {'clobber': False}
+        m_RequestDataset.opened = None
+        uri = 'a/path/foo.nc'
+        m_RequestDataset.uri = uri
+
+        driver = DriverNetcdf(m_RequestDataset)
+        driver.inquire_opened_state = mock.Mock(return_value=False)
+
+        with driver_scope(driver) as _:
+            m_Dataset.assert_called_once_with(uri, mode='r', clobber=False)
+
+        m_RequestDataset.driver_kwargs = {'aggdim': 'not_time'}
+        m_RequestDataset.opened = None
+        uri = ['a/path/foo1.nc', 'a/path/foo2.nc']
+        m_RequestDataset.uri = uri
+        with driver_scope(driver) as _:
+            m_MFDataset.assert_called_once_with(uri, aggdim='not_time')
+
+    def test_system_renaming_dimensions_on_variables(self):
+        var1 = Variable(name='var1', value=[1, 2], dimensions='dim')
+        var2 = Variable(name='var2', value=[3, 4], dimensions='dim')
+        vc = VariableCollection(variables=[var1, var2])
+        path = self.get_temporary_file_path('out.nc')
+        vc.write(path)
+
+        rd = RequestDataset(path)
+        meta = rd.metadata
+        meta['dimensions']['new_dim'] = {'size': 2}
+        meta['variables']['var2']['dimensions'] = ('new_dim',)
+
+        field = rd.get()
+        self.assertEqual(field['var2'].dimensions[0].name, 'new_dim')
+        self.assertEqual(field['var2'].get_value().tolist(), [3, 4])
+
+        path2 = self.get_temporary_file_path('out2.nc')
+        field.write(path2)
+
+        rd2 = RequestDataset(path2)
+        field2 = rd2.get()
+        self.assertEqual(field2['var2'].dimensions[0].name, 'new_dim')
+        self.assertEqual(field2['var2'].get_value().tolist(), [3, 4])
+
+    def test_create_dist(self):
 
         def _create_dimensions_(ds, k):
             if k.dim_count > 0:
@@ -162,7 +228,7 @@ class TestDriverNetcdf(TestBase):
             rd = RequestDataset(uri=path)
             driver = DriverNetcdf(rd)
 
-            actual = driver.get_dist().mapping
+            actual = driver.create_dist().mapping
 
             # All dimensions are not distributed.
             for keyseq in iter_all_group_keys(actual[MPI_RANK]):
@@ -172,16 +238,13 @@ class TestDriverNetcdf(TestBase):
 
             if k.dim_count == 0 and k.nested:
                 desired = {None: {'variables': {}, 'dimensions': {}, 'groups': {
-                    'nest1': {'variables': {}, 'dimensions': {}, 'groups': {
-                        'nest2': {'variables': {}, 'dimensions': {}, 'groups': {'nest1': {'variables': {},
-                                                                                          'dimensions': {
-                                                                                              'outlier': Dimension(
-                                                                                                  name='outlier',
-                                                                                                  size=4,
-                                                                                                  size_current=4,
-                                                                                                  dist=False,
-                                                                                                  src_idx='auto')},
-                                                                                          'groups': {}}}}}}}}}
+                    u'nest1': {'variables': {}, 'dimensions': {}, 'groups': {
+                        u'nest2': {'variables': {}, 'dimensions': {},
+                                   'groups': {u'nest3': {'variables': {}, 'dimensions': {}, 'groups': {}},
+                                              u'nest1': {'variables': {}, 'dimensions': {
+                                                  u'outlier': Dimension(name='outlier', size=4, size_current=4,
+                                                                        dist=False, is_empty=False, src_idx='auto')},
+                                                         'groups': {}}}}}}}}}
                 self.assertEqual(actual[MPI_RANK], desired)
 
             if k.dim_count == 2 and k.nested:
@@ -252,6 +315,40 @@ class TestDriverNetcdf(TestBase):
                    '    } // group: group1_group1', '  } // group: group1', '}']
         self.assertEqual(lines, desired)
 
+    @attr('data')
+    def test_create_field(self):
+        # test updating of regrid source flag
+        rd = self.test_data.get_rd('cancm4_tas')
+        driver = DriverNetcdf(rd)
+        field = driver.create_field()
+        self.assertTrue(field.regrid_source)
+        rd.regrid_source = False
+        driver = DriverNetcdf(rd)
+        field = driver.create_field()
+        self.assertFalse(field.regrid_source)
+
+        # test flag with an assigned coordinate system
+        rd = self.test_data.get_rd('cancm4_tas')
+        driver = DriverNetcdf(rd)
+        field = driver.create_field()
+        self.assertFalse(field._has_assigned_coordinate_system)
+
+        rd = self.test_data.get_rd('cancm4_tas', kwds={'crs': WGS84()})
+        self.assertTrue(rd._has_assigned_coordinate_system)
+        driver = DriverNetcdf(rd)
+        field = driver.create_field()
+        self.assertTrue(field._has_assigned_coordinate_system)
+
+    @mock.patch('ocgis.OcgVM')
+    def test_get_write_modes(self, m_vm):
+        # Test asynchronous write mode is chosen.
+        m_vm.size = 2
+        env.USE_NETCDF4_MPI = True
+        kwds = {KeywordArgument.DATASET_KWARGS: {'parallel': True}}
+        actual = DriverNetcdf._get_write_modes_(m_vm, **kwds)
+        desired = [MPIWriteMode.ASYNCHRONOUS]
+        self.assertEqual(actual, desired)
+
     def test_open(self):
         # Test with a multi-file dataset.
         path1 = self.get_temporary_file_path('foo1.nc')
@@ -263,8 +360,16 @@ class TestDriverNetcdf(TestBase):
                 b[:] = idx
         uri = [path1, path2]
         rd = RequestDataset(uri=uri, driver=DriverNetcdf)
-        field = rd.get_raw_field()
+        field = rd.create_raw_field()
         self.assertEqual(field['b'].get_value().tolist(), [0, 1])
+
+    @mock.patch('netCDF4.Dataset')
+    @mock.patch('ocgis.OcgVM')
+    def test_open_parallel_netcdf4_python(self, m_vm, m_Dataset):
+        m_vm.size = 2
+        env.USE_NETCDF4_MPI = True
+        _ = DriverNetcdf._open_('a/path', mode='w', vm=m_vm)
+        m_Dataset.assert_called_with('a/path', mode='w', parallel=True, comm=m_vm.comm)
 
     def test_write_variable(self):
         path = self.get_temporary_file_path('foo.nc')
@@ -297,13 +402,13 @@ class TestDriverNetcdf(TestBase):
                 var.foo = 'bar'
         else:
             path_in, path_out = [None] * 2
-        path_in = MPI_COMM.bcast(path_in)
-        path_out = MPI_COMM.bcast(path_out)
+        path_in = vm.bcast(path_in)
+        path_out = vm.bcast(path_out)
 
         rd = RequestDataset(path_in)
         rd.metadata['dimensions']['seven']['dist'] = True
         driver = DriverNetcdf(rd)
-        vc = driver.get_raw_field()
+        vc = driver.create_raw_field()
         with vm.scoped_by_emptyable('write', vc):
             if not vm.is_null:
                 vc.write(path_out)
@@ -324,10 +429,43 @@ class TestDriverNetcdf(TestBase):
 
         rd = RequestDataset(path_in)
         driver = DriverNetcdf(rd)
-        vc = driver.get_raw_field()
+        vc = driver.create_raw_field()
         vc.write(path_out, dataset_kwargs={'format': 'NETCDF3_CLASSIC'}, variable_kwargs={'zlib': True})
 
         self.assertNcEqual(path_in, path_out, ignore_attributes={'var_seven': ['_FillValue']})
+
+    @attr('mpi')
+    def test_write_variable_collection_netcdf4_mpi(self):
+        # TODO: TEST: Test writing a grouped netCDF file in parallel.
+
+        self.add_barrier = False
+        if not env.USE_NETCDF4_MPI:
+            raise SkipTest('not env.USE_NETCDF4_MPI')
+        path = self.create_rank_valued_netcdf()
+
+        # if vm.rank == 0:
+        #     self.ncdump(path, header_only=False)
+
+        rd = RequestDataset(path, driver='netcdf')
+        rd.metadata['dimensions']['dist_dim']['dist'] = True
+
+        field = rd.get()
+
+        # self.barrier_print(field['data'].get_value())
+
+        if vm.rank == 0:
+            actual_path = self.get_temporary_file_path('actual_mpi.nc')
+        else:
+            actual_path = None
+        actual_path = vm.bcast(actual_path)
+
+        # self.barrier_print('before field.write')
+        field.write(actual_path)
+        # self.barrier_print('after field.write')
+
+        if vm.rank == 0:
+            # self.ncdump(actual_path, header_only=False)
+            self.assertNcEqual(actual_path, path)
 
     @attr('mpi')
     def test_write_variable_collection_object_arrays(self):
@@ -525,7 +663,7 @@ class TestDriverNetcdfCF(TestBase):
             path_out = self.get_temporary_file_path('foo.nc')
         else:
             path_out = None
-        path_out = MPI_COMM.bcast(path_out)
+        path_out = vm.bcast(path_out)
 
         rd = self.test_data.get_rd('cancm4_tas')
         rd.metadata['dimensions']['lat']['dist'] = True
@@ -539,7 +677,7 @@ class TestDriverNetcdfCF(TestBase):
             self.assertNcEqual(path_out, rd.uri, ignore_variables=['latitude_longitude'],
                                ignore_attributes=ignore_attributes)
 
-    def test_system_get_field_dimensioned_variables(self):
+    def test_system_create_field_dimensioned_variables(self):
         """Test data is appropriately tagged to identify dimensioned variables."""
 
         path = self.get_temporary_file_path('foo.nc')
@@ -611,13 +749,13 @@ class TestDriverNetcdfCF(TestBase):
         self.assertEqual(actual.get_variable(DimensionMapKey.LEVEL), 'does_not_exist')
         # The driver dimension map always loads from the data.
         self.assertNotEqual(dm, driver.create_dimension_map(driver.metadata_source))
-        actual = driver.get_field().dimension_map
+        actual = driver.create_field().dimension_map
         self.assertEqual(actual.get_variable(DMK.LEVEL), dm['level']['variable'])
 
         # Test a dimension name is converted to a list.
         dmap = {DimensionMapKey.TIME: {DimensionMapKey.VARIABLE: 'time', DimensionMapKey.DIMENSION: 'time'}}
         d = self.get_drivernetcdf(dimension_map=dmap)
-        f = d.get_field()
+        f = d.create_field()
         actual = f.dimension_map.get_dimension(DimensionMapKey.TIME)
         self.assertEqual(actual, ['time'])
 
@@ -711,9 +849,9 @@ class TestDriverNetcdfCF(TestBase):
         r = d.get_dump_report()
         self.assertGreaterEqual(len(r), 24)
 
-    def test_get_field(self):
+    def test_create_field(self):
         driver = self.get_drivernetcdf()
-        field = driver.get_field(format_time=False)
+        field = driver.create_field(format_time=False)
         self.assertEqual(field.driver.key, driver.key)
         self.assertIsInstance(field.time, TemporalVariable)
         with self.assertRaises(CannotFormatTimeError):
@@ -730,7 +868,7 @@ class TestDriverNetcdfCF(TestBase):
         rd = RequestDataset(uri=path)
         driver = DriverNetcdfCF(rd)
         self.assertEqual(driver.get_crs(driver.metadata_source), CFSpherical())
-        self.assertEqual(driver.get_field().crs, CFSpherical())
+        self.assertEqual(driver.create_field().crs, CFSpherical())
 
         # Second, test the overloaded CRS is found.
         desired = CoordinateReferenceSystem(epsg=2136)
@@ -738,7 +876,7 @@ class TestDriverNetcdfCF(TestBase):
         self.assertEqual(rd.crs, desired)
         driver = DriverNetcdfCF(rd)
         self.assertEqual(driver.get_crs(driver.metadata_source), CFSpherical())
-        field = driver.get_field()
+        field = driver.create_field()
         self.assertEqual(field.crs, desired)
         # Test file coordinate system variable is removed.
         self.assertNotIn('latitude_longitude', field)
@@ -751,7 +889,7 @@ class TestDriverNetcdfCF(TestBase):
         driver = DriverNetcdfCF(rd)
         self.assertEqual(rd.crs, env.DEFAULT_COORDSYS)
         self.assertEqual(driver.get_crs(driver.rd.metadata), env.DEFAULT_COORDSYS)
-        self.assertEqual(driver.get_field().crs, env.DEFAULT_COORDSYS)
+        self.assertEqual(driver.create_field().crs, env.DEFAULT_COORDSYS)
 
     def test_get_field_write_target(self):
         # Test coordinate system names are added to attributes of dimensioned variables.
@@ -769,8 +907,8 @@ class TestDriverNetcdfCF(TestBase):
         self.assertEqual(field.x.units, 'degrees_east')
 
         # Test bounds units are removed when writing.
-        x = Variable(name='x', value=[1, 2, 3], dtype=float, dimensions='x', units='hours')
-        y = Variable(name='y', value=[1, 2, 3], dtype=float, dimensions='x', units='hours')
+        x = Variable(name='x', value=[1, 2, 3], dtype=float, dimensions='xdim', units='hours')
+        y = Variable(name='y', value=[1, 2, 3], dtype=float, dimensions='ydim', units='hours')
         grid = Grid(x, y)
         grid.set_extrapolated_bounds('x_bounds', 'y_bounds', 'bounds')
         self.assertEqual(x.bounds.units, x.units)

@@ -3,17 +3,14 @@ from abc import abstractmethod
 
 import numpy as np
 import six
-from shapely.geometry.base import BaseGeometry, BaseMultipartGeometry
 from shapely.geometry.linestring import LineString
 from shapely.geometry.multipoint import MultiPoint
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.point import Point
 from shapely.geometry.polygon import Polygon
-from shapely.ops import cascaded_union
 
-import ocgis
 from ocgis.base import AbstractOcgisObject
-from ocgis.util.helpers import make_poly
+from ocgis.util.helpers import make_poly, iter_exploded_geometries
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -115,7 +112,7 @@ class GeometryWrapper(AbstractWrapper):
             # Loop through individual polygon components. Doing this operation on multi-polygons causes unexpected
             # behavior due to potential invalid geometries.
             processed_geometries = []
-            for ctr, to_process in enumerate(iter_exploded(geom)):
+            for ctr, to_process in enumerate(iter_exploded_geometries(geom)):
                 try:
                     assert to_process.is_valid
                 except AssertionError:
@@ -130,7 +127,7 @@ class GeometryWrapper(AbstractWrapper):
                     right = to_process.intersection(self.clip2)
 
                     # Pull out the right side polygons.
-                    right_polygons = [poly for poly in iter_exploded(right)]
+                    right_polygons = [poly for poly in iter_exploded_geometries(right)]
 
                     # Adjust polygons falling the left window.
                     if isinstance(left, Polygon):
@@ -210,8 +207,8 @@ class GeometryWrapper(AbstractWrapper):
             # If a polygon crosses the 180 axis, then the polygon will need to be split with intersection and
             # recombined.
             elif bounds[1] <= self.wrap_axis < bounds[2]:
-                left = [poly for poly in iter_exploded(geom.intersection(self.left_clip))]
-                right = [poly for poly in iter_exploded(_shift_(geom.intersection(self.right_clip)))]
+                left = [poly for poly in iter_exploded_geometries(geom.intersection(self.left_clip))]
+                right = [poly for poly in iter_exploded_geometries(_shift_(geom.intersection(self.right_clip)))]
                 try:
                     new_geom = MultiPolygon(left + right)
                 except TypeError:
@@ -246,7 +243,7 @@ class GeometryWrapper(AbstractWrapper):
     def _should_unwrap_geom_(self, geom):
         # Loop through the polygons determining if any coordinates need to be shifted and flag accordingly.
         ret = False
-        for polygon in iter_exploded(geom):
+        for polygon in iter_exploded_geometries(geom):
             coords = np.array(polygon.exterior.coords)
             if np.any(coords[:, 0] < self.center_axis):
                 ret = True
@@ -303,16 +300,3 @@ def apply_wrapping_index_map(imap, to_remap):
     imap = imap.reshape(-1)
     to_remap = to_remap.reshape(-1)
     to_remap[:] = to_remap[imap]
-
-
-def iter_exploded(geom):
-    if isinstance(geom, BaseMultipartGeometry):
-        itr = iter(geom)
-    else:
-        itr = [geom]
-    for element1 in itr:
-        if isinstance(element1, BaseMultipartGeometry):
-            for element2 in iter_exploded(element1):
-                yield element2
-        else:
-            yield element1

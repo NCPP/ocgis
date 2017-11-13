@@ -25,7 +25,7 @@ from ocgis import osr
 from ocgis.base import get_variable_names
 from ocgis.collection.field import Field
 from ocgis.collection.spatial import SpatialCollection
-from ocgis.constants import WrappedState, KeywordArgument, TagName, HeaderName, GridAbstraction
+from ocgis.constants import WrappedState, KeywordArgument, TagName, HeaderName, GridAbstraction, OutputFormatName
 from ocgis.exc import ExtentError, DefinitionValidationError
 from ocgis.ops.core import OcgOperations
 from ocgis.ops.interpreter import OcgInterpreter
@@ -68,11 +68,13 @@ class TestSimpleBase(TestBase):
             self.nc_factory().write()
         MPI_COMM.Barrier()
 
-    def get_dataset(self, time_range=None, level_range=None, time_region=None):
+    def get_dataset(self, time_range=None, level_range=None, time_region=None, **kwargs):
         uri = os.path.join(env.DIR_OUTPUT, self.fn)
-        return ({'uri': uri, 'variable': self.var,
-                 'time_range': time_range, 'level_range': level_range,
-                 'time_region': time_region})
+        ret = {'uri': uri, 'variable': self.var,
+               'time_range': time_range, 'level_range': level_range,
+               'time_region': time_region}
+        ret.update(kwargs)
+        return ret
 
     def get_request_dataset(self, *args, **kwargs):
         if KeywordArgument.URI not in kwargs:
@@ -657,6 +659,8 @@ class TestSimple(TestSimpleBase):
         calc = 'foo2=foo+4'
         ocgis.env.OVERWRITE = True
         for of in OutputFormat.iter_possible():
+            if of == OutputFormatName.ESMPY_GRID:
+                continue
             ops = ocgis.OcgOperations(dataset=rd, calc=calc, output_format=of)
             ret = ops.execute()
             if of in ['nc']:
@@ -812,17 +816,17 @@ class TestSimple(TestSimpleBase):
 
     def test_nc_discrete_geometry_dim_name(self):
         # Test changing the geom dimension name
-        geom = [{'geom': Point(-104., 38.), 'properties': {'Name': 'A'}},]
+        geom = [{'geom': Point(-104., 38.), 'properties': {'Name': 'A'}}, ]
 
         ops = self.get_ops(kwds={'geom': geom, 'aggregate': True,
                                  'search_radius_mult': 0.01,
                                  'output_format': 'nc',
-                                 'output_format_options': {'geom_dim':'region'} })
+                                 'output_format_options': {'geom_dim': 'region'}})
         ret = self.get_ret(ops)
         with self.nc_scope(ret) as ds:
             self.assertEqual(ds.variables[self.var].dimensions, (
-            constants.DimensionName.TEMPORAL, constants.NAME_DIMENSION_LEVEL,
-            'region'))
+                constants.DimensionName.TEMPORAL, constants.NAME_DIMENSION_LEVEL,
+                'region'))
 
     def test_nc_discrete_geometry_validate(self):
 
@@ -1490,12 +1494,8 @@ class TestSimpleMultivariate(TestSimpleBase):
         return RequestDataset(**ds)
 
     def get_multiple_request_datasets(self):
-        rd1 = self.get_request_dataset()
-        rd1._field_name = 'rd1'
-        rd1._rename_variable = ['f1', 'f2']
-        rd2 = self.get_request_dataset()
-        rd2._field_name = 'rd2'
-        rd2._rename_variable = ['ff1', 'ff2']
+        rd1 = self.get_request_dataset(rename_variable=['f1', 'f2'], field_name='rd1')
+        rd2 = self.get_request_dataset(rename_variable=['ff1', 'ff2'], field_name='rd2')
         return [rd1, rd2]
 
     def run_field_tst(self, field):
@@ -1566,7 +1566,7 @@ class TestSimpleMultivariate(TestSimpleBase):
 
     def test_operations_convert_multiple_request_datasets(self):
         for o in OutputFormat.iter_possible():
-            if o in [constants.OutputFormatName.NETCDF,]:
+            if o in [constants.OutputFormatName.NETCDF]:
                 continue
             rds = self.get_multiple_request_datasets()
             try:

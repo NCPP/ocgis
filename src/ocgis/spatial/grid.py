@@ -10,7 +10,8 @@ from shapely.geometry.base import BaseGeometry, BaseMultipartGeometry
 import ocgis
 from ocgis import Variable, vm
 from ocgis import constants
-from ocgis.base import get_dimension_names, raise_if_empty, AbstractOcgisObject, get_variable_names
+from ocgis.base import get_dimension_names, raise_if_empty, AbstractOcgisObject, get_variable_names, \
+    is_unstructured_driver
 from ocgis.constants import WrappedState, VariableName, KeywordArgument, GridAbstraction, DriverKey, \
     GridSplitterConstants, RegriddingRole, Topology, DMK, CFName
 from ocgis.environment import ogr, env
@@ -251,6 +252,8 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         :returns: Shallow copy of the sliced grid.
         :rtype: :class:`~ocgis.Grid`
         """
+        if self.has_shared_dimension:
+            raise ValueError('Grid coordinate variables may not have shared dimensions when slicing.')
 
         if not isinstance(slc, dict):
             slc = get_dslice(self.dimensions, slc)
@@ -337,6 +340,12 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         return self.archetype.has_bounds
 
     @property
+    def has_shared_dimension(self):
+        """Return ``True`` if the x/y dimensions are equal."""
+
+        return len(set(get_dimension_names(self.dimensions))) != len(self.dimensions)
+
+    @property
     def is_vectorized(self):
         """
         :return: ``True`` if the grid is vectorized (factorized). Vectorized grids have one-dimensional x- and
@@ -375,6 +384,21 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         return ret
 
     @property
+    def resolution_x(self):
+        x_value = self.x.get_value()
+        if x_value.size == 1:
+            return 0.0
+        else:
+            resolution_limit = constants.RESOLUTION_LIMIT
+            is_vectorized = x_value.ndim == 1
+            if is_vectorized:
+                target = np.abs(np.diff(np.abs(x_value[0:resolution_limit])))
+            else:
+                target = np.abs(np.diff(np.abs(x_value[:, 0:resolution_limit]), axis=1))
+            ret = np.mean(target)
+            return ret
+
+    @property
     def shape(self):
         """
         :rtype: :class:`tuple` of :class:`int`
@@ -391,6 +415,70 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         ret = super(AbstractGrid, self).copy()
         ret.parent = ret.parent.copy()
         return ret
+
+    def diagnostics(self, plot_xy=False, scatter_xy=False, unique_xy=False, verbose=False, plot_var=None):
+        """Print some grid diagnostics. This is designed to be customized."""
+
+        assert self.is_vectorized
+
+        xv = self.x.get_value()
+        yv = self.y.get_value()
+
+        x_unique = np.unique(xv)
+        y_unique = np.unique(yv)
+
+        lines = ['Structured Grid:']
+        sub = ['        shape= {}'.format(self.shape),
+               '         size= {}'.format(np.product(self.shape)),
+               '    variables= {}'.format(get_variable_names([self.y, self.x])),
+               '   dimensions= {}'.format(get_dimension_names(self.dimensions)),
+               'is_vectorized= {}'.format(self.is_vectorized),
+               ' shape_unique= {}'.format((y_unique.size, x_unique.size))
+               ]
+        if unique_xy:
+            assert self.shape[0] == self.shape[1]
+            uset = set()
+            for ii in range(self.shape[0]):
+                if ii % 100 == 0:
+                    if verbose:
+                        print('{} of {}'.format(ii, self.shape[0]))
+                uset.update([(xv[ii], yv[ii])])
+            sub.append('    unique_xy= {}'.format(len(set(uset))))
+
+        sub = [' | {}'.format(s) for s in sub]
+        lines.extend(sub)
+        for l in lines:
+            print(l)
+        print('')
+        print('Dimension Map:')
+        self.dimension_map.pprint(as_dict=True)
+
+        if plot_xy:
+            import matplotlib.pyplot as plt
+            assert self.is_vectorized
+            f, axarr = plt.subplots(2)
+            for ii, t in enumerate(['x', 'y']):
+                axarr[ii].plot(np.arange(self.shape[ii]), getattr(self, t).get_value())
+                axarr[ii].set_ylabel(t)
+            axarr[0].set_title('Factorized Grid Coordinate Values')
+            axarr[1].set_xlabel('Index'.format(t))
+            plt.show()
+        if scatter_xy:
+            import matplotlib.pyplot as plt
+            plt.scatter(self.x.get_value(), self.y.get_value())
+            plt.title('X/Y Scatter Plot')
+            plt.xlabel('x Coordinate Value')
+            plt.ylabel('y Coordinate Value')
+            plt.show()
+        if plot_var is not None:
+            import matplotlib.pyplot as plt
+            assert self.is_vectorized
+            var = getattr(self, plot_var)
+            plt.scatter(np.arange(var.shape[0]), var.get_value())
+            plt.xlabel('Index')
+            plt.ylabel('Value')
+            plt.title('Value Plot: {}'.format(var.name))
+            plt.show()
 
     def extract(self, clean_break=False):
         """
@@ -450,6 +538,9 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         """
         # TODO: This should be generalized for grid objects and use a standardized set of dimensions.
         raise_if_empty(self)
+
+        if self.has_shared_dimension:
+            raise ValueError('Grid coordinate variables may not have shared dimensions when slicing.')
 
         if isinstance(slc, dict):
             y_slc = slc[self.dimensions[0].name]
@@ -923,7 +1014,11 @@ class GridUnstruct(AbstractGrid):
         for g in geoms:
             g.hosted = True
 
-        self.dimension_map.set_driver(DriverKey.NETCDF_UGRID)
+        # Always overload the driver to UGRID if the current driver is not unstructured.
+        driver_klass = self.dimension_map.get_driver(as_class=True)
+        if not is_unstructured_driver(driver_klass):
+            self.dimension_map.set_driver(DriverKey.NETCDF_UGRID)
+
         super(GridUnstruct, self).__init__(abstraction=abstraction)
 
     def __getattribute__(self, name):
@@ -987,7 +1082,7 @@ class GridUnstruct(AbstractGrid):
             g.update_crs(*args, **kwargs)
 
     def _get_auto_abstraction_(self):
-        return self.abstractions_available.keys()[0]
+        return list(self.abstractions_available.keys())[0]
 
     def _get_available_abstractions_(self):
         hierarchy = [GridAbstraction.POLYGON, GridAbstraction.LINE, GridAbstraction.POINT]
@@ -1000,6 +1095,28 @@ class GridUnstruct(AbstractGrid):
 
     def _gs_create_index_bounds_(self, *args, **kwargs):
         pass
+
+
+def arr_intersects_bounds(arr, lower, upper, keep_touches=True, section_slice=None):
+    assert lower <= upper
+
+    if section_slice is not None:
+        ret = np.zeros(arr.shape, dtype=bool)
+        arr = arr[section_slice]
+
+    if keep_touches:
+        arr_lower = arr >= lower
+        arr_upper = arr <= upper
+    else:
+        arr_lower = arr > lower
+        arr_upper = arr < upper
+
+    if section_slice is None:
+        ret = np.logical_and(arr_lower, arr_upper)
+    else:
+        ret[section_slice] = np.logical_and(arr_lower, arr_upper)
+
+    return ret
 
 
 def create_grid_mask_variable(name, mask_value, dimensions):
@@ -1111,20 +1228,6 @@ def get_geometry_variable(grid, value=None, mask=None, use_bounds=True):
     return ret
 
 
-def get_arr_intersects_bounds(arr, lower, upper, keep_touches=True):
-    assert lower <= upper
-
-    if keep_touches:
-        arr_lower = arr >= lower
-        arr_upper = arr <= upper
-    else:
-        arr_lower = arr > lower
-        arr_upper = arr < upper
-
-    ret = np.logical_and(arr_lower, arr_upper)
-    return ret
-
-
 def grid_update_mask(grid, bounds_sequence, keep_touches=True):
     minx, miny, maxx, maxy = bounds_sequence
 
@@ -1148,7 +1251,7 @@ def remove_nones(target):
 def get_coordinate_boolean_array(grid_target, keep_touches, max_target, min_target):
     target_centers = grid_target.get_value()
 
-    res_target = np.array(get_arr_intersects_bounds(target_centers, min_target, max_target, keep_touches=keep_touches))
+    res_target = np.array(arr_intersects_bounds(target_centers, min_target, max_target, keep_touches=keep_touches))
     res_target = res_target.reshape(-1)
 
     return res_target
@@ -1213,13 +1316,13 @@ def expand_grid(grid):
         new_dimensions = [y.dimensions[0], x.dimensions[0]]
 
         x.set_bounds(None)
-        x.set_value(None)
+        x._value = None
         x.set_dimensions(new_dimensions)
         if not grid_is_empty:
             x.set_value(new_x_value)
 
         y.set_bounds(None)
-        y.set_value(None)
+        y._value = None
         y.set_dimensions(new_dimensions)
         if not grid_is_empty:
             y.set_value(new_y_value)

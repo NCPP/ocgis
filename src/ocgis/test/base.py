@@ -19,6 +19,7 @@ import numpy as np
 import six
 from shapely import wkt
 from shapely.geometry import Point
+from shapely.geometry.base import BaseMultipartGeometry
 
 from ocgis import RequestDataset
 from ocgis import SourcedVariable
@@ -94,7 +95,7 @@ class TestBase(unittest.TestCase):
         self.assertSetEqual(set(sequence1), set(sequence2), msg=msg)
 
     def assertDescriptivesAlmostEqual(self, desired_descriptives, actual_arr):
-        actual_descriptives = self.get_descriptive_statistics(actual_arr)
+        actual_descriptives = self.create_array_descriptive_statistics(actual_arr)
         for k, v in list(desired_descriptives.items()):
             if k == 'shape':
                 self.assertEqual(v, actual_descriptives['shape'])
@@ -388,13 +389,41 @@ class TestBase(unittest.TestCase):
         else:
             raise AssertionError('Arrays are equivalent within precision.')
 
+    def assertPolygonSimilar(self, lhs, rhs, places=6, check_type=True):
+        """
+        Assert two polygons are similar using a variety of methods. The two polygons could still differ. This avoids
+        checking exact coordinates and ordering.
+
+        :param lhs: The actual polygon.
+        :type lhs: :class:`~shapely.geometry.polygon.Polygon`
+        :param lhs: The desired polygon.
+        :type lhs: :class:`~shapely.geometry.polygon.Polygon`
+        :param int places: Numpy of decimal places to use for the fuzzy comparison.
+        :param bool check_type: If ``True``, compare the types of the inputs.
+        """
+
+        self.assertAlmostEqual(lhs.area, rhs.area, places=places)
+        self.assertAlmostEqual(lhs.intersection(rhs).area, lhs.area, places=places)
+        if check_type:
+            self.assertEqual(type(lhs), type(rhs))
+        if check_type and (isinstance(lhs, BaseMultipartGeometry) or isinstance(rhs, BaseMultipartGeometry)):
+            self.assertEqual(len(lhs), len(rhs))
+            for l, r in zip(lhs, rhs):
+                self.assertAlmostEqual(l.area, r.area, places=places)
+
     def assertWarns(self, warning, meth):
         with warnings.catch_warnings(record=True) as warning_list:
             warnings.simplefilter('always')
             meth()
             self.assertTrue(any(item.category == warning for item in warning_list))
 
-    def get_descriptive_statistics(self, arr):
+    @staticmethod
+    def barrier_print(*args, **kwargs):
+        from ocgis.vmachine.mpi import barrier_print
+        barrier_print(*args, **kwargs)
+
+    @staticmethod
+    def create_array_descriptive_statistics(arr):
         ret = {'mean': arr.mean(),
                'min': arr.min(),
                'max': arr.max(),
@@ -723,6 +752,10 @@ class TestBase(unittest.TestCase):
 
     def print_scope(self):
         return print_scope()
+
+    def rank_print(self, *args, **kwargs):
+        from ocgis.vmachine.mpi import rank_print
+        rank_print(*args, **kwargs)
 
     def setUp(self):
         from ocgis import vm

@@ -1,15 +1,17 @@
 import abc
+from collections import deque
 
 import numpy as np
 import six
 from shapely.geometry import Point, Polygon
 from shapely.geometry.base import BaseGeometry, BaseMultipartGeometry
 from shapely.geometry.linestring import LineString
+from shapely.geometry.multipolygon import MultiPolygon
 
 from ocgis import env, vm
-from ocgis.base import raise_if_empty
+from ocgis.base import raise_if_empty, is_unstructured_driver
 from ocgis.constants import KeywordArgument, GridAbstraction, VariableName, AttributeName, GridSplitterConstants, \
-    RegriddingRole, DMK, MPITag
+    RegriddingRole, DMK, MPITag, DriverKey, ConversionTarget, MPI_EMPTY_VALUE
 from ocgis.exc import RequestableFeature
 from ocgis.spatial.base import AbstractXYZSpatialContainer
 from ocgis.util.helpers import get_formatted_slice, arange_from_dimension, create_unique_global_array
@@ -81,7 +83,16 @@ class AbstractGeometryCoordinates(AbstractXYZSpatialContainer):
         kwargs[KeywordArgument.Y] = y
         kwargs[KeywordArgument.Z] = z
 
+        # The mask requires working with the element dimension which is dependent on the element connectivity index if
+        # present.
+        mask = kwargs.pop(KeywordArgument.MASK, None)
+
         super(AbstractGeometryCoordinates, self).__init__(**kwargs)
+
+        # Always overload the driver to UGRID if the current driver is not unstructured.
+        driver_klass = self.dimension_map.get_driver(as_class=True)
+        if not is_unstructured_driver(driver_klass):
+            self.dimension_map.set_driver(DriverKey.NETCDF_UGRID)
 
         if cindex == 'auto':
             dmap = self._get_canonical_dimension_map_(field=self.parent)
@@ -92,6 +103,10 @@ class AbstractGeometryCoordinates(AbstractXYZSpatialContainer):
             if not self.is_empty and self.element_dim.name == self.node_dim.name and self.abstraction != GridAbstraction.POINT:
                 msg = 'The element and node dimensions must have different names.'
                 raise ValueError(msg)
+
+        # Set the spatial mask following work with element connectivity to avoid a race condition.
+        if mask is not None:
+            self.set_mask(mask)
 
     def __getitem__(self, slc):
         slc = get_formatted_slice(slc, self.ndim)
@@ -143,12 +158,7 @@ class AbstractGeometryCoordinates(AbstractXYZSpatialContainer):
         """
 
         raise_if_empty(self)
-        if self.cindex is None:
-            ret = self.archetype.dimensions[0]
-        else:
-            ret = self.cindex.dimensions[0]
-
-        return ret
+        return self.parent.driver.get_element_dimension(self)
 
     @property
     def has_bounds(self):
@@ -160,6 +170,15 @@ class AbstractGeometryCoordinates(AbstractXYZSpatialContainer):
         return False
 
     @property
+    def has_multi(self):
+        """
+        If ``True``, this object represents multi-geometries (multi-polygon for example).
+
+        :rtype: bool
+        """
+        return self.multi_break_value is not None
+
+    @property
     def is_vectorized(self):
         """
         Always return ``False``. Geometry coordinates are never vectorized.
@@ -167,6 +186,15 @@ class AbstractGeometryCoordinates(AbstractXYZSpatialContainer):
         :rtype: bool
         """
         return False
+
+    @property
+    def multi_break_value(self):
+        """
+        The break value to use for determining multi-geometries.
+
+        :return: int | None
+        """
+        return self.parent.driver.get_multi_break_value(self.cindex)
 
     @property
     def ndim(self):
@@ -227,13 +255,51 @@ class AbstractGeometryCoordinates(AbstractXYZSpatialContainer):
 
     @abc.abstractproperty
     def __shapely_geometry_class__(self):
-        """Return the class to use for constructing Shapely geometry objects."""
+        """
+        Return the class to use for constructing Shapely geometry objects.
+
+        >>> return Polygon
+
+        :return: :class:`~shapely.geometry.base.BaseGeometry`
+        """
+
+    @property
+    def __shapely_multipart_class__(self):
+        """
+        Return the Shapely multipart geometry class to use for creating multi-geometry objects.
+
+        >>> return MultiPolygon
+
+        :return: :class:`~shapely.geometry.base.BaseMultipartGeometry`
+        """
+        raise NotImplementedError
 
     @abc.abstractproperty
     def __use_bounds_intersects_optimizations__(self):
         """Return ``True`` if bounds optimizations should be used."""
 
-    def get_geometry_iterable(self, use_mask=True, hint_mask=None, use_memory_optimizations=None):
+    def convert_to(self, target=ConversionTarget.GEOMETRY_VARIABLE, **kwargs):
+        """
+        Convert the geometry coordinate object to various targets.
+
+        :param target: The destination conversion target.
+        :type target: :attr:`~ocgis.constants.ConversionTarget`
+        :param dict kwargs: Keyword arguments for the creation of the destination object.
+        :return: Varies depending on the conversion target.
+        """
+        kwargs = kwargs.copy()
+        if target == ConversionTarget.GEOMETRY_VARIABLE:
+            from ocgis.variable.geom import GeometryVariable
+            kwargs[KeywordArgument.VALUE] = list(self.iter_geometries(with_index=False))
+            kwargs[KeywordArgument.DIMENSIONS] = [self.element_dim]
+            if self.crs is not None:
+                kwargs[KeywordArgument.CRS] = self.crs
+            ret = GeometryVariable(**kwargs)
+        else:
+            raise RequestableFeature(target)
+        return ret
+
+    def get_geometry_iterable(self, use_mask=True, hint_mask=None, use_memory_optimizations=None, with_index=True):
         """
         Yield a tuple composed of the current iterator index and Shapely geometry object. If the geometry is masked,
         the geometry will be ``None``. For example: ``(2, <Polygon>)`` or ``(3, None)`` if masked.
@@ -247,9 +313,9 @@ class AbstractGeometryCoordinates(AbstractXYZSpatialContainer):
          If ``True``, do not eagerly load coordinates. If ``False``, load all coordinates into memory improving
          performance by limiting IO.
         :type use_memory_optimizations: None | bool
-        :rtype: tuple
+        :param bool with_index: If ``False``, do not yield the current iteration index.
+        :return: tuple(int, <Shapely geometry>) | <Shapely geometry>
         """
-
         if use_memory_optimizations is None:
             use_memory_optimizations = env.USE_MEMORY_OPTIMIZATIONS
         if use_memory_optimizations and self.cindex is not None:
@@ -259,8 +325,14 @@ class AbstractGeometryCoordinates(AbstractXYZSpatialContainer):
 
         if self.cindex is None:
             cindex = None
+            has_multi = False
+            mbv = None
         else:
             cindex = self.cindex.get_value()
+            has_multi = self.has_multi
+            mbv = self.multi_break_value
+            if mbv is not None:
+                assert mbv < 0
 
         xvar = self.x.extract()
         yvar = self.y.extract()
@@ -290,6 +362,7 @@ class AbstractGeometryCoordinates(AbstractXYZSpatialContainer):
         has_z = self.has_z
         get_shapely_geometry = self.get_shapely_geometry
         get_element_node_connectivity_by_index = self.get_element_node_connectivity_by_index
+        start_index = self.start_index
         for idx in range(len(self.element_dim)):
             if use_mask and has_mask:
                 is_masked = mask_value[idx]
@@ -299,25 +372,44 @@ class AbstractGeometryCoordinates(AbstractXYZSpatialContainer):
             if not is_masked:
                 if cindex is not None:
                     ec_idx = get_element_node_connectivity_by_index(cindex, idx)
+                    if start_index > 0:
+                        ec_idx -= start_index
                 else:
                     ec_idx = idx
 
-                z = None
-                if use_memory_optimizations:
-                    x = xvar[ec_idx].get_value()[0]
-                    y = yvar[ec_idx].get_value()[0]
-                    if has_z:
-                        z = zvar[ec_idx].get_value()[0]
+                collected = deque()
+                if has_multi:
+                    mitr = iter_multipart_coordinates(ec_idx, mbv)
                 else:
-                    x = x_value[ec_idx]
-                    y = y_value[ec_idx]
+                    mitr = [ec_idx]
+
+                for comp_coords in mitr:
+                    z = None
+                    if use_memory_optimizations:
+                        x = xvar[comp_coords].get_value()[0]
+                        y = yvar[comp_coords].get_value()[0]
+                        if has_z:
+                            z = zvar[comp_coords].get_value()[0]
+                    else:
+                        x = x_value[comp_coords]
+                        y = y_value[comp_coords]
+                        if has_z:
+                            z = z_value[comp_coords]
                     if has_z:
-                        z = z_value[ec_idx]
-                if has_z:
-                    geom = get_shapely_geometry(x, y, z)
+                        geom = get_shapely_geometry(x, y, z)
+                    else:
+                        geom = get_shapely_geometry(x, y)
+                    collected.append(geom)
+
+                if has_multi:
+                    geom = self.__shapely_multipart_class__(collected)
                 else:
-                    geom = get_shapely_geometry(x, y)
-            yield idx, geom
+                    geom = collected[0]
+
+            if with_index:
+                yield idx, geom
+            else:
+                yield geom
 
     def get_distributed_slice(self, slc, **kwargs):
         """
@@ -402,7 +494,6 @@ class AbstractGeometryCoordinates(AbstractXYZSpatialContainer):
          used as the second. If ``spatial_op`` is ``'intersection'``, the returned object is a geometry variable.
         :rtype: :class:`~ocgis.Grid` | :class:`~ocgis.GeometryVariable` | :class:`tuple` of ``(<returned object>, <slice used>)``
         """
-
         # TODO: Merge this with the grid's spatial operation.
         if optimized_bbox_subset and spatial_op == 'intersection':
             raise ValueError("'optimized_bbox_subset' must be False when performing an intersection")
@@ -410,7 +501,7 @@ class AbstractGeometryCoordinates(AbstractXYZSpatialContainer):
         raise_if_empty(self)
 
         try:
-            subset_geom.prepare()
+            subset_geom = subset_geom.prepare()
         except AttributeError:
             if not isinstance(subset_geom, BaseGeometry):
                 msg = 'Only Shapely geometries allowed for subsetting. Subset type is "{}".'.format(
@@ -509,15 +600,15 @@ class AbstractGeometryCoordinates(AbstractXYZSpatialContainer):
                 sliced_obj.set_mask(sliced_mask_value, cascade=cascade)
 
         # The element dimension needs to be updated to account for fancy slicing which may leave some ranks empty.
+        new_element_dimension_name = self.element_dim.name
         if sliced_obj.is_empty:
             new_element_dimension_size = 0
-            new_element_dimension_name = None
             new_element_dimension_src_idx = None
         else:
             element_dim = sliced_obj.element_dim
             new_element_dimension_size = element_dim.size
-            new_element_dimension_name = element_dim.name
             new_element_dimension_src_idx = element_dim._src_idx
+
         new_element_dimension = create_distributed_dimension(new_element_dimension_size,
                                                              name=new_element_dimension_name,
                                                              src_idx=new_element_dimension_src_idx)
@@ -549,17 +640,18 @@ class AbstractGeometryCoordinates(AbstractXYZSpatialContainer):
 
         :rtype: :class:`~ocgis.spatial.geomc.AbstractGeometryCoordinates`
         """
-
         raise_if_empty(self)
 
         if self.cindex is None:
             raise ValueError('A coordinate index is required to reduce coordinates.')
 
         new_cindex, uidx = reduce_reindex_coordinate_index(self.cindex, start_index=self.start_index)
+
         new_cindex = Variable(name=self.cindex.name, value=new_cindex, dimensions=self.cindex.dimensions)
 
         ret = self.copy()
         new_parent = self.x[uidx].parent
+
         cdim = new_parent[self.x.name].dimensions[0]
         new_node_dimension = create_distributed_dimension(cdim.size, name=cdim.name, src_idx=cdim._src_idx)
         new_parent.dimensions[cdim.name] = new_node_dimension
@@ -631,13 +723,25 @@ class LineGC(AbstractGeometryCoordinates):
 class PolygonGC(AbstractGeometryCoordinates):
     abstraction = GridAbstraction.POLYGON
     __shapely_geometry_class__ = Polygon
+    __shapely_multipart_class__ = MultiPolygon
     __use_bounds_intersects_optimizations__ = False
 
-    @staticmethod
-    def get_element_node_connectivity_by_index(element_connectivity, idx):
-        ret = element_connectivity[idx, ...].flatten()
-        if element_connectivity.dtype == object:
-            ret = ret[0].flatten()
+    def get_element_node_connectivity_by_index(self, element_connectivity, idx):
+        # TODO: OPTIMIZE: Driver-specific method to load polygon coordinate indices.
+        # ESMF unstructured uses counts...
+        if self.dimension_map.get_driver() == DriverKey.NETCDF_ESMF_UNSTRUCT:
+            num_element_conn_value = self.parent['numElementConn'].get_value()
+            if idx == 0:
+                start = 0
+            else:
+                start = num_element_conn_value[0:idx].sum()
+            stop = num_element_conn_value[0:idx + 1].sum()
+            ret = element_connectivity[start:stop]
+        else:
+            ret = element_connectivity[idx, ...].flatten()
+            if element_connectivity.dtype == object:
+                ret = ret[0].flatten()
+        # TODO: /OPTIMIZE
         return ret
 
     def get_shapely_geometry(self, *args, **kwargs):
@@ -658,6 +762,38 @@ class PolygonGC(AbstractGeometryCoordinates):
         return self.__shapely_geometry_class__(c, **kwargs)
 
 
+def create_buffer_array(value=MPI_EMPTY_VALUE, dtype='i'):
+    return np.array([value], dtype=dtype)
+
+
+def create_Irecv(source, tag, dtype='i', mtype=None):
+    from mpi4py import MPI
+    if mtype is None:
+        mtype = MPI.INT
+
+    buf = create_buffer_array(dtype=dtype)
+    req = vm.comm.Irecv([buf, mtype], source=source, tag=tag)
+    return buf, req
+
+
+def create_Irecv_dct(ranks, tag):
+    ret = {}
+    for rank in ranks:
+        data, req = create_Irecv(rank, tag)
+        ret[rank] = {'data': data, 'req': req}
+    return ret
+
+
+def create_Isend(dest, tag, value=MPI_EMPTY_VALUE, dtype='i', mtype=None):
+    from mpi4py import MPI
+    if mtype is None:
+        mtype = MPI.INT
+
+    buf = create_buffer_array(value=value, dtype=dtype)
+    req = vm.comm.Isend([buf, mtype], dest=dest, tag=tag)
+    return buf, req
+
+
 def get_default_geometry_variable_name(gc):
     possible = {GridAbstraction.POINT: VariableName.GEOMETRY_POINT,
                 GridAbstraction.LINE: VariableName.GEOMETRY_LINE,
@@ -666,19 +802,39 @@ def get_default_geometry_variable_name(gc):
 
 
 def get_xyz_select(x, y, bounds, z=None, z_bounds=None, invert=False, keep_touches=True):
-    from ocgis.spatial.grid import get_arr_intersects_bounds
+    from ocgis.spatial.grid import arr_intersects_bounds
 
     minx, miny, maxx, maxy = bounds
-    select_x = get_arr_intersects_bounds(x, minx, maxx, keep_touches=keep_touches)
-    select_y = get_arr_intersects_bounds(y, miny, maxy, keep_touches=keep_touches)
+    select_x = arr_intersects_bounds(x, minx, maxx, keep_touches=keep_touches)
+    select_y = arr_intersects_bounds(y, miny, maxy, keep_touches=keep_touches)
     select = np.logical_and(select_x, select_y)
     if z_bounds is not None:
         minz, maxz = z_bounds
-        select_z = get_arr_intersects_bounds(z, minz, maxz, keep_touches=keep_touches)
+        select_z = arr_intersects_bounds(z, minz, maxz, keep_touches=keep_touches)
         select = np.logical_and(select, select_z)
     if invert:
         select = np.invert(select)
     return select
+
+
+def iter_multipart_coordinates(arr, mbv):
+    """
+    Split an array by a multi-part break value generating the sections that when combined create the original array.
+
+    :param arr: Array containing multi-part break values (it doesn't have to contain them).
+    :type arr: :class:`numpy.ndarray`
+    :param int mbv: The multi-part break value. Typically this is a negative integer.
+    :return: :class:`numpy.ndarray`
+    """
+    w = np.where(arr == mbv)[0]
+    l = len(arr)
+    w = np.hstack((w, [l]))
+    start = 0
+    for idx, iw in enumerate(w):
+        slc = slice(start, iw)
+        start = iw + 1
+        yld = arr.__getitem__(slc)
+        yield yld
 
 
 def reduce_reindex_coordinate_index(cindex, start_index=0):
@@ -701,6 +857,7 @@ def reduce_reindex_coordinate_index(cindex, start_index=0):
     :param int start_index: The first index to use for the re-indexing of ``cindex``. This may be ``0`` or ``1``.
     :rtype: tuple
     """
+
     # Get the coordinate index values as a NumPy array.
     try:
         cindex = cindex.get_value()
@@ -715,7 +872,9 @@ def reduce_reindex_coordinate_index(cindex, start_index=0):
     cindex = cindex.flatten()
 
     # Create the unique coordinate index array.
+    # barrier_print('before create_unique_global_array')
     u = np.array(create_unique_global_array(cindex))
+    # barrier_print('after create_unique_global_array')
 
     # Synchronize the data type for the new coordinate index.
     lrank = vm.rank
@@ -737,6 +896,8 @@ def reduce_reindex_coordinate_index(cindex, start_index=0):
         uidx = {ii: jj for ii, jj in zip(u, new_u)}
     else:
         uidx = None
+
+    vm.barrier()
 
     # Construct local bounds for the rank's unique value. This is used as a cheap index when ranks are looking for
     # index overlaps.
@@ -773,31 +934,30 @@ def reduce_reindex_coordinate_index(cindex, start_index=0):
     # Fill array for the new coordinate index.
     new_cindex = np.empty_like(cindex)
 
-    # Set up communication channels for new coordinate index searching.
-    dest_reqs = {rank: vm.comm.irecv(source=rank, tag=tag_search) for rank in destinations}
-
+    # vm.barrier_print('starting run_rr')
     # Fill the new coordinate indexing.
     if lrank == 0:
-        run_rr_root(new_cindex, cindex, uidx, dest_reqs, tag_child_finished, tag_found, tag_search, tag_success)
+        run_rr_root(new_cindex, cindex, uidx, destinations, tag_child_finished, tag_found, tag_search, tag_success)
     else:
-        run_rr_nonroot(new_cindex, cindex, uidx, dest_reqs, has_u, overlaps, tag_child_finished, tag_found, tag_search,
+        run_rr_nonroot(new_cindex, cindex, uidx, destinations, has_u, overlaps, tag_child_finished, tag_found,
+                       tag_search,
                        tag_success)
-
-    cancel_free_requests(dest_reqs.values())
+    # vm.barrier_print('finished run_rr')
 
     # Return array to its original shape.
     new_cindex = new_cindex.reshape(*original_shape)
 
     vm.barrier()
+
     return new_cindex, u
 
 
-def run_rr_nonroot(new_cindex, cindex, uidx, dest_reqs, has_u, overlaps, tag_child_finished, tag_found, tag_search,
+def run_rr_nonroot(new_cindex, cindex, uidx, destinations, has_u, overlaps, tag_child_finished, tag_found, tag_search,
                    tag_success):
-    # Channels for ranks that overlap in bounds with unique indices needed by this rank.
-    overlap_reqs = {rank: vm.comm.irecv(source=rank, tag=tag_found) for rank in overlaps}
     # Fill each value in the coordinate index.
     for idx, ii in enumerate(cindex.flat):
+        # if idx % 100 == 0:
+        #     vm.rank_print('{} of {}'.format(idx+1, cindex.shape[0]))
         try:
             # If this rank has unique indices, try to retrieve the new indexing from its unique indexing hash.
             if has_u:
@@ -806,36 +966,63 @@ def run_rr_nonroot(new_cindex, cindex, uidx, dest_reqs, has_u, overlaps, tag_chi
             else:
                 raise KeyError
         except KeyError:
-            # Send the value to find to each of the destination ranks.
-            for orank in overlaps:
-                _ = vm.comm.isend(ii, dest=orank, tag=tag_search)
             new_cindex_value = None
             # Keep searching and waiting for the response from the overlap ranks.
-            while new_cindex_value is None:
-                search_for_destinations(dest_reqs, uidx, tag_found, tag_search)
+            # while new_cindex_value is None:
 
-                for overlap_rank, overlap_req in overlap_reqs.items():
-                    tst, overlap_req_value = overlap_req.test()
-                    if tst:
-                        if overlap_req_value is not None:
-                            new_cindex_value = overlap_req_value
-                        overlap_reqs[overlap_rank] = vm.comm.irecv(source=overlap_rank, tag=tag_found)
+            # Send the value to find to each of the destination ranks.
+            assert ii != MPI_EMPTY_VALUE
+            assert ii >= 0
+            # vm.rank_print('idx', idx, 'sending to:', overlaps, 'receiving from:', destinations)
+            search_reqs = [create_Isend(orank, tag_search, value=ii) for orank in overlaps]
+            # for s in search_reqs:
+            #     s.Test()
+
+            # vm.rank_print('receiving from:', destinations)
+            sent = search_for_destinations(destinations, uidx, tag_found, tag_search)
+
+            for s in search_reqs:
+                # vm.rank_print('waiting for search request', 'idx', idx, s[0])
+                s[1].wait()
+
+            # vm.rank_print('overlaps', overlaps, 'destinations', destinations)
+            # time.sleep(100)
+
+            for overlap_rank in overlaps:
+                data, req = create_Irecv(overlap_rank, tag_found)
+                req.wait()
+                # if req.Test():
+                if data[0] != MPI_EMPTY_VALUE:
+                    new_cindex_value = data[0]
+
+            for s in sent:
+                s[1].wait()
+
+                # for s in search_reqs:
+                #     s.wait()
+
+                # Free the search requests to avoid any race conditions in data buffers.
+
+                # cancel_free_requests(search_reqs)
 
         # Fill the new coordinate index array with the found value.
+        assert new_cindex_value is not None
         new_cindex[idx] = new_cindex_value
 
-    cancel_free_requests(overlap_reqs.values())
-
     # Continue searching for destination ranks until the success signal is received from the root rank.
-    req_child_finished = vm.comm.isend(True, dest=0, tag=tag_child_finished)
-    req_success = vm.comm.irecv(source=0, tag=tag_success)
-    while not req_success.test()[0]:
-        search_for_destinations(dest_reqs, uidx, tag_found, tag_search)
+    _, req_child_finished = create_Isend(0, tag_child_finished)
+    _, req_success = create_Irecv(0, tag_success)
+
+    while not req_success.Test():
+        sent = search_for_destinations(destinations, uidx, tag_found, tag_search)
+        for s in sent:
+            s[1].wait()
     # Wait until the child finished tag is received by the parent.
+
     req_child_finished.wait()
 
 
-def run_rr_root(new_cindex, cindex, uidx, dest_reqs, tag_child_finished, tag_found, tag_search, tag_success):
+def run_rr_root(new_cindex, cindex, uidx, destinations, tag_child_finished, tag_found, tag_search, tag_success):
     # Tracks when ranks are finished.
     children_finished = [False] * vm.size
     children_finished[0] = True
@@ -846,30 +1033,48 @@ def run_rr_root(new_cindex, cindex, uidx, dest_reqs, tag_child_finished, tag_fou
     success = False
 
     # Open channels for child finished signals.
-    children_finished_reqs = {rank: vm.comm.irecv(source=rank, tag=tag_child_finished) for rank in vm.ranks if
-                              rank != 0}
+    children_finished_reqs = create_Irecv_dct(vm.ranks, tag_child_finished)
+
     while not success:
         # Check for any requests from destination ranks. These ranks need a value that may be on this rank.
-        search_for_destinations(dest_reqs, uidx, tag_found, tag_search)
+        sent = search_for_destinations(destinations, uidx, tag_found, tag_search)
+        for s in sent:
+            s[1].wait()
 
         # Check if children have finished. If they have finished. Send the success signal to other participating ranks.
         for idx, rank in enumerate(vm.ranks):
             if not children_finished[idx]:
-                req_child_finished = children_finished_reqs[rank]
-                tst, req_value = req_child_finished.test()
-                if tst:
+                req_child_finished = children_finished_reqs[rank]['req']
+                if req_child_finished.Test():
                     children_finished[rank] = True
         if all(children_finished):
             success = True
             for rank in vm.ranks:
                 if rank != 0:
-                    req = vm.comm.isend(success, dest=rank, tag=tag_success)
+                    _, req = create_Isend(rank, tag_success)
                     req.wait()
 
 
-def search_for_destinations(dest_reqs, uidx, tag_found, tag_search):
-    for dest_rank, dest_req in dest_reqs.items():
-        dest_req_tst, curr_target = dest_req.test()
-        if dest_req_tst:
-            _ = vm.comm.isend(uidx.get(curr_target), dest=dest_rank, tag=tag_found)
-            dest_reqs[dest_rank] = vm.comm.irecv(source=dest_rank, tag=tag_search)
+def search_for_destinations(dest_ranks, uidx, tag_found, tag_search):
+    assert isinstance(dest_ranks, list)
+    sent = []
+    for dest_rank in dest_ranks:
+        data, req = create_Irecv(dest_rank, tag_search)
+        # data = np.array([MPI_EMPTY_VALUE], dtype='i')
+        # buf = [data, MPI.INT]
+        # req = vm.comm.Irecv(buf, source=dest_rank, tag=tag_search)
+        # req.wait()
+        if req.Test():
+            search_value = data[0]
+            # if data == MPI_EMPTY_VALUE:
+            #     print('rank=', vm.rank, 'bad data from rank:', dest_rank)
+            assert search_value != MPI_EMPTY_VALUE
+            assert search_value is not None
+            assert search_value >= 0
+            # vm.rank_print('search_value', search_value)
+            local_uidx = uidx.get(search_value, MPI_EMPTY_VALUE)
+            send_res = create_Isend(dest_rank, tag_found, value=local_uidx)
+            sent.append(send_res)
+        else:
+            cancel_free_requests([req])
+    return sent

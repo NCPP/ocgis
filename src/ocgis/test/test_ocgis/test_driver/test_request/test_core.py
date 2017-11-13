@@ -7,8 +7,7 @@ from ocgis.collection.field import Field
 from ocgis.constants import TagName, MiscName, DimensionMapKey
 from ocgis.driver.nc import DriverNetcdf, DriverNetcdfCF
 from ocgis.driver.request.core import get_autodiscovered_driver, get_is_none
-from ocgis.exc import RequestValidationError, \
-    NoDataVariablesFound
+from ocgis.exc import RequestValidationError, NoDataVariablesFound
 from ocgis.test.base import TestBase, attr
 from ocgis.test.test_simple.make_test_data import SimpleNc
 from ocgis.test.test_simple.test_simple import TestSimpleBase

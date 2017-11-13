@@ -1,3 +1,5 @@
+from unittest.case import SkipTest
+
 import numpy as np
 from shapely import wkt
 from shapely.geometry import Point, MultiPolygon, box
@@ -5,9 +7,10 @@ from shapely.geometry.polygon import Polygon
 
 from ocgis import Variable, Dimension, vm, Field, GeometryVariable, DimensionMap
 from ocgis.base import AbstractOcgisObject, raise_if_empty
-from ocgis.constants import WrappedState, DMK, GridAbstraction, Topology
+from ocgis.constants import WrappedState, DMK, GridAbstraction, Topology, DriverKey
 from ocgis.driver.nc_ugrid import DriverNetcdfUGRID
-from ocgis.spatial.geomc import PointGC, get_default_geometry_variable_name, PolygonGC, reduce_reindex_coordinate_index
+from ocgis.spatial.geomc import PointGC, get_default_geometry_variable_name, PolygonGC, reduce_reindex_coordinate_index, \
+    iter_multipart_coordinates
 from ocgis.spatial.grid import create_grid_mask_variable
 from ocgis.test.base import TestBase, attr
 from ocgis.test.test_ocgis.test_driver.test_nc_ugrid import get_ugrid_data_structure
@@ -16,6 +19,17 @@ from ocgis.vmachine.mpi import OcgDist, variable_collection_scatter, variable_ga
 
 
 class Test(TestBase):
+    def test_iter_multipart_coordinates(self):
+        arr = np.array([1, 2, -10, 3, 4, -10, 5, 6])
+        for ctr, part in enumerate(iter_multipart_coordinates(arr, -10)):
+            self.assertEqual(part.shape[0], 2)
+        self.assertEqual(ctr, 2)
+
+        arr = np.array([1, 2])
+        actual = list(iter_multipart_coordinates(arr, -100))
+        self.assertEqual(len(actual), 1)
+        self.assertNumpyAll(actual[0], arr)
+
     @attr('mpi')
     def test_reduce_reindex_coordinate_index(self):
         dist = OcgDist()
@@ -61,6 +75,15 @@ class Test(TestBase):
             self.assertEqual(len(gathered_new_coords), len(desired_new_coords))
 
             self.assertNumpyAll(actual, desired)
+
+    @attr('slow', 'mpi')
+    def test_reduce_reindex_coordinate_index_stress(self):
+        if vm.size != 8:
+            raise SkipTest('vm.size != 8')
+
+        for _ in range(3):
+            value = np.random.random_integers(1000, 10000, 1000)
+            _ = reduce_reindex_coordinate_index(value)
 
 
 class FixturePointGC(AbstractOcgisObject):
@@ -114,6 +137,7 @@ class TestPointGC(TestBase, FixturePointGC):
 
         for k in self.iter_product_keywords(keywords):
             p = self.fixture(cindex=k.cindex, mask=k.mask)
+            self.assertEqual(p.parent.driver.key, DriverKey.NETCDF_UGRID)
 
             if k.cindex is None:
                 self.assertIsNone(p.dimension_map.get_variable(DMK.X))
@@ -151,6 +175,17 @@ class TestPointGC(TestBase, FixturePointGC):
         self.assertNumpyAll(x.get_value(), p.x.get_value())
         self.assertNumpyAll(y.get_value(), p.y.get_value())
 
+    def test_init_driver(self):
+        driver = DriverNetcdfUGRID
+        pgc = self.fixture(driver=driver)
+        self.assertEqual(pgc.parent.driver, driver)
+
+    def test_convert_to(self):
+        desired = WGS84()
+        gc = self.fixture(crs=desired)
+        gv = gc.convert_to()
+        self.assertEqual(gv.crs, desired)
+
     def test_get_distributed_slice(self):
         f = self.fixture()
         slc = np.zeros(f.archetype.shape[0], dtype=bool)
@@ -182,7 +217,6 @@ class TestPointGC(TestBase, FixturePointGC):
         y = Variable(name='y', value=y, dimensions='n_nodes')
 
         pgc = PointGC(x, y)
-        self.assertFalse(gvar.is_prepared)
         ret = pgc.get_intersects(gvar)
 
         self.assertEqual(ret.archetype.size, 1)

@@ -1,3 +1,4 @@
+import itertools
 from collections import deque
 from copy import deepcopy
 from itertools import product
@@ -16,12 +17,15 @@ from ocgis import constants
 from ocgis import env
 from ocgis.base import AbstractOcgisObject
 from ocgis.base import get_dimension_names, get_variable_names, raise_if_empty
-from ocgis.constants import KeywordArgument, HeaderName, VariableName, DimensionName, ConversionTarget, DriverKey
+from ocgis.constants import KeywordArgument, HeaderName, VariableName, DimensionName, ConversionTarget, DriverKey, \
+    WrappedState
 from ocgis.environment import ogr
-from ocgis.exc import EmptySubsetError, RequestableFeature
+from ocgis.exc import EmptySubsetError, RequestableFeature, NoInteriorsError
 from ocgis.spatial.base import AbstractSpatialVariable
-from ocgis.util.helpers import iter_array, get_trimmed_array_by_mask, get_swap_chain, find_index
-from ocgis.variable.base import get_dimension_lengths
+from ocgis.util.addict import Dict
+from ocgis.util.helpers import iter_array, get_trimmed_array_by_mask, get_swap_chain, find_index, \
+    iter_exploded_geometries, get_iter, get_extrapolated_corners_esmf, create_ocgis_corners_from_esmf_corners
+from ocgis.variable.base import get_dimension_lengths, ObjectType
 from ocgis.variable.crs import Cartesian
 from ocgis.variable.dimension import create_distributed_dimension, Dimension
 from ocgis.variable.iterator import Iterator
@@ -30,6 +34,83 @@ CreateGeometryFromWkb, Geometry, wkbGeometryCollection, wkbPoint = ogr.CreateGeo
                                                                    ogr.wkbGeometryCollection, ogr.wkbPoint
 
 GEOM_TYPE_MAPPING = {'Polygon': Polygon, 'Point': Point, 'MultiPoint': MultiPoint, 'MultiPolygon': MultiPolygon}
+
+
+class GeometrySplitter(AbstractOcgisObject):
+    _buffer_split = 1e-6
+
+    def __init__(self, geometry):
+        self.geometry = geometry
+
+        if self.interior_count == 0:
+            raise NoInteriorsError
+
+    @property
+    def interior_count(self):
+        try:
+            ret = len(self.geometry.interiors)
+        except AttributeError:
+            ret = 0
+            for g in self.geometry:
+                ret += len(g.interiors)
+        return ret
+
+    def create_split_vector_dict(self, interior):
+        minx, miny, maxx, maxy = self.geometry.buffer(self._buffer_split).bounds
+        col_key = 'cols'
+        row_key = 'rows'
+        ret = {}
+
+        icx, icy = interior.centroid.x, interior.centroid.y
+
+        ret[col_key] = (minx, icx, maxx)
+        ret[row_key] = (miny, icy, maxy)
+
+        return ret
+
+    def create_split_polygons(self, interior):
+        split_dict = self.create_split_vector_dict(interior)
+        cols = split_dict['cols']
+        rows = split_dict['rows']
+
+        ul = box(cols[0], rows[0], cols[1], rows[1])
+        ur = box(cols[1], rows[0], cols[2], rows[1])
+        lr = box(cols[1], rows[1], cols[2], rows[2])
+        ll = box(cols[0], rows[1], cols[1], rows[2])
+
+        return ul, ur, lr, ll
+
+    def split(self, is_recursing=False):
+        geometry = self.geometry
+        if is_recursing:
+            assert isinstance(geometry, Polygon)
+            ret = []
+            for interior in self.iter_interiors():
+                split_polygon = self.create_split_polygons(interior)
+                for sp in split_polygon:
+                    ret.append(geometry.intersection(sp))
+        else:
+            if isinstance(geometry, MultiPolygon):
+                itr = geometry
+            else:
+                itr = [geometry]
+
+            ret = []
+            for geometry_part in itr:
+                try:
+                    geometry_part_splitter = self.__class__(geometry_part)
+                except NoInteriorsError:
+                    ret.append(geometry_part)
+                else:
+                    split = geometry_part_splitter.split(is_recursing=True)
+                    for element in split:
+                        ret.append(element)
+
+        return MultiPolygon(ret)
+
+    def iter_interiors(self):
+        for interior in self.geometry.interiors:
+            yield interior
 
 
 class GeometryProcessor(AbstractOcgisObject):
@@ -125,7 +206,6 @@ class GeometryVariable(AbstractSpatialVariable):
 
         ugid = kwargs.pop(KeywordArgument.UGID, None)
         self.is_bbox = kwargs.pop('is_bbox', False)
-        self.is_prepared = kwargs.pop('is_prepared', False)
 
         super(GeometryVariable, self).__init__(**kwargs)
 
@@ -240,7 +320,9 @@ class GeometryVariable(AbstractSpatialVariable):
 
     def convert_to(self, target=ConversionTarget.GEOMETRY_COORDS, **kwargs):
         """
-        Convert to a target type. Some common manipulations are shared between conversion targets:
+        Convert to a target type. The returned object is orphaned (does not share a parent with the source).
+
+        Some common manipulations are shared between conversion targets.
 
         * Always orients polygons CCW.
 
@@ -259,13 +341,27 @@ class GeometryVariable(AbstractSpatialVariable):
          geometries to convert. This fixes the column count for element node connectivity arrays. Otherwise, ragged
          arrays are used.
         :type max_element_coords: int
+        :keyword multi_break_value: ``(=constants.OcgisConvention.MULTI_BREAK_VALUE)`` Value to use for indicating a
+         multi-geometry break (indicates a separation of elements. Value must be negative.
+        :type multi_break_value: int
+        :keyword int node_threshold: ``(=None)`` Split polygons with nodes counts greater than this value into
+         multi-polygons.
+        :keyword bool split_interiors: ``(=False)`` If ``True``, split polygons with holes/interiors into
+         multi-polygons.
+        :keyword str driver: ``(driver=constants.DriverKey.NETCDF_UGRID)`` The driver to use for the output object.
+        :keyword bool use_geometry_iterator: ``(=False)`` If ``True``, use a geometry iterator instead of loading all
+         the geometries from source.
+        :keyword int start_index: ``(=0)`` The start index to use for coordinate indexing.
         """
 
-        # TODO: This needs to handle multi-geometries.
-        # TODO: This needs to handle geometry holes/interiors.
-        # TODO: Implement line conversion.
+        # TODO: IMPLEMENT: Line conversion.
+        # TODO: IMPLEMENT: Storage method for holes/interiors. Interiors are currently only split not stored.
+        # TODO: OPTIMIZE: Append/extend array creation. Try to use pre-determined sizes for all arrays where possible.
+
+        raise_if_empty(self)
 
         from ocgis.spatial.geomc import PointGC, PolygonGC
+        from ocgis.driver.registry import get_driver_class
 
         assert self.ndim == 1
 
@@ -279,12 +375,38 @@ class GeometryVariable(AbstractSpatialVariable):
         pack = kwargs.pop('pack', True)
         repeat_last_node = kwargs.pop('repeat_last_node', False)
         max_element_coords = kwargs.pop('max_element_coords', None)
+        ocgis_convention = constants.OcgisConvention
+        name_mbv = ocgis_convention.Name.MULTI_BREAK_VALUE
+        multi_break_value = kwargs.pop(name_mbv, ocgis_convention.Value.MULTI_BREAK_VALUE)
+        node_threshold = kwargs.pop('node_threshold', None)
+        split_interiors = kwargs.pop('split_interiors', False)
+        driver = get_driver_class(kwargs.pop('driver', None), default=DriverKey.NETCDF_UGRID)
+        use_geometry_iterator = kwargs.pop('use_geometry_iterator', False)
+        to_crs = kwargs.pop('to_crs', None)
+        start_index = kwargs.pop('start_index', 0)
         assert len(kwargs) == 0
+        if to_crs is not None and not use_geometry_iterator:
+            raise ValueError("'to_crs' only applies when using a geometry iterator")
+
+        polygon_types = ('Polygon', 'MultiPolygon')
 
         geom_type = self.geom_type
+        # Flag to indicate if we are processing multi-geometries.
+        if geom_type.lower().startswith('multi'):
+            is_multi = True
+        else:
+            is_multi = False
+
         if target == ConversionTarget.GEOMETRY_COORDS:
-            has_z = self.has_z
-            geom_itr = self.get_value().flat
+            if use_geometry_iterator:
+                has_z_itr = self._request_dataset.driver.get_variable_value(self, as_geometry_iterator=True)
+                for g in has_z_itr:
+                    has_z = g.has_z
+                    break
+                geom_itr = self._request_dataset.driver.get_variable_value(self, as_geometry_iterator=True)
+            else:
+                has_z = self.has_z
+                geom_itr = self.get_value().flat
             if geom_type == 'Point':
                 if has_z:
                     ndim = 3
@@ -299,57 +421,109 @@ class GeometryVariable(AbstractSpatialVariable):
                     zv = fill[:, 2]
                 else:
                     zv = None
-            elif geom_type == 'Polygon':
+            elif geom_type in polygon_types:
+                # This array holds indices pointing to coordinate arrays. Supplying "max_element_coords" sets the size
+                # of each element's coordinate count.
                 if max_element_coords is not None:
                     element_index = np.zeros((self.size, max_element_coords), dtype=env.NP_INT)
+                    ocgis_dtype = env.NP_INT
                 else:
                     element_index = np.zeros(self.size, dtype=object)
-                cidx = 0
+                    ocgis_dtype = ObjectType(env.NP_INT)
+
+                # The start index for the element node connectivity array.
+                cidx = start_index
+
                 xv = deque()
                 yv = deque()
                 zv = deque()
                 seqs = [xv, yv]
                 if has_z:
                     seqs.append(zv)
+
+                if to_crs is not None:
+                    from_crs = self._request_dataset.crs
+
                 for idx, geom in enumerate(geom_itr):
-                    geom = get_ccw_oriented_and_valid_shapely_polygon(geom)
-                    coords = np.array(geom.exterior.coords)
-                    if repeat_last_node:
-                        coords_shape = coords.shape[0]
-                    else:
-                        coords_shape = coords.shape[0] - 1
-                    if pack:
-                        curr_element_index = np.zeros(coords_shape, dtype=env.NP_INT)
-                        for coords_row_idx in range(coords_shape):
-                            coords_row = coords[coords_row_idx, :].flatten()
-                            found_index = find_index(seqs, coords_row)
-                            if found_index is None:
-                                xv.append(coords_row[0])
-                                yv.append(coords_row[1])
-                                if has_z:
-                                    zv.append(coords_row[2])
-                                found_index = cidx
-                                cidx += 1
-                            curr_element_index[coords_row_idx] = found_index
-                        element_index[idx] = curr_element_index
-                    else:
-                        xv.extend(coords[0:coords_shape, 0].flatten().tolist())
-                        yv.extend(coords[0:coords_shape, 1].flatten().tolist())
-                        if has_z:
-                            zv.extend(coords[0:coords_shape, 2].flatten().tolist())
-                        fill = np.arange(cidx, cidx + coords_shape, dtype=env.NP_INT)
-                        if max_element_coords is None:
-                            element_index[idx] = fill
+                    if to_crs is not None:
+                        to_transform = GeometryVariable.from_shapely(geom, crs=from_crs)
+                        to_transform.update_crs(to_crs)
+                        geom = to_transform.get_value()[0]
+
+                    if geom.geom_type in polygon_types:
+                        try:
+                            gsplitter = GeometrySplitter(geom)
+                        except NoInteriorsError:
+                            pass
                         else:
-                            element_index[idx, :] = fill
-                        cidx += coords_shape
+                            if split_interiors:
+                                geom = gsplitter.split()
+                            else:
+                                raise ValueError('Interiors are not handled unless they are split.')
+
+                        if node_threshold is not None and get_node_count(geom) > node_threshold:
+                            geom = get_split_polygon_by_node_threshold(geom, node_threshold)
+
+                    fill_cidx = np.array([], dtype=env.NP_INT)
+
+                    for subidx, subgeom in enumerate(iter_exploded_geometries(geom)):
+                        # Insert a break value if we are on the second or greater component geometry of a
+                        # multi-geometry.
+                        if subidx > 0:
+                            fill_cidx = np.hstack((fill_cidx, np.array([multi_break_value], dtype=env.NP_INT)))
+
+                        subgeom = get_ccw_oriented_and_valid_shapely_polygon(subgeom)
+                        coords = np.array(subgeom.exterior.coords)
+
+                        if repeat_last_node:
+                            coords_shape = coords.shape[0]
+                        else:
+                            coords_shape = coords.shape[0] - 1
+
+                        if pack:
+                            curr_element_index = np.zeros(coords_shape, dtype=env.NP_INT)
+                            for coords_row_idx in range(coords_shape):
+                                coords_row = coords[coords_row_idx, :].flatten()
+                                found_index = find_index(seqs, coords_row)
+                                if found_index is None:
+                                    xv.append(coords_row[0])
+                                    yv.append(coords_row[1])
+                                    if has_z:
+                                        zv.append(coords_row[2])
+                                    found_index = cidx
+                                    cidx += 1
+                                else:
+                                    found_index += start_index
+                                curr_element_index[coords_row_idx] = found_index
+                            fill_cidx = np.hstack((fill_cidx, curr_element_index))
+                        else:
+                            xv.extend(coords[0:coords_shape, 0].flatten().tolist())
+                            yv.extend(coords[0:coords_shape, 1].flatten().tolist())
+                            if has_z:
+                                zv.extend(coords[0:coords_shape, 2].flatten().tolist())
+                            fill = np.arange(cidx, cidx + coords_shape, dtype=env.NP_INT)
+                            fill_cidx = np.hstack((fill_cidx, fill))
+                            cidx += coords_shape
+
+                    if max_element_coords is None:
+                        element_index[idx] = fill_cidx
+                    else:
+                        element_index[idx, :] = fill_cidx
+
                 if max_element_coords is None:
                     element_index_dims = self.dimensions[0]
                 else:
                     element_index_dims = [self.dimensions[0],
                                           Dimension(name=DimensionName.UGRID_MAX_ELEMENT_COORDS,
                                                     size=max_element_coords)]
-                element_index = Variable(name=element_index_name, value=element_index, dimensions=element_index_dims)
+                element_index = Variable(name=element_index_name, value=element_index, dimensions=element_index_dims,
+                                         dtype=ocgis_dtype)
+
+                # Indicate there are multi-geometries in the coordinates objects.
+                if is_multi:
+                    element_index.attrs[name_mbv] = multi_break_value
+                else:
+                    element_index.attrs.pop(name_mbv, None)
             else:
                 msg = "Conversion for this geometry type is not implemented: '{}'".format(geom_type)
                 raise RequestableFeature(message=msg)
@@ -360,7 +534,7 @@ class GeometryVariable(AbstractSpatialVariable):
 
             if geom_type == 'Point':
                 dim = self.dimensions[0]
-            elif geom_type == 'Polygon':
+            elif geom_type in polygon_types:
                 dim = create_distributed_dimension(len(xv), name=node_dim_name)
             else:
                 raise NotImplementedError(geom_type)
@@ -372,21 +546,22 @@ class GeometryVariable(AbstractSpatialVariable):
 
             if geom_type == 'Point':
                 klass = PointGC
-            elif geom_type == 'Polygon':
+            elif geom_type in polygon_types:
                 klass = PolygonGC
             else:
                 raise NotImplementedError(geom_type)
 
-            kwds = dict(z=variables[2], crs=self.crs)
-            if geom_type == 'Polygon':
+            kwds = dict(z=variables[2], crs=self.crs, driver=driver, start_index=start_index)
+            if geom_type in polygon_types:
                 kwds['cindex'] = element_index
                 kwds['packed'] = pack
+
             if self.has_mask:
                 kwds[KeywordArgument.MASK] = self.get_mask()
             ret = klass(variables[0], variables[1], **kwds)
 
         else:
-            raise NotImplementedError(target)
+            raise RequestableFeature('This conversion target is not supported: {}'.format(target))
         return ret
 
     @classmethod
@@ -654,7 +829,7 @@ class GeometryVariable(AbstractSpatialVariable):
         if spatial_average is None:
             ret = ret.extract()
         ret.set_mask(None)
-        ret.set_value(None)
+        ret._value = None
         ret.set_dimensions(new_dimensions)
         ret.allocate_value()
 
@@ -724,7 +899,7 @@ class GeometryVariable(AbstractSpatialVariable):
                     # Prepare the spatially averaged variable.
                     target = ret.parent[var_to_weight.name]
                     target.set_mask(None)
-                    target.set_value(None)
+                    target._value = None
                     target.set_dimensions(new_dimensions)
                     target.allocate_value()
 
@@ -764,7 +939,7 @@ class GeometryVariable(AbstractSpatialVariable):
                     weighted_value = np.atleast_1d(np.ma.average(target_to_weight, weights=weights))
                     target = ret.parent[var_to_weight.name]
                     target.set_mask(None)
-                    target.set_value(None)
+                    target._value = None
                     target.set_dimensions(new_dimensions)
                     target.set_value(weighted_value)
 
@@ -818,19 +993,50 @@ class GeometryVariable(AbstractSpatialVariable):
         else:
             return
 
-    def prepare(self):
+    def prepare(self, archetype=None):
         """
         Prepare the geometry variable for spatial operations by calling its coordinate system's :meth:`ocgis.variable.crs.AbstractCRS.prepare_geometry_variable`
-         method. Updates the :attr:`ocgis.GeometryVariable.is_prepared` attribute to ``True``.
+        method and returning a deep copy. If an archetype is provided, update the returned object's coordinate system and
+        wrapped state to match the archetype's. If the current object has no crs or no modifications are required by
+        the object, then a shallow copy is returned.
+
+        :param archetype: The object to use for spatial property matching.
+        :type archetype: :class:`ocgis.spatial.base.AbstractSpatialObject`
+        :return: :class:`~ocgis.GeometryVariable`
         """
 
-        # TODO: This could do things like update the coordinate system, wrapping, etc.
+        if self.size > 1:
+            raise RequestableFeature('Preparations only work on a single geometry.')
 
-        if not self.is_prepared:
-            crs = self.crs
+        crs = self.crs
+        dced = False
+        if crs is not None or archetype is not None:
             if crs is not None:
-                crs.prepare_geometry_variable(self)
-            self.is_prepared = True
+                ret = self.deepcopy()
+                dced = True
+                ret = crs.prepare_geometry_variable(ret)
+
+            # Update the coordinate system if it differs from the archetype.
+            if archetype is not None:
+                acrs = archetype.crs
+                if acrs != crs:
+                    if not dced:
+                        ret = self.deepcopy()
+                        dced = True
+                    ret.update_crs(acrs)
+
+                # Update spatial wrapping if it is still applicable.
+                if acrs is not None:
+                    archetype_wrapped_state = archetype.wrapped_state
+                    if archetype_wrapped_state not in (WrappedState.UNKNOWN, None):
+                        if not dced:
+                            ret = self.deepcopy()
+                            dced = True
+                        acrs.wrap_or_unwrap(archetype_wrapped_state, ret)
+        else:
+            ret = self.copy()
+
+        return ret
 
     def update_crs(self, to_crs):
         """
@@ -1015,6 +1221,103 @@ def get_ccw_oriented_and_valid_shapely_polygon(geom):
         geom = orient(geom)
 
     return geom
+
+
+def get_node_schema(geom):
+    """Create a dictionary containing polygon metadata."""
+    ret = Dict()
+    for ctr, ii in enumerate(get_iter(geom, dtype=Polygon)):
+        ret[ctr].node_count = get_node_count(ii)
+        ret[ctr].area = ii.area
+        ret[ctr].geom = ii
+    return ret
+
+
+def get_node_count(geom):
+    node_count = 0
+    for ii in get_iter(geom, dtype=Polygon):
+        node_count += len(ii.exterior.coords)
+    return node_count
+
+
+def get_split_polygons(geom, split_shape):
+    minx, miny, maxx, maxy = geom.bounds
+    rows = np.linspace(miny, maxy, split_shape[0])
+    cols = np.linspace(minx, maxx, split_shape[1])
+
+    return get_split_polygons_from_meshgrid_vectors(cols, rows)
+
+
+def get_split_polygons_from_meshgrid_vectors(cols, rows):
+    cols, rows = np.meshgrid(cols, rows)
+
+    cols_corners = get_extrapolated_corners_esmf(cols)
+    cols_corners = create_ocgis_corners_from_esmf_corners(cols_corners)
+
+    rows_corners = get_extrapolated_corners_esmf(rows)
+    rows_corners = create_ocgis_corners_from_esmf_corners(rows_corners)
+
+    corners = np.vstack((rows_corners, cols_corners))
+    corners = corners.reshape([2] + list(cols_corners.shape))
+    range_row = range(rows.shape[0])
+    range_col = range(cols.shape[1])
+
+    fill = np.zeros(cols.shape, dtype=object)
+
+    for row, col in itertools.product(range_row, range_col):
+        current_corner = corners[:, row, col]
+        coords = np.hstack((current_corner[1, :].reshape(-1, 1),
+                            current_corner[0, :].reshape(-1, 1)))
+        polygon = Polygon(coords)
+        fill[row, col] = polygon
+
+    return fill.flatten().tolist()
+
+
+def get_split_polygon_by_node_threshold(geom, node_threshold):
+    """Split a polygon by a node threshold."""
+    node_schema = get_node_schema(geom)
+
+    # Collect geometries with node counts higher than the threshold.
+    to_split = []
+    for k, v in node_schema.items():
+        if v['node_count'] > node_threshold:
+            to_split.append(k)
+
+    # Identify split parameters for an element exceeding the node threshold.
+    for ii in to_split:
+        n = node_schema[ii]
+        # Approximate number of splits need for each split element to be less than the node threshold.
+        n.n_splits = int(np.ceil(n['node_count'] / node_threshold))
+        # This is the shape of the polygon grid to use for splitting the target element.
+        n.split_shape = np.sqrt(n.n_splits)
+        # There should be at least two splits.
+        if n.split_shape == 1:
+            n.split_shape += 1
+        n.split_shape = tuple([int(np.ceil(ns)) for ns in [n.split_shape] * 2])
+
+        # Get polygons to use for splitting.
+        n.splitters = get_split_polygons(n['geom'], n.split_shape)
+
+        # Create the individual splits:
+        n.splits = []
+        for s in n.splitters:
+            if n.geom.intersects(s):
+                the_intersection = n.geom.intersection(s)
+                for ti in get_iter(the_intersection, dtype=Polygon):
+                    n.splits.append(ti)
+
+                    # write_fiona(n.splits, '01-splits')
+
+    # Collect the polygons to return as a multipolygon.
+    the_multi = []
+    for v in node_schema.values():
+        if 'splits' in v:
+            the_multi += v.splits
+        else:
+            the_multi.append(v.geom)
+
+    return MultiPolygon(the_multi)
 
 
 def geometryvariable_get_mask_from_intersects(gvar, geometry, use_spatial_index=env.USE_SPATIAL_INDEX,

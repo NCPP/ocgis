@@ -126,15 +126,16 @@ class RequestDataset(AbstractRequestObject):
 
     .. _time units: http://netcdf4-python.googlecode.com/svn/trunk/docs/netCDF4-module.html#num2date
     .. _time calendar: http://netcdf4-python.googlecode.com/svn/trunk/docs/netCDF4-module.html#num2date
+    :param dict driver_kwargs: Any keyword arguments to driver creation. See the driver documentation for a description
+     of accepted parameters. These are often format-specific and not easily generalized.
     """
 
-    # TODO: driver-specific option for netcdf: grid_abstraction - perhaps driver_options?
     def __init__(self, uri=None, variable=None, units=None, time_range=None, time_region=None,
                  time_subset_func=None, level_range=None, conform_units_to=None, crs='auto', t_units=None,
                  t_calendar=None, t_conform_units_to=None, grid_abstraction='auto', dimension_map=None,
                  field_name=None, driver=None, regrid_source=True, regrid_destination=False, metadata=None,
                  format_time=True, opened=None, uid=None, rename_variable=None, predicate=None,
-                 rotated_pole_priority=False):
+                 rotated_pole_priority=False, driver_kwargs=None):
 
         self._is_init = True
 
@@ -143,6 +144,11 @@ class RequestDataset(AbstractRequestObject):
         self._time_range = None
         self._time_region = None
         self._time_subset_func = None
+        self._driver_kwargs = driver_kwargs
+
+        if rename_variable is not None:
+            rename_variable = get_tuple(rename_variable)
+        self._rename_variable = rename_variable
 
         self.rotated_pole_priority = rotated_pole_priority
         self.predicate = predicate
@@ -152,12 +158,11 @@ class RequestDataset(AbstractRequestObject):
 
         self._metadata = deepcopy(metadata)
         self._uri = None
-        self._rename_variable = rename_variable
         self.uid = uid
 
         # This is an "open" file-like object that may be passed in-place of file location parameters.
-        self.opened = opened
-        if self.opened is not None and driver is None:
+        self._opened = opened
+        if opened is not None and driver is None:
             msg = 'If "opened" is not None, then a "driver" must be provided.'
             ocgis_lh(logger='request', exc=RequestValidationError('driver', msg))
 
@@ -177,7 +182,7 @@ class RequestDataset(AbstractRequestObject):
             klass = get_autodiscovered_driver(uri)
         else:
             klass = get_driver(driver)
-        self.driver = klass(self)
+        self._driver = klass(self)
 
         if variable is not None:
             variable = get_tuple(variable)
@@ -270,6 +275,15 @@ class RequestDataset(AbstractRequestObject):
         return ret
 
     @property
+    def driver(self):
+        """
+        Get the driver to use for field creation.
+
+        :return: :class:`~ocgis.Field`
+        """
+        return self._driver
+
+    @property
     def level_range(self):
         return self._level_range.value
 
@@ -286,6 +300,10 @@ class RequestDataset(AbstractRequestObject):
             self._dimension_map = deepcopy(dimension_map_raw)
         self._dimension_map.update_dimensions_from_metadata(self.metadata)
         return self._dimension_map
+
+    @property
+    def driver_kwargs(self):
+        return self._driver_kwargs
 
     @property
     def field_name(self):
@@ -323,7 +341,14 @@ class RequestDataset(AbstractRequestObject):
         if self._metadata is None:
             metadata = self.driver.metadata_raw
             self._metadata = deepcopy(metadata)
+            if self._rename_variable is not None:
+                for k, v in self.rename_variable_map.items():
+                    self._metadata['variables'][k]['name'] = v
         return self._metadata
+
+    @property
+    def opened(self):
+        return self._opened
 
     @property
     def time_range(self):
@@ -336,11 +361,6 @@ class RequestDataset(AbstractRequestObject):
         else:
             ret = get_first_or_tuple(list(get_iter(self._rename_variable)))
         return ret
-
-    @rename_variable.setter
-    def rename_variable(self, value):
-        value = get_tuple(value)
-        self._rename_variable = value
 
     @property
     def rename_variable_map(self):
@@ -424,10 +444,7 @@ class RequestDataset(AbstractRequestObject):
 
         return ret
 
-    def get(self, *args, **kwargs):
-        return self.get_field(*args, **kwargs)
-
-    def get_field(self, *args, **kwargs):
+    def create_field(self, *args, **kwargs):
         """
         :rtype: :class:`~ocgis.interface.base.Field`
         """
@@ -442,15 +459,22 @@ class RequestDataset(AbstractRequestObject):
             except NoDataVariablesFound:
                 name = constants.MiscName.DEFAULT_FIELD_NAME
             kwargs['name'] = name
-        return self.driver.get_field(*args, **kwargs)
+        return self.driver.create_field(*args, **kwargs)
 
-    def get_raw_field(self, **kwargs):
+    def create_raw_field(self, **kwargs):
         """
         Return a raw field with no metadata interpretation.
 
         :rtype: :class:`~ocgis.Field`
         """
-        return self.driver.get_raw_field(**kwargs)
+        return self.driver.create_raw_field(**kwargs)
+
+    def get(self, *args, **kwargs):
+        return self.get_field(*args, **kwargs)
+
+    def get_field(self, *args, **kwargs):
+        """Here for backwards compatibility."""
+        return self.create_field(*args, **kwargs)
 
     def inspect(self):
         """

@@ -111,11 +111,6 @@ class AbstractNamedObject(AbstractInterfaceObject):
         self._aliases = aliases
 
 
-def is_field(target):
-    from ocgis import Field
-    return isinstance(target, Field)
-
-
 def get_dimension_names(target):
     from ocgis.variable.dimension import Dimension
     itr = get_iter(target, dtype=(str, Dimension))
@@ -170,6 +165,16 @@ def get_variables(target, parent):
     for idx, n in enumerate(names):
         ret[idx] = parent[n]
     return tuple(ret)
+
+
+def is_field(target):
+    from ocgis import Field
+    return isinstance(target, Field)
+
+
+def is_unstructured_driver(klass):
+    from ocgis.driver.base import AbstractUnstructuredDriver
+    return issubclass(klass, AbstractUnstructuredDriver)
 
 
 def iter_dict_slices(names, sizes, extra=None):

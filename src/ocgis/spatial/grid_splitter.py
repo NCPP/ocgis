@@ -10,13 +10,13 @@ from ocgis import Dimension, vm
 from ocgis import Variable
 from ocgis.base import AbstractOcgisObject
 from ocgis.collection.field import Field
-from ocgis.constants import GridSplitterConstants, RegriddingRole
+from ocgis.constants import GridSplitterConstants, RegriddingRole, Topology
 from ocgis.driver.request.core import RequestDataset
 from ocgis.spatial.grid import GridUnstruct
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import VariableCollection
 from ocgis.variable.geom import GeometryVariable
-from ocgis.vmachine.mpi import OcgDist
+from ocgis.vmachine.mpi import OcgDist, redistribute_by_src_idx
 
 
 class GridSplitter(AbstractOcgisObject):
@@ -63,12 +63,22 @@ class GridSplitter(AbstractOcgisObject):
      optimizations. Optimizations are generally okay for structured, rectilinear grids. Optimizations will avoid
      constructing geometries for the subset target. Hence, subset operations with complex boundary definitions should
      generally avoid optimizations (set to ``False``). If ``'auto'``, attempt to identify the best optimization method.
+    :param iter_dst: A generator yielding destination grids. This generator must also write the grid.
+    :type iter_dst: <generator function>
+    :param float buffer_value: The value in units of the destination grid, used to buffer the spatial extent for
+     subsetting the source grid. It is best to keep this small, but it must ensure the destination subset is fully
+     mapped by the source for whatever purpose the grid splitter is used. If ``None``, the default is double the highest
+     resolution between source and destination grids.
+    :param bool redistribute: If ``True``, redistribute the source subset for unstructured grids. The redistribution
+     reloads the data from source so should not be used with in-memory grids.
     :raises: ValueError
     """
 
     def __init__(self, src_grid, dst_grid, nsplits_dst, paths=None, check_contains=True, allow_masked=True,
-                 src_grid_resolution=None, dst_grid_resolution=None, optimized_bbox_subset='auto'):
+                 src_grid_resolution=None, dst_grid_resolution=None, optimized_bbox_subset='auto', iter_dst=None,
+                 buffer_value=None, redistribute=False):
         # TODO: Need to test with an unstructured grid as destination.
+
         if len(nsplits_dst) != dst_grid.ndim:
             raise ValueError('The number of splits must match the grid dimension count.')
 
@@ -79,6 +89,9 @@ class GridSplitter(AbstractOcgisObject):
         self.allow_masked = allow_masked
         self.src_grid_resolution = src_grid_resolution
         self.dst_grid_resolution = dst_grid_resolution
+        self.iter_dst = iter_dst
+        self.buffer_value = buffer_value
+        self.redistribute = redistribute
 
         # Call each grid's grid splitter initialize routine.
         self.src_grid._gs_initialize_(RegriddingRole.SOURCE)
@@ -196,7 +209,7 @@ class GridSplitter(AbstractOcgisObject):
 
         :param str index_path: Path to the split index netCDF file.
         :param str dst_wd: Working directory containing the destination files holding the weighted data.
-        :param str dst_master_path: Path to the destination master file.
+        :param str dst_master_path: Path to the destination master weight file.
         """
 
         index_field = RequestDataset(index_path).get()
@@ -284,32 +297,42 @@ class GridSplitter(AbstractOcgisObject):
         else:
             yield_slice = False
 
-        try:
-            if self.dst_grid_resolution is None:
-                dst_grid_resolution = self.dst_grid.resolution
-            else:
-                dst_grid_resolution = self.dst_grid_resolution
-            if self.src_grid_resolution is None:
-                src_grid_resolution = self.src_grid.resolution
-            else:
-                src_grid_resolution = self.src_grid_resolution
+        if self.buffer_value is None:
+            try:
+                if self.dst_grid_resolution is None:
+                    dst_grid_resolution = self.dst_grid.resolution
+                else:
+                    dst_grid_resolution = self.dst_grid_resolution
+                if self.src_grid_resolution is None:
+                    src_grid_resolution = self.src_grid.resolution
+                else:
+                    src_grid_resolution = self.src_grid_resolution
 
-            if dst_grid_resolution <= src_grid_resolution:
-                target_resolution = dst_grid_resolution
-            else:
-                target_resolution = src_grid_resolution
-            buffer_value = 2. * target_resolution
-        except NotImplementedError:
-            # Unstructured grids do not have an associated resolution.
-            if isinstance(self.src_grid, GridUnstruct) or isinstance(self.dst_grid, GridUnstruct):
-                buffer_value = None
-            else:
-                raise
+                if dst_grid_resolution <= src_grid_resolution:
+                    target_resolution = dst_grid_resolution
+                else:
+                    target_resolution = src_grid_resolution
+                buffer_value = 2. * target_resolution
+            except NotImplementedError:
+                # Unstructured grids do not have an associated resolution.
+                if isinstance(self.src_grid, GridUnstruct) or isinstance(self.dst_grid, GridUnstruct):
+                    buffer_value = None
+                else:
+                    raise
+        else:
+            buffer_value = self.buffer_value
 
         dst_grid_wrapped_state = self.dst_grid.wrapped_state
         dst_grid_crs = self.dst_grid.crs
 
-        for yld in self.iter_dst_grid_subsets(yield_slice=yield_slice):
+        # Use a destination grid iterator if provided.
+        if self.iter_dst is not None:
+            iter_dst = self.iter_dst(self, yield_slice=yield_slice)
+        else:
+            iter_dst = self.iter_dst_grid_subsets(yield_slice=yield_slice)
+
+        # Loop over each destination grid subset.
+        for yld in iter_dst:
             if yield_slice:
                 dst_grid_subset, dst_slice = yld
             else:
@@ -322,7 +345,10 @@ class GridSplitter(AbstractOcgisObject):
                         dst_box = box(*dst_grid_subset.extent_global)
 
                     # Use the envelope! A buffer returns "fancy" borders. We just want to expand the bounding box.
-                    sub_box = box(*dst_grid_subset.extent_global)
+                    extent_global = dst_grid_subset.parent.attrs.get('extent_global')
+                    if extent_global is None:
+                        extent_global = dst_grid_subset.extent_global
+                    sub_box = box(*extent_global)
                     if buffer_value is not None:
                         sub_box = sub_box.buffer(buffer_value).envelope
 
@@ -341,6 +367,19 @@ class GridSplitter(AbstractOcgisObject):
             src_grid_subset, src_grid_slice = self.src_grid.get_intersects(sub_box, keep_touches=False, cascade=False,
                                                                            optimized_bbox_subset=self.optimized_bbox_subset,
                                                                            return_slice=True)
+
+            # Reload the data using a new source index distribution.
+            if hasattr(src_grid_subset, 'reduce_global'):
+                # Only redistribute if we have one live rank.
+                if self.redistribute and len(vm.get_live_ranks_from_object(src_grid_subset)) > 0:
+                    topology = src_grid_subset.abstractions_available[Topology.POLYGON]
+                    cindex = topology.cindex
+                    redist_dimname = self.src_grid.abstractions_available[Topology.POLYGON].element_dim.name
+                    if src_grid_subset.is_empty:
+                        redist_dim = None
+                    else:
+                        redist_dim = topology.element_dim
+                    redistribute_by_src_idx(cindex, redist_dimname, redist_dim)
 
             with vm.scoped_by_emptyable('src_grid_subset', src_grid_subset):
                 if not vm.is_null:
@@ -370,6 +409,7 @@ class GridSplitter(AbstractOcgisObject):
                 yld = (src_grid_subset, src_grid_slice, dst_grid_subset, dst_slice)
             else:
                 yld = src_grid_subset, src_grid_slice
+
             yield yld
 
     def write_subsets(self):
@@ -387,6 +427,9 @@ class GridSplitter(AbstractOcgisObject):
 
         ctr = 1
         for sub_src, src_slc, sub_dst, dst_slc in self.iter_src_grid_subsets(yield_dst=True):
+            # if vm.rank == 0:
+            #     vm.rank_print('write_subset iterator count :: {}'.format(ctr))
+            #     tstart = time.time()
             # padded = create_zero_padded_integer(ctr, nzeros)
 
             src_path = self.create_full_path_from_template('src_template', index=ctr)
@@ -399,7 +442,13 @@ class GridSplitter(AbstractOcgisObject):
             dst_slices.append(dst_slc)
             src_slices.append(src_slc)
 
-            for target, path in zip([sub_src, sub_dst], [src_path, dst_path]):
+            # Only write destinations if an iterator is not provided.
+            if self.iter_dst is None:
+                zip_args = [[sub_src, sub_dst], [src_path, dst_path]]
+            else:
+                zip_args = [[sub_src], [src_path]]
+
+            for target, path in zip(*zip_args):
                 with vm.scoped_by_emptyable('field.write', target):
                     if not vm.is_null:
                         ocgis_lh(msg='writing: {}'.format(path), level=logging.DEBUG)
@@ -409,6 +458,10 @@ class GridSplitter(AbstractOcgisObject):
 
             # Increment the counter outside of the loop to avoid counting empty subsets.
             ctr += 1
+
+            # if vm.rank == 0:
+            #     tstop = time.time()
+            #     vm.rank_print('timing::write_subset iteration::{}'.format(tstop - tstart))
 
         # Global shapes require a VM global scope to collect.
         src_global_shape = global_grid_shape(self.src_grid)
@@ -478,7 +531,7 @@ class GridSplitter(AbstractOcgisObject):
                 if is_unstruct:
                     dst_filename = ifile[gidx[ifc.NAME_DESTINATION_VARIABLE]].join_string_value()[ii]
                     dst_filename = os.path.join(split_grids_directory, dst_filename)
-                    oindices = RequestDataset(dst_filename).get()[ifc.NAME_SRCIDX_GUID].get_value()
+                    oindices = RequestDataset(dst_filename).get()[ifc.NAME_DSTIDX_GUID].get_value()
                 else:
                     y_bounds = ifile[gidx[ifc.NAME_Y_DST_BOUNDS_VARIABLE]].get_value()
                     x_bounds = ifile[gidx[ifc.NAME_X_DST_BOUNDS_VARIABLE]].get_value()

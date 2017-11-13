@@ -2,7 +2,7 @@ import itertools
 
 import numpy as np
 
-from ocgis.constants import GridAbstraction, DMK
+from ocgis.constants import GridAbstraction, DMK, OcgisConvention
 from ocgis.driver.nc_ugrid import DriverNetcdfUGRID
 from ocgis.driver.request.core import RequestDataset
 from ocgis.spatial.geomc import reduce_reindex_coordinate_index
@@ -62,14 +62,9 @@ class TestDriverNetcdfUGRID(TestBase):
 
         self.assertDictEqual(actual.as_dict(), desired)
 
-    def test_get_distributed_dimension_name(self):
-        du = self.fixture()
-        actual = du.get_distributed_dimension_name(du.rd.dimension_map, du.rd.metadata['dimensions'])
-        self.assertEqual(actual, 'n_face')
-
-    def test_get_field(self):
+    def test_create_field(self):
         du = self.fixture(grid_abstraction=GridAbstraction.POINT)
-        field = du.get_field()
+        field = du.create_field()
         self.assertEqual(field.grid_abstraction, GridAbstraction.POINT)
         self.assertEqual(field.driver, DriverNetcdfUGRID)
         self.assertIsInstance(field.grid, GridUnstruct)
@@ -78,16 +73,21 @@ class TestDriverNetcdfUGRID(TestBase):
 
         # Test retrieving polygons.
         du = self.fixture(grid_abstraction=GridAbstraction.POLYGON)
-        field = du.get_field()
+        field = du.create_field()
         self.assertEqual(field.grid_abstraction, GridAbstraction.POLYGON)
         self.assertEqual(field.driver, DriverNetcdfUGRID)
         self.assertIsInstance(field.grid, GridUnstruct)
         self.assertEqual(field.grid.abstraction, GridAbstraction.POLYGON)
         self.assertIsNotNone(field.grid.archetype.cindex)
 
+    def test_get_distributed_dimension_name(self):
+        du = self.fixture()
+        actual = du.get_distributed_dimension_name(du.rd.dimension_map, du.rd.metadata['dimensions'])
+        self.assertEqual(actual, 'n_face')
+
     def test_get_grid(self):
         du = self.fixture()
-        field = du.get_field()
+        field = du.create_field()
 
         grid = DriverNetcdfUGRID.get_grid(field)
 
@@ -95,9 +95,15 @@ class TestDriverNetcdfUGRID(TestBase):
         desired = [GridAbstraction.POINT, GridAbstraction.POLYGON]
         self.assertAsSetEqual(actual, desired)
 
+    def test_get_multi_break_value(self):
+        mbv_name = OcgisConvention.Name.MULTI_BREAK_VALUE
+        cindex = Variable(name='cindex', attrs={mbv_name: -899})
+        actual = DriverNetcdfUGRID.get_multi_break_value(cindex)
+        self.assertEqual(actual, -899)
+
     def test_write(self):
         du = self.fixture()
-        field = du.get_field()
+        field = du.create_field()
         path = self.get_temporary_file_path('foo.nc')
         field.write(path)
 

@@ -1,5 +1,4 @@
 import time
-from copy import deepcopy
 
 import numpy as np
 
@@ -83,9 +82,10 @@ class Test(TestBase):
     @attr('data')
     def test_multivariate_computation(self):
         rd = self.test_data.get_rd('cancm4_tas', kwds={'time_region': {'month': [3]}})
-        rd2 = deepcopy(rd)
-        rd2.field_name = 'tas2'
-        rd2.rename_variable = 'tas2'
+        rd2 = self.test_data.get_rd('cancm4_tas', kwds={'time_region': {'month': [3]},
+                                                        'field_name': 'tas2',
+                                                        'rename_variable': 'tas2'})
+
         calc = [{'func': 'divide', 'name': 'ln', 'kwds': {'arr1': 'tas', 'arr2': 'tas2'}}]
         ops = ocgis.OcgOperations(dataset=[rd, rd2], calc=calc, calc_grouping=['month'], output_format='nc',
                                   geom='state_boundaries',

@@ -14,7 +14,7 @@ from shapely.geometry.point import Point
 from shapely.geometry.polygon import Polygon
 
 import ocgis
-from ocgis import RequestDataset, DimensionMap
+from ocgis import RequestDataset
 from ocgis import constants
 from ocgis import env
 from ocgis.calc.eval_function import EvalFunction, MultivariateEvalFunction
@@ -478,11 +478,7 @@ class Dataset(base.AbstractParameter):
 
             if env.USE_ESMF and isinstance(element, ESMF.Field):
                 from ocgis.regrid.base import get_ocgis_field_from_esmf_field
-                dimension_map = {DimensionMapKey.X: {DimensionMapKey.VARIABLE: 'x', DimensionMapKey.DIMENSION: ['x']},
-                                 DimensionMapKey.Y: {DimensionMapKey.VARIABLE: 'y', DimensionMapKey.DIMENSION: ['y']}}
-                dimension_map = DimensionMap.from_dict(dimension_map)
-                element = get_ocgis_field_from_esmf_field(element, dimensions=self.esmf_field_dimensions,
-                                                          dimension_map=dimension_map)
+                element = get_ocgis_field_from_esmf_field(element)
 
             try:
                 element = element.copy()

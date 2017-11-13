@@ -16,7 +16,7 @@ from netCDF4 import netcdftime
 from numpy.core.multiarray import ndarray
 from numpy.ma import MaskedArray
 from shapely.geometry import Point
-from shapely.geometry.base import BaseGeometry
+from shapely.geometry.base import BaseGeometry, BaseMultipartGeometry
 from shapely.geometry.geo import mapping
 from shapely.geometry.polygon import Polygon
 from shapely.wkb import loads as wkb_loads
@@ -88,28 +88,23 @@ def format_bool(value):
     return ret
 
 
-def arange_from_bool_ndarray(arr, start=0, **kwargs):
+def arange_from_bool_ndarray(arr, start=0):
     """
     Create a collapsed range from ``start`` to the sum of ``True`` elements in ``arr`` plus one.
 
     :param arr: The boolean array to use as a filter for the range creation.
     :type arr: :class:`numpy.ndarray`
     :param int start: The start index for the range array.
-    :param kwargs: Additional arguments to array creation.
     :return: An integer range array.
     :rtype: :class:`numpy.ndarray`
     """
 
-    ret = np.zeros(arr.sum(), **kwargs)
-    ret_idx = 0
-    for idx in range(arr.shape[0]):
-        if arr[idx]:
-            ret[ret_idx] = idx + start
-            ret_idx += 1
-    return ret
+    npw = np.where(arr)[0]
+    npw += start
+    return npw
 
 
-def arange_from_dimension(dim, start=0, dtype=int, dist=True):
+def arange_from_dimension(dim, start=0, dtype=None, dist=True):
     """
     Create a sequential integer range similar to ``numpy.arange``. Call is collective across the current
     :class:`~ocgis.OcgVM` if ``dist=True`` (the default).
@@ -123,6 +118,10 @@ def arange_from_dimension(dim, start=0, dtype=int, dist=True):
     :rtype: :class:`numpy.ndarray`
     """
 
+    if dtype is None:
+        from ocgis import env
+        dtype = env.NP_INT
+
     local_size = len(dim)
     if dist:
         from ocgis import vm
@@ -132,9 +131,14 @@ def arange_from_dimension(dim, start=0, dtype=int, dist=True):
                 break
             else:
                 if vm.rank == rank:
-                    vm.comm.send(start + local_size, dest=dest_rank)
+                    data = np.array([start + local_size], dtype=dtype)
+                    buf = [data, vm.get_mpi_type(dtype)]
+                    vm.comm.Send(buf, dest=dest_rank, tag=MPITag.ARANGE_FROM_DIMENSION)
                 elif vm.rank == dest_rank:
-                    start = vm.comm.recv(source=rank)
+                    data = np.zeros(1, dtype=dtype)
+                    buf = [data, vm.get_mpi_type(dtype)]
+                    vm.comm.Recv(buf, source=rank, tag=MPITag.ARANGE_FROM_DIMENSION)
+                    start = data[0]
                 else:
                     pass
         vm.barrier()
@@ -300,6 +304,28 @@ def create_exact_field_value(longitude, latitude):
     latitude_radians = latitude * 0.0174533
     exact = 2.0 + np.cos(latitude_radians) ** 2 + np.cos(2.0 * longitude_radians)
     return exact
+
+
+def create_ocgis_corners_from_esmf_corners(ecorners):
+    """
+    :param ecorners: An array of ESMF corners.
+    :type ecorners: :class:`numpy.ndarray`
+    :return: :class:`numpy.ndarray`
+    """
+    assert ecorners.ndim == 2
+
+    # ESMF corners have an extra row and column.
+    base_shape = [xx - 1 for xx in ecorners.shape]
+    grid_corners = np.zeros(base_shape + [4], dtype=ecorners.dtype)
+    # Upper left, upper right, lower right, lower left - this is an ideal order. Actual order may differ later.
+    slices = [(0, 0), (0, 1), (1, 1), (1, 0)]
+    for ii, jj in itertools.product(list(range(base_shape[0])), list(range(base_shape[1]))):
+        row_slice = slice(ii, ii + 2)
+        col_slice = slice(jj, jj + 2)
+        corners = ecorners[row_slice, col_slice]
+        for kk, slc in enumerate(slices):
+            grid_corners[ii, jj, kk] = corners[slc]
+    return grid_corners
 
 
 def create_zero_padded_integer(integer, nzeros):
@@ -567,12 +593,13 @@ def get_esmf_corners_from_ocgis_corners(ocorners, fill=None):
     """
     :param ocorners: Corners array with dimension (m, n, 4).
     :type ocorners: :class:`numpy.ma.core.MaskedArray`
-    :returns: An ESMF corners array with dimension (m + 1, n + 1).
+    :returns: An ESMF corners array with dimension (n + 1, m + 1).
     :rtype: :class:`numpy.ndarray`
     """
 
     if fill is None:
-        fill = np.zeros([element + 1 for element in ocorners.shape[0:2]], dtype=ocorners.dtype)
+        shp = np.flipud(ocorners.shape[0:2])
+        fill = np.zeros([element + 1 for element in shp], dtype=ocorners.dtype)
     range_row = list(range(ocorners.shape[0]))
     range_col = list(range(ocorners.shape[1]))
 
@@ -582,37 +609,12 @@ def get_esmf_corners_from_ocgis_corners(ocorners, fill=None):
         _corners = ocorners
 
     for ii, jj in itertools.product(range_row, range_col):
-        ref = fill[ii:ii + 2, jj:jj + 2]
+        ref = fill[jj:jj + 2, ii:ii + 2]
         ref[0, 0] = _corners[ii, jj, 0]
-        ref[0, 1] = _corners[ii, jj, 1]
+        ref[1, 0] = _corners[ii, jj, 1]
         ref[1, 1] = _corners[ii, jj, 2]
-        ref[1, 0] = _corners[ii, jj, 3]
+        ref[0, 1] = _corners[ii, jj, 3]
     return fill
-
-
-def get_ocgis_corners_from_esmf_corners(ecorners):
-    """
-    :param ecorners: An array of ESMF corners.
-    :type ecorners: :class:`numpy.ndarray`
-    :returns: A masked array of OCGIS corners.
-    :rtype: :class:`~numpy.ma.core.MaskedArray`
-    """
-
-    assert ecorners.ndim == 2
-
-    # ESMF corners have an extra row and column.
-    base_shape = [xx - 1 for xx in ecorners.shape]
-    grid_corners = np.zeros(base_shape + [4], dtype=ecorners.dtype)
-    # Upper left, upper right, lower right, lower left
-    slices = [(0, 0), (0, 1), (1, 1), (1, 0)]
-    for ii, jj in itertools.product(list(range(base_shape[0])), list(range(base_shape[1]))):
-        row_slice = slice(ii, ii + 2)
-        col_slice = slice(jj, jj + 2)
-        corners = ecorners[row_slice, col_slice]
-        for kk, slc in enumerate(slices):
-            grid_corners[ii, jj, kk] = corners[slc]
-    grid_corners = np.ma.array(grid_corners, mask=False)
-    return grid_corners
 
 
 def get_optimal_slice_from_array(arr, check_diff=True):
@@ -1067,18 +1069,35 @@ def create_unique_global_array(arr):
 
     # Send out the overlapping sources.
     tag_overlap = MPITag.OVERLAP_CHECK
+    tag_select_send_size = MPITag.SELECT_SEND_SIZE
     vm.barrier()
+
+    # NumPy and MPI types.
+    np_type = unique_local.dtype
+    mpi_type = vm.get_mpi_type(np_type)
+
     for o in overlaps:
         if vm.rank != o and vm.rank < o:
             dest_rank_bounds = lb_global[o]
             select_send = np.logical_and(unique_local >= dest_rank_bounds[0], unique_local <= dest_rank_bounds[1])
-            _ = vm.comm.isend(unique_local[select_send], dest=o, tag=tag_overlap)
+            u_src = unique_local[select_send]
+            select_send_size = u_src.size
+            _ = vm.comm.Isend([np.array([select_send_size], dtype=np_type), mpi_type], dest=o, tag=tag_select_send_size)
+            _ = vm.comm.Isend([u_src, mpi_type], dest=o, tag=tag_overlap)
+
     # Receive and process conflicts to reduce the unique local values.
     if vm.rank != 0:
         for o in overlaps:
             if vm.rank != o and vm.rank > o:
-                req = vm.comm.irecv(source=o, tag=tag_overlap)
-                u_src = req.wait()
+                select_send_size = np.array([0], dtype=np_type)
+                req_select_send_size = vm.comm.Irecv([select_send_size, mpi_type], source=o, tag=tag_select_send_size)
+                req_select_send_size.wait()
+                select_send_size = select_send_size[0]
+
+                u_src = np.zeros(select_send_size, dtype=np_type)
+                req = vm.comm.Irecv([u_src, mpi_type], source=o, tag=tag_overlap)
+                req.wait()
+
                 utokeep = np.ones_like(unique_local, dtype=bool)
                 for uidx, u in enumerate(unique_local.flat):
                     if u in u_src:
@@ -1323,3 +1342,18 @@ def find_index(seqs, to_find):
         found_idx = None
 
     return found_idx
+
+
+def iter_exploded_geometries(geom):
+    """Yield single-part Shapely geometry objects."""
+
+    if isinstance(geom, BaseMultipartGeometry):
+        itr = iter(geom)
+    else:
+        itr = [geom]
+    for element1 in itr:
+        if isinstance(element1, BaseMultipartGeometry):
+            for element2 in iter_exploded_geometries(element1):
+                yield element2
+        else:
+            yield element1

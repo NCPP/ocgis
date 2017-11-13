@@ -7,11 +7,18 @@ from ocgis.spatial.geom_cabinet import GeomCabinetIterator
 from ocgis.test.base import TestBase
 from ocgis.test.base import attr
 from ocgis.util.helpers import *
-from ocgis.variable.crs import Spherical, CoordinateReferenceSystem
+from ocgis.variable.crs import Spherical, create_crs
 from ocgis.vmachine.mpi import OcgDist, variable_scatter, hgather
 
 
 class Test1(TestBase):
+    def test_create_ocgis_corners_from_esmf_corners(self):
+        ecorners = np.array([[0, 0.1],
+                             [0.2, 0.3]])
+        actual = create_ocgis_corners_from_esmf_corners(ecorners)
+        desired = [[[0.0, 0.1, 0.3, 0.2]]]
+        self.assertEqual(actual.tolist(), desired)
+
     def test_get_bounds_from_1d(self):
         across_180 = np.array([-180, -90, 0, 90, 180], dtype=float)
 
@@ -210,7 +217,8 @@ class Test2(TestBase):
         records = list(sci)
         self.assertAsSetEqual([1, 2], [xx['properties'][OCGIS_UNIQUE_GEOMETRY_IDENTIFIER] for xx in records])
         self.assertAsSetEqual([6, 60], [xx['properties']['fid'] for xx in records])
-        self.assertEqual(CoordinateReferenceSystem(records[0]['meta']['crs']), crs)
+        actual_crs = create_crs(records[0]['meta']['crs'])
+        self.assertEqual(actual_crs, crs)
 
         # test it works for the current working directory
         cwd = os.getcwd()
@@ -237,7 +245,7 @@ class Test2(TestBase):
 
     def test_arange_from_bool_ndarray(self):
         arr = np.array([False, True, True, False, True])
-        actual = arange_from_bool_ndarray(arr, start=2, dtype=np.int32)
+        actual = arange_from_bool_ndarray(arr, start=2)
         actual = actual.tolist()
         self.assertEqual(actual, [3, 4, 6])
 
@@ -303,7 +311,6 @@ class Test2(TestBase):
 
     @attr('mpi')
     def test_create_unique_global_array(self):
-        self.add_barrier = False
         dist = OcgDist()
         dist.create_dimension('dim', 9, dist=True)
         dist.update_dimension_bounds()

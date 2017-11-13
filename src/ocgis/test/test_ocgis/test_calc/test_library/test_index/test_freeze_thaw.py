@@ -77,7 +77,6 @@ class TestFreezeThawCycles(AbstractTestField):
         np.testing.assert_array_equal(out[0,:,0,0,0], np.nan)
         self.assertEqual(np.isnan(out).sum(), 3)
 
-
     def test_units_check(self):
         """Check that using a variable with units other than Kelvin raises an
         error."""

@@ -233,10 +233,8 @@ class TestETR(TestBase):
 
     @attr('data')
     def test_calculate_rotated_pole(self):
-        tasmin_fake = self.test_data.get_rd('rotated_pole_ichec')
-        tasmin_fake.rename_variable = 'tasmin'
-        tasmax_fake = deepcopy(tasmin_fake)
-        tasmax_fake.rename_variable = 'tasmax'
+        tasmin_fake = self.test_data.get_rd('rotated_pole_ichec', kwds={'rename_variable': 'tasmin'})
+        tasmax_fake = self.test_data.get_rd('rotated_pole_ichec', kwds={'rename_variable': 'tasmax'})
         rds = [tasmin_fake, tasmax_fake]
         for rd in rds:
             rd.time_region = {'year': [1973]}

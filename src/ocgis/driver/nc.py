@@ -20,7 +20,8 @@ from ocgis.exc import ProjectionDoesNotMatch, PayloadProtectedError, OcgWarning,
 from ocgis.util.helpers import itersubclasses, get_iter, get_formatted_slice, get_by_key_list, is_auto_dtype, get_group
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import SourcedVariable, ObjectType, get_slice_sequence_using_local_bounds
-from ocgis.variable.crs import CFCoordinateReferenceSystem, CoordinateReferenceSystem, CFRotatedPole, CFSpherical
+from ocgis.variable.crs import CFCoordinateReferenceSystem, CoordinateReferenceSystem, CFRotatedPole, CFSpherical, \
+    AbstractProj4CRS
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.temporal import TemporalVariable
 
@@ -28,6 +29,10 @@ from ocgis.variable.temporal import TemporalVariable
 class DriverNetcdf(AbstractDriver):
     """
     Driver for netCDF files that avoids any hint of metadata.
+
+    Driver keyword arguments (``driver_kwargs``) to the request dataset:
+
+    * Any keyword arguments to dataset or multi-file dataset creation.
     """
     extensions = ('.*\.nc', 'http.*')
     key = DriverKey.NETCDF
@@ -45,12 +50,6 @@ class DriverNetcdf(AbstractDriver):
     @classmethod
     def get_variable_for_writing_temporal(cls, temporal_variable):
         return temporal_variable.value_numtime
-
-    def get_raw_field(self, **kwargs):
-        """See superclass :meth:`ocgis.driver.base.AbstractDriver.get_raw_field`."""
-        with driver_scope(self) as ds:
-            ret = read_from_collection(ds, self.rd, parent=None, uid=kwargs.pop('uid', None))
-        return ret
 
     def get_variable_value(self, variable):
         return get_value_from_request_dataset(variable)
@@ -98,15 +97,15 @@ class DriverNetcdf(AbstractDriver):
             if isinstance(dtype, ObjectType):
                 dtype = dtype.create_vltype(dataset, dimensions[0].name + '_VLType')
             # Assume we are writing string data if the data type is object.
-            elif dtype == str:
+            elif dtype == str or var.is_string_object:
                 dtype = 'S1'
 
             if len(dimensions) > 0:
                 # Special handling for string variables.
                 if dtype == 'S1':
-                    max_length = max([len(e) for e in var.get_value()])
-                    dimensions = [var.dimensions[0],
-                                  Dimension('{}_ocgis_slen'.format(var.name), max_length)]
+                    max_length = var.string_max_length_global
+                    assert max_length is not None
+                    dimensions = [var.dimensions[0], Dimension('{}_ocgis_slen'.format(var.name), max_length)]
                 dimensions = list(dimensions)
                 # Convert the unlimited dimension to fixed size if requested.
                 for idx, d in enumerate(dimensions):
@@ -145,15 +144,23 @@ class DriverNetcdf(AbstractDriver):
                 data_value = cls.get_variable_write_value(var)
                 # Only write allocated values.
                 if data_value is not None:
-                    if var.dtype == str:
+                    if var.dtype == str or var.is_string_object:
                         for idx in range(fill_slice[0].start, fill_slice[0].stop):
-                            curr_value = data_value[idx]
+                            try:
+                                curr_value = data_value[idx - fill_slice[0].start]
+                            except Exception as e:
+                                msg = "Variable name is '{}'. Original message: ".format(var.name) + e.message
+                                raise e.__class__(msg)
                             for sidx, sval in enumerate(curr_value):
                                 ncvar[idx, sidx] = sval
                     elif var.ndim == 0:
                         ncvar[:] = data_value
                     else:
-                        ncvar.__setitem__(fill_slice, data_value)
+                        try:
+                            ncvar.__setitem__(fill_slice, data_value)
+                        except Exception as e:
+                            msg = "Variable name is '{}'. Original message: ".format(var.name) + e.message
+                            raise e.__class__(msg)
 
         # Only set variable attributes if this is not a fill operation.
         if write_mode != MPIWriteMode.FILL:
@@ -176,13 +183,19 @@ class DriverNetcdf(AbstractDriver):
         else:
             mode = 'w'
 
+        # For an asynchronous write, treat everything like a single rank.
+        if write_mode == MPIWriteMode.ASYNCHRONOUS:
+            possible_ranks = [0]
+        else:
+            possible_ranks = vm.ranks
+
         # Write the data on each rank.
-        for idx, rank_to_write in enumerate(vm.ranks):
+        for idx, rank_to_write in enumerate(possible_ranks):
             # The template write only occurs on the first rank.
             if write_mode == MPIWriteMode.TEMPLATE and rank_to_write != 0:
                 pass
             # If this is not a template write, fill the data.
-            elif vm.rank == rank_to_write:
+            elif write_mode == MPIWriteMode.ASYNCHRONOUS or vm.rank == rank_to_write:
                 with driver_scope(cls, opened_or_path=opened_or_path, mode=mode, **dataset_kwargs) as dataset:
                     # Write global attributes if we are not filling data.
                     if write_mode != MPIWriteMode.FILL:
@@ -207,12 +220,19 @@ class DriverNetcdf(AbstractDriver):
                     dataset.sync()
             vm.barrier()
 
-    def _get_dimensions_main_(self, group_metadata):
-        return tuple(get_dimensions_from_netcdf_metadata(group_metadata, list(group_metadata['dimensions'].keys())))
-
     def _get_metadata_main_(self):
         with driver_scope(self) as ds:
             ret = parse_metadata(ds)
+        return ret
+
+    @classmethod
+    def _get_write_modes_(cls, the_vm, **kwargs):
+        dataset_kwargs = kwargs.get(KeywordArgument.DATASET_KWARGS, {})
+
+        ret = AbstractDriver._get_write_modes_(the_vm, **kwargs)
+        if env.USE_NETCDF4_MPI and the_vm.size > 1:
+            if dataset_kwargs.get('format', 'NETCDF4') == 'NETCDF4' and dataset_kwargs.get('parallel', True):
+                ret = [MPIWriteMode.ASYNCHRONOUS]
         return ret
 
     def _init_variable_from_source_main_(self, variable, variable_object):
@@ -223,9 +243,19 @@ class DriverNetcdf(AbstractDriver):
         """
         :rtype: object
         """
+        kwargs = kwargs.copy()
         group_indexing = kwargs.pop('group_indexing', None)
+        lvm = kwargs.pop('vm', vm)
 
         if isinstance(uri, six.string_types):
+            # Open the dataset in parallel if we want to use the netCDF MPI capability. It may not be available even in
+            # parallel.
+            if mode == 'w' and lvm.size > 1:
+                if kwargs.get('format', 'NETCDF4') == 'NETCDF4':
+                    if kwargs.get('parallel') is None and env.USE_NETCDF4_MPI:
+                        kwargs['parallel'] = True
+                    if kwargs.get('parallel') and kwargs.get('comm') is None:
+                        kwargs['comm'] = lvm.comm
             ret = nc.Dataset(uri, mode=mode, **kwargs)
         else:
             ret = nc.MFDataset(uri, **kwargs)
@@ -290,6 +320,9 @@ class AbstractDriverNetcdfCF(DriverNetcdf):
                 axes[k]['bounds'] = bounds_var
         entries = {k: v for k, v in list(axes.items()) if v is not None}
         return entries
+
+    def _get_crs_main_(self, group_metadata):
+        return get_crs_variable(group_metadata, self.rd.rotated_pole_priority)
 
     @staticmethod
     def _update_dimension_map_with_entries_(entries, dimension_map):
@@ -383,9 +416,6 @@ class DriverNetcdfCF(AbstractDriverNetcdfCF):
         except GridDeficientError:
             ret = None
         return ret
-
-    def _get_crs_main_(self, group_metadata):
-        return get_crs_variable(group_metadata, self.rd.rotated_pole_priority)
 
     @classmethod
     def _get_field_write_target_(cls, field):
@@ -513,22 +543,6 @@ def get_coordinate_system_variable_name(driver_object, group_metadata):
     return crs_name
 
 
-def get_dimensions_from_netcdf_metadata(metadata, desired_dimensions):
-    new_dimensions = []
-    for dim_name in desired_dimensions:
-        dim = metadata['dimensions'][dim_name]
-        dim_length = dim['size']
-        if dim['isunlimited']:
-            length = None
-            length_current = dim_length
-        else:
-            length = dim_length
-            length_current = None
-        new_dim = Dimension(dim_name, size=length, size_current=length_current, src_idx='auto')
-        new_dimensions.append(new_dim)
-    return new_dimensions
-
-
 def get_value_from_request_dataset(variable):
     if variable.protected:
         raise PayloadProtectedError(variable.name)
@@ -599,7 +613,7 @@ def create_dimension_or_pass(dim, dataset, write_mode=MPIWriteMode.NORMAL):
     if dim.name not in dataset.dimensions:
         if dim.is_unlimited:
             size = None
-        elif write_mode == MPIWriteMode.TEMPLATE:
+        elif write_mode in (MPIWriteMode.TEMPLATE, MPIWriteMode.ASYNCHRONOUS):
             lower, upper = dim.bounds_global
             size = upper - lower
         else:
@@ -639,6 +653,14 @@ def get_crs_variable(metadata, rotated_pole_priority, to_search=None):
         except ProjectionDoesNotMatch:
             # No spherical coordinate system data available. Fall back on previous crs.
             pass
+
+    # If there is no CRS, check for OCGIS coordinate systems.
+    if crs is None:
+        try:
+            crs = AbstractProj4CRS.load_from_metadata(metadata)
+        except ProjectionDoesNotMatch:
+            pass
+
     return crs
 
 

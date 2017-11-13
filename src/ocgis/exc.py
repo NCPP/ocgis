@@ -75,7 +75,7 @@ class RequestableFeature(OcgException):
             second_format = ''
         else:
             second_format = "Custom message is: '{}'".format(message)
-        self.message.format(constants.GITHUB_ISSUES, second_format)
+        self.message = self.message.format(constants.GITHUB_ISSUES, second_format)
 
 
 class ShapeError(OcgException):
@@ -376,6 +376,13 @@ class NoDataVariablesFound(RequestValidationError):
 
     def __init__(self):
         super(NoDataVariablesFound, self).__init__('variable', messages.M1)
+
+
+class NoInteriorsError(OcgException):
+    def __init__(self, message=None):
+        if message is None:
+            message = 'Polygon has no holes or interiors. Nothing to do.'
+        super(NoInteriorsError, self).__init__(message)
 
 
 class GridDeficientError(OcgException):

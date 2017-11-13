@@ -19,9 +19,6 @@ DEFAULT_TEMPORAL_UNITS = 'days since 0001-01-01 00:00:00'
 #: Default name for the time dimension.
 DEFAULT_TEMPORAL_NAME = 'time'
 
-#: Default name for coordinate systems in netCDF file if none is provided.
-DEFAULT_COORDINATE_SYSTEM_NAME = 'ocgis_coordinate_system'
-
 #: Default sample size variable standard name.
 DEFAULT_SAMPLE_SIZE_STANDARD_NAME = 'sample_size'
 
@@ -44,6 +41,9 @@ DEFAULT_NAME_CORNERS_DIMENSION = 'corners'
 PROJ4_ROTATED_POLE_ELLPS = 'sphere'
 
 GITHUB_ISSUES = 'https://github.com/NCPP/ocgis/issues'
+
+MPI_EMPTY_VALUE = -999
+
 
 class HeaderName(object):
     ID_SELECTION_GEOMETRY = 'UGID'
@@ -216,6 +216,7 @@ class DimensionMapKey(object):
     GRID_ABSTRACTION = 'grid_abstraction'
     GROUPS = 'groups'
     LEVEL = 'level'
+    SECTION = 'section'
     SPATIAL_MASK = 'spatial_mask'
     TIME = 'time'
     TOPOLOGY = 'topology'
@@ -230,7 +231,7 @@ class DimensionMapKey(object):
 
     @classmethod
     def get_element_keys(cls):
-        return DMK.ATTRS, DMK.GROUPS, DMK.VARIABLE, DMK.DIMENSION, DMK.BOUNDS
+        return DMK.ATTRS, DMK.GROUPS, DMK.VARIABLE, DMK.DIMENSION, DMK.BOUNDS, DMK.SECTION
 
     @classmethod
     def get_entry_keys(cls):
@@ -266,6 +267,7 @@ class MPIWriteMode(Enum):
     FILL = 2
     WRITE = 0
     APPEND = 2
+    ASYNCHRONOUS = 3
 
 
 class TagName(object):
@@ -295,6 +297,7 @@ class KeywordArgument(object):
     DIR_OUTPUT = 'dir_output'
     DIST = 'dist'
     DRIVER = 'driver'
+    DRIVER_KWARGS = 'driver_kwargs'
     DTYPE = 'dtype'
     EAGER = 'eager'
     EXCLUDE = 'exclude'
@@ -369,6 +372,7 @@ class DriverKey(object):
     CSV = 'csv'
     NETCDF = 'netcdf'
     NETCDF_CF = 'netcdf-cf'
+    NETCDF_ESMF_UNSTRUCT = 'netcdf-esmf-unstruct'
     VECTOR = 'vector'
     NETCDF_UGRID = 'netcdf-ugrid'
 
@@ -395,9 +399,12 @@ class MPITag(IntEnum):
     REDUCE_REINDEX_CHILD_FINISHED = 3
     REDUCE_REINDEX_FOUND = 4
     CREATE_DIST_DIM = 9
-
+    ARANGE_FROM_DIMENSION = 10
+    START_INDEX = 11
+    SELECT_SEND_SIZE = 12
 
 class CFName(object):
+    LONG_NAME = 'long_name'
     TIME = ('time',)
     X = ['x', 'xc', 'longitude', 'lon']
     Y = ['y', 'yc', 'latitude', 'lat']
@@ -429,6 +436,28 @@ class BackTransform(Enum):
     ROTATED_POLE = 'rotated pole'
 
 
+class OcgisConvention(object):
+    class Name(object):
+        # Number of nodes per element. Used, for example, when linking element node counts in ESMF unstructured format.
+        ELEMENT_NODE_COUNT = 'ocgis_element_node_count'
+        # Integer break value to use for multi-geometries.
+        MULTI_BREAK_VALUE = 'multi_break_value'
+        # Attribute holding a PROJ.4 string.
+        PROJ4 = 'proj4'
+        # Default name for OCGIS coordinate systems.
+        COORDSYS = 'ocgis_coordinate_system'
+        # Attribute name indicate an OCGIS role.
+        OCGIS_ROLE = 'ocgis_role'
+        # Default dimension name for x-coordinate dimensions.
+        XC_DIMENSION = 'xdim'
+        # Default dimension name for x-coordinate dimensions.
+        YC_DIMENSION = 'ydim'
+
+    class Value(object):
+        MULTI_BREAK_VALUE = -8
+        ROLE_COORDSYS = 'coordinate_system'
+
+
 class OcgisUnits(Enum):
     DEGREES = 'degrees'
     RADIANS = 'radians'
@@ -446,6 +475,7 @@ class SourceIndexType(IntEnum):
 
 class ConversionTarget(Enum):
     GEOMETRY_COORDS = 'geometry_coords'
+    GEOMETRY_VARIABLE = 'geometry_variable'
 
 
 class GridSplitterConstants(object):

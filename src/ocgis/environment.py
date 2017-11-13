@@ -12,6 +12,10 @@ from ocgis.exc import OcgWarning
 # import is okay (if it is not installed).
 try:
     import ESMF
+
+    req_esmf_version = '7.1.0 beta snapshot'
+    if ESMF.__version__ != req_esmf_version:
+        raise ImportError('ESMF version requirement not met: {}'.format(req_esmf_version))
 except ImportError:
     pass
 
@@ -82,6 +86,7 @@ class Environment(AbstractOcgisObject):
         self.USE_ICCLIM = EnvParmImport('USE_ICCLIM', None, 'icclim')
         self.USE_MPI4PY = EnvParmImport('USE_MPI4PY', None, 'mpi4py')
         self.USE_MEMORY_OPTIMIZATIONS = EnvParm('USE_MEMORY_OPTIMIZATIONS', False, formatter=self._format_bool_)
+        self.USE_NETCDF4_MPI = EnvParm('USE_NETCDF4_MPI', None, formatter=self._format_bool_)
         self.CONF_PATH = EnvParm('CONF_PATH', os.path.expanduser('~/.config/ocgis.conf'))
         self.SUPPRESS_WARNINGS = EnvParm('SUPPRESS_WARNINGS', True, formatter=self._format_bool_)
         self.DEFAULT_GEOM_UID = EnvParm('DEFAULT_GEOM_UID', constants.OCGIS_UNIQUE_GEOMETRY_IDENTIFIER, formatter=str)
@@ -104,8 +109,14 @@ class Environment(AbstractOcgisObject):
             self.PREFER_NETCDFTIME = get_netcdftime_preference()
 
         from ocgis.variable.crs import CFSpherical
-
         self.DEFAULT_COORDSYS = EnvParm('DEFAULT_COORDSYS', CFSpherical())
+
+        if self.USE_NETCDF4_MPI is None:
+            import netCDF4
+            self.USE_NETCDF4_MPI = False
+            if hasattr(netCDF4, '__has_nc_par__'):
+                if netCDF4.__has_nc_par__ == 1:
+                    self.USE_NETCDF4_MPI = True
 
         self.ops = None
         self._optimize_store = {}
@@ -144,15 +155,10 @@ class Environment(AbstractOcgisObject):
 
     def reset(self):
         """
-        Reset values to defaults (Values will be read from any overloaded system environment variables.
+        Reset values to defaults (values will be read from any overloaded system environment variables).
         """
 
-        for value in self.__dict__.values():
-            if isinstance(value, EnvParm):
-                value._value = 'use_env'
-                getattr(value, 'value')
-        env.ops = None
-        self._optimize_store = {}
+        self.__init__()
 
     @staticmethod
     def _format_bool_(value):

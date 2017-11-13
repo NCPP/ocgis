@@ -178,6 +178,11 @@ class TestVariable(AbstractTestInterface):
         v = Variable(is_empty=True)
         self.assertTrue(v.is_empty)
 
+    def test_init_dimensions_named_the_same(self):
+        dim = Dimension('same', 7)
+        with self.assertRaises(ValueError):
+            Variable(name='samed', dimensions=(dim, dim))
+
     def test_init_dtype(self):
         """Test automatic data type detection."""
 
@@ -203,6 +208,11 @@ class TestVariable(AbstractTestInterface):
 
         var = Variable(name='b', value=np.array([1, 2, 3], dtype=object), dimensions='foo')
         self.assertIsNone(var.fill_value)
+
+    def test_init_hang_with_dimension(self):
+        # Test passing dimension to value.
+        with self.assertRaises(ValueError):
+            _ = Variable(name='data', value=Dimension('foo', 5), dimensions='blah')
 
     def test_init_object_array(self):
         value = [[1, 3, 5],
@@ -302,6 +312,29 @@ class TestVariable(AbstractTestInterface):
         var.parent.write(path)
         invar = RequestDataset(path).get()['strings']
         self.assertEqual(invar.dtype, 'S1')
+
+    @attr('mpi')
+    def test_system_string_data_parallel(self):
+        if vm.size > 2:
+            raise SkipTest('vm.size > 2')
+
+        dist = OcgDist()
+        sdim = dist.create_dimension('sdim', 2, dist=True)
+        dist.update_dimension_bounds(min_elements=1)
+
+        if vm.rank == 0:
+            var = Variable(name='strings', value=['peas', 'peas please'], dimensions=sdim.name)
+            desired = len(var.get_value()[1])
+        else:
+            var = None
+            desired = None
+        desired = vm.bcast(desired)
+        var = variable_scatter(var, dist)
+        self.assertTrue(var.is_string_object)
+
+        self.assertIsNone(var.string_max_length_global)
+        var.set_string_max_length_global()
+        self.assertEqual(var.string_max_length_global, desired)
 
     @attr('mpi')
     def test_system_with_distributed_dimensions_from_file_netcdf(self):
@@ -1036,6 +1069,16 @@ class TestVariable(AbstractTestInterface):
         self.assertEqual(len(bounds_dimensions), 3)
         self.assertEqual(bounds_dimensions[2].name, 'bounds_dimension')
 
+    def test_set_value(self):
+        # Test setting value to None only allowed for dimensionless.
+        var = Variable(name='tester', value=[1, 2, 3], mask=[False, True, False], dimensions=['foo'])
+        with self.assertRaises(ValueError):
+            var.set_value(None)
+
+        var = Variable(name='tester2', value=4, dimensions=())
+        var.set_value(None)
+        self.assertIsNone(var.get_value())
+
     def test_setitem(self):
         var = Variable(value=[10, 10, 10, 10, 10], name='tens', dimensions='dim')
         var2 = Variable(value=[2, 3, 4], mask=[True, True, False], name='var2', dimensions='three')
@@ -1262,7 +1305,7 @@ class TestSourcedVariable(AbstractTestInterface):
         path = self.get_temporary_file_path('foo.nc')
         var.parent.write(path)
         rd = RequestDataset(path)
-        field = rd.get_raw_field()
+        field = rd.create_raw_field()
         sub = field['levels'].get_between(5, 100)
         actual_kb = _get_kb_(sub.dtype, sub.get_value().size)
         self.assertLess(actual_kb, original_kb - 100)
@@ -1332,13 +1375,6 @@ class TestSourcedVariable(AbstractTestInterface):
 
         self.assertNumpyAll(sub.get_value(), actual)
 
-        # Test value may be set to None and value is not reloaded.
-        sv = self.get_sourcedvariable()
-        self.assertIsNone(sv._value)
-        self.assertIsNotNone(sv.get_value())
-        sv.set_value(None)
-        self.assertIsNone(sv.get_value())
-
     @attr('data')
     def test_init_from_source(self):
         sv = self.get_sourcedvariable()
@@ -1372,7 +1408,7 @@ class TestSourcedVariable(AbstractTestInterface):
         vc.write(path)
 
         rd = RequestDataset(path)
-        vc_ff = rd.get_raw_field()
+        vc_ff = rd.create_raw_field()
         svar = vc_ff[var1.name]
         svar2 = vc_ff[var2.name]
         svar.protected = True
@@ -1626,3 +1662,12 @@ class TestVariableCollection(AbstractTestInterface):
         self.assertNotIn(v4.name, vc)
 
         self.assertEqual(len(vc.dimensions), 0)
+
+    def test_rename_dimension(self):
+        parent = VariableCollection()
+        var = Variable(name='foo', value=[0], dimensions='one', parent=parent)
+        vc = var.parent
+        self.assertIsInstance(vc, VariableCollection)
+        self.assertEqual(id(parent), id(vc))
+        vc.rename_dimension('one', 'one_renamed')
+        self.assertEqual(var.dimensions[0].name, 'one_renamed')

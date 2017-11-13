@@ -1,9 +1,11 @@
 from contextlib import contextmanager
 
+import numpy as np
+
 from ocgis.base import AbstractOcgisObject
 from ocgis.constants import MPIOps
 from ocgis.exc import SubcommNotFoundError, SubcommAlreadyCreatedError
-from ocgis.vmachine.mpi import MPI_COMM, get_nonempty_ranks, MPI_SIZE, MPI_RANK, COMM_NULL
+from ocgis.vmachine.mpi import MPI_COMM, get_nonempty_ranks, MPI_SIZE, MPI_RANK, COMM_NULL, MPI_TYPE_MAPPING
 
 
 class OcgVM(AbstractOcgisObject):
@@ -139,14 +141,34 @@ class OcgVM(AbstractOcgisObject):
     def get_live_ranks_from_object(self, target):
         return get_nonempty_ranks(target, self)
 
+    @staticmethod
+    def get_mpi_type(other):
+        other = np.dtype(other)
+        if other == np.int32:
+            other = np.int32
+        elif other == np.int64:
+            other = np.int64
+
+        return MPI_TYPE_MAPPING[other]
+
     def scatter(self, *args, **kwargs):
         return self.comm.scatter(*args, **kwargs)
+
+    @staticmethod
+    def barrier_print(*args, **kwargs):
+        from ocgis.vmachine.mpi import barrier_print
+        barrier_print(*args, **kwargs)
 
     def get_subcomm(self, name):
         try:
             return self._subcomms[name]
         except KeyError:
             raise SubcommNotFoundError(name)
+
+    @staticmethod
+    def rank_print(*args, **kwargs):
+        from ocgis.vmachine.mpi import rank_print
+        rank_print(*args, **kwargs)
 
     def reduce(self, target, op, root=0):
         if self._is_dummy:

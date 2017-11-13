@@ -373,7 +373,7 @@ class OcgOperations(AbstractOcgisObject):
                 ocgis_lh(level=logging.WARN, msg=msg, logger='operations')
                 self._get_object_('output_crs')._value = Spherical()
 
-        # Only WGS84 coordinate system may be written to GeoJSON.
+        # Only Spherical coordinate systems may be written to GeoJSON.
         if self.output_format == constants.OutputFormatName.GEOJSON:
             msg = 'Only data with a WGS84 or Spherical projection may be written to GeoJSON.'
             if self.output_crs is not None:

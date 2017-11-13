@@ -51,6 +51,10 @@ class TestEnvironment(TestBase):
         self.assertEqual(env.NP_INT, env.NP_INT)
         self.assertEqual(env.NP_FLOAT, env.NP_FLOAT)
 
+        self.assertIsInstance(env.USE_NETCDF4_MPI, bool)
+        env.reset()
+        self.assertIsInstance(env.USE_NETCDF4_MPI, bool)
+
     def test_conf_path(self):
         env.CONF_PATH
 
@@ -140,6 +144,13 @@ class TestEnvironment(TestBase):
             self.assertEqual(env.NP_INT, np.int16)
         finally:
             env.reset()
+
+    def test_reset(self):
+        # Test netCDF MPI is reset appropriately.
+        env.USE_NETCDF4_MPI = True
+        self.assertTrue(env.USE_NETCDF4_MPI)
+        env.reset()
+        self.assertFalse(env.USE_NETCDF4_MPI)
 
     def test_simple(self):
         self.assertEqual(env.OVERWRITE, False)

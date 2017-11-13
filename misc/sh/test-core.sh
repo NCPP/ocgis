@@ -5,6 +5,8 @@ nps=(2 3 4 5 6 7 8)
 
 tests=(../../src/ocgis/test)
 #tests=(/home/benkoziol/l/ocgis/src/ocgis/test/test_ocgis/test_spatial/test_grid_splitter.py)
+#tests=(/home/benkoziol/l/ocgis/src/ocgis/test/test_ocgis/test_variable)
+#tests=(/home/benkoziol/l/ocgis/src/ocgis/test/test_ocgis/test_vm)
 
 ########################################################################################################################
 
@@ -17,7 +19,7 @@ for jj in "${tests[@]}"; do
         echo "Running serial tests: ${jj}"
         echo -e "=====================\\n"
 
-        nosetests -vs -a '!release' ${jj}
+        nosetests -vsx -a '!release' ${jj}
         if [ $? == 1 ]; then
             echo "FAIL: One or more serial tests failed."
             exit 1

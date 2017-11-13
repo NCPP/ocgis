@@ -3,16 +3,12 @@ import tempfile
 from copy import deepcopy
 
 import numpy as np
-from mock import mock
 from shapely import wkt
 from shapely.geometry import Point, MultiPoint, MultiPolygon, Polygon, box
-from shapely.geometry.base import BaseMultipartGeometry
 
-from ocgis.spatial.wrap import GeometryWrapper, CoordinateArrayWrapper, apply_wrapping_index_map, iter_exploded
+from ocgis.spatial.wrap import GeometryWrapper, CoordinateArrayWrapper, apply_wrapping_index_map
 from ocgis.test.base import TestBase
 from ocgis.util.helpers import write_geom_dict, get_iter
-from ocgis.variable.crs import Spherical
-from ocgis.variable.geom import GeometryVariable
 
 
 class TestCoordinateWrapper(TestBase):

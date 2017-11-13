@@ -779,6 +779,9 @@ class Field(VariableCollection):
             value.format_spatial_object(self)
         self.dimension_map.set_crs(value)
 
+    def set_driver(self, driver):
+        self.dimension_map.set_driver(driver)
+
     def set_element_node_connectivity(self, value, force=True, should_add=True):
         """
         Set the element node connectivity variable. This variable maps coordinate values to element nodes using an

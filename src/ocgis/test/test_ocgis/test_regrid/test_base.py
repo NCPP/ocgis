@@ -8,7 +8,7 @@ from ocgis import Variable
 from ocgis.collection.field import Field
 from ocgis.exc import RegriddingError, CornersInconsistentError
 from ocgis.spatial.grid import Grid
-from ocgis.test.base import attr, AbstractTestInterface
+from ocgis.test.base import attr, AbstractTestInterface, create_exact_field, create_gridxy_global
 from ocgis.test.test_simple.make_test_data import SimpleNc
 from ocgis.test.test_simple.test_simple import TestSimpleBase
 from ocgis.util.helpers import make_poly
@@ -33,6 +33,62 @@ class TestRegrid(TestSimpleBase):
 
         ofield = ofield.get_field_slice({'level': 0})
         return ofield
+
+    @attr('esmf')
+    def test_system(self):
+        from ocgis.regrid.base import get_esmf_grid, iter_esmf_fields, RegridOperation, destroy_esmf_objects
+        import ESMF
+
+        yc = Variable(name='yc', value=np.arange(-90 + (45 / 2.), 90, 45), dimensions='ydim', dtype=float)
+        xc = Variable(name='xc', value=np.arange(15, 360, 30), dimensions='xdim', dtype=float)
+        ogrid = Grid(y=yc, x=xc, crs=Spherical())
+        ogrid.set_extrapolated_bounds('xc_bounds', 'yc_bounds', 'bounds')
+
+        np.random.seed(1)
+        mask = np.random.rand(*ogrid.shape)
+        mask = mask > 0.5
+        self.assertTrue(mask.sum() > 3)
+        ogrid.set_mask(mask)
+
+        egrid = get_esmf_grid(ogrid)
+        actual_shape = egrid.size[0].tolist()
+        desired_shape = np.flipud(ogrid.shape).tolist()
+        self.assertEqual(actual_shape, desired_shape)
+        desired = ogrid.get_value_stacked()
+        desired = np.ma.array(desired, mask=False)
+        desired.mask[0, :, :] = ogrid.get_mask()
+        desired.mask[1, :, :] = ogrid.get_mask()
+        desired = desired.sum()
+
+        actual_col = egrid.get_coords(0)
+        actual_row = egrid.get_coords(1)
+        actual_mask = np.invert(egrid.mask[0].astype(bool))
+        actual = np.ma.array(actual_row, mask=actual_mask).sum() + np.ma.array(actual_col, mask=actual_mask).sum()
+        self.assertEqual(actual, desired)
+
+        desired = 9900.0
+        corners = egrid.coords[ESMF.StaggerLoc.CORNER]
+        actual = corners[0].sum() + corners[1].sum()
+        self.assertEqual(actual, desired)
+
+        ofield = create_exact_field(ogrid, 'data', ntime=3, crs=Spherical())
+        variable_name, efield, tidx = list(iter_esmf_fields(ofield, split=False))[0]
+        desired_value = ofield['data'].get_value()
+        self.assertAlmostEqual(efield.data.sum(), desired_value.sum(), places=3)
+
+        destroy_esmf_objects([egrid, efield])
+
+        ofield.grid.set_mask(ofield.grid.get_mask(), cascade=True)
+        desired_value = ofield['data'].get_masked_value()
+        keywords = dict(split=[False, True])
+        for k in self.iter_product_keywords(keywords):
+            opts = {'split': k.split}
+            dofield = ofield.deepcopy()
+            dofield['data'].get_value().fill(0)
+            ro = RegridOperation(ofield, dofield, regrid_options=opts)
+            actual_field = ro.execute()
+            actual_value = actual_field['data'].get_masked_value()
+            self.assertAlmostEqual(0.0, np.abs(desired_value - actual_value).max())
 
     @attr('esmf')
     def test_check_fields_for_regridding(self):
@@ -232,7 +288,7 @@ class TestRegrid(TestSimpleBase):
         for idx in range(fill.shape[0]):
             efield = fill[idx]['efield']
             # Test all time slices are accounted for.
-            self.assertEqual(efield.data.shape[0], ofield.time.shape[0])
+            self.assertEqual(efield.data.shape[-1], ofield.time.shape[0])
             # Test masks are equivalent. ESMF masks have "1" for false requiring the invert operation.
             egrid = efield.grid
             egrid_mask = np.invert(egrid.mask[0].astype(bool))
@@ -242,50 +298,6 @@ class TestRegrid(TestSimpleBase):
         ofield = self.get_ofield()
         res = list(iter_esmf_fields(ofield))
         self.assertEqual(len(res), ofield.time.shape[0] * len(ofield.data_variables))
-
-    @attr('esmf')
-    def test_get_esmf_grid(self):
-        import ESMF
-        rd = RequestDataset(**self.get_dataset())
-
-        have_ocgis_bounds = [True, False]
-        for h in have_ocgis_bounds:
-            field = rd.get()
-            ogrid = field.grid
-
-            if not h:
-                ogrid.remove_bounds()
-                self.assertFalse(ogrid.has_bounds)
-
-            from ocgis.regrid.base import get_esmf_grid
-            egrid = get_esmf_grid(ogrid)
-
-            # ocgis is row major with esmf being column major (i.e. in ocgis rows are stored in the zero index)
-            for idx_esmf, idx_ocgis in zip([0, 1], [1, 0]):
-                coords = egrid.coords[ESMF.StaggerLoc.CENTER][idx_esmf]
-                desired = ogrid.get_value_stacked()[idx_ocgis, :]
-                self.assertNumpyAll(coords, desired)
-
-            corner = egrid.coords[ESMF.StaggerLoc.CORNER]
-            if h:
-                corner_row = corner[1]
-                corner_row_actual = np.array(
-                    [[36.5, 36.5, 36.5, 36.5, 36.5], [37.5, 37.5, 37.5, 37.5, 37.5], [38.5, 38.5, 38.5, 38.5, 38.5],
-                     [39.5, 39.5, 39.5, 39.5, 39.5], [40.5, 40.5, 40.5, 40.5, 40.5]],
-                    dtype=ogrid.archetype.dtype)
-                self.assertNumpyAll(corner_row, corner_row_actual)
-
-                corner = egrid.coords[ESMF.StaggerLoc.CORNER]
-                corner_col = corner[0]
-                corner_col_actual = np.array(
-                    [[-105.5, -104.5, -103.5, -102.5, -101.5], [-105.5, -104.5, -103.5, -102.5, -101.5],
-                     [-105.5, -104.5, -103.5, -102.5, -101.5], [-105.5, -104.5, -103.5, -102.5, -101.5],
-                     [-105.5, -104.5, -103.5, -102.5, -101.5]], dtype=ogrid.archetype.dtype)
-                self.assertNumpyAll(corner_col, corner_col_actual)
-            else:
-                # No corners should be on the ESMF grid.
-                for idx in [0, 1]:
-                    self.assertIsNone(corner[idx])
 
     @attr('esmf')
     def test_get_esmf_grid_bilinear_regrid_method(self):
@@ -304,109 +316,22 @@ class TestRegrid(TestSimpleBase):
             self.assertIsNone(corner[idx])
 
     @attr('esmf')
-    def test_get_esmf_grid_change_origin_col(self):
-        """Test with different column grid origin."""
-
-        import ESMF
+    def test_get_esmf_grid_periodicity(self):
+        """Test periodicity parameters generate reasonable output."""
         from ocgis.regrid.base import get_esmf_grid
 
-        rd = RequestDataset(**self.get_dataset())
-        field = rd.get()
+        lon_in = np.arange(-180, 180, 10)
+        lat_in = np.arange(-90, 90.1, 4)
 
-        field.grid.x.set_value(np.flipud(field.grid.x.get_value()))
-        field.grid.x.bounds.set_value(np.fliplr(np.flipud(field.grid.x.bounds.get_value())))
+        lon = Variable('lon', lon_in, 'dlon')
+        lat = Variable('lat', lat_in, 'dlat')
 
-        egrid = get_esmf_grid(field.grid)
+        ogrid = Grid(x=lon, y=lat, crs=Spherical())
+        egrid = get_esmf_grid(ogrid)
 
-        for idx_esmf, idx_ocgis in zip([0, 1], [1, 0]):
-            coords = egrid.coords[ESMF.StaggerLoc.CENTER][idx_esmf]
-            self.assertNumpyAll(coords, field.grid.get_value_stacked()[idx_ocgis, ...])
-
-        corner = egrid.coords[ESMF.StaggerLoc.CORNER]
-        corner_row = corner[1]
-        corner_row_actual = np.array(
-            [[36.5, 36.5, 36.5, 36.5, 36.5], [37.5, 37.5, 37.5, 37.5, 37.5], [38.5, 38.5, 38.5, 38.5, 38.5],
-             [39.5, 39.5, 39.5, 39.5, 39.5], [40.5, 40.5, 40.5, 40.5, 40.5]], dtype=field.grid.archetype.dtype)
-        self.assertNumpyAll(corner_row, corner_row_actual)
-
-        corner = egrid.coords[ESMF.StaggerLoc.CORNER]
-        corner_col = corner[0]
-        corner_col_actual = np.array(
-            [[-101.5, -102.5, -103.5, -104.5, -105.5], [-101.5, -102.5, -103.5, -104.5, -105.5],
-             [-101.5, -102.5, -103.5, -104.5, -105.5], [-101.5, -102.5, -103.5, -104.5, -105.5],
-             [-101.5, -102.5, -103.5, -104.5, -105.5]], dtype=field.grid.archetype.dtype)
-        self.assertNumpyAll(corner_col, corner_col_actual)
-
-    @attr('esmf')
-    def test_get_esmf_grid_change_origin_row(self):
-        """Test with different row grid origin."""
-
-        from ocgis.regrid.base import get_esmf_grid
-        import ESMF
-
-        rd = RequestDataset(**self.get_dataset())
-        field = rd.get()
-
-        field.grid.y.set_value(np.flipud(field.grid.y.get_value()))
-        field.grid.y.bounds.set_value(np.fliplr(np.flipud(field.grid.y.bounds.get_value())))
-
-        egrid = get_esmf_grid(field.grid)
-
-        for idx_esmf, idx_ocgis in zip([0, 1], [1, 0]):
-            coords = egrid.coords[ESMF.StaggerLoc.CENTER][idx_esmf]
-            self.assertNumpyAll(coords, field.grid.get_value_stacked()[idx_ocgis, ...])
-
-        corner = egrid.coords[ESMF.StaggerLoc.CORNER]
-        corner_row = corner[1]
-        corner_row_actual = np.array(
-            [[40.5, 40.5, 40.5, 40.5, 40.5], [39.5, 39.5, 39.5, 39.5, 39.5], [38.5, 38.5, 38.5, 38.5, 38.5],
-             [37.5, 37.5, 37.5, 37.5, 37.5], [36.5, 36.5, 36.5, 36.5, 36.5]], dtype=field.grid.archetype.dtype)
-        self.assertNumpyAll(corner_row, corner_row_actual)
-
-        corner = egrid.coords[ESMF.StaggerLoc.CORNER]
-        corner_col = corner[0]
-        corner_col_actual = np.array(
-            [[-105.5, -104.5, -103.5, -102.5, -101.5], [-105.5, -104.5, -103.5, -102.5, -101.5],
-             [-105.5, -104.5, -103.5, -102.5, -101.5], [-105.5, -104.5, -103.5, -102.5, -101.5],
-             [-105.5, -104.5, -103.5, -102.5, -101.5]], dtype=field.grid.archetype.dtype)
-        self.assertNumpyAll(corner_col, corner_col_actual)
-
-    @attr('esmf')
-    def test_get_esmf_grid_change_origin_row_and_col(self):
-        """Test with different row and column grid origin."""
-
-        from ocgis.regrid.base import get_esmf_grid
-        import ESMF
-
-        rd = RequestDataset(**self.get_dataset())
-        field = rd.get()
-
-        field.grid.y.set_value(np.flipud(field.grid.y.get_value()))
-        field.grid.y.bounds.set_value(np.fliplr(np.flipud(field.grid.y.bounds.get_value())))
-        field.grid.x.set_value(np.flipud(field.grid.x.get_value()))
-        field.grid.x.bounds.set_value(np.fliplr(np.flipud(field.grid.x.bounds.get_value())))
-
-        egrid = get_esmf_grid(field.grid)
-
-        for idx_esmf, idx_ocgis in zip([0, 1], [1, 0]):
-            coords = egrid.coords[ESMF.StaggerLoc.CENTER][idx_esmf]
-            self.assertNumpyAll(coords, field.grid.get_value_stacked()[idx_ocgis, ...])
-
-        corner = egrid.coords[ESMF.StaggerLoc.CORNER]
-        corner_row = corner[1]
-        dtype = field.grid.dtype
-        corner_row_actual = np.array(
-            [[40.5, 40.5, 40.5, 40.5, 40.5], [39.5, 39.5, 39.5, 39.5, 39.5], [38.5, 38.5, 38.5, 38.5, 38.5],
-             [37.5, 37.5, 37.5, 37.5, 37.5], [36.5, 36.5, 36.5, 36.5, 36.5]], dtype=dtype)
-        self.assertNumpyAll(corner_row, corner_row_actual)
-
-        corner = egrid.coords[ESMF.StaggerLoc.CORNER]
-        corner_col = corner[0]
-        corner_col_actual = np.array(
-            [[-101.5, -102.5, -103.5, -104.5, -105.5], [-101.5, -102.5, -103.5, -104.5, -105.5],
-             [-101.5, -102.5, -103.5, -104.5, -105.5], [-101.5, -102.5, -103.5, -104.5, -105.5],
-             [-101.5, -102.5, -103.5, -104.5, -105.5]], dtype=dtype)
-        self.assertNumpyAll(corner_col, corner_col_actual)
+        self.assertEqual(egrid.periodic_dim, 0)
+        self.assertEqual(egrid.num_peri_dims, 1)
+        self.assertEqual(egrid.pole_dim, 1)
 
     @attr('esmf')
     def test_get_esmf_grid_with_mask(self):
@@ -416,7 +341,7 @@ class TestRegrid(TestSimpleBase):
 
         x = Variable(name='x', value=[1, 2, 3], dimensions='x')
         y = Variable(name='y', value=[4, 5, 6], dimensions='y')
-        grid = Grid(x, y)
+        grid = Grid(x, y, crs=Spherical())
 
         gmask = grid.get_mask(create=True)
         gmask[1, 1] = True
@@ -439,24 +364,26 @@ class TestRegrid(TestSimpleBase):
         from ocgis.regrid.base import get_esmf_field_from_ocgis_field
         from ocgis.regrid.base import get_ocgis_field_from_esmf_field
 
-        ofield = self.get_field(nlevel=0, nrlz=0)
+        ogrid = create_gridxy_global(crs=Spherical())
+        ofield = create_exact_field(ogrid, 'foo', ntime=3)
+
         ogrid = ofield.grid
         ogrid_mask = ogrid.get_mask(create=True)
         ogrid_mask[1, 0] = True
         ogrid.set_mask(ogrid_mask)
 
-        time = ofield.time.extract()
         efield = get_esmf_field_from_ocgis_field(ofield)
-        ofield_actual = get_ocgis_field_from_esmf_field(efield, ofield.data_variables[0].dimensions,
-                                                        dimension_map=ofield.dimension_map, time=time)
+        self.assertEqual(efield.data.shape, (360, 180, 3))
+
+        ofield_actual = get_ocgis_field_from_esmf_field(efield, field=ofield)
 
         actual_dv_mask = ofield_actual.data_variables[0].get_mask()
         self.assertTrue(np.all(actual_dv_mask[:, 1, 0]))
-        self.assertEqual(actual_dv_mask.sum(), 2)
+        self.assertEqual(actual_dv_mask.sum(), 3)
 
-        self.assertNumpyAll(ofield.time.get_value(), ofield_actual.time.get_value())
         self.assertNumpyAll(ofield.data_variables[0].get_value(), ofield_actual.data_variables[0].get_value())
         self.assertEqual(ofield.data_variables[0].name, efield.name)
+        self.assertNumpyAll(ofield.time.get_value(), ofield_actual.time.get_value())
 
     @attr('esmf')
     def test_get_ocgis_field_from_esmf_spatial_only(self):
@@ -468,7 +395,7 @@ class TestRegrid(TestSimpleBase):
         row = Variable(name='row', value=[5, 6], dimensions='row')
         col = Variable(name='col', value=[7, 8], dimensions='col')
         grid = Grid(col, row)
-        ofield = Field(grid=grid)
+        ofield = Field(grid=grid, crs=Spherical())
 
         efield = get_esmf_field_from_ocgis_field(ofield)
         ofield_actual = get_ocgis_field_from_esmf_field(efield)
@@ -476,55 +403,17 @@ class TestRegrid(TestSimpleBase):
         self.assertEqual(len(ofield_actual.data_variables), 0)
         self.assertNumpyAll(grid.get_value_stacked(), ofield_actual.grid.get_value_stacked())
 
-    @attr('esmf')
-    def test_get_ocgis_grid_from_esmf_grid(self):
-        from ocgis.regrid.base import get_esmf_grid
-        from ocgis.regrid.base import get_ocgis_grid_from_esmf_grid
-
-        rd = RequestDataset(**self.get_dataset())
-
-        keywords = dict(has_corners=[True, False],
-                        has_mask=[True, False],
-                        crs=[None, CoordinateReferenceSystem(epsg=4326)])
-
-        for k in itr_products_keywords(keywords, as_namedtuple=True):
-            field = rd.get()
-            grid = field.grid
-
-            if k.has_mask:
-                gmask = grid.get_mask(create=True)
-                gmask[1, :] = True
-                grid.set_mask(gmask)
-
-            if not k.has_corners:
-                grid.x.set_bounds(None)
-                grid.y.set_bounds(None)
-                self.assertFalse(grid.has_bounds)
-
-            egrid = get_esmf_grid(grid)
-            ogrid = get_ocgis_grid_from_esmf_grid(egrid, crs=k.crs)
-
-            if k.has_mask:
-                actual_mask = ogrid.get_mask()
-                self.assertEqual(actual_mask.sum(), 4)
-                self.assertTrue(actual_mask[1, :].all())
-
-            self.assertEqual(ogrid.crs, k.crs)
-
-            self.assertNumpyAll(grid.get_value_stacked(), ogrid.get_value_stacked())
-            if k.has_corners:
-                desired = grid.x.bounds.get_value()
-                actual = ogrid.x.bounds.get_value()
-                self.assertNumpyAll(actual, desired)
-
-                desired = grid.y.bounds.get_value()
-                actual = ogrid.y.bounds.get_value()
-                self.assertNumpyAll(actual, desired)
-            else:
-                self.assertFalse(ogrid.has_bounds)
-
 
 class TestRegridOperation(AbstractTestInterface):
+    @staticmethod
+    def create_regridding_field(grid, name_variable):
+        col_shape = grid.shape[1]
+        row_shape = grid.shape[0]
+        value = np.ones(col_shape * row_shape, dtype=float).reshape(grid.shape) * 15.
+        variable = Variable(name=name_variable, value=value, dimensions=grid.dimensions)
+        field = Field(is_data=variable, grid=grid, crs=Spherical())
+        return field
+
     @attr('slow', 'esmf')
     def test_system_global_grid_combinations(self):
         """Test regridding with different global grid configurations."""
@@ -541,8 +430,8 @@ class TestRegridOperation(AbstractTestInterface):
                                                  resolution=k.resolution[0])
             destination_grid = self.get_gridxy_global(with_bounds=k.with_bounds[1], wrapped=k.wrapped[1],
                                                       resolution=k.resolution[1])
-            source_field = self.get_regridding_field(source_grid, 'source')
-            destination_field = self.get_regridding_field(destination_grid, 'destination')
+            source_field = self.create_regridding_field(source_grid, 'source')
+            destination_field = self.create_regridding_field(destination_grid, 'destination')
             ro = RegridOperation(source_field, destination_field)
             res = ro.execute()
 
@@ -551,11 +440,44 @@ class TestRegridOperation(AbstractTestInterface):
             for t in targets:
                 self.assertAlmostEqual(t, 15.0, places=5)
 
-    @staticmethod
-    def get_regridding_field(grid, name_variable):
-        col_shape = grid.shape[1]
-        row_shape = grid.shape[0]
-        value = np.ones(col_shape * row_shape, dtype=float).reshape(grid.shape) * 15.
-        variable = Variable(name=name_variable, value=value, dimensions=grid.dimensions)
-        field = Field(is_data=variable, grid=grid, crs=Spherical())
-        return field
+                # @attr('esmf')
+                # def test_system_periodic(self):
+                #     """Test a periodic grid is regridded as expected."""
+                #
+                #     from ocgis.regrid.base import RegridOperation
+                #
+                #     lon_in = np.arange(-180, 180, 10)
+                #     lat_in = np.arange(-90, 90.1, 4)
+                #
+                #     lon = Variable('lon', lon_in, 'dlon')
+                #     lat = Variable('lat', lat_in, 'dlat')
+                #     print 'lon.shape', lon.shape, 'lat.shape', lat.shape
+                #
+                #     grid = Grid(x=lon, y=lat, crs=Spherical())
+                #
+                #     wave = lambda x, k: np.sin(x * k * np.pi / 180.0)
+                #     desired = np.outer(wave(lat_in, 3), wave(lon_in, 3)) + 1
+                #
+                #     print 'desired.min()', desired.min()
+                #     print 'desired.mean()', desired.mean()
+                #
+                #     dstdata = Variable('data', dimensions=('dlat', 'dlon'), parent=grid.parent)
+                #     srcdata = deepcopy(dstdata)
+                #     srcdata.get_value()[:] = desired
+                #
+                #     dstfield = dstdata.parent
+                #     dstfield.append_to_tags(TagName.DATA_VARIABLES, 'data')
+                #     srcfield = srcdata.parent
+                #     srcfield.append_to_tags(TagName.DATA_VARIABLES, 'data')
+                #
+                #     self.assertEqual(dstfield.data_variables[0].get_value().max(), 0.)
+                #
+                #     ro = RegridOperation(srcfield, dstfield)
+                #     ret = ro.execute()
+                #
+                #     actual = ret.data_variables[0].get_value()
+                #
+                #     print 'actual.min()', actual.min()
+                #     print 'actual.mean()', actual.mean()
+                #
+                #     print np.max(np.abs(actual - desired))

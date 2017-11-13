@@ -5,9 +5,9 @@ import numpy as np
 from mock import mock
 from shapely.geometry import box
 
-from ocgis import RequestDataset
+from ocgis import RequestDataset, Field
 from ocgis.base import get_variable_names
-from ocgis.constants import MPIWriteMode, GridSplitterConstants, VariableName
+from ocgis.constants import MPIWriteMode, GridSplitterConstants, VariableName, WrappedState
 from ocgis.driver.nc_ugrid import DriverNetcdfUGRID
 from ocgis.spatial.grid import GridUnstruct, Grid
 from ocgis.spatial.grid_splitter import GridSplitter, does_contain
@@ -20,6 +20,7 @@ from ocgis.vmachine.mpi import MPI_COMM, MPI_RANK
 
 
 class TestGridSplitter(AbstractTestInterface):
+
     @property
     def fixture_paths(self):
         return {'wd': self.current_dir_output}
@@ -334,3 +335,41 @@ class TestGridSplitter(AbstractTestInterface):
             actual_sums[data_variable.name] = dv_sum
         for k, v in list(actual_sums.items()):
             self.assertAlmostEqual(v, desired_sums[k])
+
+    def test_write_subsets(self):
+        # Test a destination iterator.
+        grid = mock.create_autospec(GridUnstruct)
+        grid._gs_initialize_ = mock.Mock()
+        grid.resolution = 10.0
+        grid.ndim = 1
+        grid.wrapped_state = WrappedState.UNWRAPPED
+        grid.crs = Spherical()
+        grid.get_intersects = mock.Mock(return_value=(grid, slice(0, 0)))
+        grid.is_empty = False
+
+        parent = mock.create_autospec(Field, spec_set=True)
+        parent.add_variable = mock.Mock()
+        grid.parent = parent
+
+        grid.shape_global = (5,)
+
+        def iter_dst(grid_splitter, yield_slice=False):
+            for _ in range(3):
+                yld = mock.create_autospec(GridUnstruct, instance=True)
+                yld.wrapped_state = WrappedState.UNWRAPPED
+                yld.is_empty = False
+                yld.extent_global = (0, 0, 0, 0)
+
+                parent = mock.create_autospec(Field, spec_set=True)
+                parent.add_variable = mock.Mock()
+                yld.parent = parent
+                yld.shape_global = (25,)
+                yld.extent_global = (1, 2, 3, 4)
+                yld.parent.attrs = {}
+
+                if yield_slice:
+                    yld = yld, None
+                yield yld
+
+        gs = GridSplitter(grid, grid, (100,), iter_dst=iter_dst, dst_grid_resolution=5.0, check_contains=False)
+        gs.write_subsets()

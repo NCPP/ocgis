@@ -2,7 +2,6 @@ import os
 from collections import OrderedDict
 
 import fiona
-import numpy as np
 import ogr
 from shapely import wkb
 
@@ -43,6 +42,21 @@ class GeomCabinet(object):
             raise ValueError('Specified path to GeomCabinet folder does not exist: {0}'.format(self._path))
         return self._path
 
+    @staticmethod
+    def get_gdal_driver(path):
+        """
+        Get the GDAL driver used to open a path.
+
+        :param str path: Path to target dataset.
+        """
+        ds = ogr.Open(path)
+        try:
+            ret = get_gdal_driver(ds)
+        finally:
+            ds.Destroy()
+            ds = None
+        return ret
+
     def keys(self):
         """Return a list of the shapefile keys contained in the search directory.
 
@@ -55,10 +69,15 @@ class GeomCabinet(object):
                     ret.append(os.path.splitext(fn)[0])
         return ret
 
-    def get_meta(self, key=None, path=None):
+    def get_meta(self, key=None, path=None, driver_kwargs=None):
         path = path or self.get_shp_path(key)
-        with fiona.open(path, 'r') as source:
-            return source.meta
+        if self.get_gdal_driver(path) == 'OpenFileGDB':
+            layer = driver_kwargs['feature_class']
+        else:
+            layer = None
+        with fiona.open(path, 'r', layer=layer) as source:
+            ret = source.meta
+        return ret
 
     def get_shp_path(self, key):
         return self._get_path_(key, ext='shp')
@@ -78,7 +97,8 @@ class GeomCabinet(object):
             raise ValueError(msg)
 
     def iter_geoms(self, key=None, select_uid=None, path=None, load_geoms=True, as_field=False,
-                   uid=None, select_sql_where=None, slc=None, union=False, data_model=None):
+                   uid=None, select_sql_where=None, slc=None, union=False, data_model=None,
+                   driver_kwargs=None):
         """
         See documentation for :class:`~ocgis.GeomCabinetIterator`.
         """
@@ -87,12 +107,12 @@ class GeomCabinet(object):
         shp_path = self._get_path_by_key_or_direct_path_(key=key, path=path)
 
         # Get the source metadata.
-        meta = self.get_meta(path=shp_path)
+        meta = self.get_meta(path=shp_path, driver_kwargs=driver_kwargs)
 
         if union:
             gic = GeomCabinetIterator(key=key, select_uid=select_uid, path=path, load_geoms=load_geoms, as_field=False,
                                       uid=uid, select_sql_where=select_sql_where, slc=slc, union=False,
-                                      data_model=data_model)
+                                      data_model=data_model, driver_kwargs=driver_kwargs)
             yld = Field.from_records(gic, meta['schema'], crs=meta['crs'], uid=uid, union=True, data_model=data_model)
             yield yld
         else:
@@ -100,26 +120,37 @@ class GeomCabinet(object):
                 exc = ValueError('Slice is not allowed with other select statements.')
                 ocgis_lh(exc=exc, logger='geom_cabinet')
 
-            # Get the source CRS.
-            meta = self.get_meta(path=shp_path)
-
             # Format the slice for iteration. We will get the features by index if a slice is provided.
             if slc is not None:
                 slc = get_index_slice_for_iteration(slc)
 
-            # Open the target shapefile.
+            # Open the target geometry file.
             ds = ogr.Open(shp_path)
             try:
                 # Return the features iterator.
                 features = self._get_features_object_(ds, uid=uid, select_uid=select_uid,
-                                                      select_sql_where=select_sql_where)
+                                                      select_sql_where=select_sql_where, driver_kwargs=driver_kwargs)
 
                 # Using slicing, we will select the features individually from the object.
                 if slc is None:
                     itr = features
                 else:
-                    # Convert the slice index to an integer to avoid type conflict in GDAL layer.
-                    itr = (features.GetFeature(int(idx)) for idx in slc)
+                    # The geodatabase API requires iterations to get the given location.
+                    if self.get_gdal_driver(shp_path) == 'OpenFileGDB' or isinstance(slc, slice):
+                        def _o_itr_(features_object, slice_start, slice_stop):
+                            for ctr2, fb in enumerate(features_object):
+                                # ... iterate until start is reached.
+                                if ctr2 < slice_start:
+                                    continue
+                                # ... stop if we have reached the stop.
+                                elif ctr2 == slice_stop:
+                                    raise StopIteration
+                                yield fb
+
+                        itr = _o_itr_(features, slc.start, slc.stop)
+                    else:
+                        # Convert the slice index to an integer to avoid type conflict in GDAL layer.
+                        itr = (features.GetFeature(int(idx)) for idx in slc)
 
                 # Convert feature objects to record dictionaries.
                 for ctr, feature in enumerate(itr):
@@ -153,19 +184,20 @@ class GeomCabinet(object):
                     assert ctr >= 0
                 except UnboundLocalError:
                     # occurs if there were not feature returned by the iterator. raise a more clear exception.
-                    msg = 'No features returned from target shapefile. Were features appropriately selected?'
+                    msg = 'No features returned from target data source. Were features appropriately selected?'
                     raise ValueError(msg)
             finally:
-                # close the dataset object
-                ds.Destroy()
-                ds = None
+                # Close or destroy the data source object if it actually exists.
+                if ds is not None:
+                    ds.Destroy()
+                    ds = None
 
     def _get_path_by_key_or_direct_path_(self, key=None, path=None):
         """
         :param str key:
         :param str path:
         """
-        # path to the target shapefile
+        # path to the target data source
         if key is None:
             try:
                 assert path != None
@@ -181,10 +213,10 @@ class GeomCabinet(object):
         return shp_path
 
     @staticmethod
-    def _get_features_object_(ds, uid=None, select_uid=None, select_sql_where=None):
+    def _get_features_object_(ds, uid=None, select_uid=None, select_sql_where=None, driver_kwargs=None):
         """
-        :param ds: Path to shapefile.
-        :type ds: Open OGR dataset object
+        :param ds: Open OGR data source object
+        :type ds: :class:`osgeo.ogr.DataSource`
         :param str uid: The unique identifier to use during SQL selection.
         :param sequence select_uid: Sequence of integers mapping to unique geometry identifiers.
         :param str select_sql_where: A string suitable for insertion into a SQL WHERE statement. See http://www.gdal.org/ogr_sql.html
@@ -192,12 +224,37 @@ class GeomCabinet(object):
 
         >>> select_sql_where = 'STATE_NAME = "Wisconsin"'
 
+        :param dict driver_kwargs: GDAL driver-specific arguments.
+
+        +-------------+----------------------+--------------------------------------+
+        | Driver      | Key                  | Value                                |
+        +=============+======================+======================================+
+        | OpenFileGDB | ``'feature_class'``  | String feature class name to choose. |
+        +-------------+----------------------+--------------------------------------+
+
         :returns: A layer object with selection applied if ``select_uid`` is not ``None``.
         :rtype: :class:`osgeo.ogr.Layer`
         """
 
-        # get the geometries
-        lyr = ds.GetLayerByIndex(0)
+        if driver_kwargs is None:
+            driver_kwargs = {}
+
+        # Get geometries by selecting the appropriate layer. Only single layer shapefiles are supported. For file
+        # geodatabases, this is selected by the feature class name.
+        if get_gdal_driver(ds) == 'OpenFileGDB':
+            feature_class = driver_kwargs.get('feature_class')
+            if feature_class is None:
+                raise ValueError('For file geodatabases, the feature class may not be None.')
+            lyr = ds.GetLayerByName(str(feature_class))
+            if lyr is None:
+                poss = [lyr.GetName() for lyr in ds]
+                poss.sort()
+                raise IOError(
+                    "Feature class not found: '{}'. Possible features classes are: {}".format(feature_class, poss))
+        else:
+            lyr = ds.GetLayerByIndex(0)
+
+        # Get the feature object applying any select statements after acessing.
         lyr.ResetReading()
         if select_uid is not None or select_sql_where is not None:
             lyr_name = lyr.GetName()
@@ -233,12 +290,12 @@ class GeomCabinetIterator(object):
 
     >>> key = 'state_boundaries'
 
-    :param select_uid: Sequence of unique identifiers to select from the target shapefile.
+    :param select_uid: Sequence of unique identifiers to select from the target data source.
     :type select_uid: sequence
 
     >>> select_uid = [23, 24]
 
-    :param path: Path to the target shapefile to iterate over. If ``key`` is provided it will override ``path``.
+    :param path: Path to the target data source to iterate over. If ``key`` is provided it will override ``path``.
     :type path: str
 
     >>> path = '/path/to/shapefile.shp'
@@ -255,17 +312,22 @@ class GeomCabinetIterator(object):
 
     >>> select_sql_where = "STATE_NAME = 'Wisconsin'"
 
-    :param slice: A two-element integer sequence: [start, stop].
+    :param slc: A two-element integer sequence: [start, stop].
 
     >>> slc = [0, 5]
 
-    :type slice: sequence
+    :type slc: sequence
+    :param str data_model: The target data model for the iteration.
+
+    >>> data_model = 'NETCDF3'
+
+    :param dict driver_kwargs: Format specific keyword arguments to use for driver creation.
     :raises: ValueError, RuntimeError
     :rtype: dict
     """
 
     def __init__(self, key=None, select_uid=None, path=None, load_geoms=True, as_field=False, uid=None,
-                 select_sql_where=None, slc=None, union=False, data_model=None):
+                 select_sql_where=None, slc=None, union=False, data_model=None, driver_kwargs=None):
         self.key = key
         self.path = path
         self.select_uid = select_uid
@@ -276,6 +338,7 @@ class GeomCabinetIterator(object):
         self.slc = slc
         self.union = union
         self.data_model = data_model
+        self.driver_kwargs = driver_kwargs
         self.sc = GeomCabinet()
 
     def __iter__(self):
@@ -286,7 +349,7 @@ class GeomCabinetIterator(object):
         for row in self.sc.iter_geoms(key=self.key, select_uid=self.select_uid, path=self.path,
                                       load_geoms=self.load_geoms, as_field=self.as_field,
                                       uid=self.uid, select_sql_where=self.select_sql_where, slc=self.slc,
-                                      union=self.union, data_model=self.data_model):
+                                      union=self.union, data_model=self.data_model, driver_kwargs=self.driver_kwargs):
             yield row
 
     def __len__(self):
@@ -306,7 +369,8 @@ class GeomCabinetIterator(object):
                 ds = ogr.Open(shp_path)
                 try:
                     features = self.sc._get_features_object_(ds, uid=self.uid, select_uid=self.select_uid,
-                                                             select_sql_where=self.select_sql_where)
+                                                             select_sql_where=self.select_sql_where,
+                                                             driver_kwargs=self.driver_kwargs)
                     ret = len(features)
                 finally:
                     ds.Destroy()
@@ -360,8 +424,11 @@ class ShpCabinetIterator(GeomCabinetIterator):
     pass
 
 
+def get_gdal_driver(ds):
+    driver = ds.GetDriver()
+    return driver.GetName()
+
+
 def get_index_slice_for_iteration(slc):
     slc = get_formatted_slice(slc, 1)[0]
-    if isinstance(slc, slice):
-        slc = np.arange(slc.start, slc.stop)
     return slc

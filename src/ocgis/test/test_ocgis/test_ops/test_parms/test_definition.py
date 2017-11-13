@@ -12,7 +12,7 @@ from ocgis.test.base import TestBase, attr, get_geometry_dictionaries
 from ocgis.util.helpers import make_poly
 from ocgis.util.itester import itr_products_keywords
 from ocgis.util.units import get_units_object, get_are_units_equal
-from ocgis.variable.crs import WGS84
+from ocgis.variable.crs import WGS84, Spherical
 
 
 class Test(TestBase):
@@ -439,7 +439,7 @@ class TestDataset(TestBase):
     def test_init_esmf(self):
         from ocgis.regrid.base import get_esmf_field_from_ocgis_field
 
-        original_field = self.get_field()
+        original_field = self.get_field(crs=Spherical())
         dimensions = original_field.data_variables[0].dimensions
         efield = get_esmf_field_from_ocgis_field(original_field)
         dd = Dataset(efield, esmf_field_dimensions=dimensions)
@@ -447,7 +447,6 @@ class TestDataset(TestBase):
         self.assertIsInstance(ofield, Field)
         dimensioned = ofield.get_by_tag(TagName.DATA_VARIABLES)[0]
         self.assertTrue(np.may_share_memory(dimensioned.get_value(), efield.data))
-        self.assertNumpyAll(dimensioned.get_value(), efield.data)
 
     @attr('data')
     def test_from_query(self):
@@ -582,7 +581,7 @@ class TestGeom(TestBase):
         g = Geom(self.path_state_boundaries, output_format_options=ofo)
         for row in g.value:
             desired = {'UGID': np.int32,
-                       'ID': np.float32}
+                       'ID': np.int32}
             for v in desired.keys():
                 self.assertEqual(row[v].get_value().dtype, desired[v])
 

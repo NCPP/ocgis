@@ -7,7 +7,7 @@ from ocgis.base import get_dimension_names
 from ocgis.base import get_variable_names
 from ocgis.constants import DIMENSION_MAP_TEMPLATE, DMK, DEFAULT_DRIVER, GridAbstraction
 from ocgis.exc import DimensionMapError, VariableNotInCollection
-from ocgis.util.helpers import pprint_dict, get_or_create_dict
+from ocgis.util.helpers import pprint_dict, get_or_create_dict, get_formatted_slice
 
 
 class DimensionMap(AbstractOcgisObject):
@@ -174,14 +174,22 @@ class DimensionMap(AbstractOcgisObject):
             ret = get_variable_from_field(ret, parent, nullable)
         return ret
 
-    def get_dimension(self, entry_key):
+    def get_dimension(self, entry_key, dimensions=None):
         """
         Get the dimension names for the dimension map entry ``entry_key``.
 
         :param str entry_key: See :class:`ocgis.constants.DimensionMapKey` for valid entry keys.
+        :param dict dimensions: A dictionary of dimension names (keys) and objects (values). If provided, a dimension
+         object will be returned from this dictionary if the dimension name is present on the dimension map.
         :rtype: :class:`list` of :class:`str`
         """
-        return self._get_element_(entry_key, DMK.DIMENSION, [])
+        ret = self._get_element_(entry_key, DMK.DIMENSION, [])
+        if dimensions is not None:
+            if len(ret) > 0:
+                ret = dimensions[ret[0]]
+            else:
+                ret = None
+        return ret
 
     def get_driver(self, as_class=False):
         """
@@ -259,8 +267,8 @@ class DimensionMap(AbstractOcgisObject):
             ret = self._storage[DMK.TOPOLOGY].get(topology, default)
             self._storage[DMK.TOPOLOGY][topology] = ret
 
-        if ret is None:
-            ret = GridAbstraction.AUTO
+        # if ret is None:
+        #     ret = GridAbstraction.AUTO
         return ret
 
     def get_variable(self, entry_key, parent=None, nullable=False):
@@ -275,6 +283,38 @@ class DimensionMap(AbstractOcgisObject):
         :rtype: str
         """
         ret = self._get_element_(entry_key, DMK.VARIABLE, None)
+
+        # If there is an entry and a parent is provided, get the variable from the parent.
+        if ret is not None and parent is not None:
+            to_remove = []
+            base_variable = parent[ret]
+            base_variable_ndim = base_variable.ndim
+            has_sections = False
+            for ii in [DMK.X, DMK.Y]:
+                entry = self._get_entry_(ii)
+                section = entry.get(DMK.SECTION)
+                # Sections allow use to use a single variable as a source for multiple variables. In general, variables
+                # are atomic in the dimension map (x-coordinate is one variable). However, some metadata formats put
+                # both coordinates in a single variable (x/y-coordinate is one variable with the dimension name
+                # determining what the values represent.
+                if section is not None:
+                    has_sections = True
+                    section = get_formatted_slice(section, base_variable_ndim)
+                    new_variable = base_variable[section]
+                    new_dimensions = [d for d in new_variable.dimensions if d.size > 1]
+                    new_variable.reshape(new_dimensions)
+                    new_variable.set_name(ii)
+                    entry[DMK.VARIABLE] = new_variable.name
+                    entry.pop(DMK.SECTION)
+                    new_variable = new_variable.extract()
+                    parent.add_variable(new_variable)
+                    if base_variable.name not in to_remove:
+                        to_remove.append(base_variable.name)
+            if has_sections:
+                for tt in to_remove:
+                    parent.remove_variable(tt)
+                ret = self._get_element_(entry_key, DMK.VARIABLE, None)
+
         if ret is not None and parent is not None:
             # Check if the variable has bounds.
             bnds = self.get_bounds(entry_key)
@@ -392,7 +432,8 @@ class DimensionMap(AbstractOcgisObject):
         entry[DMK.VARIABLE] = variable
         entry[DMK.ATTRS] = default_attrs
 
-    def set_variable(self, entry_key, variable, dimension=None, bounds=None, attrs=None, pos=None, dimensionless=False):
+    def set_variable(self, entry_key, variable, dimension=None, bounds=None, attrs=None, pos=None, dimensionless=False,
+                     section=None):
         """
         Set coordinate variable information for ``entry_key``.
         
@@ -407,10 +448,21 @@ class DimensionMap(AbstractOcgisObject):
         :param int pos: The representative dimension position in ``variable`` if ``variable`` has more than one
          dimension. For example, a latitude variable may have two dimensions ``(lon, lat)``. The mapper must determine
          which dimension position is representative for the latitude variable when slicing.
+        :param section: A slice-like tuple used to extract the data out of its source variable into a single variable
+         format.
+        :type section: tuple
+
+        >>> section = (None, 0)
+        >>> # This will be converted to a slice.
+        >>> [slice(None), slice(0, 1)]
+
         :param bool dimensionless: If ``True``, this variable has no canonical dimension.
+        :raises DimensionMapError
         """
         if entry_key in self._special_entry_keys:
             raise DimensionMapError(entry_key, "The entry '{}' has a special set method.".format(entry_key))
+        if section is not None and (pos is None and dimension is None):
+            raise DimensionMapError(entry_key, "If a section is provided, position or dimension must be defined.")
 
         entry = self._get_entry_(entry_key)
 
@@ -425,7 +477,7 @@ class DimensionMap(AbstractOcgisObject):
                 if variable.ndim > 1:
                     if pos is None and not dimensionless:
                         msg = "A position (pos) is required if no dimension is provided and target variable has " \
-                              "greater than 1 one dimension."
+                              "greater than one dimension."
                         raise DimensionMapError(entry_key, msg)
                 elif variable.ndim == 1:
                     pos = 0
@@ -456,6 +508,8 @@ class DimensionMap(AbstractOcgisObject):
         entry[DMK.BOUNDS] = bounds
         entry[DMK.DIMENSION] = dimension
         entry[DMK.ATTRS] = attrs
+        if section is not None:
+            entry[DMK.SECTION] = section
 
     def update(self, other):
         """

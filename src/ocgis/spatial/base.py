@@ -216,12 +216,17 @@ class AbstractSpatialContainer(AbstractContainer, AbstractOperationsSpatialObjec
         crs = kwargs.pop(KeywordArgument.CRS, 'auto')
         parent = kwargs.pop(KeywordArgument.PARENT, None)
         name = kwargs.pop(KeywordArgument.NAME, None)
+        driver = kwargs.pop(KeywordArgument.DRIVER, None)
+        assert len(kwargs) == 0
 
         if parent is not None and not is_field(parent):
             raise ValueError("'parent' object must be a field")
 
         AbstractContainer.__init__(self, name, parent=parent)
         AbstractOperationsSpatialObject.__init__(self, crs=crs)
+
+        if driver is not None:
+            self.parent.set_driver(driver)
 
     @property
     def dimension_map(self):
@@ -299,6 +304,8 @@ class AbstractXYZSpatialContainer(AbstractSpatialContainer):
         # --------------------------------------------------------------------------------------------------------------
 
         if x is None:
+            if parent is None:
+                raise ValueError('A "parent" is required if no coordinate variables are provided.')
             x, y, z = self._get_xyz_from_parent_(parent)
 
         if x is None or y is None:

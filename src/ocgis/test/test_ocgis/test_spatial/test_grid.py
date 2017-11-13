@@ -21,7 +21,8 @@ from ocgis.driver.nc import DriverNetcdfCF
 from ocgis.driver.nc_ugrid import DriverNetcdfUGRID
 from ocgis.exc import EmptySubsetError, BoundsAlreadyAvailableError
 from ocgis.spatial.geomc import AbstractGeometryCoordinates, PointGC, PolygonGC
-from ocgis.spatial.grid import Grid, expand_grid, GridGeometryProcessor, GridUnstruct, create_grid_mask_variable
+from ocgis.spatial.grid import Grid, expand_grid, GridGeometryProcessor, GridUnstruct, create_grid_mask_variable, \
+    arr_intersects_bounds
 from ocgis.test.base import attr, AbstractTestInterface, create_gridxy_global, TestBase
 from ocgis.test.test_ocgis.test_spatial.test_geomc import FixturePointGC, FixturePolygonGC
 from ocgis.util.helpers import make_poly, iter_array
@@ -137,6 +138,10 @@ class TestGrid(AbstractTestInterface):
             yield ret
 
     def test_init(self):
+        # Test with nothing.
+        with self.assertRaises(ValueError):
+            _ = Grid()
+
         # Test a field is always the parent of a grid.
         grid = self.get_gridxy()
         self.assertIsInstance(grid.parent, Field)
@@ -227,6 +232,12 @@ class TestGrid(AbstractTestInterface):
         actual = Grid(x, y)
         for v in [actual.x, actual.y]:
             self.assertNotIn('axis', v.attrs)
+
+        # Test shared dimensions are allowed at initialization.
+        x = Variable(name='x', value=[1, 2], dimensions='x')
+        y = Variable(name='y', value=[3, 4], dimensions='x')
+        actual = Grid(x, y)
+        self.assertIsInstance(actual, Grid)
 
     def test_init_from_file(self):
         """Test loading from file."""
@@ -367,12 +378,19 @@ class TestGrid(AbstractTestInterface):
         self.assertNumpyAll(sub.parent['rhs'].get_value(), orig_rhs)
         self.assertTrue(np.may_share_memory(sub.parent['tas'].get_value(), grid.parent['tas'].get_value()))
 
+        # Test shared dimensions not allowed for slicing.
+        x = Variable(name='x', value=[1, 2], dimensions='x')
+        y = Variable(name='y', value=[3, 4], dimensions='x')
+        actual = Grid(x, y)
+        with self.assertRaises(ValueError):
+            actual[0, 1]
+
     @attr('mpi')
     def test_get_distributed_slice(self):
         with vm.scoped('grid write', [0]):
             if MPI_RANK == 0:
-                x = Variable('x', list(range(768)), 'x', float)
-                y = Variable('y', list(range(768)), 'y', float)
+                x = Variable('x', list(range(768)), 'xdim', float)
+                y = Variable('y', list(range(768)), 'ydim', float)
                 grid = Grid(x, y)
                 field = Field(grid=grid)
                 path = self.get_temporary_file_path('grid.nc')
@@ -389,6 +407,13 @@ class TestGrid(AbstractTestInterface):
             _ = grid.get_distributed_slice([slice(73, 157), slice(305, 386)])
             bounds_global_grid_after_slice = [d.bounds_global for d in grid.dimensions]
             self.assertEqual(bounds_global, bounds_global_grid_after_slice)
+
+    def test_get_distributed_slice_no_shared_dimension(self):
+        grid = mock.create_autospec(Grid, spec_set=True)
+        grid.has_shared_dimension = True
+        grid.is_empty = False
+        with self.assertRaises(ValueError):
+            Grid.get_distributed_slice(grid, [0, 1])
 
     @attr('mpi')
     def test_get_gridxy(self):
@@ -584,9 +609,13 @@ class TestGrid(AbstractTestInterface):
                 select = target != 0
                 self.assertEqual(select.sum(), 4)
 
-    @attr('mpi')
+    @attr('mpi', 'no-3.5')
     def test_get_intersects_ordering(self):
         """Test grid ordering/origins do not influence grid subsetting."""
+
+        if sys.version_info.major == 3 and sys.version_info.minor == 5:
+            raise SkipTest('undefined behavior with Python 3.5')
+
         keywords = {KeywordArgument.OPTIMIZED_BBOX_SUBSET: [False, True],
                     'should_wrap': [False, True],
                     'reverse_x': [False, True],
@@ -986,6 +1015,23 @@ class TestGrid(AbstractTestInterface):
         grid = Grid(x, y)
         self.assertEqual(grid.resolution, 1)
 
+    def test_resolution_x(self):
+        x = Variable(name='xc', value=[1], dimensions='xdim', dtype=float)
+        y = Variable(name='yc', value=[4, 5, 60], dimensions='ydim', dtype=float)
+        grid = Grid(y=y, x=x)
+        self.assertEqual(grid.resolution_x, 0.0)
+
+        x = Variable(name='xc', value=[10, 20], dimensions='xdim', dtype=float)
+        y = Variable(name='yc', value=[4, 5, 60], dimensions='ydim', dtype=float)
+        grid = Grid(y=y, x=x)
+        self.assertEqual(grid.resolution_x, 10.0)
+
+        x = Variable(name='xc', value=[10, 20, 30], dimensions='xdim', dtype=float)
+        y = Variable(name='yc', value=[4, 5, 60], dimensions='ydim', dtype=float)
+        grid = Grid(y=y, x=x)
+        grid.expand()
+        self.assertEqual(grid.resolution_x, 10.0)
+
     def test_set_extrapolated_bounds(self):
         value_grid = [[[40.0, 40.0, 40.0, 40.0], [39.0, 39.0, 39.0, 39.0], [38.0, 38.0, 38.0, 38.0]],
                       [[-100.0, -99.0, -98.0, -97.0], [-100.0, -99.0, -98.0, -97.0], [-100.0, -99.0, -98.0, -97.0]]]
@@ -1213,6 +1259,18 @@ class TestGridUnstruct(TestBase):
         for abstraction in ['auto', GridAbstraction.POINT]:
             ug = self.fixture(abstraction=abstraction)
             self.assertEqual(ug.abstraction, GridAbstraction.POINT)
+
+    def test_arr_intersects_bounds(self):
+        # Test a section may be used.
+        arr1 = np.array([1, 2, 3, 4])
+        arr2 = np.array([2, 2, 3, 3])
+
+        sel1 = arr_intersects_bounds(arr1, 2, 3)
+        region = np.ma.array(np.zeros(sel1.shape[0]), mask=np.invert(sel1), dtype=bool)
+        region_slc = np.ma.flatnotmasked_edges(region)
+        section_slice = slice(region_slc[0], region_slc[1] + 1)
+        sel2 = arr_intersects_bounds(arr2, 2, 3, section_slice=section_slice)
+        self.assertNumpyAll(sel1, sel2)
 
     def test_coordinate_variables(self):
         vars = [Variable(name='x', value=[0, 1, 2], dimensions='d'),

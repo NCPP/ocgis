@@ -1,24 +1,26 @@
 import abc
 import json
+from abc import ABCMeta
 from contextlib import contextmanager
 from copy import deepcopy
 from warnings import warn
 
 import six
 
-from ocgis import constants
+from ocgis import constants, GridUnstruct
 from ocgis import vm
 from ocgis.base import AbstractOcgisObject, raise_if_empty
 from ocgis.base import get_variable_names
 from ocgis.collection.field import Field
-from ocgis.constants import MPIWriteMode, TagName, KeywordArgument
+from ocgis.constants import MPIWriteMode, TagName, KeywordArgument, OcgisConvention
 from ocgis.driver.dimension_map import DimensionMap
-from ocgis.exc import DefinitionValidationError, NoDataVariablesFound, DimensionMapError, VariableMissingMetadataError
+from ocgis.exc import DefinitionValidationError, NoDataVariablesFound, DimensionMapError, VariableMissingMetadataError, \
+    GridDeficientError
 from ocgis.util.helpers import get_group
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import SourcedVariable
 from ocgis.variable.dimension import Dimension
-from ocgis.vmachine.mpi import find_dimension_in_sequence, OcgDist
+from ocgis.vmachine.mpi import OcgDist
 
 
 # TODO: Make the driver accept no arguments at initialization. The request dataset should be passed around as a parameter.
@@ -72,7 +74,7 @@ class AbstractDriver(AbstractOcgisObject):
     @property
     def dist(self):
         if self._dist is None:
-            self._dist = self.get_dist()
+            self._dist = self.create_dist()
         return self._dist
 
     @abc.abstractproperty
@@ -137,79 +139,85 @@ class AbstractDriver(AbstractOcgisObject):
         return ret
 
     @staticmethod
-    def get_data_variable_names(group_metadata, group_dimension_map):
+    def create_dimensions(group_metadata):
         """
-        Return a tuple of data variable names using the metadata and dimension map.
-        """
-        return tuple(group_metadata['variables'].keys())
+        Create dimension objects. The key may differ from the dimension name. In which case, we can assume the dimension
+        is being renamed.
 
-    def get_dist(self):
+        :param dict group_metadata: Metadata dictionary for the target group.
+        :rtype: list
         """
-        :rtype: :class:`ocgis.OcgVM`
-        """
+        gmd = group_metadata.get('dimensions', {})
+        dims = {}
+        for k, v in gmd.items():
+            size = v['size']
+            if v.get('isunlimited', False):
+                size_current = size
+                size = None
+            else:
+                size_current = None
+            dims[k] = Dimension(v.get('name', k), size=size, size_current=size_current, src_idx='auto', source_name=k)
+        return dims
 
+    def create_dist(self, metadata=None):
+        """
+        Create a distribution from global metadata. In general, this should not be overloaded by subclasses.
+
+        :param dict metadata: Global metadata to use for creating a distribution.
+
+        :rtype: :class:`ocgis.OcgDist`
+        """
         ompi = OcgDist(size=vm.size, ranks=vm.ranks)
-        # ompi = OcgDist()
 
         # Convert metadata into a grouping consistent with the MPI dimensions.
-        metadata = {None: self.metadata_source}
+        if metadata is None:
+            metadata = self.metadata_source
+        metadata = {None: metadata}
         for group_index in iter_all_group_keys(metadata):
             group_meta = get_group(metadata, group_index)
 
             # Add the dimensions to the distribution object.
-            dimensions = self._get_dimensions_main_(group_meta)
-            for dimension_name, dimension_meta in list(group_meta['dimensions'].items()):
-                target_dimension = find_dimension_in_sequence(dimension_name, dimensions)
-                target_dimension.dist = group_meta['dimensions'][dimension_name].get('dist', False)
-                ompi.add_dimension(target_dimension, group=group_index)
+            dimensions = self.create_dimensions(group_meta)
 
-            try:
-                dimension_map = self.rd.dimension_map.get_group(group_index)
-            except DimensionMapError:
-                # Likely a user-provided dimension map.
-                continue
+            # Only build a distribution if the group has more than one dimension.
+            if len(dimensions) == 0:
+                _ = ompi.get_group(group=group_index)
+            else:
+                for dimension_name, dimension_meta in list(group_meta['dimensions'].items()):
+                    target_dimension = dimensions[dimension_name]
+                    target_dimension.dist = group_meta['dimensions'][dimension_name].get('dist', False)
+                    ompi.add_dimension(target_dimension, group=group_index)
+                try:
+                    dimension_map = self.rd.dimension_map.get_group(group_index)
+                except DimensionMapError:
+                    # Likely a user-provided dimension map.
+                    continue
 
-            # dimension_map = get_group(self.rd.dimension_map, group_index, has_root=False)
-            distributed_dimension_name = self.get_distributed_dimension_name(dimension_map,
-                                                                             group_meta['dimensions'])
-            # Allow no distributed dimensions to be returned.
-            if distributed_dimension_name is not None:
-                for target_rank in range(ompi.size):
-                    distributed_dimension = ompi.get_dimension(distributed_dimension_name, group=group_index,
-                                                               rank=target_rank)
-                    distributed_dimension.dist = True
-
-            # Add the variables to the distribution object.
-            for variable_name, variable_meta in list(group_meta['variables'].items()):
-                ompi.add_variable(variable_name, dimensions=variable_meta['dimensions'], group=group_index)
+                # dimension_map = get_group(self.rd.dimension_map, group_index, has_root=False)
+                distributed_dimension_name = self.get_distributed_dimension_name(dimension_map,
+                                                                                 group_meta['dimensions'])
+                # Allow no distributed dimensions to be returned.
+                if distributed_dimension_name is not None:
+                    for target_rank in range(ompi.size):
+                        distributed_dimension = ompi.get_dimension(distributed_dimension_name, group=group_index,
+                                                                   rank=target_rank)
+                        distributed_dimension.dist = True
 
         ompi.update_dimension_bounds()
         return ompi
 
-    def get_distributed_dimension_name(self, dimension_map, dimensions_metadata):
-        """Return the preferred distributed dimension name."""
-        return None
+    def create_field(self, *args, **kwargs):
+        """
+        Create a field object. In general, this should not be overloaded by subclasses.
 
-    def get_dump_report(self, indent=0, group_metadata=None, first=True, global_attributes_name='global'):
-        lines = []
-        if first:
-            lines.append('OCGIS Driver Key: ' + self.key + ' {')
-            group_metadata = group_metadata or self.metadata_source
-        else:
-            indent += 2
-        lines += get_dump_report_for_group(group_metadata, global_attributes_name=global_attributes_name, indent=indent)
-        for group_name, group_metadata in list(group_metadata.get('groups', {}).items()):
-            lines.append('')
-            lines.append(' ' * indent + 'group: ' + group_name + ' {')
-            dump_lines = self.get_dump_report(group_metadata=group_metadata, first=False, indent=indent,
-                                              global_attributes_name=group_name)
-            lines += dump_lines
-            lines.append(' ' * indent + '  }' + ' // group: {}'.format(group_name))
-        if first:
-            lines.append('}')
-        return lines
-
-    def get_field(self, *args, **kwargs):
+        :keyword bool format_time: ``(=True)`` If ``False``, do not convert numeric times to Python date objects.
+        :keyword str grid_abstraction: ``(='auto')`` If provided, use this grid abstraction.
+        :keyword raw_field: ``(=None)`` If provided, modify this field instead.
+        :type raw_field: None | :class:`~ocgis.Field`
+        :param kwargs: Additional keyword arguments to :meth:`~ocgis.driver.base.AbstractDriver.create_raw_field`.
+        :return: :class:`ocgis.Field`
+        """
+        kwargs = kwargs.copy()
         raw_field = kwargs.pop('raw_field', None)
         format_time = kwargs.pop(KeywordArgument.FORMAT_TIME, True)
         grid_abstraction = kwargs.pop(KeywordArgument.GRID_ABSTRACTION, self.rd.grid_abstraction)
@@ -218,7 +226,7 @@ class AbstractDriver(AbstractOcgisObject):
             # Get the raw variable collection from source.
             new_kwargs = kwargs.copy()
             new_kwargs['source_name'] = None
-            raw_field = self.get_raw_field(*args, **new_kwargs)
+            raw_field = self.create_raw_field(*args, **new_kwargs)
 
         # Get the appropriate metadata for the collection.
         group_metadata = self.get_group_metadata(raw_field.group, self.metadata_source)
@@ -292,9 +300,83 @@ class AbstractDriver(AbstractOcgisObject):
         # Load child fields.
         for child in list(field.children.values()):
             kwargs['raw_field'] = child
-            field.children[child.name] = self.get_field(*args, **kwargs)
+            field.children[child.name] = self.create_field(*args, **kwargs)
 
         return field
+
+    def create_raw_field(self, group_metadata=None, group_name=None, name=None, source_name=constants.UNINITIALIZED,
+                         parent=None, uid=None):
+        """
+        Create a raw field object. This field object should interpret metadata explicitly (i.e. no dimension map). In
+        general this method should not be overloaded by subclasses.
+
+        :param dict group_metadata: Metadata dictionary for the current group.
+        :param str group_name: The name of the current group being processed.
+        :param str name: See :class:`~ocgis.base.AbstractNamedObject`
+        :param str source_name: See :class:`~ocgis.base.AbstractNamedObject`
+        :param parent: :class:`~ocgis.variable.base.AbstractContainer`
+        :param int uid: See :class:`~ocgis.variable.base.AbstractContainer`
+        :return: :class:`~ocgis.Field`
+        """
+        if group_metadata is None:
+            group_metadata = self.rd.metadata
+
+        field = Field(name=name, source_name=source_name, uid=uid, attrs=group_metadata.get('global_attributes'))
+        for var in self.create_variables(group_metadata, parent=field).values():
+            field.add_variable(var, force=True)
+        if parent is not None:
+            parent.add_child(field)
+        for k, v in group_metadata.get('groups', {}).items():
+            _ = self.create_raw_field(v, name=k, parent=field, group_name=k)
+        return field
+
+    def create_variables(self, group_metadata, parent=None):
+        """
+        Create a dictionary of variable objects. The keys are the variable names.
+
+        :param dict group_metadata: Metadata for the group to create variables from.
+        :param parent: See :class:`~ocgis.variable.base.AbstractContainer`
+        :return: dict
+        """
+        vmeta = group_metadata['variables']
+        vars = {}
+        for k, v in vmeta.items():
+            # Dimensions are set in this sourced variable initialization call. This is to allow the group hierarchy to
+            # be determined by the parents' relationships.
+            nvar = SourcedVariable(name=v.get('name', k), dtype=v.get('dtype'), request_dataset=self.rd, source_name=k,
+                                   parent=parent)
+            vars[k] = nvar
+        return vars
+
+    @staticmethod
+    def get_data_variable_names(group_metadata, group_dimension_map):
+        """
+        Return a tuple of data variable names using the metadata and dimension map.
+        """
+        return tuple(group_metadata['variables'].keys())
+
+    def get_distributed_dimension_name(self, dimension_map, dimensions_metadata):
+        """Return the preferred distributed dimension name."""
+        return None
+
+    def get_dump_report(self, indent=0, group_metadata=None, first=True, global_attributes_name='global'):
+        lines = []
+        if first:
+            lines.append('OCGIS Driver Key: ' + self.key + ' {')
+            group_metadata = group_metadata or self.metadata_source
+        else:
+            indent += 2
+        lines += get_dump_report_for_group(group_metadata, global_attributes_name=global_attributes_name, indent=indent)
+        for group_name, group_metadata in list(group_metadata.get('groups', {}).items()):
+            lines.append('')
+            lines.append(' ' * indent + 'group: ' + group_name + ' {')
+            dump_lines = self.get_dump_report(group_metadata=group_metadata, first=False, indent=indent,
+                                              global_attributes_name=group_name)
+            lines += dump_lines
+            lines.append(' ' * indent + '  }' + ' // group: {}'.format(group_name))
+        if first:
+            lines.append('}')
+        return lines
 
     @staticmethod
     def get_grid(field):
@@ -349,24 +431,9 @@ class AbstractDriver(AbstractOcgisObject):
         _jsonformat_(meta)
         return json.dumps(meta)
 
-    def get_raw_field(self, **kwargs):
-        """
-        Create a raw field object by adding variables to it. The dimension map creation is handled by the superclass in
-        :meth:`ocgis.driver.base.AbstractDriver`. This may be overloaded by subclasses.
-
-        :rtype: :class:`~ocgis.Field`
-        """
-
-        dimension = list(self.dist.get_group(rank=vm.rank)['dimensions'].values())[0]
-        ret = Field(**kwargs)
-        for v in list(self.metadata_source['variables'].values()):
-            nvar = SourcedVariable(name=v['name'], dimensions=dimension, dtype=v['dtype'], request_dataset=self.rd)
-            ret.add_variable(nvar)
-        return ret
-
     def get_variable_collection(self, **kwargs):
         """Here for backwards compatibility."""
-        return self.get_raw_field(**kwargs)
+        return self.create_raw_field(**kwargs)
 
     def get_variable_metadata(self, variable_object):
         variable_metadata = get_variable_metadata_from_request_dataset(self, variable_object)
@@ -429,21 +496,23 @@ class AbstractDriver(AbstractOcgisObject):
         # Create the dimensions if they are not present.
         if variable._dimensions is None:
             dist = self.dist
-            desired_dimensions = variable_metadata['dimensions']
-            new_dimensions = []
-            for d in desired_dimensions:
-                try:
-                    to_append = dist.get_dimension(d, group=variable.group, rank=vm.rank)
-                except KeyError:
-                    # Rank may not be mapped due to scoped VM.
-                    if vm.is_live:
-                        raise
+            desired_dimensions = variable_metadata.get('dimensions')
+            # Variable may not have any associated dimensions (attribute-only variable).
+            if desired_dimensions is not None:
+                new_dimensions = []
+                for d in desired_dimensions:
+                    try:
+                        to_append = dist.get_dimension(d, group=variable.group, rank=vm.rank)
+                    except KeyError:
+                        # Rank may not be mapped due to scoped VM.
+                        if vm.is_live:
+                            raise
+                        else:
+                            variable.convert_to_empty()
+                            break
                     else:
-                        variable.convert_to_empty()
-                        break
-                else:
-                    new_dimensions.append(to_append)
-            super(SourcedVariable, variable).set_dimensions(new_dimensions)
+                        new_dimensions.append(to_append)
+                super(SourcedVariable, variable).set_dimensions(new_dimensions)
 
         # Call the subclass variable initialization routine.
         self._init_variable_from_source_main_(variable, variable_metadata)
@@ -542,7 +611,6 @@ class AbstractDriver(AbstractOcgisObject):
     @classmethod
     def write_field(cls, field, opened_or_path, **kwargs):
         raise_if_empty(field)
-
         vc_to_write = cls._get_field_write_target_(field)
         cls.write_variable_collection(vc_to_write, opened_or_path, **kwargs)
 
@@ -560,30 +628,30 @@ class AbstractDriver(AbstractOcgisObject):
                 raise ValueError('Only paths allowed for parallel writes.')
 
         if write_mode is None:
-            if vm.size > 1:
-                write_modes = [MPIWriteMode.TEMPLATE, MPIWriteMode.FILL]
-            else:
-                write_modes = [MPIWriteMode.NORMAL]
+            write_modes = cls._get_write_modes_(vm, **kwargs)
         else:
             write_modes = [write_mode]
+
+        # vm.rank_print('tkd: write_modes', write_modes)
+
+        # Global string lengths are needed by the write. Set those while we still have global access.
+        for var in vc.values():
+            var.set_string_max_length_global()
 
         for write_mode in write_modes:
             cls._write_variable_collection_main_(vc, opened_or_path, write_mode, **kwargs)
 
+    @classmethod
+    def _get_write_modes_(cls, the_vm, **kwargs):
+        if the_vm.size > 1:
+            write_modes = [MPIWriteMode.TEMPLATE, MPIWriteMode.FILL]
+        else:
+            write_modes = [MPIWriteMode.NORMAL]
+        return write_modes
+
     def _get_crs_main_(self, group_metadata):
         """Return the coordinate system variable or None if not found."""
         return None
-
-    def _get_dimensions_main_(self, group_metadata):
-        """
-        :param dict group_metadata: Metadata dictionary for the target group.
-        :return: A sequence of dimension objects.
-        :rtype: sequence
-        """
-
-        gmd = group_metadata['dimensions']
-        dims = [Dimension(dref['name'], size=dref['size'], src_idx='auto') for dref in list(gmd.values())]
-        return tuple(dims)
 
     @abc.abstractmethod
     def _get_metadata_main_(self):
@@ -668,8 +736,37 @@ class AbstractTabularDriver(AbstractDriver):
         return ret
 
 
+@six.add_metaclass(ABCMeta)
+class AbstractUnstructuredDriver(AbstractOcgisObject):
+    @staticmethod
+    def get_element_dimension(gc):
+        """See :meth:`ocgis.spatial.geomc.AbstractGeometryCoordinates.element_dim`"""
+        cindex = gc.cindex
+        if cindex is None:
+            ret = gc.archetype.dimensions[0]
+        else:
+            ret = cindex.dimensions[0]
+        return ret
+
+    @staticmethod
+    def get_grid(field):
+        try:
+            ret = GridUnstruct(parent=field)
+        except GridDeficientError:
+            ret = None
+        return ret
+
+    @staticmethod
+    def get_multi_break_value(cindex):
+        """See :meth:`ocgis.spatial.geomc.AbstractGeometryCoordinates.multi_break_value`"""
+        mbv_name = OcgisConvention.Name.MULTI_BREAK_VALUE
+        return cindex.attrs.get(mbv_name)
+
+
 @contextmanager
 def driver_scope(ocgis_driver, opened_or_path=None, mode='r', **kwargs):
+    kwargs = kwargs.copy()
+
     if opened_or_path is None:
         try:
             # Attempt to get the request dataset from the driver. If not there, assume we are working with the driver
@@ -691,6 +788,8 @@ def driver_scope(ocgis_driver, opened_or_path=None, mode='r', **kwargs):
         should_close = False
     else:
         should_close = True
+        if rd is not None and rd.driver_kwargs is not None:
+            kwargs.update(rd.driver_kwargs)
         opened_or_path = ocgis_driver.open(uri=opened_or_path, mode=mode, rd=rd, **kwargs)
 
     try:

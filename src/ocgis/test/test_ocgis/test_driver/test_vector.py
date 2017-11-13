@@ -3,17 +3,18 @@ import os
 import fiona
 import numpy as np
 import six
+from mock import mock
 from shapely.geometry import Point
 from shapely.ops import cascaded_union
 
 from ocgis import RequestDataset, vm
 from ocgis import constants
 from ocgis.collection.field import Field
-from ocgis.constants import MPIWriteMode, DimensionName
-from ocgis.driver.base import AbstractDriver
+from ocgis.constants import MPIWriteMode, DimensionName, VariableName, DMK
+from ocgis.driver.base import AbstractDriver, driver_scope
 from ocgis.driver.vector import DriverVector, get_fiona_crs, get_fiona_schema
 from ocgis.ops.core import OcgOperations
-from ocgis.spatial.geom_cabinet import GeomCabinetIterator
+from ocgis.spatial.geom_cabinet import GeomCabinetIterator, GeomCabinet
 from ocgis.test.base import TestBase, attr, create_exact_field, create_gridxy_global
 from ocgis.variable.base import Variable, SourcedVariable
 from ocgis.variable.crs import WGS84, CoordinateReferenceSystem, Spherical
@@ -80,10 +81,33 @@ class TestDriverVector(TestBase):
         """GeoJSON conversion does not support update/append write mode."""
 
         driver = self.get_driver()
-        field = driver.get_field()
+        field = driver.create_field()
         path = self.get_temporary_file_path('foo.geojson')
         field.write(path, driver=DriverVector, fiona_driver='GeoJSON')
         # subprocess.check_call(['gedit', path])
+
+    @mock.patch('ocgis.RequestDataset', spec_set=True)
+    def test_system_file_geodatabase(self, m_RequestDataset):
+        """Test driver keyword arguments make their way to the iterator."""
+
+        driver_kwargs = {'feature_class': 'my_features'}
+        m_RequestDataset.driver_kwargs = driver_kwargs
+        m_RequestDataset.opened = None
+        uri = 'a/file/geodatabase'
+        m_RequestDataset.uri = uri
+        driver = DriverVector(m_RequestDataset)
+        driver.inquire_opened_state = mock.Mock(return_value=False)
+
+        with driver_scope(driver) as gci:
+            self.assertIsInstance(gci, GeomCabinetIterator)
+            gci.sc._get_path_by_key_or_direct_path_ = mock.Mock(return_value=uri)
+            gci.sc.get_meta = mock.Mock(return_value={})
+            gci.sc._get_features_object_ = mock.Mock(spec=GeomCabinet._get_features_object_, return_value=[])
+            with self.assertRaises(ValueError):
+                for _ in gci:
+                    pass
+            gci.sc._get_features_object_.assert_called_once_with(None, driver_kwargs={'feature_class': 'my_features'},
+                                                                 select_sql_where=None, select_uid=None, uid=None)
 
     def test_system_merge_geometries_across_shapefiles(self):
         geoms_to_union = []
@@ -207,6 +231,12 @@ class TestDriverVector(TestBase):
         sci = driver.open(rd=driver.rd)
         driver.close(sci)
 
+    def test_create_dimension_map(self):
+        driver = mock.create_autospec(DriverVector, spec_set=True)
+        driver.get_crs = mock.Mock(return_value=None)
+        actual = DriverVector.create_dimension_map(driver, {})
+        self.assertEqual(actual.get_variable(DMK.GEOM), VariableName.GEOMETRY_VARIABLE)
+
     def test_get_crs(self):
         driver = self.get_driver()
         self.assertEqual(WGS84(), driver.get_crs(driver.metadata_source))
@@ -216,18 +246,15 @@ class TestDriverVector(TestBase):
         actual = driver.get_data_variable_names(driver.rd.metadata, driver.rd.dimension_map)
         self.assertEqual(actual, ('UGID', 'STATE_FIPS', 'ID', 'STATE_NAME', 'STATE_ABBR'))
 
-    def test_get_dimensions(self):
+    def test_create_dimensions(self):
         driver = self.get_driver()
-        actual = driver.get_dist().mapping[MPI_RANK]
+        actual = driver.create_dist().mapping[MPI_RANK]
         desired = {None: {
-            'variables': {'STATE_FIPS': {'dimensions': ('ocgis_ngeom',)},
-                          'STATE_ABBR': {'dimensions': ('ocgis_ngeom',)},
-                          'UGID': {'dimensions': ('ocgis_ngeom',)},
-                          'ID': {'dimensions': ('ocgis_ngeom',)},
-                          'STATE_NAME': {'dimensions': ('ocgis_ngeom',)}},
+            'variables': {},
             'dimensions': {
                 'ocgis_ngeom': Dimension(name='ocgis_ngeom', size=51, size_current=51, dist=True, src_idx='auto')},
             'groups': {}}}
+
         self.assertEqual(actual, desired)
 
     def test_get_dump_report(self):
@@ -235,9 +262,9 @@ class TestDriverVector(TestBase):
         lines = driver.get_dump_report()
         self.assertTrue(len(lines) > 5)
 
-    def test_get_field(self):
+    def test_create_field(self):
         driver = self.get_driver()
-        field = driver.get_field()
+        field = driver.create_field()
         self.assertPrivateValueIsNone(field)
         self.assertEqual(len(field), 7)
         self.assertIsInstance(field.geom, GeometryVariable)
@@ -248,15 +275,15 @@ class TestDriverVector(TestBase):
                 self.assertIsNotNone(v.get_value())
 
         # Test slicing does not break loading from file.
-        field = driver.get_field()
+        field = driver.create_field()
         self.assertPrivateValueIsNone(field)
         sub = field.geom[10, 15, 25].parent
         self.assertPrivateValueIsNone(sub)
         self.assertEqual(len(sub.dimensions[DimensionName.GEOMETRY_DIMENSION]), 3)
 
-    def test_get_raw_field(self):
+    def test_create_raw_field(self):
         driver = self.get_driver()
-        vc = driver.get_raw_field()
+        vc = driver.create_raw_field()
         self.assertEqual(len(vc), 7)
         for v in list(vc.values()):
             if not isinstance(v, CoordinateReferenceSystem):
@@ -299,7 +326,7 @@ class TestDriverVector(TestBase):
         read = RequestDataset(uri=path).get()
         self.assertTrue(len(read) > 2)
         self.assertEqual(list(read.keys()),
-                         ['data', 'some_lats', 'some_lons', constants.DimensionName.GEOMETRY_DIMENSION])
+                         ['data', 'some_lats', 'some_lons', constants.VariableName.GEOMETRY_VARIABLE])
 
         # Test writing a subset of the variables.
         path = self.get_temporary_file_path('limited.shp')
@@ -351,7 +378,7 @@ class TestDriverVector(TestBase):
 
         # Test writing the field to file.
         driver = self.get_driver()
-        field = driver.get_field()
+        field = driver.create_field()
 
         # Only test open file objects on a single processor.
         if MPI_SIZE == 1:

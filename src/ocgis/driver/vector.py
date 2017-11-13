@@ -8,15 +8,13 @@ import numpy as np
 from shapely.geometry import mapping
 
 from ocgis import constants, vm
-from ocgis.collection.field import Field
-from ocgis.constants import MPIWriteMode, DimensionName, KeywordArgument, DriverKey, DMK, SourceIndexType
+from ocgis.constants import MPIWriteMode, DimensionName, KeywordArgument, DriverKey, DMK, SourceIndexType, VariableName
 from ocgis.driver.base import driver_scope, AbstractTabularDriver
 from ocgis.driver.dimension_map import DimensionMap
 from ocgis.environment import get_dtype
 from ocgis.exc import RequestableFeature
 from ocgis.util.helpers import is_auto_dtype
 from ocgis.util.logging_ocgis import ocgis_lh
-from ocgis.variable.base import SourcedVariable
 from ocgis.variable.crs import CoordinateReferenceSystem
 from ocgis.variable.geom import GeometryVariable
 
@@ -24,6 +22,10 @@ from ocgis.variable.geom import GeometryVariable
 class DriverVector(AbstractTabularDriver):
     """
     Driver for vector GIS data.
+
+    Driver keyword arguments (``driver_kwargs``) to the request dataset:
+
+    * ``'feature_class'`` --> For File Geodatabases, a string feature class name is required.
     """
     extensions = ('.*\.shp',)
     key = DriverKey.VECTOR
@@ -47,7 +49,7 @@ class DriverVector(AbstractTabularDriver):
                 v = variable.parent[k]
 
             try:
-                conform_units_to = self.rd.metadata['variables'][v.name].get('conform_units_to')
+                conform_units_to = self.rd.metadata['variables'][v.source_name].get('conform_units_to')
             except KeyError:
                 # This is okay if the target variable is a geometry variable.
                 if isinstance(v, GeometryVariable):
@@ -66,7 +68,7 @@ class DriverVector(AbstractTabularDriver):
         return ret
 
     def create_dimension_map(self, group_metadata):
-        ret = {DMK.GEOM: {DMK.VARIABLE: DimensionName.GEOMETRY_DIMENSION,
+        ret = {DMK.GEOM: {DMK.VARIABLE: VariableName.GEOMETRY_VARIABLE,
                           DMK.DIMENSION: DimensionName.GEOMETRY_DIMENSION}}
         ret = DimensionMap.from_dict(ret)
         crs = self.get_crs(group_metadata)
@@ -77,17 +79,24 @@ class DriverVector(AbstractTabularDriver):
     def get_source_metadata_as_json(self):
         raise RequestableFeature
 
-    def get_raw_field(self, **kwargs):
-        """See superclass :meth:`ocgis.driver.base.AbstractDriver.get_raw_field`."""
+    def create_raw_field(self, **kwargs):
+        """See superclass :meth:`ocgis.driver.base.AbstractDriver.create_raw_field`."""
 
-        parent = Field(**kwargs)
-        for n, v in list(self.metadata_source['variables'].items()):
-            SourcedVariable(name=n, request_dataset=self.rd, parent=parent)
-        GeometryVariable(name=DimensionName.GEOMETRY_DIMENSION, request_dataset=self.rd, parent=parent)
-        crs = self.get_crs(self.metadata_source)
-        if crs is not None:
-            parent.add_variable(crs)
-        return parent
+        field = super(DriverVector, self).create_raw_field(**kwargs)
+        group_metadata = kwargs.get('group_metadata')
+        if group_metadata is None:
+            group_metadata = self.rd.metadata
+        geom_type = group_metadata['schema']['geometry']
+
+        GeometryVariable(name=VariableName.GEOMETRY_VARIABLE, request_dataset=self.rd, parent=field,
+                         geom_type=geom_type, dimensions=DimensionName.GEOMETRY_DIMENSION)
+
+        if group_metadata is not None:
+            crs = self.get_crs(group_metadata)
+            if crs is not None:
+                field.add_variable(crs)
+
+        return field
 
     def get_variable_metadata(self, variable_object):
         if isinstance(variable_object, GeometryVariable):
@@ -97,7 +106,7 @@ class DriverVector(AbstractTabularDriver):
             ret = super(DriverVector, self).get_variable_metadata(variable_object)
         return ret
 
-    def get_variable_value(self, variable):
+    def get_variable_value(self, variable, as_geometry_iterator=False):
         # Iteration is always based on source indices.
         iteration_dimension = variable.dimensions[0]
         src_idx = iteration_dimension._src_idx
@@ -109,6 +118,9 @@ class DriverVector(AbstractTabularDriver):
 
         # For vector formats based on loading via iteration, it makes sense to load all values with a single pass.
         with driver_scope(self, slc=src_idx) as g:
+            if as_geometry_iterator:
+                return (row['geom'] for row in g)
+
             ret = {}
             if variable.parent is None:
                 ret[variable.name] = np.zeros(variable.shape, dtype=variable.dtype)
@@ -135,9 +147,16 @@ class DriverVector(AbstractTabularDriver):
                             else:
                                 raise
                     try:
-                        ret[constants.DimensionName.GEOMETRY_DIMENSION][idx] = row['geom']
+                        ret[constants.VariableName.GEOMETRY_VARIABLE][idx] = row['geom']
                     except KeyError:
                         pass
+
+        # Only supply a mask if something is actually masked. Otherwise, remove the mask.
+        is_masked = any([v.mask.any() for v in ret.values()])
+        if not is_masked:
+            for k, v in ret.items():
+                ret[k] = v.data
+
         return ret
 
     @staticmethod
@@ -151,7 +170,7 @@ class DriverVector(AbstractTabularDriver):
 
     def _get_metadata_main_(self):
         with driver_scope(self) as data:
-            m = data.sc.get_meta(path=self.rd.uri)
+            m = data.sc.get_meta(path=self.rd.uri, driver_kwargs=self.rd.driver_kwargs)
             geom_dimension_name = DimensionName.GEOMETRY_DIMENSION
             m['dimensions'] = {geom_dimension_name: {'size': len(data), 'name': geom_dimension_name}}
             m['variables'] = OrderedDict()
@@ -164,10 +183,10 @@ class DriverVector(AbstractTabularDriver):
                 m['variables'][p] = {'dimensions': (geom_dimension_name,), 'dtype': d, 'name': p,
                                      'attrs': OrderedDict()}
 
-            m[geom_dimension_name] = {'dimensions': (geom_dimension_name,),
-                                      'dtype': object,
-                                      'name': geom_dimension_name,
-                                      'attrs': OrderedDict()}
+            m[VariableName.GEOMETRY_VARIABLE] = {'dimensions': (geom_dimension_name,),
+                                                 'dtype': object,
+                                                 'name': geom_dimension_name,
+                                                 'attrs': OrderedDict()}
         return m
 
     def _init_variable_from_source_main_(self, variable_object, variable_metadata):
@@ -181,8 +200,13 @@ class DriverVector(AbstractTabularDriver):
 
     @staticmethod
     def _open_(uri, mode='r', **kwargs):
+        kwargs = kwargs.copy()
         if mode == 'r':
             from ocgis import GeomCabinetIterator
+            # The feature class keyword is driver specific.
+            if 'feature_class' in kwargs:
+                driver_kwargs = {'feature_class': kwargs.pop('feature_class')}
+                kwargs[KeywordArgument.DRIVER_KWARGS] = driver_kwargs
             return GeomCabinetIterator(path=uri, **kwargs)
         elif mode in ('a', 'w'):
             ret = fiona.open(uri, mode=mode, **kwargs)
@@ -191,11 +215,11 @@ class DriverVector(AbstractTabularDriver):
         return ret
 
     @classmethod
-    def _write_variable_collection_main_(cls, vc, opened_or_path, write_mode, **kwargs):
+    def _write_variable_collection_main_(cls, field, opened_or_path, write_mode, **kwargs):
 
         from ocgis.collection.field import Field
 
-        if not isinstance(vc, Field):
+        if not isinstance(field, Field):
             raise ValueError('Only fields may be written to vector GIS formats.')
 
         fiona_crs = kwargs.get('crs')
@@ -206,16 +230,16 @@ class DriverVector(AbstractTabularDriver):
 
         # This finds the geometry variable used in the iterator. Need for the general geometry type that may not be
         # determined using the record iterator.
-        geom_variable = vc.geom
+        geom_variable = field.geom
         if geom_variable is None:
             raise ValueError('A geometry variable is required for writing to vector GIS formats.')
 
         # Open the output Fiona object using overloaded values or values determined at call-time.
         if not cls.inquire_opened_state(opened_or_path):
             if fiona_crs is None:
-                if vc.crs is not None:
-                    fiona_crs = vc.crs.value
-            _, archetype_record = next(vc.iter(**iter_kwargs))
+                if field.crs is not None:
+                    fiona_crs = field.crs.value
+            _, archetype_record = next(field.iter(**iter_kwargs))
             archetype_record = format_record_for_fiona(fiona_driver, archetype_record)
             if fiona_schema is None:
                 fiona_schema = get_fiona_schema(geom_variable.geom_type, archetype_record)
@@ -243,7 +267,7 @@ class DriverVector(AbstractTabularDriver):
                 if vm.rank == rank_to_write:
                     with driver_scope(cls, opened_or_path=opened_or_path, mode=mode, driver=fiona_driver,
                                       crs=fiona_crs, schema=fiona_schema) as sink:
-                        itr = vc.iter(**iter_kwargs)
+                        itr = field.iter(**iter_kwargs)
                         write_records_to_fiona(sink, itr, fiona_driver)
                 vm.barrier()
 
@@ -323,6 +347,12 @@ def get_fiona_type_from_pydata(pydata, string_width=None):
          float: 'float',
          object: 'str',
          np.dtype('O'): 'str'}
+
+    # Attempt to add unicode for Python 2.
+    try:
+        m[unicode] = 'str'
+    except NameError:
+        pass
 
     if pydata is None:
         # None types may be problematic for output vector format. Set default type to integer.

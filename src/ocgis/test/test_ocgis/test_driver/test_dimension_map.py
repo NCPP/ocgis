@@ -118,7 +118,7 @@ class TestDimensionMap(TestBase):
 
     def test_get_topology(self):
         dmap = DimensionMap()
-        self.assertEqual(dmap.get_topology(GridAbstraction.POINT), GridAbstraction.AUTO)
+        self.assertEqual(dmap.get_topology(GridAbstraction.POINT), None)
 
         dmap_poly = dmap.get_topology(GridAbstraction.POLYGON, create=True)
         self.assertEqual(dmap_poly, DimensionMap())

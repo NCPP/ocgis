@@ -150,7 +150,7 @@ class TestOcgOperations(TestBase):
         formats = [{0: 'NETCDF3_CLASSIC',
                     1: 'NETCDF3_CLASSIC'},
                    {0: 'NETCDF3_CLASSIC',
-                    1: 'NETCDF3_64BIT'}
+                    1: 'NETCDF3_64BIT_OFFSET'}
                    ]
 
         grid = create_gridxy_global()
@@ -464,7 +464,7 @@ class TestOcgOperations(TestBase):
 
         from ocgis.regrid.base import get_esmf_field_from_ocgis_field
 
-        efield = get_esmf_field_from_ocgis_field(self.get_field(nrlz=0, nlevel=0))
+        efield = get_esmf_field_from_ocgis_field(self.get_field(nrlz=0, nlevel=0, crs=Spherical()))
         output_format = OutputFormat.iter_possible()
         for kk in output_format:
             # Geojson may only be written with a spherical coordinate system.
@@ -543,7 +543,7 @@ class TestOcgOperations(TestBase):
         ops.execute()
         self.assertEqual(len(os.listdir(self.current_dir_output)), 0)
 
-    @attr('esmf', 'data', 'slow')
+    @attr('esmf', 'data')
     def test_keyword_output_format_esmpy(self):
         """Test with the ESMPy output format."""
         import ESMF
@@ -563,10 +563,10 @@ class TestOcgOperations(TestBase):
             ret = ops.execute()
             self.assertIsInstance(ret, ESMF.Field)
             try:
-                self.assertEqual(ret.data.shape, (3650, 10, 10))
+                self.assertEqual(ret.data.shape, (10, 10, 3650))
             except AssertionError:
                 self.assertFalse(k.with_slice)
-                self.assertEqual(ret.data.shape, (3650, 64, 128))
+                self.assertEqual(ret.data.shape, (128, 64, 3650))
 
     @attr('data')
     def test_keyword_output_format_nc_package_validation_raised_first(self):

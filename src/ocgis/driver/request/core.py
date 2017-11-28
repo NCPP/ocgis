@@ -19,8 +19,7 @@ from ocgis.util.units import get_units_object, get_are_units_equivalent
 
 class RequestDataset(AbstractRequestObject):
     """
-    A :class:`~ocgis.RequestDataset` contains all the information necessary to find and subset a variable (by time
-    and/or level) contained in a local or OpenDAP-hosted CF dataset.
+    Contains all the information necessary to create an OCGIS field via an OCGIS driver.
 
     >>> from ocgis import RequestDataset
     >>> uri = 'http://some.opendap.dataset'
@@ -29,8 +28,9 @@ class RequestDataset(AbstractRequestObject):
     >>> variable = 'tasmax'
     >>> rd = RequestDataset(uri, variable)
 
-    :param uri: The absolute path (URLs included) to the data's location.
-    :type uri: :class:`str` | `sequence` of :class:`str`
+    :param uri: The absolute path (URLs included) to the data's location. If ``None``, either ``opened`` or ``metadata``
+     must be provided.
+    :type uri: :class:`str` | `sequence` of :class:`str` | ``None``
 
     >>> uri = 'http://some.opendap.dataset'
     >>> uri = '/path/to/local/file.nc'
@@ -110,7 +110,8 @@ class RequestDataset(AbstractRequestObject):
      an overview.
     :param rename_variable: A sequence with the same length as ``variable``. Provides new names for the variables.
     :type rename_variable: `sequence` of :class:`str`
-    :param dict metadata: Overload the metadata that would normally be loaded by the driver.
+    :param dict metadata: Overload the metadata that would normally be loaded by the driver. If metadata is provided and
+     ``uri`` is ``None``, a field will be created by interpreting the provided metadata.
     :param opened: An open file used as a write target for the driver.
     :type opened: varies by ``driver`` class
     :param int uid: A unique identifier for the request dataset.

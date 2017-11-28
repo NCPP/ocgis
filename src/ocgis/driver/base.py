@@ -93,7 +93,12 @@ class AbstractDriver(AbstractOcgisObject):
     @property
     def metadata_raw(self):
         if self._metadata_raw is None:
-            self._metadata_raw = self.get_metadata()
+            # If there is no URI, we must be working with metadata passed to the request dataset.
+            if self.rd._uri is None:
+                res = self.rd.metadata
+            else:
+                res = self.get_metadata()
+            self._metadata_raw = res
         return self._metadata_raw
 
     @property

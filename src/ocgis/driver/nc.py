@@ -509,17 +509,17 @@ def init_variable_using_metadata_for_netcdf(variable, metadata):
             variable._dtype = desired_dtype
 
         if variable._fill_value == 'auto':
-            if var['fill_value_packed'] is not None:
+            if var.get('fill_value_packed') is not None:
                 desired_fill_value = var['fill_value_packed']
             else:
-                desired_fill_value = var['fill_value']
+                desired_fill_value = var.get('fill_value')
             variable._fill_value = deepcopy(desired_fill_value)
 
         variable_attrs = variable._attrs
         # Offset and scale factors are not supported by OCGIS. The data is unpacked when written to a new output file.
         # TODO: Consider supporting offset and scale factors for write operations.
         exclude = ['add_offset', 'scale_factor']
-        for k, v in list(var['attrs'].items()):
+        for k, v in list(var.get('attrs', {}).items()):
             if k in exclude:
                 continue
             if k not in variable_attrs:

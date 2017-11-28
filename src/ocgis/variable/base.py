@@ -1639,7 +1639,7 @@ class SourcedVariable(Variable):
                 var.load()
 
     def _get_value_(self):
-        if not self.is_empty and self._value is None and not self._has_initialized_value:
+        if not self.is_empty and self._value is None and not self._has_initialized_value and self._request_dataset.uri is not None:
             if self.protected:
                 raise PayloadProtectedError(self.name)
             self._request_dataset.driver.init_variable_value(self)

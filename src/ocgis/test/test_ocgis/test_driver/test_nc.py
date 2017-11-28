@@ -6,7 +6,7 @@ from unittest import SkipTest
 import fiona
 import numpy as np
 from mock import mock
-from shapely.geometry.geo import shape
+from shapely.geometry.geo import shape, box
 
 from ocgis import GeomCabinet, vm
 from ocgis import RequestDataset
@@ -702,6 +702,33 @@ class TestDriverNetcdfCF(TestBase):
         read_field = rd.get()
         actual = get_variable_names(read_field.data_variables)
         self.assertEqual(actual, ('data2',))
+
+    def test_system_rotated_pole_spherical_subsetting(self):
+        """Test rotated pole coordinates are left alone during a subset (no mask applied)."""
+
+        def _run_mask_test_(target):
+            for vn in ['rlat', 'rlon']:
+                self.assertIsNone(target[vn].get_mask())
+
+        rd = RequestDataset(metadata=self.fixture_rotated_spherical_metadata)
+        field = rd.create_field()
+        _run_mask_test_(field)
+        for ctr, vn in enumerate(['lat', 'lon', 'rlat', 'rlon']):
+            var = field[vn]
+            var.get_value()[:] = np.arange(var.size).reshape(var.shape) + (ctr * 10)
+        path = self.get_temporary_file_path('foo.nc')
+        field.write(path)
+
+        new_field = RequestDataset(path).create_field()
+        _run_mask_test_(new_field)
+        subset_geom = box(*new_field.grid.extent)
+        subset_field = new_field.grid.get_intersects(subset_geom, optimized_bbox_subset=True).parent
+        _run_mask_test_(subset_field)
+
+        path2 = self.get_temporary_file_path('foo2.nc')
+        subset_field.write(path2)
+        in_subset_field = RequestDataset(path2).create_field()
+        _run_mask_test_(in_subset_field)
 
     def test_get_data_variable_names(self):
         driver = self.get_drivernetcdf()

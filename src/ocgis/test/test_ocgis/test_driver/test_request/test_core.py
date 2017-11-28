@@ -4,7 +4,7 @@ import numpy as np
 
 from ocgis import RequestDataset, Variable
 from ocgis.collection.field import Field
-from ocgis.constants import TagName, MiscName, DimensionMapKey
+from ocgis.constants import TagName, MiscName, DimensionMapKey, DriverKey
 from ocgis.driver.nc import DriverNetcdf, DriverNetcdfCF
 from ocgis.driver.request.core import get_autodiscovered_driver, get_is_none
 from ocgis.exc import RequestValidationError, NoDataVariablesFound
@@ -91,6 +91,15 @@ class TestRequestDataset(TestSimpleBase):
         self.assertEqual(field.name, desired)
         self.assertIsNone(field.source_name)
         field.load()
+
+    def test_init_metadata_only(self):
+        metadata = {'variables': {'foo': {}}}
+        rd = RequestDataset(metadata=metadata)
+        self.assertEqual(rd.driver.key, DriverKey.NETCDF_CF)
+        self.assertIsNone(rd.uri)
+        self.assertEqual(rd.metadata, metadata)
+        field = rd.create_field()
+        self.assertEqual(field.keys(), ['foo'])
 
     def test_system_predicate(self):
         """Test creating a request dataset with a predicate."""

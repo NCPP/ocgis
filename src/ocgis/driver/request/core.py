@@ -7,7 +7,7 @@ import six
 
 from ocgis import constants
 from ocgis import env
-from ocgis.constants import DMK
+from ocgis.constants import DMK, DriverKey
 from ocgis.driver.dimension_map import DimensionMap
 from ocgis.driver.registry import get_driver_class, driver_registry
 from ocgis.driver.request.base import AbstractRequestObject
@@ -173,7 +173,12 @@ class RequestDataset(AbstractRequestObject):
         self._has_assigned_coordinate_system = False if crs == 'auto' else True
 
         if uri is None:
-            if opened is None:
+            # Fields may be created from pure metadata.
+            if metadata is not None:
+                # The default OCGIS driver is NetCDF.
+                if driver is None:
+                    driver = DriverKey.NETCDF_CF
+            elif opened is None:
                 ocgis_lh(logger='request', exc=RequestValidationError('uri', 'Cannot be None'))
         else:
             self._uri = get_uri(uri)
@@ -425,7 +430,11 @@ class RequestDataset(AbstractRequestObject):
 
     @property
     def uri(self):
-        return get_first_or_tuple(self._uri)
+        if self._uri is None:
+            ret = self._uri
+        else:
+            ret = get_first_or_tuple(self._uri)
+        return ret
 
     @property
     def variable(self):

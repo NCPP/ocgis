@@ -99,7 +99,7 @@ class TestRequestDataset(TestSimpleBase):
         self.assertIsNone(rd.uri)
         self.assertEqual(rd.metadata, metadata)
         field = rd.create_field()
-        self.assertEqual(field.keys(), ['foo'])
+        self.assertIn('foo', field.keys())
 
     def test_system_predicate(self):
         """Test creating a request dataset with a predicate."""

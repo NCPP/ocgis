@@ -687,7 +687,7 @@ def create_dimension_map_entry(src, variables, strict=False, attr_name='axis'):
 
     axis_vars = []
     for variable in list(variables.values()):
-        vattrs = variable['attrs']
+        vattrs = variable.get('attrs', {})
         if vattrs.get(attr_name) == attr_value:
             if len(variable['dimensions']) == 0:
                 pass

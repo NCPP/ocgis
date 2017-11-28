@@ -425,7 +425,7 @@ class AbstractProj4CRS(AbstractCRS):
         names = []
         vmeta = group_metadata['variables']
         for k, v in vmeta.items():
-            vattrs = v['attrs']
+            vattrs = v.get('attrs', {})
             if vattrs.get(OcgisConvention.Name.OCGIS_ROLE) == OcgisConvention.Value.ROLE_COORDSYS:
                 if vattrs.get(OcgisConvention.Name.PROJ4) is not None:
                     names.append(k)
@@ -964,8 +964,8 @@ class CFCoordinateReferenceSystem(CoordinateReferenceSystem):
             if not strict:
                 r_grid_mapping = None
                 fuzzy_names = cls.get_fuzzy_names()
-                for var_meta in list(meta['variables'].values()):
-                    if var_meta['name'] in fuzzy_names:
+                for var_name, var_meta in list(meta['variables'].items()):
+                    if var_meta.get('name', var_name) in fuzzy_names:
                         r_grid_mapping = var_meta
                         break
                 if r_grid_mapping is None:
@@ -1025,8 +1025,9 @@ class CFSpherical(Spherical, CFCoordinateReferenceSystem):
     def load_from_metadata(cls, var, meta, strict=False, depth=1):
         variables = meta['variables']
         if depth == 1:
-            r_grid_mapping = variables[var]['attrs'].get('grid_mapping')
-            r_grid_mapping_name = variables[var]['attrs'].get('grid_mapping_name')
+            variable_attrs = variables[var].get('attrs', {})
+            r_grid_mapping = variable_attrs.get('grid_mapping')
+            r_grid_mapping_name = variable_attrs.get('grid_mapping_name')
             if cls.grid_mapping_name in (r_grid_mapping, r_grid_mapping_name):
                 return cls()
             else:

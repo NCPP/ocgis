@@ -74,7 +74,7 @@ class GridSplitter(AbstractOcgisObject):
     :raises: ValueError
     """
 
-    def __init__(self, src_grid, dst_grid, nsplits_dst, paths=None, check_contains=True, allow_masked=True,
+    def __init__(self, src_grid, dst_grid, nsplits_dst, paths=None, check_contains=False, allow_masked=True,
                  src_grid_resolution=None, dst_grid_resolution=None, optimized_bbox_subset='auto', iter_dst=None,
                  buffer_value=None, redistribute=False):
         # TODO: Need to test with an unstructured grid as destination.

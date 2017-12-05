@@ -12,7 +12,7 @@ from ocgis.base import AbstractOcgisObject
 from ocgis.collection.field import Field
 from ocgis.constants import GridSplitterConstants, RegriddingRole, Topology
 from ocgis.driver.request.core import RequestDataset
-from ocgis.spatial.grid import GridUnstruct
+from ocgis.spatial.grid import GridUnstruct, AbstractGrid
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import VariableCollection
 from ocgis.variable.geom import GeometryVariable
@@ -33,10 +33,12 @@ class GridSplitter(AbstractOcgisObject):
 
     .. note:: All function calls are collective.
 
-    :param src_grid: The source grid for a regridding operation.
-    :type src_grid: :class:`~ocgis.spatial.grid.AbstractGrid`
-    :param dst_grid: The destination grid for a regridding operation.
-    :type dst_grid: :class:`~ocgis.spatial.grid.AbstractGrid`
+    :param source: The source object for a regridding operation. The object must either be a grid or an object from
+     which a grid is retrievable.
+    :type source: :class:`~ocgis.spatial.grid.AbstractGrid` | :class:`~ocgis.RequestDataset` | :class:`~ocgis.Field`
+    :param destination: The destination object for a regridding operation. The object must either be a grid or an object
+     from which a grid is retrievable.
+    :type destination: :class:`~ocgis.spatial.grid.AbstractGrid` | :class:`~ocgis.RequestDataset` | :class:`~ocgis.Field`
     :param tuple nsplits_dst: The split count for the grid. Tuple length must match the dimension count of the grid.
 
     >>> npslits_dst = (2, 3)
@@ -74,16 +76,21 @@ class GridSplitter(AbstractOcgisObject):
     :raises: ValueError
     """
 
-    def __init__(self, src_grid, dst_grid, nsplits_dst, paths=None, check_contains=False, allow_masked=True,
+    def __init__(self, source, destination, nsplits_dst, paths=None, check_contains=False, allow_masked=True,
                  src_grid_resolution=None, dst_grid_resolution=None, optimized_bbox_subset='auto', iter_dst=None,
                  buffer_value=None, redistribute=False):
         # TODO: Need to test with an unstructured grid as destination.
 
-        if len(nsplits_dst) != dst_grid.ndim:
+        self._src_grid = None
+        self._dst_grid = None
+
+        self.source = source
+        self.destination = destination
+
+        # Assert the split dimension matches the destination grid dimension.
+        if len(nsplits_dst) != self.dst_grid.ndim:
             raise ValueError('The number of splits must match the grid dimension count.')
 
-        self.src_grid = src_grid
-        self.dst_grid = dst_grid
         self.nsplits_dst = nsplits_dst
         self.check_contains = check_contains
         self.allow_masked = allow_masked
@@ -123,6 +130,28 @@ class GridSplitter(AbstractOcgisObject):
         if 'wd' not in paths:
             paths['wd'] = os.getcwd()
         self.paths = paths
+
+    @property
+    def dst_grid(self):
+        """
+        Get the destination grid.
+
+        :return: :class:`~ocgis.spatial.grid.AbstractGrid`
+        """
+        if self._dst_grid is None:
+            self._dst_grid = get_grid_object(self.destination)
+        return self._dst_grid
+
+    @property
+    def src_grid(self):
+        """
+        Get the source grid.
+
+        :return: :class:`~ocgis.spatial.grid.AbstractGrid`
+        """
+        if self._src_grid is None:
+            self._src_grid = get_grid_object(self.source)
+        return self._src_grid
 
     def create_full_path_from_template(self, key, index=None):
         ret = self.paths[key]
@@ -577,6 +606,18 @@ def create_slices_for_dimension(size, splits):
 def does_contain(container, containee):
     intersection = container.intersection(containee)
     return np.isclose(intersection.area, containee.area)
+
+
+def get_grid_object(obj):
+    if isinstance(obj, AbstractGrid):
+        res = obj
+    elif isinstance(obj, RequestDataset):
+        res = obj.create_field().grid
+    elif isinstance(obj, Field):
+        res = obj.grid
+    else:
+        raise NotImplementedError(obj)
+    return res
 
 
 def global_grid_shape(grid):

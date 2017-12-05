@@ -2,7 +2,7 @@ import os
 import subprocess
 
 import numpy as np
-from mock import mock
+from mock import mock, PropertyMock
 from shapely.geometry import box
 
 from ocgis import RequestDataset, Field
@@ -174,6 +174,41 @@ class TestGridSplitter(AbstractTestInterface):
         gs = GridSplitter(gridu, grid, (3, 4), src_grid_resolution=1.0, dst_grid_resolution=2.0,
                           paths=self.fixture_paths)
         self.assertTrue(gs.optimized_bbox_subset)
+
+    def test_system_regrid_target_types(self):
+        """Test grids are retrieved from the supported input regrid target types."""
+
+        mGrid = mock.create_autospec(Grid, spec_set=True, instance=True)
+        type(mGrid).ndim = PropertyMock(return_value=2)
+
+        def _create_mField_():
+            mField = mock.create_autospec(Field, spec_set=True, instance=True)
+            p_grid = PropertyMock(return_value=mGrid)
+            type(mField).grid = p_grid
+            return mField, p_grid
+
+        def _create_mRequestDataset_():
+            ret = mock.create_autospec(RequestDataset, spec_set=True, instance=True)
+            ret.create_field = mock.Mock(return_value=_create_mField_()[0])
+            return ret
+
+        # Test with request datasets.
+        source = _create_mRequestDataset_()
+        destination = _create_mRequestDataset_()
+        gs = GridSplitter(source, destination, (1, 1))
+        for t in [source, destination]:
+            t.create_field.assert_called_once()
+        for t in [gs.src_grid, gs.dst_grid]:
+            self.assertEqual(t, mGrid)
+
+        # Test with fields.
+        source, psource = _create_mField_()
+        destination, pdestination = _create_mField_()
+        gs = GridSplitter(source, destination, (1, 1))
+        for t in [psource, pdestination]:
+            t.assert_called_once_with()
+        for t in [gs.src_grid, gs.dst_grid]:
+            self.assertEqual(t, mGrid)
 
     def test_system_splitting_unstructured(self):
         ufile = self.get_temporary_file_path('ugrid.nc')

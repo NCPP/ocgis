@@ -449,13 +449,13 @@ class IcclimTG90p(AbstractIcclimPercentileDictionaryIndice):
 class IcclimTX90p(AbstractIcclimPercentileDictionaryIndice):
     key = 'icclim_TX90p'
 
-    percentile = 10
+    percentile = 90
 
 
 class IcclimTN90p(AbstractIcclimPercentileDictionaryIndice):
     key = 'icclim_TN90p'
 
-    percentile = 10
+    percentile = 90
 
 
 class IcclimWSDI(AbstractIcclimPercentileDictionaryIndice):

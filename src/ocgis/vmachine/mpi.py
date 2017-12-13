@@ -591,7 +591,7 @@ def redistribute_by_src_idx(variable, dimname, dimension):
     Redistribute values in ``variable`` using the source index associated with ``dimension``. The reloads the data from
     source and does not do an in-memory redistribution using MPI.
 
-    This function is collection across the current `~ocgis.OcgVM`.
+    This function is collective across the current `~ocgis.OcgVM`.
 
     * Uses fancy indexing only.
     * Gathers all source indices to a single processor.

@@ -313,6 +313,13 @@ class TestVariable(AbstractTestInterface):
         invar = RequestDataset(path).get()['strings']
         self.assertEqual(invar.dtype, 'S1')
 
+        value = [['2', '0', '1', '3', '-', '0', '3', '-', '0', '1', 'T', '0', '0', ':', '0', '0', ':', '0', '0'],
+         ['2', '0', '1', '3', '-', '0', '3', '-', '0', '1', 'T', '0', '0', ':', '3', '0', ':', '0', '0']]
+        var = Variable(name='foo', value=value, dtype='S1', dimensions=['time', 'date_len'])
+        var.set_string_max_length_global()
+        self.assertIsNotNone(var.string_max_length_global)
+        self.assertEqual(var.string_max_length_global, 19)
+
     @attr('mpi')
     def test_system_string_data_parallel(self):
         if vm.size > 2:

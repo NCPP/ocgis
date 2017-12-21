@@ -610,7 +610,7 @@ class Variable(AbstractContainer, Attributes):
         dtype = self.dtype
         if dtype == object or str(dtype).startswith('|S') or dtype in six.string_types or np.issubdtype(dtype, str):
             if len(self.dimensions) > 0:
-                archetype = self.get_value()[0]
+                archetype = self.get_value().flatten()[0]
                 if isinstance(archetype, six.string_types):
                     ret = True
         return ret

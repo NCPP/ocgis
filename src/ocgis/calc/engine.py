@@ -2,7 +2,7 @@ import logging
 
 import numpy as np
 
-from ocgis.base import get_variable_names, orphaned
+from ocgis.base import get_variable_names
 from ocgis.calc.base import AbstractMultivariateFunction
 from ocgis.calc.eval_function import EvalFunction, MultivariateEvalFunction
 from ocgis.util.logging_ocgis import ocgis_lh
@@ -105,8 +105,8 @@ class CalculationEngine(object):
                             new_temporal = function.tgd.extract()
                     except KeyError:
                         # Likely an eval function which does not have the name key.
-                        function = EvalFunction(field=field, file_only=file_only, vc=out_vc,
-                                                expr=self.funcs[0]['func'], meta_attrs=self.funcs[0].get('meta_attrs'))
+                        function = EvalFunction(field=field, file_only=file_only, vc=out_vc, expr=self.funcs[0]['func'],
+                                                meta_attrs=self.funcs[0].get('meta_attrs'))
 
                     ocgis_lh('calculation initialized', logger='calc.engine', level=logging.DEBUG)
 
@@ -143,8 +143,9 @@ class CalculationEngine(object):
 
                 # Add the calculation variables.
                 for variable in list(out_vc.values()):
-                    with orphaned(variable):
-                        out_field.add_variable(variable)
+                    variable = variable.extract()
+                    out_field.add_variable(variable)
+
                 # Tag the calculation data as data variables.
                 out_field.append_to_tags(function_tag, list(out_vc.keys()))
 

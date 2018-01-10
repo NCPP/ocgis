@@ -67,29 +67,7 @@ class Dimension(AbstractNamedObject):
             self.convert_to_empty()
 
     def __eq__(self, other):
-        """
-        :param other: The other dimension.
-        :type other: :class:`~ocgis.Dimension`
-        :return: ``True`` if dimension objects are equal.
-        :rtype: bool
-        """
-
-        ret = True
-        skip = ('__src_idx__', '_aliases', '_source_name', '_bounds_local', '_bounds_global')
-        for k, v in list(self.__dict__.items()):
-            if k in skip:
-                continue
-            else:
-                if v != other.__dict__[k]:
-                    ret = False
-                    break
-        if ret:
-            if self._src_idx is None and other._src_idx is not None:
-                ret = False
-            else:
-                if not np.all(self._src_idx == other._src_idx):
-                    ret = False
-        return ret
+        return self.eq(other)
 
     def __getitem__(self, slc):
         """
@@ -271,7 +249,7 @@ class Dimension(AbstractNamedObject):
     def convert_to_empty(self):
         """
         Convert the dimension to an empty dimension.
-        
+
         :raises: ValueError
         """
 
@@ -284,6 +262,35 @@ class Dimension(AbstractNamedObject):
         self._is_empty = True
         self._size = 0
         self._size_current = 0
+
+    def eq(self, other, check_src_idx=True):
+        """
+        Return ``True`` if dimensions are equal.
+
+        :param other: The other dimension.
+        :type other: :class:`~ocgis.Dimension`
+        :param bool check_src_idx: If ``True``, assert dimension source indices are equal.
+        :rtype: bool
+        """
+        ret = True
+        skip = ('__src_idx__', '_aliases', '_source_name', '_bounds_local', '_bounds_global')
+        for k, v in list(self.__dict__.items()):
+            if k in skip:
+                continue
+            else:
+                if v != other.__dict__[k]:
+                    ret = False
+                    break
+
+        # Validate the source indices are equal. Only do this if the other pieces returned equal.
+        if ret and check_src_idx:
+            if self._src_idx is None and other._src_idx is not None:
+                ret = False
+            else:
+                if not np.all(self._src_idx == other._src_idx):
+                    ret = False
+
+        return ret
 
     def get_distributed_slice(self, slc):
         """

@@ -1775,7 +1775,7 @@ class VariableCollection(AbstractCollection, AbstractContainer, Attributes):
         child.parent = self
         self.children[child.name] = child
 
-    def add_dimension(self, dimension, force=False):
+    def add_dimension(self, dimension, force=False, check_src_idx=True):
         """
         Add a dimension to the variable collection.
         
@@ -1783,11 +1783,13 @@ class VariableCollection(AbstractCollection, AbstractContainer, Attributes):
          and the dimensions are not equal.
         :type dimension: :class:`~ocgis.Dimension`
         :param bool force: If ``True``, clobber any dimensions with the same name.
+        :param bool check_src_idx: If ``True``, assert dimension source indices are equal. Raise a dimension mismatch
+         error if they are not.
         :raises: :class:`~ocgis.exc.DimensionMismatchError`
         """
         existing_dim = self.dimensions.get(dimension.name)
         if existing_dim is not None and not force:
-            if existing_dim != dimension:
+            if not existing_dim.eq(dimension, check_src_idx=check_src_idx):
                 raise DimensionMismatchError(dimension.name, self.name)
         else:
             self.dimensions[dimension.name] = dimension
@@ -1813,8 +1815,15 @@ class VariableCollection(AbstractCollection, AbstractContainer, Attributes):
             self[variable.name] = variable
             variable.parent = self
         else:
+            # Only check the source index if the incoming variable does not have an allocated value. The source index
+            # will only be used to load the values.
+            if variable.has_allocated_value:
+                check_src_idx = False
+            else:
+                check_src_idx = True
+
             for dimension in list(variable.parent.dimensions.values()):
-                self.add_dimension(dimension, force=force)
+                self.add_dimension(dimension, force=force, check_src_idx=check_src_idx)
             for var in list(variable.parent.values()):
                 var.parent = None
                 self.add_variable(var, force=force)

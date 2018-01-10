@@ -188,6 +188,17 @@ class TestOcgOperations(TestBase):
             rd = RequestDataset(output_paths)
             self.assertAsSetEqual(rd.metadata['file_format'], [desired_file_format])
 
+    def test_system_field_integrity_following_calculation(self):
+        """Test outgoing field from operations passes parent validation."""
+
+        field = self.get_field(ntime=365 * 2)
+        field._validate_()
+        ret = ocgis.OcgOperations(field, calc=[{'func': 'max', 'name': 'max'}],
+                                  calc_grouping=['year', 'unique']).execute()
+        field_max = ret.get_element()
+        self.assertEqual(id(field_max['max'].parent), id(field_max))
+        field_max._validate_()
+
     @attr('data')
     def test_system_scalar_level_dimension(self):
         """Test scalar level dimensions are not dropped in netCDF output."""

@@ -589,72 +589,6 @@ class AbstractFieldFunction(AbstractFunction):
 
 
 @six.add_metaclass(abc.ABCMeta)
-class AbstractUnivariateFunction(AbstractFunction):
-    """
-    Base class for functions accepting a single univariate input.
-    """
-
-    # Some calculations use a temporal group dimension but do not want any temporal aggregation to occur after the
-    # calculation.
-    should_temporally_aggregate = True
-    #: Optional sequence of acceptable string units definitions for input variables. If this is set to ``None``, no unit
-    #: validation will occur.
-    required_units = None
-
-    def __init__(self, *args, **kwargs):
-        super(AbstractUnivariateFunction, self).__init__(*args, **kwargs)
-
-        if self.calc_sample_size and self.tgd is None:
-            msg = 'Sample sizes not relevant for scalar transforms with no temporal grouping. Setting to False.'
-            ocgis_lh(msg=msg, logger='calc.base', level=logging.WARN)
-            self.calc_sample_size = False
-
-    def validate_units(self, variable):
-        if self.required_units is not None:
-            matches = [get_are_units_equal_by_string_or_cfunits(variable.units, target, try_cfunits=env.USE_CFUNITS) \
-                       for target in self.required_units]
-            if not any(matches):
-                raise UnitsValidationError(variable, self.required_units, self.key)
-
-    def _execute_(self):
-        for variable, calculation_name in self.iter_calculation_targets():
-            crosswalk = self._get_dimension_crosswalk_(variable)
-
-            fill_dimensions = variable.dimensions
-            # Some calculations introduce a temporal group dimension during initialization and perform the temporal
-            # aggregation implicit to the function.
-            if self.tgd is not None and not self.should_temporally_aggregate:
-                time_dimension_name = self.field.time.dimensions[0].name
-                dimension_name = get_dimension_names(fill_dimensions)
-                time_index = dimension_name.index(time_dimension_name)
-                fill_dimensions = list(variable.dimensions)
-                fill_dimensions[time_index] = self.tgd.dimensions[0]
-
-            fill = self.get_fill_variable(variable, calculation_name, fill_dimensions, self.file_only)
-
-            if not self.file_only:
-                arr = self.get_variable_value(variable)
-                arr_fill = self.get_variable_value(fill)
-
-                for yld in self._iter_conformed_arrays_(crosswalk, variable.shape, arr, arr_fill, None):
-                    carr, carr_fill = yld
-                    res_calculation = self.calculate(carr, **self.parms)
-                    carr_fill.data[:] = res_calculation.data
-                    carr_fill.mask[:] = res_calculation.mask
-
-                # Setting the values ensures the mask is updated on the output variables.
-                fill.set_value(arr_fill)
-
-            if self.tgd is not None and self.should_temporally_aggregate:
-                fill = self._get_temporal_agg_fill_(fill, calculation_name, self.file_only, f=self.aggregate_temporal,
-                                                    parms={})
-            else:
-                fill = {'fill': fill}
-
-            self._add_to_collection_(fill)
-
-
-@six.add_metaclass(abc.ABCMeta)
 class AbstractParameterizedFunction(AbstractFunction):
     """
     Base class for functions accepting parameters.
@@ -740,6 +674,72 @@ class AbstractParameterizedFunction(AbstractFunction):
 
 
 @six.add_metaclass(abc.ABCMeta)
+class AbstractUnivariateFunction(AbstractFunction):
+    """
+    Base class for functions accepting a single univariate input.
+    """
+
+    # Some calculations use a temporal group dimension but do not want any temporal aggregation to occur after the
+    # calculation.
+    should_temporally_aggregate = True
+    #: Optional sequence of acceptable string units definitions for input variables. If this is set to ``None``, no unit
+    #: validation will occur.
+    required_units = None
+
+    def __init__(self, *args, **kwargs):
+        super(AbstractUnivariateFunction, self).__init__(*args, **kwargs)
+
+        if self.calc_sample_size and self.tgd is None:
+            msg = 'Sample sizes not relevant for scalar transforms with no temporal grouping. Setting to False.'
+            ocgis_lh(msg=msg, logger='calc.base', level=logging.WARN)
+            self.calc_sample_size = False
+
+    def validate_units(self, variable):
+        if self.required_units is not None:
+            matches = [get_are_units_equal_by_string_or_cfunits(variable.units, target, try_cfunits=env.USE_CFUNITS) \
+                       for target in self.required_units]
+            if not any(matches):
+                raise UnitsValidationError(variable, self.required_units, self.key)
+
+    def _execute_(self):
+        for variable, calculation_name in self.iter_calculation_targets():
+            crosswalk = self._get_dimension_crosswalk_(variable)
+
+            fill_dimensions = variable.dimensions
+            # Some calculations introduce a temporal group dimension during initialization and perform the temporal
+            # aggregation implicit to the function.
+            if self.tgd is not None and not self.should_temporally_aggregate:
+                time_dimension_name = self.field.time.dimensions[0].name
+                dimension_name = get_dimension_names(fill_dimensions)
+                time_index = dimension_name.index(time_dimension_name)
+                fill_dimensions = list(variable.dimensions)
+                fill_dimensions[time_index] = self.tgd.dimensions[0]
+
+            fill = self.get_fill_variable(variable, calculation_name, fill_dimensions, self.file_only)
+
+            if not self.file_only:
+                arr = self.get_variable_value(variable)
+                arr_fill = self.get_variable_value(fill)
+
+                for yld in self._iter_conformed_arrays_(crosswalk, variable.shape, arr, arr_fill, None):
+                    carr, carr_fill = yld
+                    res_calculation = self.calculate(carr, **self.parms)
+                    carr_fill.data[:] = res_calculation.data
+                    carr_fill.mask[:] = res_calculation.mask
+
+                # Setting the values ensures the mask is updated on the output variables.
+                fill.set_value(arr_fill)
+
+            if self.tgd is not None and self.should_temporally_aggregate:
+                fill = self._get_temporal_agg_fill_(fill, calculation_name, self.file_only, f=self.aggregate_temporal,
+                                                    parms={})
+            else:
+                fill = {'fill': fill}
+
+            self._add_to_collection_(fill)
+
+
+@six.add_metaclass(abc.ABCMeta)
 class AbstractUnivariateSetFunction(AbstractUnivariateFunction):
     """
     Base class for functions operating on a single variable but always reducing input data along the time dimension.
@@ -771,7 +771,9 @@ class AbstractUnivariateSetFunction(AbstractUnivariateFunction):
 @six.add_metaclass(abc.ABCMeta)
 class AbstractMultivariateFunction(AbstractFunction):
     """
-    Base class for functions operating on multivariate inputs.
+    Base class for functions operating on multivariate inputs. Multivariate functions also double as set functions
+    (i.e. they can temporally group). This can be turned off at the class level by setting ``time_aggregation_external``
+    to ``False``.
     """
     # : Optional dictionary mapping unit definitions for required variables.
     #: For example: required_units = {'tas':'fahrenheit','rhs':'percent'}
@@ -852,6 +854,8 @@ class AbstractMultivariateFunction(AbstractFunction):
             for k, v in self.parms.items():
                 if k not in self.required_variables:
                     parms.update({k: v})
+            import ipdb;
+            ipdb.set_trace()
             res = self.calculate(**parms)
             carr_fill = yld[0][1]
             carr_fill.data[:] = res.data

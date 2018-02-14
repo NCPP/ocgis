@@ -854,8 +854,6 @@ class AbstractMultivariateFunction(AbstractFunction):
             for k, v in self.parms.items():
                 if k not in self.required_variables:
                     parms.update({k: v})
-            import ipdb;
-            ipdb.set_trace()
             res = self.calculate(**parms)
             carr_fill = yld[0][1]
             carr_fill.data[:] = res.data

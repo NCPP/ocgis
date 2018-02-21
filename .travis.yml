@@ -4,9 +4,9 @@ sudo: false
 
 env:
   matrix:
-    - CONDA_PYTHON="python=2.7"
-    - CONDA_PYTHON="python=3.5"
-    - CONDA_PYTHON="python=3.6"
+    - CONDA_PYTHON="27"
+    - CONDA_PYTHON="35"
+    - CONDA_PYTHON="36"
 
 before_install:
   - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh;

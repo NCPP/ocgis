@@ -1,5 +1,5 @@
 package:
-    name: ocgis-next
+    name: ocgis
     version: 2.1.0.dev1
 
 source:

@@ -26,7 +26,6 @@ install:
   - source /Users/travis/miniconda3/bin/activate root
   - conda config --set always_yes yes --set changeps1 no
   - conda config --add channels conda-forge
-  - conda update -q conda
   - conda install conda-build anaconda-client
   - conda info -a
 

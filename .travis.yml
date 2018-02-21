@@ -3,8 +3,6 @@ language: python
 sudo: false
 
 env:
-  global:
-    - NESII_CHANNEL="nesii"
   matrix:
     - CONDA_PYTHON="python=2.7"
     - CONDA_PYTHON="python=3.5"
@@ -24,3 +22,4 @@ before_install:
 script:
   - cd conda-recipe
   - conda build ocgis
+  - anaconda -t ${CONDA_UPLOAD_TOKEN} upload --no-progress -u nesii -l dev-ocgis `conda build --output --python ${CONDA_PY} ocgis`

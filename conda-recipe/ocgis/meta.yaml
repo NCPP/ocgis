@@ -12,6 +12,7 @@ build:
 requirements:
     build:
         - python
+        - setuptools
         - fiona
         - gdal
         - netcdf4

@@ -5,8 +5,8 @@ osx_image: xcode6.4
 env:
   matrix:
     - CONDA_PYTHON="27"
-#    - CONDA_PYTHON="35"
-#    - CONDA_PYTHON="36"
+    - CONDA_PYTHON="35"
+    - CONDA_PYTHON="36"
 
 before_install:
   # Remove homebrew.

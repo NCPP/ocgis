@@ -21,6 +21,10 @@ requirements:
         - click
         - six
         - numpy
+
+        # Needed for testing!
+        - nose
+        - mock
     run:
         - python
         - setuptools
@@ -39,10 +43,8 @@ requirements:
 #        - mpi4py  #Optional!
 
 test:
-  requires:
-    - nose
-    - mock
-    - click
+  imports:
+    - ocgis
 
 about:
     home: http://ocgis.readthedocs.io

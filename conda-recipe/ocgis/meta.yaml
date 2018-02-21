@@ -19,6 +19,7 @@ requirements:
         - shapely
     run:
         - python
+        - setuptools
         - fiona
         - gdal
         - netcdf4

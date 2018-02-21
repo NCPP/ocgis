@@ -1,0 +1,40 @@
+package:
+    name: ocgis
+    version: 2.1.0.dev1
+
+source:
+    git_url: https://github.com/NCPP/ocgis.git
+    git_tag: next
+
+build:
+    number: 1
+
+requirements:
+    build:
+        - python
+        - fiona
+        - gdal
+        - netcdf4
+        - shapely
+    run:
+        - python
+        - fiona
+        - gdal
+        - netcdf4
+        - shapely
+        - proj4
+        - rtree
+        - cf_units
+        - icclim ==4.2.5
+#        - esmpy==7.0.0  #Optional!
+#        - mpi4py  #Optional!
+
+test:
+  requires:
+    - nose
+    - mock
+
+about:
+    home: http://ocgis.readthedocs.io
+    license: NCSA License
+    summary: OpenClimateGIS (OCGIS) is a set of geoprocessing and calculation tools for spatiotemporal datasets.

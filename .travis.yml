@@ -1,0 +1,26 @@
+language: python
+
+sudo: false
+
+env:
+  global:
+    - NESII_CHANNEL="nesii"
+  matrix:
+    - CONDA_PYTHON="python=2.7"
+    - CONDA_PYTHON="python=3.5"
+    - CONDA_PYTHON="python=3.6"
+
+before_install:
+  - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh;
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - export PATH="$HOME/miniconda/bin:$PATH"
+  - hash -r
+  - conda config --set always_yes yes --set changeps1 no
+  - conda config --prepend channels "conda-forge"
+  - conda update --all --yes
+  - conda install conda-build anaconda-client
+  - conda info -a
+
+script:
+  - cd conda-recipe
+  - conda build ocgis

@@ -17,6 +17,7 @@ requirements:
         - gdal
         - netcdf4
         - shapely
+        - pyproj
     run:
         - python
         - setuptools

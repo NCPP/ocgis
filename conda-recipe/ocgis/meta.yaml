@@ -34,6 +34,8 @@ requirements:
         - click
         - six
         - numpy
+        - nose
+        - mock
 #        - icclim ==4.2.5 #Optional!
 #        - esmpy==7.0.0  #Optional!
 #        - mpi4py  #Optional!

@@ -24,7 +24,7 @@ requirements:
         - gdal
         - netcdf4
         - shapely
-        - proj4
+        - pyproj
         - rtree
         - cf_units
 #        - icclim ==4.2.5 #Optional!
@@ -35,7 +35,6 @@ test:
   requires:
     - nose
     - mock
-    - setuptools
 
 about:
     home: http://ocgis.readthedocs.io

@@ -35,6 +35,7 @@ test:
   requires:
     - nose
     - mock
+    - setuptools
 
 about:
     home: http://ocgis.readthedocs.io

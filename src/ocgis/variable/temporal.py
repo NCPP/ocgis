@@ -9,7 +9,7 @@ import netcdftime
 import numpy as np
 import six
 
-from ocgis import constants, env
+from ocgis import constants, env, Dimension
 from ocgis.constants import HeaderName, KeywordArgument
 from ocgis.exc import EmptySubsetError, IncompleteSeasonError, CannotFormatTimeError, ResolutionError
 from ocgis.util.helpers import get_is_date_between, iter_array, get_none_or_slice
@@ -249,10 +249,18 @@ class TemporalVariable(SourcedVariable):
             new_bounds, date_parts, repr_dt, dgroups = self._get_grouping_other_(grouping)
 
         new_name = 'climatology_bounds'
+        time_dimension_name = self.dimensions[0].name
         if self.has_bounds:
             new_dimensions = [d.name for d in self.bounds.dimensions]
         else:
-            new_dimensions = [self.name, 'bounds']
+            new_dimensions = [time_dimension_name, 'bounds']
+
+        # Create the new time dimension as unlimited if the original time variable also has an unlimited dimension.
+        if self.dimensions[0].is_unlimited:
+            new_time_dimension = Dimension(name=time_dimension_name, size_current=len(repr_dt))
+        else:
+            new_time_dimension = time_dimension_name
+        new_dimensions[0] = new_time_dimension
 
         new_bounds = TemporalVariable(value=new_bounds, name=new_name, dimensions=new_dimensions)
         new_attrs = deepcopy(self.attrs)

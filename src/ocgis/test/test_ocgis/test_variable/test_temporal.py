@@ -6,6 +6,7 @@ from collections import deque, OrderedDict
 import numpy as np
 from netCDF4 import date2num, num2date, netcdftime
 
+from ocgis import Dimension
 from ocgis import RequestDataset
 from ocgis import constants
 from ocgis.constants import HeaderName, KeywordArgument, DimensionMapKey
@@ -134,12 +135,18 @@ class Test(AbstractTestTemporal):
 
 
 class TestTemporalVariable(AbstractTestTemporal):
-    def get_temporalvariable(self, add_bounds=True, start=None, stop=None, days=1, name=None, format_time=True):
+    def get_temporalvariable(self, add_bounds=True, start=None, stop=None, days=1, name=None, format_time=True,
+                             unlimited=False):
         dt = datetime.datetime
         # dt = get_datetime_or_netcdftime
         start = start or dt(1899, 1, 1, 12)
         stop = stop or dt(1901, 12, 31, 12)
         dates = get_date_list(start, stop, days=days)
+        if unlimited:
+            time_dimension = Dimension(name='time', size_current=len(dates))
+        else:
+            time_dimension = 'time'
+
         if add_bounds:
             delta = datetime.timedelta(hours=12)
             lower = np.array(dates) - delta
@@ -147,7 +154,7 @@ class TestTemporalVariable(AbstractTestTemporal):
             bounds = np.empty((lower.shape[0], 2), dtype=object)
             bounds[:, 0] = lower
             bounds[:, 1] = upper
-            bounds = TemporalVariable(name='time_bounds', value=bounds, dimensions=['time', 'bounds'])
+            bounds = TemporalVariable(name='time_bounds', value=bounds, dimensions=[time_dimension, 'bounds'])
         else:
             bounds = None
 
@@ -166,7 +173,7 @@ class TestTemporalVariable(AbstractTestTemporal):
             bfill = bfill.reshape(bounds.shape)
             bounds.set_value(bfill)
 
-        td = TemporalVariable(value=dates, bounds=bounds, name=name, format_time=format_time, dimensions='time')
+        td = TemporalVariable(value=dates, bounds=bounds, name=name, format_time=format_time, dimensions=time_dimension)
         return td
 
     @staticmethod
@@ -867,6 +874,14 @@ class TestTemporalVariable(AbstractTestTemporal):
                        735217.0, 735218.0, 735219.0, 735220.0, 735221.0, 735222.0, 735223.0, 735224.0, 735225.0,
                        735226.0, 735227.0, 735228.0, 735229.0, 735230.0, 735231.0, 735232.0, 735233.0, 735234.0]
             self.assertEqual(actual, desired)
+
+    def test_get_grouping_unlimited(self):
+        """Test temporally grouped variable maintains unlimited dimension."""
+
+        t = self.get_temporalvariable(unlimited=True)
+        self.assertTrue(t.dimensions[0].is_unlimited)
+        tg = t.get_grouping(['month'])
+        self.assertTrue(tg.dimensions[0].is_unlimited)
 
     def test_get_subset_by_function(self):
 

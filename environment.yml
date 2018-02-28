@@ -12,3 +12,4 @@ dependencies:
   - cf_units
   - icclim
   - nose
+  - mock

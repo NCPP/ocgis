@@ -24,7 +24,7 @@ Installation without optional dependencies:
 
    conda install -c conda-forge ocgis
 
-Alternatively, NESII provides linux-64 builds for both OpenClimateGIS and ESMPy:
+Alternatively, NESII provides linux-64 and osx-64 builds for both OpenClimateGIS and ESMPy:
 
 .. code-block:: sh
 
@@ -96,15 +96,7 @@ Set the path to the directory containing the shapefiles or shapefile folders usi
 Supported Python Versions
 -------------------------
 
-Python versions 2.7, 3.5, and 3.6 are supported. Versions 2.7 and 3.6 are recommended.
-
-============== =====================================================================
-Python Version Notes
-============== =====================================================================
-2.7            All packages supported.
-3.5            ICCLIM and ESMPy not supported. ESMPy supports Python 3 in its trunk.
-3.6            ICCLIM and ESMPy not supported. ESMPy supports Python 3 in its trunk.
-============== =====================================================================
+Python versions 2.7, 3.5, and 3.6 are tested and supported. Versions 2.7 or 3.6 are recommended. Python 3.5 demonstrates undefined behavior with parallel operations using ``mpi4py``.
 
 Dependencies
 ------------
@@ -117,14 +109,14 @@ Required
 ============== ======= ========================================
 Package Name   Version URL
 ============== ======= ========================================
-``numpy``      1.12.1  http://www.numpy.org/
-``netCDF4``    1.2.7   http://unidata.github.io/netcdf4-python/
-``gdal``       2.1.3   https://pypi.python.org/pypi/GDAL/
+``numpy``      1.14.1  http://www.numpy.org/
+``netCDF4``    1.3.1   http://unidata.github.io/netcdf4-python/
+``gdal``       2.2.3   https://pypi.python.org/pypi/GDAL/
 ``pyproj``     1.9.5.1 https://github.com/jswhit/pyproj
-``shapely``    1.5.17  https://pypi.python.org/pypi/Shapely
-``fiona``      1.7.6   https://pypi.python.org/pypi/Fiona
-``six``        1.10.0  https://pypi.python.org/pypi/six
-``setuptools`` 27.2.0  https://pypi.python.org/pypi/setuptools
+``shapely``    1.6.4   https://pypi.python.org/pypi/Shapely
+``fiona``      1.7.11  https://pypi.python.org/pypi/Fiona
+``six``        1.11.0  https://pypi.python.org/pypi/six
+``setuptools`` 38.5.1  https://pypi.python.org/pypi/setuptools
 ============== ======= ========================================
 
 Optional
@@ -135,12 +127,13 @@ Optional dependencies are listed below. OpenClimateGIS will still operate withou
 ============= ======= ====================================================== =================================================================================================================================
 Package Name  Version  URL                                                    Usage
 ============= ======= ====================================================== =================================================================================================================================
-``ESMF``      7.0.0   https://www.earthsystemcog.org/projects/esmpy/releases Supports regridding operations.
-``mpi4py``    2.0.0   http://mpi4py.readthedocs.io/en/stable/                Required for parallel execution.
+``ESMF``      7.1.0   https://www.earthsystemcog.org/projects/esmpy/releases Supports regridding operations.
+``mpi4py``    3.0.0   http://mpi4py.readthedocs.io/en/stable/                Required for parallel execution.
 ``rtree``     0.8.3   https://pypi.python.org/pypi/Rtree/                    Constructs spatial indexes at runtime. Useful for complicated GIS operations (i.e. large or complex polygons for subsetting)
-``cf_units``  1.1.3   https://github.com/SciTools/cf_units                   Allows unit transformations.
-``icclim``    4.2.5   http://icclim.readthedocs.io/en/latest/                Calculation of the full suite of European Climate Assessment (ECA) indices with optimized code implementation.
+``cf_units``  1.2.0   https://github.com/SciTools/cf_units                   Allows unit transformations.
+``icclim``    4.2.9   http://icclim.readthedocs.io/en/latest/                Calculation of the full suite of European Climate Assessment (ECA) indices with optimized code implementation.
 ``nose``      1.3.7   https://nose.readthedocs.io/en/latest/                 Run unit tests.
+``mock``      2.0.0   https://pypi.python.org/pypi/mock/                     Run unit tests (required for Python 2.7 but part of Python 3 standard library).
 ============= ======= ====================================================== =================================================================================================================================
 
 Building from Source

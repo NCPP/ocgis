@@ -21,5 +21,9 @@ before_install:
 
 script:
   - cd conda-recipe
+
   - conda build --python ${CONDA_PYTHON} ocgis
   - anaconda -t ${CONDA_UPLOAD_TOKEN} upload --no-progress -u nesii -l dev-ocgis --force `conda build --output --python ${CONDA_PYTHON} ocgis`
+
+  - conda build --python ${CONDA_PYTHON} icclim
+  - anaconda -t ${CONDA_UPLOAD_TOKEN} upload --no-progress -u nesii -l dev-ocgis --force `conda build --output --python ${CONDA_PYTHON} icclim`

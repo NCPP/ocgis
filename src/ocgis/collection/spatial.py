@@ -130,11 +130,21 @@ class SpatialCollection(VariableCollection):
         :rtype: :class:`~ocgis.Field` | :class:`~ocgis.Variable`
         """
 
+        children = self.children
         if container_ugid is None:
-            for ret in list(self.children.values()):
+            for ret in list(children.values()):
                 break
         else:
-            ret = self.children[container_ugid]
+            try:
+                ret = children[container_ugid]
+            except TypeError:
+                # Try to extract the unique identifier from the field.
+                try:
+                    container_ugid = container_ugid.geom.ugid.get_value()[0]
+                except AttributeError:
+                    # It may be a NoneType geometry object.
+                    container_ugid = None
+                ret = children[container_ugid]
         if field_name is None:
             for ret in list(ret.children.values()):
                 break

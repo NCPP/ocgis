@@ -2,10 +2,7 @@ import os
 import tempfile
 
 import ocgis
-
-
 from ocgis.test.base import create_gridxy_global, create_exact_field
-
 
 # Name of the variable to subset.
 VAR_TAS = 'tas'

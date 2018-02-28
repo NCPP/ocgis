@@ -1,3 +1,4 @@
+import logging
 import os
 import subprocess
 import sys
@@ -146,6 +147,31 @@ class Environment(AbstractOcgisObject):
             if attr.on_change is not None:
                 attr.on_change()
 
+    def configure_logging(self, with_header=True):
+        from ocgis.util.logging_ocgis import ocgis_lh
+
+        # If file logging is enabled, check where or if the log should be written.
+        if self.ENABLE_FILE_LOGGING:
+            raise NotImplementedError
+        else:
+            to_file = None
+
+        # Flags to determine streaming to console.
+        if env.VERBOSE:
+            to_stream = True
+        else:
+            to_stream = False
+
+        # Configure the logger.
+        if self.DEBUG:
+            level = logging.DEBUG
+        else:
+            level = logging.INFO
+        # This wraps the callback function with methods to capture the completion of major operations.
+        ocgis_lh.configure(to_file=to_file, to_stream=to_stream, level=level, with_header=with_header
+                           # callback=progress, callback_level=level,
+                           )
+
     def get_geomcabinet_path(self):
         return self.DIR_GEOMCABINET or self.DIR_SHPCABINET
 
@@ -265,7 +291,7 @@ def get_dtype(string_name, data_model=None):
     """
 
     # The classic format does not support 64-bit data.
-    if data_model in ('NETCDF3_CLASSIC' , 'NETCDF4_CLASSIC'):
+    if data_model in ('NETCDF3_CLASSIC', 'NETCDF4_CLASSIC'):
         mp = {'int': np.int32,
               'float': np.float32}
     elif data_model in ('NETCDF3_64BIT_OFFSET', 'NETCDF3_64BIT'):

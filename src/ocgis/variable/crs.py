@@ -308,14 +308,14 @@ class AbstractCRS(AbstractInterfaceObject):
     def set_string_max_length_global(self):
         """Here for variable compatibility."""
 
-    def wrap_or_unwrap(self, action, target):
+    def wrap_or_unwrap(self, action, target, force=False):
         from ocgis.variable.geom import GeometryVariable
         from ocgis.spatial.grid import Grid
 
         if action not in (WrapAction.WRAP, WrapAction.UNWRAP):
             raise ValueError('"action" not recognized: {}'.format(action))
 
-        if target.wrapped_state != action:
+        if target.wrapped_state != action or force:
             if action == WrapAction.WRAP:
                 attr = 'wrap'
             else:

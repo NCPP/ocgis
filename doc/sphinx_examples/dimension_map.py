@@ -5,7 +5,6 @@ from ocgis.constants import DimensionMapKey
 
 OUT_NC = os.path.join(os.getcwd(), 'ocgis_example_dimension_map.nc')
 
-
 ########################################################################################################################
 # Write some initial data.
 

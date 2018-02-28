@@ -20,8 +20,9 @@ from ocgis.conv.nc import NcConverter
 from ocgis.driver.csv_ import DriverCSV
 from ocgis.driver.nc import DriverNetcdf
 from ocgis.driver.vector import DriverVector
+from ocgis.spatial.base import create_spatial_mask_variable
 from ocgis.spatial.geom_cabinet import GeomCabinetIterator
-from ocgis.spatial.grid import Grid, create_grid_mask_variable
+from ocgis.spatial.grid import Grid
 from ocgis.test.base import attr, AbstractTestInterface
 from ocgis.util.helpers import reduce_multiply
 from ocgis.variable.base import Variable
@@ -294,7 +295,7 @@ class TestField(AbstractTestInterface):
         np.random.seed(1)
         value = np.random.rand(*grid.shape)
         select = value > 0.4
-        mask_var = create_grid_mask_variable('nonstandard', select, grid.dimensions)
+        mask_var = create_spatial_mask_variable('nonstandard', select, grid.dimensions)
         grid.set_mask(mask_var)
         field = Field(grid=grid)
         self.assertTrue(field.grid.has_bounds)

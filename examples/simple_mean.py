@@ -1,7 +1,6 @@
 import ocgis
 from ocgis.test.base import create_gridxy_global, create_exact_field
 
-
 # Path to the output netCDf file.
 PATH = '/tmp/foo.nc'
 

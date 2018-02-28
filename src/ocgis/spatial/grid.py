@@ -9,11 +9,10 @@ from shapely.geometry.base import BaseGeometry, BaseMultipartGeometry
 
 import ocgis
 from ocgis import Variable, vm
-from ocgis import constants
 from ocgis.base import get_dimension_names, raise_if_empty, AbstractOcgisObject, get_variable_names, \
     is_unstructured_driver
 from ocgis.constants import WrappedState, VariableName, KeywordArgument, GridAbstraction, DriverKey, \
-    GridSplitterConstants, RegriddingRole, Topology, DMK, CFName
+    GridChunkerConstants, RegriddingRole, Topology, DMK, CFName
 from ocgis.environment import ogr, env
 from ocgis.exc import GridDeficientError, EmptySubsetError, AllElementsMaskedError
 from ocgis.spatial.base import AbstractXYZSpatialContainer
@@ -176,7 +175,7 @@ class AbstractGrid(AbstractOcgisObject):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _gs_create_index_bounds_(self, *args, **kwargs):
+    def _gc_create_index_bounds_(self, *args, **kwargs):
         raise NotImplementedError
 
 
@@ -226,6 +225,9 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         kwargs[KeywordArgument.Z] = z
         kwargs[KeywordArgument.POS] = pos
         abstraction = kwargs.pop(KeywordArgument.ABSTRACTION, KeywordArgument.Defaults.ABSTRACTION)
+
+        # Structured grids are always considered isomorphic.
+        kwargs[DMK.IS_ISOMORPHIC] = True
 
         AbstractXYZSpatialContainer.__init__(self, **kwargs)
         AbstractGrid.__init__(self, abstraction=abstraction)
@@ -361,44 +363,6 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         return ret
 
     @property
-    def resolution(self):
-        y_value = self.y.get_value()
-        x_value = self.x.get_value()
-        resolution_limit = constants.RESOLUTION_LIMIT
-        if self.is_vectorized:
-            targets = [np.abs(np.diff(np.abs(y_value[0:resolution_limit]))),
-                       np.abs(np.diff(np.abs(x_value[0:resolution_limit])))]
-        else:
-            if 1 in self.shape:
-                # Handle case singleton grid dimension case.
-                targets = []
-                if self.shape[0] != 1:
-                    targets.append(np.abs(np.diff(np.abs(y_value[0:resolution_limit, :]), axis=0)))
-                if self.shape[1] != 1:
-                    targets.append(np.abs(np.diff(np.abs(x_value[:, 0:resolution_limit]), axis=1)))
-            else:
-                targets = [np.abs(np.diff(np.abs(y_value[0:resolution_limit, :]), axis=0)),
-                           np.abs(np.diff(np.abs(x_value[:, 0:resolution_limit]), axis=1))]
-        to_mean = [np.mean(t) for t in targets]
-        ret = np.mean(to_mean)
-        return ret
-
-    @property
-    def resolution_x(self):
-        x_value = self.x.get_value()
-        if x_value.size == 1:
-            return 0.0
-        else:
-            resolution_limit = constants.RESOLUTION_LIMIT
-            is_vectorized = x_value.ndim == 1
-            if is_vectorized:
-                target = np.abs(np.diff(np.abs(x_value[0:resolution_limit])))
-            else:
-                target = np.abs(np.diff(np.abs(x_value[:, 0:resolution_limit]), axis=1))
-            ret = np.mean(target)
-            return ret
-
-    @property
     def shape(self):
         """
         :rtype: :class:`tuple` of :class:`int`
@@ -490,7 +454,7 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         new_parent = self.parent.copy()
         original_parent = self.parent
         members = get_variable_names(self.get_member_variables())
-        for v in new_parent.values():
+        for v in self.parent.values():
             if v.name not in members:
                 new_parent.remove_variable(v, remove_bounds=False)
         if clean_break:
@@ -921,14 +885,15 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         return self.parent.is_empty
 
     @staticmethod
-    def _gs_create_global_indices_(global_shape, **kwargs):
-        return np.arange(1, reduce(lambda x, y: x * y, global_shape) + 1, **kwargs).reshape(*global_shape, order='C')
+    def _gc_create_global_indices_(global_shape, **kwargs):
+        return np.arange(1, six.moves.reduce(lambda x, y: x * y, global_shape) + 1, **kwargs).reshape(*global_shape,
+                                                                                                      order='C')
 
-    def _gs_create_index_bounds_(self, regridding_role, host_attribute_variable, parent, slices, split_dimension,
+    def _gc_create_index_bounds_(self, regridding_role, host_attribute_variable, parent, slices, split_dimension,
                                  bounds_dimension):
         raise_if_empty(self)
 
-        constants_gci = GridSplitterConstants.IndexFile
+        constants_gci = GridChunkerConstants.IndexFile
         if regridding_role == RegriddingRole.DESTINATION:
             name_x_bounds = constants_gci.NAME_X_DST_BOUNDS_VARIABLE
             name_y_bounds = constants_gci.NAME_Y_DST_BOUNDS_VARIABLE
@@ -959,8 +924,18 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         parent.add_variable(xb)
         parent.add_variable(yb)
 
-    def _gs_initialize_(self, regridding_role):
+    def _gc_initialize_(self, regridding_role):
         pass
+
+    def _gc_nchunks_dst_(self, grid_chunker):
+        try:
+            ret = super(Grid, self)._gc_nchunks_dst_(grid_chunker)
+        except NotImplementedError:
+            if self.ndim != 2:
+                raise NotImplementedError('Only implemented for two dimensions.')
+            else:
+                ret = (10, 10)
+        return ret
 
     def _initialize_parent_(self, *args, **kwargs):
         return self._get_parent_class_()(*args, **kwargs)
@@ -984,7 +959,7 @@ class GridUnstruct(AbstractGrid):
     __internal_attrs__ = ('__customizers__', 'abstraction', 'abstractions_available', 'archetype',
                           'coordinate_variables', 'dimension_map', 'geoms', 'get_abstraction_geometry', 'reduce_global',
                           'update_crs', '_get_auto_abstraction_', '_get_available_abstractions_',
-                          '_gs_create_index_bounds_')
+                          '_gc_create_index_bounds_')
     __customizers__ = {Topology.POLYGON: PolygonGC, Topology.LINE: LineGC, Topology.POINT: PointGC}
 
     def __init__(self, geoms=None, abstraction=GridAbstraction.AUTO, parent=None):
@@ -1073,6 +1048,10 @@ class GridUnstruct(AbstractGrid):
         return ret
 
     def reduce_global(self, *args, **kwargs):
+        """See :meth:`ocgis.spatial.geomc.AbstractGeometryCoordinates.reduce_global`"""
+
+        # Reductions are only important for higher-level abstractions (i.e. polygons). Polygons and lines should share
+        # coordinate arrays.
         for a in self.abstractions_available.values():
             a = a.reduce_global(*args, **kwargs)
             return a.parent.grid
@@ -1093,7 +1072,7 @@ class GridUnstruct(AbstractGrid):
                 ret[h] = possible[h]
         return ret
 
-    def _gs_create_index_bounds_(self, *args, **kwargs):
+    def _gc_create_index_bounds_(self, *args, **kwargs):
         pass
 
 
@@ -1117,14 +1096,6 @@ def arr_intersects_bounds(arr, lower, upper, keep_touches=True, section_slice=No
         ret[section_slice] = np.logical_and(arr_lower, arr_upper)
 
     return ret
-
-
-def create_grid_mask_variable(name, mask_value, dimensions):
-    mask_variable = Variable(name, mask=mask_value, dtype=np.dtype('i1'), dimensions=dimensions,
-                             attrs={'ocgis_role': 'spatial_mask',
-                                    'description': 'values matching fill value are spatially masked'})
-    mask_variable.allocate_value(fill=0)
-    return mask_variable
 
 
 def update_crs_with_geometry_collection(src_sr, to_sr, value_row, value_col):

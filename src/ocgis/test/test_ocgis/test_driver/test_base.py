@@ -29,6 +29,9 @@ class FakeAbstractDriver(AbstractDriver):
     def _init_variable_from_source_main_(self, variable_object, variable_metadata):
         pass
 
+    def _write_variable_collection_main_(self, *args, **kwargs):
+        pass
+
 
 class FixtureAbstractDriver(object):
     def fixture_abstract_driver(self):

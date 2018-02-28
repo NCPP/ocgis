@@ -56,7 +56,7 @@ class SpatialSubsetOperation(AbstractOcgisObject):
 
         :param str operation: Either ``'intersects'`` or ``'clip'``.
         :param geom: The input geometry object to use for subsetting of ``target``.
-        :type geom: :class:`shapely.geometry.base.BaseGeometry`
+        :type geom: :class:`shapely.geometry.base.BaseGeometry` | :class:`ocgis.GeometryVariable`
         :param bool use_spatial_index: If ``True``, use an ``rtree`` spatial index.
         :param bool select_nearest: If ``True``, select the geometry nearest ``polygon`` using
          :meth:`shapely.geometry.base.BaseGeometry.distance`.
@@ -65,6 +65,8 @@ class SpatialSubsetOperation(AbstractOcgisObject):
         :param float buffer_value: The buffer radius to use in units of the coordinate system of ``subset_sdim``.
         :param buffer_crs: If provided, then ``buffer_value`` are not in units of the coordinate system of
          ``subset_sdim`` but in units of ``buffer_crs``.
+        :param geom_crs: The coordinate reference system for the subset geometry.
+        :type geom_crs: :class:`ocgis.crs.CRS`
         :param bool select_nearest: If ``True``, following the spatial subset operation, select the nearest geometry
          in the subset data to ``geom``. Centroid-based distance is used.
         :type buffer_crs: :class:`ocgis.interface.base.crs.CoordinateReferenceSystem`

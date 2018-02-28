@@ -12,7 +12,7 @@ from ocgis import vm
 from ocgis.base import AbstractOcgisObject, raise_if_empty
 from ocgis.base import get_variable_names
 from ocgis.collection.field import Field
-from ocgis.constants import MPIWriteMode, TagName, KeywordArgument, OcgisConvention
+from ocgis.constants import MPIWriteMode, TagName, KeywordArgument, OcgisConvention, VariableName
 from ocgis.driver.dimension_map import DimensionMap
 from ocgis.exc import DefinitionValidationError, NoDataVariablesFound, DimensionMapError, VariableMissingMetadataError, \
     GridDeficientError
@@ -34,9 +34,12 @@ class AbstractDriver(AbstractOcgisObject):
     :type rd: :class:`~ocgis.RequestDataset`
     """
 
+    common_extension = None  # The standard file extension commonly associated with the canonical file format.
+    default_axes_positions = (0, 1)  # Standard axes index for Y and X respectively.
     _default_crs = None
+    _esmf_fileformat = None  # The associated ESMF file type. This may be None.
+    _esmf_grid_class = constants.ESMFGridClass.GRID  # The ESMF grid class type.
     _priority = False
-    common_extension = None
 
     def __init__(self, rd):
         self.rd = rd
@@ -112,6 +115,19 @@ class AbstractDriver(AbstractOcgisObject):
          converted to all output formats.
         :rtype: list[str, ...]
         """
+
+    @staticmethod
+    def array_resolution(value, axis):
+        """
+        Optionally overloaded by subclasses to calculate the "resolution" of an array. This makes the most sense in the
+        context of coordinate variables. This method should return a float resolution.
+
+        :param value: The value array target.
+        :type value: :class:`numpy.ndarray`
+        :param int axis: The target axis for the resolution calculation.
+        :rtype: float
+        """
+        raise NotImplementedError
 
     @classmethod
     def close(cls, obj, rd=None):
@@ -226,6 +242,7 @@ class AbstractDriver(AbstractOcgisObject):
         raw_field = kwargs.pop('raw_field', None)
         format_time = kwargs.pop(KeywordArgument.FORMAT_TIME, True)
         grid_abstraction = kwargs.pop(KeywordArgument.GRID_ABSTRACTION, self.rd.grid_abstraction)
+        grid_is_isomorphic = kwargs.pop('grid_is_isomorphic', self.rd.grid_is_isomorphic)
 
         if raw_field is None:
             # Get the raw variable collection from source.
@@ -272,8 +289,10 @@ class AbstractDriver(AbstractOcgisObject):
         # TODO: Identify a way to remove this code block; field should be appropriately initialized; format_time and grid_abstraction are part of a dimension map.
         kwargs[KeywordArgument.DIMENSION_MAP] = dimension_map
         kwargs[KeywordArgument.FORMAT_TIME] = format_time
-        if grid_abstraction != constants.UNINITIALIZED:
+        if grid_abstraction != 'auto':
             kwargs[KeywordArgument.GRID_ABSTRACTION] = grid_abstraction
+        if grid_is_isomorphic != 'auto':
+            kwargs['grid_is_isomorphic'] = grid_is_isomorphic
         field = Field.from_variable_collection(raw_field, *args, **kwargs)
 
         # If this is a source grid for regridding, ensure the flag is updated.
@@ -383,6 +402,25 @@ class AbstractDriver(AbstractOcgisObject):
             lines.append('}')
         return lines
 
+    @classmethod
+    def get_esmf_fileformat(cls):
+        """
+        Get the ESMF file format associated with the driver. The string should be an accessible attribute on :attr:`ESMF.constants.FileFormat`.
+
+        :rtype: str
+        """
+        import ESMF
+        return getattr(ESMF.constants.FileFormat, cls._esmf_fileformat)
+
+    @classmethod
+    def get_esmf_grid_class(cls):
+        """
+        Get the ESMF grid class.
+
+        :rtype: :class:`ESMF.Grid` | :class:`ESMF.Mesh`
+        """
+        return constants.ESMFGridClass.get_esmf_class(cls._esmf_grid_class)
+
     @staticmethod
     def get_grid(field):
         """
@@ -435,6 +473,41 @@ class AbstractDriver(AbstractOcgisObject):
         meta = deepcopy(self.metadata_source)
         _jsonformat_(meta)
         return json.dumps(meta)
+
+    @staticmethod
+    def get_or_create_spatial_mask(*args, **kwargs):
+        """
+        Get or create the spatial mask variable and return its mask value as a boolean array.
+
+        :param tuple args: See table
+
+        ===== ======================================================= ===================================
+        Index Type                                                    Description
+        ===== ======================================================= ===================================
+        0     :class:`ocgis.spatial.base.AbstractXYZSpatialContainer` Target XYZ spatial container
+        1:    <varying>                                               See :meth:`ocgis.Variable.get_mask`
+        ===== ======================================================= ===================================
+
+        :param kwargs: See keyword arguments to :meth:`ocgis.Variable.get_mask`
+        :rtype: :class:`numpy.ndarray`
+        """
+        from ocgis.spatial.base import create_spatial_mask_variable
+
+        args = list(args)
+        sobj = args[0]
+        args = args[1:]
+
+        create = kwargs.get(KeywordArgument.CREATE, False)
+        mask_variable = sobj.mask_variable
+        ret = None
+        if mask_variable is None:
+            if create:
+                mask_variable = create_spatial_mask_variable(VariableName.SPATIAL_MASK, None, sobj.dimensions)
+                sobj.set_mask(mask_variable)
+        if mask_variable is not None:
+            sobj.driver.validate_spatial_mask(mask_variable)
+            ret = mask_variable.get_mask(*args, **kwargs)
+        return ret
 
     def get_variable_collection(self, **kwargs):
         """Here for backwards compatibility."""
@@ -592,6 +665,38 @@ class AbstractDriver(AbstractOcgisObject):
             ret = cls._open_(uri, mode=mode, **kwargs)
         return ret
 
+    @staticmethod
+    def set_spatial_mask(sobj, value, cascade=False):
+        """
+        Set the spatial mask on an XYZ spatial container.
+
+        :param sobj: Target XYZ spatial container
+        :type sobj: :class:`ocgis.spatial.base.AbstractXYZSpatialContainer`
+        :param value: The spatial mask value. This may be a variable or a boolean array. If it is a boolean array, a
+         spatial mask variable will be created and this array set as its mask.
+        :type value: :class:`ocgis.Variable` | :class:`numpy.ndarray`
+        :param bool cascade: If ``True``, cascade the mask across shared dimensions on the grid.
+        """
+        from ocgis.spatial.grid import grid_set_mask_cascade
+        from ocgis.spatial.base import create_spatial_mask_variable
+        from ocgis.variable.base import Variable
+
+        if isinstance(value, Variable):
+            sobj.parent.add_variable(value, force=True)
+            mask_variable = value
+        else:
+            mask_variable = sobj.mask_variable
+            if mask_variable is None:
+                dimensions = sobj.dimensions
+                mask_variable = create_spatial_mask_variable(VariableName.SPATIAL_MASK, value, dimensions)
+                sobj.parent.add_variable(mask_variable)
+            else:
+                mask_variable.set_mask(value)
+        sobj.dimension_map.set_spatial_mask(mask_variable)
+
+        if cascade:
+            grid_set_mask_cascade(sobj)
+
     def validate_field(self, field):
         pass
 
@@ -608,6 +713,20 @@ class AbstractDriver(AbstractOcgisObject):
                 msg = 'Output format not supported for driver "{0}". Supported output formats are: {1}'.format(cls.key,
                                                                                                                cls.output_formats)
                 ocgis_lh(logger='driver', exc=DefinitionValidationError('output_format', msg))
+
+    @staticmethod
+    def validate_spatial_mask(mask_variable):
+        """
+        Validate the spatial mask variable.
+
+        :param mask_variable: Target spatial mask variable
+        :type mask_variable: :class:`ocgis.Variable`
+        :raises: ValueError
+        """
+        if mask_variable.attrs.get('ocgis_role') != 'spatial_mask':
+            msg = 'Mask variable "{}" must have an "ocgis_role" attribute with a value of "spatial_mask".'.format(
+                mask_variable.name)
+            raise ValueError(msg)
 
     def write_variable(self, *args, **kwargs):
         """Write a variable. Not applicable for tabular formats."""
@@ -646,6 +765,28 @@ class AbstractDriver(AbstractOcgisObject):
         for write_mode in write_modes:
             cls._write_variable_collection_main_(vc, opened_or_path, write_mode, **kwargs)
 
+    @staticmethod
+    def _close_(obj):
+        """
+        Close and finalize the open file object.
+        """
+        obj.close()
+
+    @staticmethod
+    def _gc_nchunks_dst_(grid_chunker):
+        """
+        Calculate the default chunking decomposition for a destination grid in the grid chunker. The decomposition should
+        be a tuple of integers.
+
+        >>> (10, 5)
+        >>> (12,)
+
+        :param grid_chunker: The grid chunker object.
+        :type grid_chunker: :class:`~ocgis.spatial.grid_chunker.GridChunker`
+        :rtype: tuple
+        """
+        raise NotImplementedError
+
     @classmethod
     def _get_write_modes_(cls, the_vm, **kwargs):
         if the_vm.size > 1:
@@ -670,14 +811,6 @@ class AbstractDriver(AbstractOcgisObject):
     @classmethod
     def _get_field_write_target_(cls, field):
         return field
-
-    @staticmethod
-    def _close_(obj):
-        """
-        Close and finalize the open file object.
-        """
-
-        obj.close()
 
     @abc.abstractmethod
     def _init_variable_from_source_main_(self, variable_object, variable_metadata):
@@ -743,6 +876,9 @@ class AbstractTabularDriver(AbstractDriver):
 
 @six.add_metaclass(ABCMeta)
 class AbstractUnstructuredDriver(AbstractOcgisObject):
+    default_axes_positions = (0, 0)  # Standard axes index for Y and X respectively.
+    _esmf_grid_class = constants.ESMFGridClass.MESH
+
     @staticmethod
     def get_element_dimension(gc):
         """See :meth:`ocgis.spatial.geomc.AbstractGeometryCoordinates.element_dim`"""

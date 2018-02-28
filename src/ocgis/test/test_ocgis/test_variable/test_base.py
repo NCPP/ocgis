@@ -314,10 +314,10 @@ class TestVariable(AbstractTestInterface):
         self.assertEqual(invar.dtype, 'S1')
 
         value = [['2', '0', '1', '3', '-', '0', '3', '-', '0', '1', 'T', '0', '0', ':', '0', '0', ':', '0', '0'],
-         ['2', '0', '1', '3', '-', '0', '3', '-', '0', '1', 'T', '0', '0', ':', '3', '0', ':', '0', '0']]
+                 ['2', '0', '1', '3', '-', '0', '3', '-', '0', '1', 'T', '0', '0', ':', '3', '0', ':', '0', '0']]
         var = Variable(name='foo', value=value, dtype='S1', dimensions=['time', 'date_len'])
+        self.assertTrue(var.is_string_object)
         var.set_string_max_length_global()
-        self.assertIsNotNone(var.string_max_length_global)
         self.assertEqual(var.string_max_length_global, 19)
 
     @attr('mpi')

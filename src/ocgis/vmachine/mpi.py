@@ -1,7 +1,7 @@
 import itertools
 from collections import OrderedDict
 from contextlib import contextmanager
-from functools import reduce
+from functools import reduce, partial
 
 import numpy as np
 import six
@@ -10,6 +10,7 @@ from ocgis import constants
 from ocgis.base import AbstractOcgisObject, raise_if_empty
 from ocgis.constants import DataType, SourceIndexType
 from ocgis.exc import DimensionNotFound
+from ocgis.util.addict import Dict
 from ocgis.util.helpers import get_optimal_slice_from_array, get_iter, get_group
 
 try:
@@ -23,10 +24,15 @@ else:
         MPI_ENABLED = True
     else:
         MPI_ENABLED = False
-    MPI_TYPE_MAPPING = {np.int32: MPI.INT, np.int64: MPI.LONG_LONG}
+    MPI_TYPE_MAPPING = {np.int32: MPI.INT, np.int64: MPI.LONG_LONG,
+                        np.dtype('int32'): MPI.INT, np.dtype('float64'): MPI.LONG_LONG}
 
 
 class DummyMPIComm(object):
+
+    def __init__(self):
+        self._send_recv = Dict()
+
     def Barrier(self):
         pass
 
@@ -54,23 +60,38 @@ class DummyMPIComm(object):
     def Incl(self, *args, **kwargs):
         return self
 
-    def Irecv(self, *args, **kwargs):
-        pass
-
-    def recv(self, *args, **kwargs):
-        pass
-
     def reduce(self, *args, **kwargs):
         return args[0]
 
     def scatter(self, *args, **kwargs):
         return args[0][0]
 
-    def Isend(self, *args, **kwargs):
-        pass
+    def Irecv(self, payload, source=0, tag=None):
+        def _irecv_callback_(ipayload, icomm, isource, itag, mode):
+            ret = False
+            if mode == 'test':
+                ret = itag in icomm._send_recv[isource]
+            elif mode == 'get' or ret:
+                stored = icomm._send_recv[isource].pop(itag)
+                ipayload[0] = stored
+                ret = True
+            else:
+                raise NotImplementedError(mode)
+            return ret
+
+        the_callback = partial(_irecv_callback_, payload, self, source, tag)
+
+        return DummyRequest(callback=the_callback)
+
+    def recv(self, *args, **kwargs):
+        return self.Irecv(*args, **kwargs)
+
+    def Isend(self, payload, dest=0, tag=None):
+        self._send_recv[dest][tag] = payload[0]
+        return DummyRequest()
 
     def send(self, *args, **kwargs):
-        pass
+        return self.Isend(*args, **kwargs)
 
 
 if MPI_ENABLED and MPI.COMM_WORLD.Get_size() > 1:
@@ -80,6 +101,28 @@ else:
     COMM_NULL = constants.MPI_COMM_NULL_VALUE
 MPI_SIZE = MPI_COMM.Get_size()
 MPI_RANK = MPI_COMM.Get_rank()
+
+
+class DummyRequest(AbstractOcgisObject):
+
+    def __init__(self, callback=None):
+        self._callback = callback
+
+    def Test(self):
+        if self._callback is None:
+            ret = True
+        else:
+            ret = self._callback('test')
+        return ret
+
+    def wait(self):
+        if self._callback is None:
+            ret = True
+        else:
+            while not self.Test():
+                continue
+            ret = self._callback('get')
+        return ret
 
 
 class OcgDist(AbstractOcgisObject):

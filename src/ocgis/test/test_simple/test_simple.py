@@ -781,20 +781,19 @@ class TestSimple(TestSimpleBase):
         finally:
             ds.close()
 
-
     def test_nc_discrete_geometry_simple(self):
         env.OVERWRITE = True
         rd = self.get_dataset()
-        geom = [{'geom':Point(-104., 38.), 'properties':{'Name':'A'}},
-                {'geom':Point(-103., 39.), 'properties':{'Name':'B'}}]
+        geom = [{'geom': Point(-104., 38.), 'properties': {'Name': 'A'}},
+                {'geom': Point(-103., 39.), 'properties': {'Name': 'B'}}]
 
         ops = OcgOperations(dataset=rd,
-                            calc=[{'func':'mean', 'name':'mean'},],
+                            calc=[{'func': 'mean', 'name': 'mean'}, ],
                             calc_grouping='year',
                             geom=geom, aggregate=True, search_radius_mult=.01,
                             output_format='nc')
 
-        ops = self.get_ops(kwds={'geom': geom, 'aggregate':True,
+        ops = self.get_ops(kwds={'geom': geom, 'aggregate': True,
                                  'search_radius_mult': 0.01,
                                  'output_format': 'nc'})
         ret = ops.execute()
@@ -803,7 +802,9 @@ class TestSimple(TestSimpleBase):
             self.assertEqual(ds.file_format,
                              constants.NETCDF_DEFAULT_DATA_MODEL)
             self.assertEqual(ds.featureType, 'timeSeries')
-            self.assertEqual(ds.variables[self.var].dimensions, (constants.DimensionName.TEMPORAL, constants.NAME_DIMENSION_LEVEL, constants.DimensionName.UNIONED_GEOMETRY))
+            self.assertEqual(ds.variables[self.var].dimensions, (
+                constants.DimensionName.TEMPORAL, constants.NAME_DIMENSION_LEVEL,
+                constants.DimensionName.UNIONED_GEOMETRY))
             self.assertEqual(ds.dimensions[constants.DimensionName.UNIONED_GEOMETRY].size, 2)
             self.assertNumpyAllClose(ds.variables['longitude'][:], np.array([-104., -103.]))
             self.assertNumpyAllClose(ds.variables['latitude'][:], np.array([38., 39.]))
@@ -845,13 +846,13 @@ class TestSimple(TestSimpleBase):
 
         with self.assertRaises(DefinitionValidationError):
             ops = self.get_ops(kwds={'geom': geom,
-                                     'spatial_operation':'intersects',
+                                     'spatial_operation': 'intersects',
                                      'aggregate': False,
                                      'output_format': 'nc'})
         # This should be ok
         ops = self.get_ops(kwds={'geom': geom[:1],
                                  'aggregate': False,
-                                 'agg_selection':False,
+                                 'agg_selection': False,
                                  'output_format': 'nc'})
 
     def test_nc_discrete_geometry_compatibility(self):
@@ -859,12 +860,12 @@ class TestSimple(TestSimpleBase):
         and operated on."""
         env.OVERWRITE = True
         rd = self.get_dataset()
-        geom = [{'geom':Point(-104., 38.)},
-                {'geom':Point(-103., 39.)}]
+        geom = [{'geom': Point(-104., 38.)},
+                {'geom': Point(-103., 39.)}]
 
         ops1 = OcgOperations(dataset=rd,
-                            geom=geom, aggregate=True, search_radius_mult=.01,
-                            output_format='nc')
+                             geom=geom, aggregate=True, search_radius_mult=.01,
+                             output_format='nc')
         ret = ops1.execute()
 
         rd = RequestDataset(ret, variable='foo')
@@ -914,7 +915,7 @@ class TestSimple(TestSimpleBase):
         calc_grouping = ['month']
         geom = make_poly((38, 39), (-104, -103))
         ops = OcgOperations(dataset=[rd1, rd2], calc=calc,
-                            geom = geom,
+                            geom=geom,
                             aggregate=True,
                             calc_grouping=calc_grouping,
                             output_format='nc')
@@ -1100,7 +1101,7 @@ class TestSimple(TestSimpleBase):
 
             with open(ret, 'r') as f:
                 reader = csv.DictReader(f)
-                rows = list(reader)
+                _ = list(reader)
 
     def test_csv_calc_conversion(self):
         calc = [{'func': 'mean', 'name': 'my_mean'}]
@@ -1122,8 +1123,8 @@ class TestSimple(TestSimpleBase):
                 else:
                     desired = {'SRC_VAR': 'foo', 'LB_LEVEL': '0', 'LEVEL': '50', 'DID': '1',
                                'TIME': '2000-03-16 00:00:00', 'MONTH': '3', 'my_mean': '1.0', 'UB_LEVEL': '100',
-                               'LB_TIME': '2000-03-01 00:00:00', 'YEAR': '2000', 'CALC_KEY': 'mean',
-                               'UB_TIME': '2000-04-01 00:00:00', 'DAY': '16'}
+                               'LB_TIME': '2000-03-01 00:00:00', 'YEAR': '2000', 'UB_TIME': '2000-04-01 00:00:00',
+                               'DAY': '16'}
                 self.assertDictEqual(row, desired)
 
     def test_csv_calc_conversion_two_calculations(self):
@@ -1170,7 +1171,7 @@ class TestSimple(TestSimpleBase):
                     row = next(reader)
                     desired = {'LB_LEVEL': '0', 'LEVEL': '50', 'DID': '1', 'TIME': '2000-03-16 00:00:00', 'MONTH': '3',
                                'UB_LEVEL': '100', 'LB_TIME': '2000-03-01 00:00:00', 'YEAR': '2000',
-                               'CALC_KEY': 'divide', 'UB_TIME': '2000-04-01 00:00:00', 'DAY': '16', 'divide': '1.0'}
+                               'UB_TIME': '2000-04-01 00:00:00', 'DAY': '16', 'divide': '1.0'}
                     if o == constants.OutputFormatName.CSV_SHAPEFILE:
                         # This will have a unique geometry identifier to link with the shapefile.
                         desired = desired.copy()

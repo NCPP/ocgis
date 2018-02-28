@@ -1,17 +1,18 @@
 import os
-import subprocess
+import sys
 
 import numpy as np
 from mock import mock, PropertyMock
 from shapely.geometry import box
 
-from ocgis import RequestDataset, Field
+from ocgis import RequestDataset, Field, vm, env
 from ocgis.base import get_variable_names
-from ocgis.constants import MPIWriteMode, GridSplitterConstants, VariableName, WrappedState
+from ocgis.constants import MPIWriteMode, GridChunkerConstants, VariableName
 from ocgis.driver.nc_ugrid import DriverNetcdfUGRID
-from ocgis.spatial.grid import GridUnstruct, Grid
-from ocgis.spatial.grid_splitter import GridSplitter, does_contain
-from ocgis.test.base import attr, AbstractTestInterface, create_gridxy_global
+from ocgis.spatial.grid import GridUnstruct, Grid, AbstractGrid
+from ocgis.spatial.grid_chunker import GridChunker, does_contain, get_grid_object
+from ocgis.test.base import attr, AbstractTestInterface, create_gridxy_global, TestBase
+from ocgis.test.test_ocgis.test_driver.test_nc_scrip import FixtureDriverNetcdfSCRIP
 from ocgis.variable.base import Variable
 from ocgis.variable.crs import Spherical
 from ocgis.variable.dimension import Dimension
@@ -19,7 +20,20 @@ from ocgis.variable.temporal import TemporalVariable
 from ocgis.vmachine.mpi import MPI_COMM, MPI_RANK
 
 
-class TestGridSplitter(AbstractTestInterface):
+class Test(TestBase):
+
+    def test_get_grid_object(self):
+        obj = mock.create_autospec(AbstractGrid, instance=True)
+        obj.parent = mock.Mock()
+        _ = get_grid_object(obj)
+        obj.parent.load.assert_called_once()
+
+        obj.parent.reset_mock()
+        _ = get_grid_object(obj, load=False)
+        obj.parent.assert_not_called()
+
+
+class TestGridChunker(AbstractTestInterface, FixtureDriverNetcdfSCRIP):
 
     @property
     def fixture_paths(self):
@@ -35,34 +49,18 @@ class TestGridSplitter(AbstractTestInterface):
         grid.parent.add_variable(data)
         grid.parent.add_variable(tvar)
 
-    def assertWeightFilesEquivalent(self, global_weights_filename, merged_weights_filename):
-        nwf = RequestDataset(merged_weights_filename).get()
-        gwf = RequestDataset(global_weights_filename).get()
-        nwf_row = nwf['row'].get_value()
-        gwf_row = gwf['row'].get_value()
-        self.assertAsSetEqual(nwf_row, gwf_row)
-        nwf_col = nwf['col'].get_value()
-        gwf_col = gwf['col'].get_value()
-        self.assertAsSetEqual(nwf_col, gwf_col)
-        nwf_S = nwf['S'].get_value()
-        gwf_S = gwf['S'].get_value()
-        self.assertEqual(nwf_S.sum(), gwf_S.sum())
-        unique_src = np.unique(nwf_row)
-        diffs = []
-        for us in unique_src.flat:
-            nwf_S_idx = np.where(nwf_row == us)[0]
-            nwf_col_sub = nwf_col[nwf_S_idx]
-            nwf_S_sub = nwf_S[nwf_S_idx].sum()
+    def fixture_grid_chunker(self, **kwargs):
+        src_grid = self.get_gridxy_global(wrapped=False, with_bounds=True)
+        dst_grid = self.get_gridxy_global(wrapped=False, with_bounds=True, resolution=0.5)
 
-            gwf_S_idx = np.where(gwf_row == us)[0]
-            gwf_col_sub = gwf_col[gwf_S_idx]
-            gwf_S_sub = gwf_S[gwf_S_idx].sum()
+        self.add_data_variable_to_grid(src_grid)
+        self.add_data_variable_to_grid(dst_grid)
 
-            self.assertAsSetEqual(nwf_col_sub, gwf_col_sub)
+        defaults = {'source': src_grid, 'destination': dst_grid, 'paths': self.fixture_paths, 'nchunks_dst': (2, 3)}
+        defaults.update(kwargs)
 
-            diffs.append(nwf_S_sub - gwf_S_sub)
-        diffs = np.abs(diffs)
-        self.assertLess(diffs.max(), 1e-14)
+        gs = GridChunker(**defaults)
+        return gs
 
     def fixture_regular_ugrid_file(self, ufile, resolution, crs=None):
         """
@@ -91,23 +89,34 @@ class TestGridSplitter(AbstractTestInterface):
         gu = GridUnstruct(geoms=[polygc, pointgc])
         gu.parent.write(ufile)
 
-    def get_grid_splitter(self):
-        src_grid = self.get_gridxy_global(wrapped=False, with_bounds=True)
-        dst_grid = self.get_gridxy_global(wrapped=False, with_bounds=True, resolution=0.5)
+    def run_system_splitting_unstructured(self, genweights):
+        env.CLOBBER_UNITS_ON_BOUNDS = False
 
-        self.add_data_variable_to_grid(src_grid)
-        self.add_data_variable_to_grid(dst_grid)
+        ufile = self.get_temporary_file_path('ugrid.nc')
+        resolution = 10.
+        self.fixture_regular_ugrid_file(ufile, resolution)
+        src_rd = RequestDataset(ufile, driver=DriverNetcdfUGRID, grid_abstraction='point')
+        # src_rd.inspect()
+        src_grid = src_rd.get().grid
+        self.assertEqual(src_grid.abstraction, 'point')
+        dst_grid = self.get_gridxy_global(resolution=20., crs=Spherical())
 
-        gs = GridSplitter(src_grid, dst_grid, (2, 3), paths=self.fixture_paths)
-        return gs
+        gs = GridChunker(src_grid, dst_grid, (3, 3), check_contains=False, src_grid_resolution=10.,
+                         paths=self.fixture_paths, genweights=genweights, use_spatial_decomp=True)
+
+        gs.write_chunks()
+
+        actual = gs.create_full_path_from_template('src_template', index=1)
+        actual = RequestDataset(actual).get()
+        self.assertIn(GridChunkerConstants.IndexFile.NAME_SRCIDX_GUID, actual)
 
     @attr('mpi', 'slow')
     def test(self):
-        gs = self.get_grid_splitter()
+        gs = self.fixture_grid_chunker()
 
         desired_dst_grid_sum = gs.dst_grid.parent['data'].get_value().sum()
         desired_dst_grid_sum = MPI_COMM.gather(desired_dst_grid_sum)
-        if MPI_RANK == 0:
+        if vm.rank == 0:
             desired_sum = np.sum(desired_dst_grid_sum)
 
         desired = [{'y': slice(0, 180, None), 'x': slice(0, 240, None)},
@@ -119,12 +128,12 @@ class TestGridSplitter(AbstractTestInterface):
         actual = list(gs.iter_dst_grid_slices())
         self.assertEqual(actual, desired)
 
-        gs.write_subsets()
+        gs.write_chunks()
 
-        if MPI_RANK == 0:
+        if vm.rank == 0:
             rank_sums = []
 
-        for ctr in range(1, gs.nsplits_dst[0] * gs.nsplits_dst[1] + 1):
+        for ctr in range(1, gs.nchunks_dst[0] * gs.nchunks_dst[1] + 1):
             src_path = gs.create_full_path_from_template('src_template', index=ctr)
             dst_path = gs.create_full_path_from_template('dst_template', index=ctr)
 
@@ -147,12 +156,12 @@ class TestGridSplitter(AbstractTestInterface):
                 actual_data_sum = np.sum(actual_data_sum)
                 rank_sums.append(actual_data_sum)
 
-        if MPI_RANK == 0:
+        if vm.rank == 0:
             self.assertAlmostEqual(desired_sum, np.sum(rank_sums))
             index_path = gs.create_full_path_from_template('index_file')
             self.assertTrue(os.path.exists(index_path))
 
-        MPI_COMM.Barrier()
+        vm.barrier()
 
         index_path = gs.create_full_path_from_template('index_file')
         index_field = RequestDataset(index_path).get()
@@ -162,23 +171,40 @@ class TestGridSplitter(AbstractTestInterface):
         # Test optimizations are chosen appropriately.
         grid = mock.create_autospec(Grid)
         grid.ndim = 2
+        grid.resolution_max = 10
         self.assertIsInstance(grid, Grid)
         gridu = mock.create_autospec(GridUnstruct)
+        gridu.resolution_max = None
         self.assertIsInstance(gridu, GridUnstruct)
         for g in [grid, gridu]:
-            g._gs_initialize_ = mock.Mock()
+            g._gc_initialize_ = mock.Mock()
+            g.parent = mock.Mock()
 
-        gs = GridSplitter(gridu, grid, (3, 4), paths=self.fixture_paths)
+        gs = GridChunker(gridu, grid, (3, 4), paths=self.fixture_paths)
         self.assertFalse(gs.optimized_bbox_subset)
+        self.assertTrue(gs.eager)
 
-        gs = GridSplitter(gridu, grid, (3, 4), src_grid_resolution=1.0, dst_grid_resolution=2.0,
-                          paths=self.fixture_paths)
+        gs = GridChunker(gridu, grid, (3, 4), src_grid_resolution=1.0, dst_grid_resolution=2.0,
+                         paths=self.fixture_paths)
         self.assertTrue(gs.optimized_bbox_subset)
+        self.assertFalse(gs.use_spatial_decomp)
+
+        # Test spatial decomposition is chosen appropriately.
+        gc = GridChunker(grid, gridu)
+        self.assertTrue(gc.use_spatial_decomp)
+
+        # Test ESMF keyword arguments.
+        mock_ESMF = mock.Mock()
+        with mock.patch.dict(sys.modules, {'ESMF': mock_ESMF}):
+            gs = self.fixture_grid_chunker(genweights=True)
+            self.assertGreaterEqual(len(gs.esmf_kwargs), 2)
+            self.assertTrue(gs.genweights)
 
     def test_system_regrid_target_types(self):
         """Test grids are retrieved from the supported input regrid target types."""
 
         mGrid = mock.create_autospec(Grid, spec_set=True, instance=True)
+        mGrid.parent = mock.Mock()
         type(mGrid).ndim = PropertyMock(return_value=2)
 
         def _create_mField_():
@@ -195,7 +221,7 @@ class TestGridSplitter(AbstractTestInterface):
         # Test with request datasets.
         source = _create_mRequestDataset_()
         destination = _create_mRequestDataset_()
-        gs = GridSplitter(source, destination, (1, 1))
+        gs = GridChunker(source, destination, (1, 1))
         for t in [source, destination]:
             t.create_field.assert_called_once()
         for t in [gs.src_grid, gs.dst_grid]:
@@ -204,31 +230,35 @@ class TestGridSplitter(AbstractTestInterface):
         # Test with fields.
         source, psource = _create_mField_()
         destination, pdestination = _create_mField_()
-        gs = GridSplitter(source, destination, (1, 1))
+        gs = GridChunker(source, destination, (1, 1))
         for t in [psource, pdestination]:
             t.assert_called_once_with()
         for t in [gs.src_grid, gs.dst_grid]:
             self.assertEqual(t, mGrid)
 
-    def test_system_splitting_unstructured(self):
-        ufile = self.get_temporary_file_path('ugrid.nc')
-        resolution = 10.
-        self.fixture_regular_ugrid_file(ufile, resolution)
-        src_grid = RequestDataset(ufile, driver=DriverNetcdfUGRID, grid_abstraction='point').get().grid
-        self.assertEqual(src_grid.abstraction, 'point')
+    def test_system_scrip_destination_splitting(self):
+        """Test splitting a SCRIP destination grid."""
 
-        dst_grid = self.get_gridxy_global(resolution=20.)
-        gs = GridSplitter(src_grid, dst_grid, (3, 3), check_contains=False, src_grid_resolution=10.,
-                          paths=self.fixture_paths)
+        src_grid = create_gridxy_global()
+        dst_grid = self.fixture_driver_scrip_netcdf_field().grid
+        gs = GridChunker(src_grid, dst_grid, (3,), paths={'wd': self.current_dir_output})
+        gs.write_chunks()
+        self.assertEqual(len(os.listdir(self.current_dir_output)), 7)
 
-        gs.write_subsets()
+    def test_system_splitting_unstructured_no_weights(self):
+        """Only split the unstructured grid source."""
+        self.run_system_splitting_unstructured(False)
 
-        actual = gs.create_full_path_from_template('src_template', index=1)
-        actual = RequestDataset(actual).get()
-        self.assertIn(GridSplitterConstants.IndexFile.NAME_SRCIDX_GUID, actual)
+    @attr('esmf')
+    def test_system_splitting_unstructured_with_weights(self):
+        """Only split the unstructured grid source."""
+        self.run_system_splitting_unstructured(True)
+        # subprocess.check_call(['tree', self.current_dir_output])
 
     @attr('esmf')
     def test_create_merged_weight_file(self):
+        import ESMF
+
         path_src = self.get_temporary_file_path('src.nc')
         path_dst = self.get_temporary_file_path('dst.nc')
 
@@ -240,29 +270,9 @@ class TestGridSplitter(AbstractTestInterface):
 
         # Split source and destination grids ---------------------------------------------------------------------------
 
-        gs = GridSplitter(src_grid, dst_grid, (2, 2), check_contains=False, allow_masked=True, paths=self.fixture_paths)
-        gs.write_subsets()
-
-        # Load the grid splitter index file ----------------------------------------------------------------------------
-
-        index_filename = gs.create_full_path_from_template('index_file')
-        ifile = RequestDataset(uri=index_filename).get()
-        ifile.load()
-        gidx = ifile[GridSplitterConstants.IndexFile.NAME_INDEX_VARIABLE].attrs
-        source_filename = ifile[gidx[GridSplitterConstants.IndexFile.NAME_SOURCE_VARIABLE]]
-        sv = source_filename.join_string_value()
-        destination_filename = ifile[gidx[GridSplitterConstants.IndexFile.NAME_DESTINATION_VARIABLE]]
-        dv = destination_filename.join_string_value()
-
-        # Create weight files for each subset --------------------------------------------------------------------------
-
-        for ii, sfn in enumerate(sv):
-            esp = os.path.join(self.current_dir_output, sfn)
-            edp = os.path.join(self.current_dir_output, dv[ii])
-            ewp = gs.create_full_path_from_template('wgt_template', index=ii + 1)
-            cmd = ['ESMF_RegridWeightGen', '-s', esp, '--src_type', 'GRIDSPEC', '-d', edp, '--dst_type',
-                   'GRIDSPEC', '-w', ewp, '--method', 'conserve', '-r', '--no_log']
-            subprocess.check_call(cmd)
+        gs = GridChunker(src_grid, dst_grid, (2, 2), check_contains=False, allow_masked=True, paths=self.fixture_paths,
+                         genweights=True)
+        gs.write_chunks()
 
         # Merge weight files -------------------------------------------------------------------------------------------
 
@@ -272,9 +282,13 @@ class TestGridSplitter(AbstractTestInterface):
         # Generate a global weight file using ESMF ---------------------------------------------------------------------
 
         global_weights_filename = self.get_temporary_file_path('global_weights.nc')
-        cmd = ['ESMF_RegridWeightGen', '-s', path_src, '--src_type', 'GRIDSPEC', '-d', path_dst, '--dst_type',
-               'GRIDSPEC', '-w', global_weights_filename, '--method', 'conserve', '--weight-only', '--no_log']
-        subprocess.check_call(cmd)
+
+        srcgrid = ESMF.Grid(filename=path_src, filetype=ESMF.FileFormat.GRIDSPEC, add_corner_stagger=True)
+        dstgrid = ESMF.Grid(filename=path_dst, filetype=ESMF.FileFormat.GRIDSPEC, add_corner_stagger=True)
+        srcfield = ESMF.Field(grid=srcgrid)
+        dstfield = ESMF.Field(grid=dstgrid)
+        _ = ESMF.Regrid(srcfield=srcfield, dstfield=dstfield, filename=global_weights_filename,
+                        regrid_method=ESMF.RegridMethod.CONSERVE)
 
         # Test merged and global weight files are equivalent -----------------------------------------------------------
 
@@ -282,65 +296,44 @@ class TestGridSplitter(AbstractTestInterface):
 
     @attr('esmf')
     def test_create_merged_weight_file_unstructured(self):
-        self.remove_dir = False
+        import ESMF
 
+        # Create an isomorphic source UGRID file.
         ufile = self.get_temporary_file_path('ugrid.nc')
         resolution = 10.
         self.fixture_regular_ugrid_file(ufile, resolution, crs=Spherical())
-
         src_grid = RequestDataset(ufile, driver=DriverNetcdfUGRID, grid_abstraction='point').get().grid
         self.assertEqual(src_grid.abstraction, 'point')
 
+        # Create a logically rectangular destination grid file.
         dst_grid = self.get_gridxy_global(resolution=20., crs=Spherical())
         dst_path = self.get_temporary_file_path('dst.nc')
         dst_grid.parent.write(dst_path)
 
-        gs = GridSplitter(src_grid, dst_grid, (3, 3), check_contains=False, src_grid_resolution=10.,
-                          paths=self.fixture_paths)
-        gs.write_subsets()
+        # Create the grid chunks.
+        gs = GridChunker(src_grid, dst_grid, (3, 3), check_contains=False, src_grid_resolution=10.,
+                         paths=self.fixture_paths, genweights=True)
+        gs.write_chunks()
 
-        # Load the grid splitter index file ----------------------------------------------------------------------------
-
-        index_path = gs.create_full_path_from_template('index_file')
-        ifile = RequestDataset(uri=index_path).get()
-        ifile.load()
-        gidx = ifile[GridSplitterConstants.IndexFile.NAME_INDEX_VARIABLE].attrs
-        source_filename = ifile[gidx[GridSplitterConstants.IndexFile.NAME_SOURCE_VARIABLE]]
-        sv = source_filename.join_string_value()
-        destination_filename = ifile[gidx[GridSplitterConstants.IndexFile.NAME_DESTINATION_VARIABLE]]
-        dv = destination_filename.join_string_value()
-
-        # Create weight files for each subset --------------------------------------------------------------------------
-
-        for ii, sfn in enumerate(sv):
-            esp = os.path.join(self.current_dir_output, sfn)
-            edp = os.path.join(self.current_dir_output, dv[ii])
-            ewp = gs.create_full_path_from_template('wgt_template', index=ii + 1)
-            cmd = ['ESMF_RegridWeightGen', '-s', esp, '--src_type', 'UGRID', '--src_meshname',
-                   VariableName.UGRID_HOST_VARIABLE, '-d', edp, '--dst_type', 'GRIDSPEC', '-w', ewp, '--method',
-                   'conserve', '-r', '--no_log']
-            subprocess.check_call(cmd)
-
-        # Merge weight files -------------------------------------------------------------------------------------------
-
+        # Merge weight files.
         mwf = self.get_temporary_file_path('merged_weight_file.nc')
         gs.create_merged_weight_file(mwf)
 
-        # Generate a global weight file using ESMF ---------------------------------------------------------------------
-
+        # Generate a global weight file using ESMF.
         global_weights_filename = self.get_temporary_file_path('global_weights.nc')
-        cmd = ['ESMF_RegridWeightGen', '-s', ufile, '--src_type', 'UGRID', '-d', dst_path, '--dst_type',
-               'GRIDSPEC', '-w', global_weights_filename, '--method', 'conserve', '--weight-only', '--no_log',
-               '--src_meshname', VariableName.UGRID_HOST_VARIABLE]
-        subprocess.check_call(cmd)
+        srcgrid = ESMF.Mesh(filename=ufile, filetype=ESMF.FileFormat.UGRID, meshname=VariableName.UGRID_HOST_VARIABLE)
+        dstgrid = ESMF.Grid(filename=dst_path, filetype=ESMF.FileFormat.GRIDSPEC, add_corner_stagger=True)
+        srcfield = ESMF.Field(grid=srcgrid, meshloc=ESMF.MeshLoc.ELEMENT)
+        dstfield = ESMF.Field(grid=dstgrid)
+        _ = ESMF.Regrid(srcfield=srcfield, dstfield=dstfield, filename=global_weights_filename,
+                        regrid_method=ESMF.RegridMethod.CONSERVE)
 
-        # Test merged and global weight files are equivalent -----------------------------------------------------------
-
+        # Test merged and global weight files are equivalent.
         self.assertWeightFilesEquivalent(global_weights_filename, mwf)
 
     @attr('slow')
     def test_insert_weighted(self):
-        gs = self.get_grid_splitter()
+        gs = self.fixture_grid_chunker()
 
         dst_master_path = self.get_temporary_file_path('out.nc')
         gs.dst_grid.parent.write(dst_master_path)
@@ -357,7 +350,7 @@ class TestGridSplitter(AbstractTestInterface):
         for data_variable in dst_master.data_variables:
             self.assertEqual(data_variable.get_value().sum(), 0)
 
-        gs.write_subsets()
+        gs.write_chunks()
 
         index_path = gs.create_full_path_from_template('index_file')
         gs.insert_weighted(index_path, self.current_dir_output, dst_master_path)
@@ -371,40 +364,7 @@ class TestGridSplitter(AbstractTestInterface):
         for k, v in list(actual_sums.items()):
             self.assertAlmostEqual(v, desired_sums[k])
 
-    def test_write_subsets(self):
-        # Test a destination iterator.
-        grid = mock.create_autospec(GridUnstruct)
-        grid._gs_initialize_ = mock.Mock()
-        grid.resolution = 10.0
-        grid.ndim = 1
-        grid.wrapped_state = WrappedState.UNWRAPPED
-        grid.crs = Spherical()
-        grid.get_intersects = mock.Mock(return_value=(grid, slice(0, 0)))
-        grid.is_empty = False
-
-        parent = mock.create_autospec(Field, spec_set=True)
-        parent.add_variable = mock.Mock()
-        grid.parent = parent
-
-        grid.shape_global = (5,)
-
-        def iter_dst(grid_splitter, yield_slice=False):
-            for _ in range(3):
-                yld = mock.create_autospec(GridUnstruct, instance=True)
-                yld.wrapped_state = WrappedState.UNWRAPPED
-                yld.is_empty = False
-                yld.extent_global = (0, 0, 0, 0)
-
-                parent = mock.create_autospec(Field, spec_set=True)
-                parent.add_variable = mock.Mock()
-                yld.parent = parent
-                yld.shape_global = (25,)
-                yld.extent_global = (1, 2, 3, 4)
-                yld.parent.attrs = {}
-
-                if yield_slice:
-                    yld = yld, None
-                yield yld
-
-        gs = GridSplitter(grid, grid, (100,), iter_dst=iter_dst, dst_grid_resolution=5.0, check_contains=False)
-        gs.write_subsets()
+    def test_nchunks_dst(self):
+        gc = self.fixture_grid_chunker(nchunks_dst=None)
+        self.assertIsNotNone(gc.nchunks_dst)
+        self.assertEqual(gc.nchunks_dst, (10, 10))

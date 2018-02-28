@@ -1,12 +1,11 @@
 import datetime
-from email.mime.text import MIMEText
 import os
-import smtplib
-import tempfile
+
 import nose
 from nose.plugins.plugintest import run
 
 PATH_LOG = '/tmp/foo.txt'
+
 
 class SimpleStream(object):
 

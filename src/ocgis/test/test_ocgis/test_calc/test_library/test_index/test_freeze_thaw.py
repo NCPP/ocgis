@@ -9,7 +9,6 @@ from ocgis.test.base import AbstractTestField
 class TestFreezeThawCycles(AbstractTestField):
 
     def test_freezethaw1d(self):
-
         x = np.array([0, 7, -1, 8, 0, -15, 0])
         self.assertEquals(freezethaw1d(x, 15), 0)
         x = np.array([16, -15, 0])
@@ -46,7 +45,7 @@ class TestFreezeThawCycles(AbstractTestField):
                       -5, ])
         self.assertEquals(freezethaw1d(x, 2), 5)
 
-        x = np.array([3,4,4,4,4,4,4,4])
+        x = np.array([3, 4, 4, 4, 4, 4, 4, 4])
         self.assertEquals(freezethaw1d(x, 2), 0)
 
     def test_execute(self):
@@ -65,7 +64,7 @@ class TestFreezeThawCycles(AbstractTestField):
                                units='K')
         val = field['tas'].get_value()
         # DIMs : realization time level lat lon
-        val[0,:,0,0,0] = np.nan
+        val[0, :, 0, 0, 0] = np.nan
         field['tas'].set_value(np.ma.masked_invalid(val))
 
         tgd = field.temporal.get_grouping(['year'])
@@ -74,7 +73,7 @@ class TestFreezeThawCycles(AbstractTestField):
         shp_out = (2, 3, 2, 3, 4)
         out = ret['freezethaw'].get_value()
         self.assertEqual(out.shape, shp_out)
-        np.testing.assert_array_equal(out[0,:,0,0,0], np.nan)
+        np.testing.assert_array_equal(out[0, :, 0, 0, 0], np.nan)
         self.assertEqual(np.isnan(out).sum(), 3)
 
     def test_units_check(self):
@@ -100,6 +99,5 @@ class TestFreezeThawCycles(AbstractTestField):
         self.assertNumpyAll(retC['freezethaw'].get_value(), retK['freezethaw'].get_value())
 
     def test_missing(self):
-        x = np.ma.masked_values([0,-1, 1, -1, 2, -2, 0], 2)
+        x = np.ma.masked_values([0, -1, 1, -1, 2, -2, 0], 2)
         self.assertEquals(freezethaw1d(x, 1), 2)
-

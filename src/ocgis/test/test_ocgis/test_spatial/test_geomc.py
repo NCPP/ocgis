@@ -1,6 +1,7 @@
 from unittest.case import SkipTest
 
 import numpy as np
+from mock import mock
 from shapely import wkt
 from shapely.geometry import Point, MultiPolygon, box
 from shapely.geometry.polygon import Polygon
@@ -9,9 +10,10 @@ from ocgis import Variable, Dimension, vm, Field, GeometryVariable, DimensionMap
 from ocgis.base import AbstractOcgisObject, raise_if_empty
 from ocgis.constants import WrappedState, DMK, GridAbstraction, Topology, DriverKey
 from ocgis.driver.nc_ugrid import DriverNetcdfUGRID
+from ocgis.spatial.base import create_spatial_mask_variable
 from ocgis.spatial.geomc import PointGC, get_default_geometry_variable_name, PolygonGC, reduce_reindex_coordinate_index, \
     iter_multipart_coordinates
-from ocgis.spatial.grid import create_grid_mask_variable
+from ocgis.spatial.grid_chunker import GridChunker
 from ocgis.test.base import TestBase, attr
 from ocgis.test.test_ocgis.test_driver.test_nc_ugrid import get_ugrid_data_structure
 from ocgis.variable.crs import Spherical, WGS84
@@ -109,8 +111,8 @@ class FixturePointGC(AbstractOcgisObject):
 
     @property
     def fixture_mask(self):
-        return create_grid_mask_variable('mask', [False, False, False, False, True, False],
-                                         dimensions=self.fixture_element_dimension)
+        return create_spatial_mask_variable('mask', [False, False, False, False, True, False],
+                                            dimensions=self.fixture_element_dimension)
 
 
 class TestPointGC(TestBase, FixturePointGC):
@@ -247,6 +249,13 @@ class TestPointGC(TestBase, FixturePointGC):
             self.assertEqual(sub.size, 1)
             self.assertEqual(actual, desired)
 
+    def test_gc_nchunks_dst(self):
+        pgc = self.fixture()
+        gc = mock.create_autospec(GridChunker)
+        actual = pgc._gc_nchunks_dst_(gc)
+        self.assertIsNotNone(actual)
+        self.assertEqual(actual, (100,))
+
     def test_iter_geometries(self):
         keywords = dict(umo=[None, False, True],
                         cindex=[None, self.fixture_cindex])
@@ -361,15 +370,6 @@ class TestPolygonGC(FixturePolygonGC, TestBase):
         desired = [1.6695340074648009, 2.9828593804233616, 1.2616396357639024]
         for a, d in zip(isub.area.tolist(), desired):
             self.assertAlmostEqual(a, d)
-
-            # self.remove_dir = False
-            # gv = isub
-            # out_shp = self.get_temporary_file_path('foo.shp')
-            # value = [p[1] for p in isub.iter_geometries() if p[1] is not None]
-            # gv = GeometryVariable(name='geom', value=value, dimensions='geom')
-            # gv.create_ugid_global('ugid')
-            # gv.parent.append_to_tags(TagName.DATA_VARIABLES, 'ugid')
-            # gv.write_vector(out_shp)
 
     @attr('mpi')
     def test_get_intersects(self):

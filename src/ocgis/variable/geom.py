@@ -1,4 +1,3 @@
-import itertools
 from collections import deque
 from copy import deepcopy
 from itertools import product
@@ -21,10 +20,10 @@ from ocgis.constants import KeywordArgument, HeaderName, VariableName, Dimension
     WrappedState
 from ocgis.environment import ogr
 from ocgis.exc import EmptySubsetError, RequestableFeature, NoInteriorsError
-from ocgis.spatial.base import AbstractSpatialVariable
+from ocgis.spatial.base import AbstractSpatialVariable, create_split_polygons
 from ocgis.util.addict import Dict
 from ocgis.util.helpers import iter_array, get_trimmed_array_by_mask, get_swap_chain, find_index, \
-    iter_exploded_geometries, get_iter, get_extrapolated_corners_esmf, create_ocgis_corners_from_esmf_corners
+    iter_exploded_geometries, get_iter
 from ocgis.variable.base import get_dimension_lengths, ObjectType
 from ocgis.variable.crs import Cartesian
 from ocgis.variable.dimension import create_distributed_dimension, Dimension
@@ -559,7 +558,6 @@ class GeometryVariable(AbstractSpatialVariable):
             if self.has_mask:
                 kwds[KeywordArgument.MASK] = self.get_mask()
             ret = klass(variables[0], variables[1], **kwds)
-
         else:
             raise RequestableFeature('This conversion target is not supported: {}'.format(target))
         return ret
@@ -1115,7 +1113,9 @@ class GeometryVariable(AbstractSpatialVariable):
         lself.parent.write(*args, **kwargs)
 
     def _get_extent_(self):
-        raise NotImplementedError
+        if self.size > 1:
+            raise RequestableFeature('Extent not supported for more than one geometry.')
+        return self.get_value().flatten()[0].bounds
 
 
 def get_masking_slice(intersects_mask_value, target, apply_slice=True):
@@ -1240,40 +1240,6 @@ def get_node_count(geom):
     return node_count
 
 
-def get_split_polygons(geom, split_shape):
-    minx, miny, maxx, maxy = geom.bounds
-    rows = np.linspace(miny, maxy, split_shape[0])
-    cols = np.linspace(minx, maxx, split_shape[1])
-
-    return get_split_polygons_from_meshgrid_vectors(cols, rows)
-
-
-def get_split_polygons_from_meshgrid_vectors(cols, rows):
-    cols, rows = np.meshgrid(cols, rows)
-
-    cols_corners = get_extrapolated_corners_esmf(cols)
-    cols_corners = create_ocgis_corners_from_esmf_corners(cols_corners)
-
-    rows_corners = get_extrapolated_corners_esmf(rows)
-    rows_corners = create_ocgis_corners_from_esmf_corners(rows_corners)
-
-    corners = np.vstack((rows_corners, cols_corners))
-    corners = corners.reshape([2] + list(cols_corners.shape))
-    range_row = range(rows.shape[0])
-    range_col = range(cols.shape[1])
-
-    fill = np.zeros(cols.shape, dtype=object)
-
-    for row, col in itertools.product(range_row, range_col):
-        current_corner = corners[:, row, col]
-        coords = np.hstack((current_corner[1, :].reshape(-1, 1),
-                            current_corner[0, :].reshape(-1, 1)))
-        polygon = Polygon(coords)
-        fill[row, col] = polygon
-
-    return fill.flatten().tolist()
-
-
 def get_split_polygon_by_node_threshold(geom, node_threshold):
     """Split a polygon by a node threshold."""
     node_schema = get_node_schema(geom)
@@ -1297,7 +1263,7 @@ def get_split_polygon_by_node_threshold(geom, node_threshold):
         n.split_shape = tuple([int(np.ceil(ns)) for ns in [n.split_shape] * 2])
 
         # Get polygons to use for splitting.
-        n.splitters = get_split_polygons(n['geom'], n.split_shape)
+        n.splitters = create_split_polygons(n['geom'], n.split_shape)
 
         # Create the individual splits:
         n.splits = []

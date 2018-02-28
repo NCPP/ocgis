@@ -50,7 +50,6 @@ class ESMPyConverter(AbstractCollectionConverter):
         for coll in self.colls:
             for row in coll.iter_melted(tag=TagName.DATA_VARIABLES):
                 field = row['field']
-
                 efield = get_esmf_field_from_ocgis_field(field,
                                                          esmf_field_name=self.esmf_field_name,
                                                          regrid_method=self.regrid_method,

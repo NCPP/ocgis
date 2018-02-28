@@ -1,4 +1,5 @@
 import abc
+import itertools
 from abc import abstractmethod
 
 import numpy as np
@@ -82,11 +83,11 @@ class AbstractSpatialObject(AbstractInterfaceObject):
     def wrapped_state(self, value):
         self._wrapped_state = value
 
-    def unwrap(self):
-        self._wrap_or_unwrap_(WrapAction.UNWRAP)
+    def unwrap(self, force=False):
+        self._wrap_or_unwrap_(WrapAction.UNWRAP, force=force)
 
-    def wrap(self):
-        self._wrap_or_unwrap_(WrapAction.WRAP)
+    def wrap(self, force=False):
+        self._wrap_or_unwrap_(WrapAction.WRAP, force=force)
 
     def _get_field_(self):
         return self.parent
@@ -96,12 +97,12 @@ class AbstractSpatialObject(AbstractInterfaceObject):
         from ocgis import Field
         return Field
 
-    def _wrap_or_unwrap_(self, action):
+    def _wrap_or_unwrap_(self, action, force=False):
         raise_if_empty(self)
         if self.crs is None or not self.crs.is_wrappable:
             raise TypeError("Coordinate system may not be wrapped/unwrapped.")
         else:
-            self.crs.wrap_or_unwrap(action, self)
+            self.crs.wrap_or_unwrap(action, self, force=force)
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -234,54 +235,26 @@ class AbstractSpatialContainer(AbstractContainer, AbstractOperationsSpatialObjec
 
     def get_mask(self, *args, **kwargs):
         """
-        The grid's mask is stored independently from the coordinate variables' masks. The mask is actually a variable
-        containing a mask. This approach ensures the mask may be persisted to file and retrieved/modified leaving all
-        coordinate variables intact.
+        A spatial container's mask is stored independently from the coordinate variables' masks. The mask is actually a
+        variable containing a mask. This approach ensures the mask may be persisted to file and retrieved/modified
+        leaving all coordinate variables intact.
 
         .. note:: See :meth:`~ocgis.Variable.get_mask` for documentation.
         """
-        from ocgis.spatial.grid import create_grid_mask_variable
-
-        create = kwargs.get(KeywordArgument.CREATE, False)
-        mask_variable = self.mask_variable
-        ret = None
-        if mask_variable is None:
-            if create:
-                mask_variable = create_grid_mask_variable(VariableName.SPATIAL_MASK, None, self.dimensions)
-                self.set_mask(mask_variable)
-        if mask_variable is not None:
-            ret = mask_variable.get_mask(*args, **kwargs)
-            if mask_variable.attrs.get('ocgis_role') != 'spatial_mask':
-                msg = 'Mask variable "{}" must have an "ocgis_role" attribute with a value of "spatial_mask".'.format(
-                    ret.name)
-                raise ValueError(msg)
-        return ret
+        args = list(args)
+        args.insert(0, self)
+        return self.driver.get_or_create_spatial_mask(*args, **kwargs)
 
     def set_mask(self, value, cascade=False):
         """
-        Set the grid's mask from boolean array or variable.
+        Set the spatial container's mask from a boolean array or variable.
 
         :param value: A mask array having the same shape as the grid. This may also be a variable with the same
          dimensions.
         :type value: :class:`numpy.ndarray` | :class:`~ocgis.Variable`
-        :param cascade: If ``True``, cascade the mask along shared dimension on the grid.
+        :param cascade: If ``True``, cascade the mask along shared dimensions on the spatial container.
         """
-        from ocgis.spatial.grid import create_grid_mask_variable, grid_set_mask_cascade
-
-        if isinstance(value, Variable):
-            self.parent.add_variable(value, force=True)
-            mask_variable = value
-        else:
-            mask_variable = self.mask_variable
-            if mask_variable is None:
-                mask_variable = create_grid_mask_variable(VariableName.SPATIAL_MASK, value, self.dimensions)
-                self.parent.add_variable(mask_variable)
-            else:
-                mask_variable.set_mask(value)
-        self.dimension_map.set_spatial_mask(mask_variable)
-
-        if cascade:
-            grid_set_mask_cascade(self)
+        self.driver.set_spatial_mask(self, value, cascade=cascade)
 
     @staticmethod
     def _get_parent_class_():
@@ -291,13 +264,31 @@ class AbstractSpatialContainer(AbstractContainer, AbstractOperationsSpatialObjec
 
 @six.add_metaclass(abc.ABCMeta)
 class AbstractXYZSpatialContainer(AbstractSpatialContainer):
+    """
+    Abstract container for X, Y, and optionally Z coordinate variables. If ``x`` and ``y`` are not provided, then
+    ``parent`` is required.
+
+    :keyword x: (``=None``) X-coordinate variable
+    :type x: :class:`ocgis.Variable`
+    :keyword y: (``=None``) Y-coordinate variable
+    :type y: :class:`ocgis.Variable`
+    :keyword parent: (``=None``) Parent field object
+    :type parent: :class:`ocgis.Field`
+    :keyword mask: (``=None``) Mask variable
+    :type mask: :class:`ocgis.Variable`
+    :keyword pos: (``=(0, 1)``) Axis values for n-dimensional coordinate arrays
+    :type pos: tuple
+    :keyword is_isomorphic: See ``grid_is_isomorphic`` documentation for :class:`ocgis.Field`
+    """
+
     def __init__(self, **kwargs):
         kwargs = kwargs.copy()
-        x = kwargs.pop(KeywordArgument.X)
-        y = kwargs.pop(KeywordArgument.Y)
+        x = kwargs.pop(KeywordArgument.X, None)
+        y = kwargs.pop(KeywordArgument.Y, None)
         z = kwargs.pop(KeywordArgument.Z, None)
         mask = kwargs.pop(KeywordArgument.MASK, None)
-        pos = kwargs.pop(KeywordArgument.POS, (0, 1))
+        pos = kwargs.pop(KeywordArgument.POS, None)
+        is_isomorphic = kwargs.pop(DMK.IS_ISOMORPHIC, 'auto')
 
         parent = kwargs.get(KeywordArgument.PARENT, None)
 
@@ -329,16 +320,24 @@ class AbstractXYZSpatialContainer(AbstractSpatialContainer):
             for var in new_variables:
                 parent.add_variable(var, force=True)
 
+        if pos is None:
+            pos = parent.driver.default_axes_positions
         self._set_xyz_on_dimension_map_(x, y, z, pos, parent=parent)
 
         super(AbstractXYZSpatialContainer, self).__init__(**kwargs)
 
         if mask is not None:
             if not isinstance(mask, Variable):
-                from ocgis.spatial.grid import create_grid_mask_variable
-                mask = create_grid_mask_variable(VariableName.SPATIAL_MASK, mask, self.dimensions)
+                mask = create_spatial_mask_variable(VariableName.SPATIAL_MASK, mask, self.dimensions)
             self.parent.add_variable(mask, force=True)
             self.dimension_map.set_spatial_mask(mask)
+
+        # XYZ containers are not considered isomorphic (repeated topology or shapes) by default.
+        if is_isomorphic == 'auto':
+            if self.dimension_map.get_property(DMK.IS_ISOMORPHIC) is None:
+                is_isomorphic = False
+        if is_isomorphic != 'auto':
+            self.is_isomorphic = is_isomorphic
 
     @property
     def archetype(self):
@@ -376,6 +375,15 @@ class AbstractXYZSpatialContainer(AbstractSpatialContainer):
         return self.z is not None
 
     @property
+    def is_isomorphic(self):
+        """See ``grid_is_isomorphic`` documentation for :class:`ocgis.Field`"""
+        return self.dimension_map.get_property(DMK.IS_ISOMORPHIC)
+
+    @is_isomorphic.setter
+    def is_isomorphic(self, value):
+        self.dimension_map.set_property(DMK.IS_ISOMORPHIC, value)
+
+    @property
     def mask_variable(self):
         """
         :return: The mask variable associated with the grid. This will be ``None`` if no mask is present.
@@ -385,6 +393,55 @@ class AbstractXYZSpatialContainer(AbstractSpatialContainer):
         if ret is not None:
             ret = self.parent[ret]
         return ret
+
+    @property
+    def resolution(self):
+        """
+        Returns the average spatial along resolution along the ``x`` and ``y`` dimensions.
+
+        :rtype: float
+        """
+        if self.is_isomorphic:
+            if 1 in self.shape:
+                if self.shape[0] != 1:
+                    ret = self.resolution_y
+                elif self.shape[1] != 1:
+                    ret = self.resolution_x
+                else:
+                    raise NotImplementedError(self.shape)
+            else:
+                ret = np.mean([self.resolution_y, self.resolution_x])
+        else:
+            raise NotImplementedError('Resolution not defined when "self.is_isomorphic=False"')
+
+        return ret
+
+    @property
+    def resolution_max(self):
+        """
+        Returns the maximum spatial resolution between the ``x`` and ``y`` coordinate variables.
+
+        :rtype: float
+        """
+        return max([self.resolution_x, self.resolution_y])
+
+    @property
+    def resolution_x(self):
+        """
+        Returns the resolution ox ``x`` variable.
+
+        :rtype: float
+        """
+        return self.driver.array_resolution(self.x.get_value(), 1)
+
+    @property
+    def resolution_y(self):
+        """
+        Returns the resolution ox ``y`` variable.
+
+        :rtype: float
+        """
+        return self.driver.array_resolution(self.y.get_value(), 0)
 
     @property
     def shape_global(self):
@@ -495,15 +552,21 @@ class AbstractXYZSpatialContainer(AbstractSpatialContainer):
 
         self.crs.format_spatial_object(self, is_transform=True)
 
-    def _get_canonical_dimension_map_(self, field=None, create=False):
-        if field is None:
-            field = self.parent
-        return field.dimension_map.get_topology(self.topology, create=create)
-
     def _create_dimension_map_property_(self, entry_key, nullable=False):
         dimension_map = self._get_canonical_dimension_map_()
         ret = dimension_map.get_variable(entry_key, parent=self.parent, nullable=nullable)
         return ret
+
+    def _gc_iter_dst_grid_slices_(self, grid_chunker):
+        return self.driver._gc_iter_dst_grid_slices_(grid_chunker)
+
+    def _gc_nchunks_dst_(self, grid_chunker):
+        return self.driver._gc_nchunks_dst_(grid_chunker)
+
+    def _get_canonical_dimension_map_(self, field=None, create=False):
+        if field is None:
+            field = self.parent
+        return field.dimension_map.get_topology(self.topology, create=create)
 
     def _get_xyz_from_parent_(self, parent):
         dmap = self._get_canonical_dimension_map_(field=parent, create=False)
@@ -534,7 +597,7 @@ class AbstractXYZSpatialContainer(AbstractSpatialContainer):
 
 
 @six.add_metaclass(abc.ABCMeta)
-class AbstractSpatialVariable(SourcedVariable, AbstractOperationsSpatialObject):
+class AbstractSpatialVariable(AbstractOperationsSpatialObject, SourcedVariable):
     def __init__(self, **kwargs):
         kwargs = kwargs.copy()
         crs = kwargs.pop(KeywordArgument.CRS, 'auto')
@@ -563,11 +626,54 @@ class AbstractSpatialVariable(SourcedVariable, AbstractOperationsSpatialObject):
         return ret
 
 
+def create_spatial_mask_variable(name, mask_value, dimensions):
+    """
+    Create an OCGIS spatial mask variable with standard attributes. By default, the value of the returned variable is
+    allocated with zeroes.
+
+    :param str name: Variable name
+    :param mask_value: Boolean array with dimension matching ``dimensions``
+    :type mask_value: :class:`numpy.ndarray`
+    :param dimensions: Dimension sequence for the new variable
+    :type dimensions: tuple(:class:`ocgis.Dimension`, ...)
+    :rtype: :class:`ocgis.Variable`
+    """
+    mask_variable = Variable(name, mask=mask_value, dtype=np.dtype('i1'), dimensions=dimensions,
+                             attrs={'ocgis_role': 'spatial_mask',
+                                    'description': 'values matching fill value are spatially masked'})
+    mask_variable.allocate_value(fill=0)
+    return mask_variable
+
+
+def create_split_polygons(geom, split_shape):
+    minx, miny, maxx, maxy = geom.bounds
+    rows = np.linspace(miny, maxy, split_shape[0] + 1)
+    cols = np.linspace(minx, maxx, split_shape[1] + 1)
+
+    return create_split_polygons_from_meshgrid_vectors(cols, rows)
+
+
+def create_split_polygons_from_meshgrid_vectors(cols, rows):
+    nrow = rows.size - 1
+    ncol = cols.size - 1
+    fill = np.zeros(nrow * ncol, dtype=object)
+    for fillidx, (rowidx, colidx) in enumerate(itertools.product(range(nrow), range(ncol))):
+        minx = cols[colidx]
+        miny = rows[rowidx]
+        maxx = cols[colidx + 1]
+        maxy = rows[rowidx + 1]
+        fill[fillidx] = box(minx, miny, maxx, maxy)
+
+    return fill
+
+
 def get_extent_global(container):
     raise_if_empty(container)
 
     extent = container.extent
     extents = vm.gather(extent)
+
+    # ocgis_lh(msg='extents={}'.format(extents), logger='spatial.base', level=logging.DEBUG)
 
     if vm.rank == 0:
         extents = [e for e in extents if e is not None]
@@ -583,3 +689,37 @@ def get_extent_global(container):
     ret = vm.bcast(ret)
 
     return ret
+
+
+def iter_spatial_decomposition(sobj, splits, **kwargs):
+    """
+    Yield spatial subsets of the target ``sobj`` defined by the spatial decomposition created from ``splits``.
+
+    This method is collective across the current :class:`ocgis.OcgVM`.
+
+    :param sobj: Target XYZ spatial container to subset
+    :type sobj: :class:`ocgis.spatial.base.AbstractXYZSpatialContainer`
+    :param tuple splits: The number of splits along each dimension of the ``sobj``'s global spatial extent
+    :param kwargs: See keyword arguments for :meth:`ocgis.spatial.base.AbstractXYZSpatialContainer.get_intersects`
+    :rtype: :class:`ocgis.spatial.base.AbstractXYZSpatialContainer`
+    """
+    kwargs = kwargs.copy()
+    kwargs[KeywordArgument.RETURN_SLICE] = True
+
+    # Adjust the split definition to work with polygon creation call. --------------------------------------------------
+    len_splits = len(splits)
+    # Only splits along two dimensions.
+    assert (len_splits <= 2)
+    if len_splits == 1:
+        split_shape = (splits[0], 1)
+    else:
+        split_shape = splits
+    # ------------------------------------------------------------------------------------------------------------------
+
+    # For each split polygon, subset the target spatial object and yield it. -------------------------------------------
+    extent_global = sobj.extent_global
+    bbox = box(*extent_global)
+    split_polygons = create_split_polygons(bbox, split_shape)
+    for sp in split_polygons:
+        yield sobj.get_intersects(sp, **kwargs)
+    # ------------------------------------------------------------------------------------------------------------------

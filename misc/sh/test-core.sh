@@ -1,12 +1,8 @@
 #!/usr/bin/env bash
 
 nps=(2 3 4 5 6 7 8)
-#nps=(6 7 8)
 
 tests=(../../src/ocgis/test)
-#tests=(/home/benkoziol/l/ocgis/src/ocgis/test/test_ocgis/test_spatial/test_grid_splitter.py)
-#tests=(/home/benkoziol/l/ocgis/src/ocgis/test/test_ocgis/test_variable)
-#tests=(/home/benkoziol/l/ocgis/src/ocgis/test/test_ocgis/test_vm)
 
 ########################################################################################################################
 
@@ -19,7 +15,7 @@ for jj in "${tests[@]}"; do
         echo "Running serial tests: ${jj}"
         echo -e "=====================\\n"
 
-        nosetests -vsx -a '!release' ${jj}
+        nosetests -vsx ${jj}
         if [ $? == 1 ]; then
             echo "FAIL: One or more serial tests failed."
             exit 1
@@ -43,12 +39,17 @@ echo "======================================================================"
 echo "grep results:"
 echo "======================================================================"
 echo ""
-grep FAIL ${OUT_FILE}
-grep ERROR ${OUT_FILE}
+grep FAIL ${OCGIS_TEST_OUT_FILE}
+
+# This error is printed by a GDAL library.
+grep -v -E "ERROR 1:.*not recognised as an available field" ${OCGIS_TEST_OUT_FILE} | grep ERROR
+
 echo ""
 
 echo "Finished run_tests()"
 
 }
 
-run_tests 2>&1 | tee -a ${OUT_FILE}
+run_tests 2>&1 | tee -a ${OCGIS_TEST_OUT_FILE}
+
+exit 0

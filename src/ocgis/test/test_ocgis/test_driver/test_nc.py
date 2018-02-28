@@ -67,7 +67,7 @@ class Test(TestBase):
         rd = RequestDataset([path1, path2])
         tin = rd.get().time
         sub = tin[2:8]
-        self.assertEqual(sub.get_value().tolist(), range(3, 9))
+        self.assertEqual(sub.get_value().tolist(), list(range(3, 9)))
 
     def test_remove_netcdf_attribute(self):
         path = self.get_temporary_file_path('foo.nc')

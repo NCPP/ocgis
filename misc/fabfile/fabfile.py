@@ -1,13 +1,14 @@
-import time
 import os
+import time
 
+from fabric.context_managers import cd, shell_env, settings, prefix
 from fabric.contrib.project import rsync_project
 from fabric.decorators import task
 from fabric.operations import sudo, run, put, get
-from fabric.context_managers import cd, shell_env, settings, prefix
 from fabric.tasks import Task
 from saws import AwsManager
 from saws.tasks import ebs_mount
+
 from helpers import set_rwx_permissions, set_rx_permisions, fcmd, parser
 
 
@@ -56,6 +57,7 @@ def list_storage():
     """List storage size of connected devices."""
 
     fcmd(run, ['lsblk'])
+
 
 @task
 def put_file(local_path, remote_path):

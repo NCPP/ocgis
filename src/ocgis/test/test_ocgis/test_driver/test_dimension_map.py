@@ -6,7 +6,7 @@ from ocgis.driver.dimension_map import DimensionMap
 from ocgis.driver.nc import DriverNetcdfCF
 from ocgis.driver.nc_ugrid import DriverNetcdfUGRID
 from ocgis.exc import DimensionMapError
-from ocgis.spatial.grid import create_grid_mask_variable
+from ocgis.spatial.base import create_spatial_mask_variable
 from ocgis.test.base import TestBase
 
 
@@ -147,7 +147,7 @@ class TestDimensionMap(TestBase):
     def test_set_spatial_mask(self):
         dmap = DimensionMap()
         dims = Dimension('x', 3), Dimension('y', 7)
-        mask_var = create_grid_mask_variable('a_mask', None, dims)
+        mask_var = create_spatial_mask_variable('a_mask', None, dims)
         self.assertFalse(np.any(mask_var.get_mask()))
         dmap.set_spatial_mask(mask_var)
         self.assertEqual(dmap.get_spatial_mask(), mask_var.name)
@@ -158,11 +158,17 @@ class TestDimensionMap(TestBase):
         # Test custom variables may be used.
         dmap = DimensionMap()
         dims = Dimension('x', 3), Dimension('y', 7)
-        mask_var = create_grid_mask_variable('a_mask', None, dims)
+        mask_var = create_spatial_mask_variable('a_mask', None, dims)
         attrs = {'please keep me': 'no overwriting'}
         dmap.set_spatial_mask(mask_var, attrs=attrs)
         attrs = dmap.get_attrs(DMK.SPATIAL_MASK)
         self.assertIn('please keep me', attrs)
+
+        # Test default attributes are not added.
+        dmap = DimensionMap()
+        dmap.set_spatial_mask('foo', default_attrs={'blue': 'world'})
+        prop = dmap.get_property(DMK.SPATIAL_MASK)
+        self.assertEqual(prop['attrs'], {'blue': 'world'})
 
     def test_set_variable(self):
         var = Variable(name='test', value=[1, 2], dimensions='two')

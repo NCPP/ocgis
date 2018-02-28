@@ -7,6 +7,7 @@ from datetime import datetime as dt
 from unittest import SkipTest
 
 import numpy as np
+from copy import deepcopy
 from shapely.geometry import Point, LineString
 
 import ocgis
@@ -23,13 +24,11 @@ from ocgis.spatial.geom_cabinet import GeomCabinetIterator, GeomCabinet
 from ocgis.spatial.grid import Grid
 from ocgis.test.base import TestBase, attr, create_gridxy_global, create_exact_field
 from ocgis.test.test_simple.test_dependencies import create_mftime_nc_files
-from ocgis.util.addict import Dict
-from ocgis.util.helpers import make_poly, create_exact_field_value
+from ocgis.util.helpers import make_poly
 from ocgis.variable.base import Variable
 from ocgis.variable.crs import Spherical, CoordinateReferenceSystem, WGS84, CRS
 from ocgis.variable.temporal import TemporalVariable
-from ocgis.vmachine.mpi import OcgDist, MPI_RANK, variable_collection_scatter, MPI_COMM, dgather, \
-    hgather, MPI_SIZE
+from ocgis.vmachine.mpi import OcgDist, MPI_RANK, variable_collection_scatter, MPI_COMM
 
 
 class TestOcgOperations(TestBase):
@@ -42,7 +41,8 @@ class TestOcgOperations(TestBase):
         time_range = [dt(2000, 1, 1), dt(2000, 12, 31)]
         level_range = [2, 2]
 
-        return [{'uri': rd.uri, 'variable': rd.variable, 'time_range': time_range, 'level_range': level_range} for rd in rds]
+        return [{'uri': rd.uri, 'variable': rd.variable, 'time_range': time_range, 'level_range': level_range} for rd in
+                rds]
 
     @property
     def datasets_no_range(self):
@@ -562,15 +562,15 @@ class TestOcgOperations(TestBase):
         slc = [None, None, None, [0, 10], [0, 10]]
         kwds = dict(as_field=[False, True],
                     with_slice=[True, False])
-        for k in self.iter_product_keywords(kwds):
+        for ctr, k in enumerate(self.iter_product_keywords(kwds)):
             rd = self.test_data.get_rd('cancm4_tas')
             if k.as_field:
                 rd = rd.get()
             if k.with_slice:
-                slc = slc
+                the_slc = slc
             else:
-                slc = None
-            ops = OcgOperations(dataset=rd, output_format='esmpy', slice=slc)
+                the_slc = None
+            ops = OcgOperations(dataset=rd, output_format='esmpy', slice=the_slc)
             ret = ops.execute()
             self.assertIsInstance(ret, ESMF.Field)
             try:
@@ -622,6 +622,9 @@ class TestOcgOperations(TestBase):
     @attr('data', 'esmf')
     def test_keyword_regrid_destination_to_nc(self):
         """Write regridded data to netCDF."""
+
+        ocgis.env.VERBOSE = True
+        ocgis.env.DEBUG = True
 
         rd1 = self.test_data.get_rd('cancm4_tas')
         rd2 = self.test_data.get_rd('cancm4_tas')
@@ -1116,134 +1119,6 @@ class TestOcgOperationsNoData(TestBase):
                 desired = data_value.mean()
                 actual = out_field.data_variables[0].get_value()[0]
                 self.assertEqual(actual, desired)
-
-    @attr('release')
-    def test_system_spatial_averaging_through_operations_state_boundaries(self):
-        if MPI_SIZE != 8:
-            raise SkipTest('MPI_SIZE != 8')
-
-        ntime = 3
-        # Get the exact field value for the state's representative center.
-        with vm.scoped([0]):
-            if MPI_RANK == 0:
-                states = RequestDataset(self.path_state_boundaries, driver='vector').get()
-                states.update_crs(env.DEFAULT_COORDSYS)
-                fill = np.zeros((states.geom.shape[0], 2))
-                for idx, geom in enumerate(states.geom.get_value().flat):
-                    centroid = geom.centroid
-                    fill[idx, :] = centroid.x, centroid.y
-                exact_states = create_exact_field_value(fill[:, 0], fill[:, 1])
-                state_ugid = states['UGID'].get_value()
-                area = states.geom.area
-
-        keywords = {
-            'spatial_operation': [
-                'clip',
-                'intersects'
-            ],
-            'aggregate': [
-                True,
-                False
-            ],
-            'wrapped': [True, False],
-            'output_format': [
-                OutputFormatName.OCGIS,
-                'csv',
-                'csv-shp',
-                'shp'
-            ],
-        }
-
-        # total_iterations = len(list(self.iter_product_keywords(keywords)))
-
-        for ctr, k in enumerate(self.iter_product_keywords(keywords)):
-            # barrier_print(k)
-            # if ctr % 1 == 0:
-            #     if vm.is_root:
-            #         print('Iteration {} of {}...'.format(ctr + 1, total_iterations))
-
-            with vm.scoped([0]):
-                if vm.is_root:
-                    grid = create_gridxy_global(resolution=1.0, dist=False, wrapped=k.wrapped)
-                    field = create_exact_field(grid, 'foo', ntime=ntime)
-                    path = self.get_temporary_file_path('foo.nc')
-                    field.write(path)
-                else:
-                    path = None
-            path = MPI_COMM.bcast(path)
-
-            rd = RequestDataset(path)
-
-            ops = OcgOperations(dataset=rd, geom='state_boundaries', spatial_operation=k.spatial_operation,
-                                aggregate=k.aggregate, output_format=k.output_format, prefix=str(ctr),
-                                # geom_select_uid=[8]
-                                )
-            ret = ops.execute()
-
-            # Test area is preserved for a problem element during union. The union's geometry was not fully represented
-            # in the output.
-            if k.output_format == 'shp' and k.aggregate and k.spatial_operation == 'clip':
-                with vm.scoped([0]):
-                    if vm.is_root:
-                        inn = RequestDataset(ret).get()
-                        inn_ugid_idx = np.where(inn['UGID'].get_value() == 8)[0][0]
-                        ugid_idx = np.where(state_ugid == 8)[0][0]
-                        self.assertAlmostEqual(inn.geom.get_value()[inn_ugid_idx].area, area[ugid_idx], places=2)
-
-            # Test the overview geometry shapefile is written.
-            if k.output_format == 'shp':
-                directory = os.path.split(ret)[0]
-                contents = os.listdir(directory)
-                actual = ['_ugid.shp' in c for c in contents]
-                self.assertTrue(any(actual))
-            elif k.output_format == 'csv-shp':
-                directory = os.path.split(ret)[0]
-                directory = os.path.join(directory, 'shp')
-                contents = os.listdir(directory)
-                actual = ['_ugid.shp' in c for c in contents]
-                self.assertTrue(any(actual))
-                if not k.aggregate:
-                    actual = ['_gid.shp' in c for c in contents]
-                    self.assertTrue(any(actual))
-
-            if k.output_format == OutputFormatName.OCGIS:
-                geom_keys = ret.children.keys()
-                all_geom_keys = vm.gather(np.array(geom_keys))
-                if vm.is_root:
-                    all_geom_keys = hgather(all_geom_keys)
-                    self.assertEqual(len(np.unique(all_geom_keys)), 51)
-
-                if k.aggregate:
-                    actual = Dict()
-                    for field, container in ret.iter_fields(yield_container=True):
-                        if not field.is_empty:
-                            ugid = container.geom.ugid.get_value()[0]
-                            actual[ugid]['actual'] = field.data_variables[0].get_value()
-                            actual[ugid]['area'] = container.geom.area[0]
-
-                    actual = vm.gather(actual)
-
-                    if vm.is_root:
-                        actual = dgather(actual)
-
-                        ares = []
-                        actual_areas = []
-                        for ugid_key, v in actual.items():
-                            ugid_idx = np.where(state_ugid == ugid_key)[0][0]
-                            desired = exact_states[ugid_idx]
-                            actual_areas.append(v['area'])
-                            for tidx in range(ntime):
-                                are = np.abs((desired + ((tidx + 1) * 10)) - v['actual'][tidx, 0])
-                                ares.append(are)
-
-                        if k.spatial_operation == 'clip':
-                            diff = np.abs(np.array(area) - np.array(actual_areas))
-                            self.assertLess(np.max(diff), 1e-6)
-                            self.assertLess(np.mean(diff), 1e-6)
-
-                        # Test relative errors.
-                        self.assertLess(np.max(ares), 0.031)
-                        self.assertLess(np.mean(ares), 0.009)
 
     @attr('mpi', 'no-3.5')
     def test_system_spatial_wrapping_and_reorder(self):

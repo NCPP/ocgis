@@ -1,6 +1,5 @@
 import logging
 from copy import deepcopy
-from types import NoneType
 
 import ESMF
 import numpy as np
@@ -41,7 +40,7 @@ class RegridOperation(AbstractOcgisObject):
     def __init__(self, field_src, field_dst, subset_field=None, regrid_options=None, revert_dst_crs=False):
         assert isinstance(field_src, Field)
         assert isinstance(field_dst, Field)
-        assert isinstance(subset_field, (Field, NoneType))
+        assert isinstance(subset_field, (Field, type(None)))
 
         self.field_dst = field_dst
         self.field_src = field_src
@@ -659,6 +658,7 @@ def regrid_field(source, destination, regrid_method='auto', value_mask=None, spl
         # Only build the regrid objects once.
         if build:
             # Build the destination grid once.
+            ocgis_lh(logger='iter_regridded_fields', msg='before get_esmf_grid', level=logging.DEBUG)
             esmf_destination_grid = get_esmf_grid(destination.grid, regrid_method=regrid_method, value_mask=value_mask)
 
             # Check for corners on the destination grid. If they exist, conservative regridding is possible.
@@ -686,13 +686,19 @@ def regrid_field(source, destination, regrid_method='auto', value_mask=None, spl
         if fv is None:
             fv = np.ma.array([0], dtype=fill_variable.dtype).fill_value
         dst_efield.data.fill(fv)
+
         # Construct the regrid object. Weight generation actually occurs in this call.
+        ocgis_lh(logger='iter_regridded_fields', msg='before ESMF.Regrid', level=logging.DEBUG)
         regrid = ESMF.Regrid(src_efield, dst_efield, unmapped_action=ESMF.UnmappedAction.IGNORE,
                              regrid_method=regrid_method, src_mask_values=[0], dst_mask_values=[0])
+        ocgis_lh(logger='iter_regridded_fields', msg='after ESMF.Regrid', level=logging.DEBUG)
+
         # Perform the regrid operation. "zero_region" only fills values involved with regridding.
+        ocgis_lh(logger='iter_regridded_fields', msg='before regrid', level=logging.DEBUG)
         regridded_esmf_field = regrid(src_efield, dst_efield, zero_region=ESMF.Region.SELECT)
         e_data = regridded_esmf_field.data
         unmapped_mask = e_data[:] == fv
+
         # If all data is masked, raise an exception.
         if unmapped_mask.all():
             # Destroy ESMF objects.

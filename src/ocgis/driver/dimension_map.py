@@ -228,6 +228,16 @@ class DimensionMap(AbstractOcgisObject):
         except KeyError:
             raise DimensionMapError(DMK.GROUPS, "Group key not found: {}".format(group_key))
 
+    def get_property(self, key, default=None):
+        """
+        Return a dimension map property value.
+
+        :param str key: The key name
+        :param default: A default value to return if the key is not present
+        :rtype: <varying>
+        """
+        return self._storage.get(key, default)
+
     def get_spatial_mask(self):
         """
         Get the spatial mask variable name.
@@ -353,7 +363,7 @@ class DimensionMap(AbstractOcgisObject):
     def pprint(self, as_dict=False):
         """
         Pretty print the dimension map.
-        
+
         :param bool as_dict: If ``True``, convert group dimension maps to dictionaries.
         """
         if as_dict:
@@ -365,7 +375,7 @@ class DimensionMap(AbstractOcgisObject):
     def set_bounds(self, entry_key, bounds):
         """
         Set the bounds variable name for ``entry_key``.
-        
+
         :param str entry_key: See :class:`ocgis.constants.DimensionMapKey` for valid entry keys.
         :param bounds: :class:`str` | :class:`~ocgis.Variable`
         """
@@ -404,17 +414,29 @@ class DimensionMap(AbstractOcgisObject):
         """
         _ = get_dmap_group(self, group_key, create=True, last=dimension_map)
 
-    def set_spatial_mask(self, variable, attrs=None):
+    def set_property(self, key, value):
+        """
+        Set a property on the dimension map.
+
+        :param str key: The key name
+        :param value: The property's value
+        """
+        assert key in DMK.get_special_entry_keys()
+        self._storage[key] = value
+
+    def set_spatial_mask(self, variable, attrs=None, default_attrs=None):
         """
         Set the spatial mask variable for the dimension map. If ``attrs`` is not ``None``, then ``attrs`` >
         ``variable.attrs`` (if ``variable`` is not a string) > default attributes.
         
         :param variable: The spatial mask variable.
-        :param dict attrs: Attributes to associate with the spatial mask variable.
+        :param dict attrs: Attributes to associate with the spatial mask variable *in addition* to default attributes.
+        :param dict default_attrs: If provided, use these attributes as default spatial mask attributes.
         :type variable: :class:`~ocgis.Variable` | :class:`str`
         """
 
-        default_attrs = deepcopy(DIMENSION_MAP_TEMPLATE[DMK.SPATIAL_MASK][DMK.ATTRS])
+        if default_attrs is None:
+            default_attrs = deepcopy(DIMENSION_MAP_TEMPLATE[DMK.SPATIAL_MASK][DMK.ATTRS])
 
         try:
             vattrs = deepcopy(variable.attrs)
@@ -457,7 +479,7 @@ class DimensionMap(AbstractOcgisObject):
         >>> [slice(None), slice(0, 1)]
 
         :param bool dimensionless: If ``True``, this variable has no canonical dimension.
-        :raises DimensionMapError
+        :raises: DimensionMapError
         """
         if entry_key in self._special_entry_keys:
             raise DimensionMapError(entry_key, "The entry '{}' has a special set method.".format(entry_key))

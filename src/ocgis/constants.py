@@ -45,6 +45,22 @@ GITHUB_ISSUES = 'https://github.com/NCPP/ocgis/issues'
 MPI_EMPTY_VALUE = -999
 
 
+class ESMFGridClass(Enum):
+    GRID = 'grid'
+    MESH = 'mesh'
+
+    @classmethod
+    def get_esmf_class(cls, target):
+        import ESMF
+        if target == cls.GRID:
+            ret = ESMF.Grid
+        elif target == cls.MESH:
+            ret = ESMF.Mesh
+        else:
+            raise NotImplementedError(target)
+        return ret
+
+
 class HeaderName(object):
     ID_SELECTION_GEOMETRY = 'UGID'
     ID_GEOMETRY = 'GID'
@@ -215,6 +231,7 @@ class DimensionMapKey(object):
     GEOM = 'geom'
     GRID_ABSTRACTION = 'grid_abstraction'
     GROUPS = 'groups'
+    IS_ISOMORPHIC = 'is_isomorphic'
     LEVEL = 'level'
     SECTION = 'section'
     SPATIAL_MASK = 'spatial_mask'
@@ -253,7 +270,7 @@ class DimensionMapKey(object):
 
     @classmethod
     def get_special_entry_keys(cls):
-        return cls.GRID_ABSTRACTION, cls.SPATIAL_MASK, cls.CRS, cls.DRIVER, cls.TOPOLOGY
+        return cls.GRID_ABSTRACTION, cls.SPATIAL_MASK, cls.CRS, cls.DRIVER, cls.TOPOLOGY, cls.IS_ISOMORPHIC
 
 
 class DMK(DimensionMapKey):
@@ -373,6 +390,7 @@ class DriverKey(object):
     NETCDF = 'netcdf'
     NETCDF_CF = 'netcdf-cf'
     NETCDF_ESMF_UNSTRUCT = 'netcdf-esmf-unstruct'
+    NETCDF_SCRIP = 'netcdf-scrip'
     VECTOR = 'vector'
     NETCDF_UGRID = 'netcdf-ugrid'
 
@@ -402,6 +420,7 @@ class MPITag(IntEnum):
     ARANGE_FROM_DIMENSION = 10
     START_INDEX = 11
     SELECT_SEND_SIZE = 12
+
 
 class CFName(object):
     LONG_NAME = 'long_name'
@@ -478,12 +497,14 @@ class ConversionTarget(Enum):
     GEOMETRY_VARIABLE = 'geometry_variable'
 
 
-class GridSplitterConstants(object):
+class GridChunkerConstants(object):
+    BUFFER_RESOLUTION_MODIFIER = 2.
+
     class IndexFile(object):
-        NAME_DESTINATION_VARIABLE = 'grid_splitter_destination'
-        NAME_INDEX_VARIABLE = 'grid_splitter_index'
-        NAME_SOURCE_VARIABLE = 'grid_splitter_source'
-        NAME_WEIGHTS_VARIABLE = 'grid_splitter_weights'
+        NAME_DESTINATION_VARIABLE = 'grid_chunker_destination'
+        NAME_INDEX_VARIABLE = 'grid_chunker_index'
+        NAME_SOURCE_VARIABLE = 'grid_chunker_source'
+        NAME_WEIGHTS_VARIABLE = 'grid_chunker_weights'
         NAME_X_SRC_BOUNDS_VARIABLE = 'src_x_bounds'
         NAME_Y_SRC_BOUNDS_VARIABLE = 'src_y_bounds'
         NAME_X_DST_BOUNDS_VARIABLE = 'dst_x_bounds'

@@ -33,6 +33,16 @@ class TestOcgisLogging(TestBase):
 
         self.assertWarns(RuntimeWarning, _run_)
 
+        # Test warning is always printed if force.
+        def _run_():
+            ocgis_lh.configure()
+            self.assertTrue(ocgis_lh.null)
+            env.SUPPRESS_WARNINGS = True
+            ocgis_lh(level=logging.WARNING, exc=RuntimeWarning('show me'), force=True)
+            env.reset()
+
+        self.assertWarns(RuntimeWarning, _run_)
+
         # test warning is logged to the terminal and also logged to file
         ocgis_lh.shutdown()
 

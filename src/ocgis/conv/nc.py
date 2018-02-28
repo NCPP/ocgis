@@ -117,8 +117,7 @@ class NcConverter(AbstractCollectionConverter):
         Modify in place the collections so they can be saved as discrete
         geometries along a new spatial dimension.
         """
-        #TODO: UGID and GID show up in the output file, but they are equal. Remove one.
-
+        # TODO: UGID and GID show up in the output file, but they are equal. Remove one.
 
         if not self.ops or self.ops.aggregate is False:
             return coll
@@ -193,7 +192,7 @@ class NcConverter(AbstractCollectionConverter):
                     ocgis.Variable(key,
                                    value=[val, ],
                                    dtype=dt,
-                                   dimensions=(udim,)),)
+                                   dimensions=(udim,)), )
 
             # ------------------ Dimension update ------------------------ #
             # Modify the dimensions for the number of geometries
@@ -215,7 +214,6 @@ class NcConverter(AbstractCollectionConverter):
                 gdim.set_name(self.options.get('geom_dim', None))
 
             return coll
-
 
     def _get_file_format_(self):
         file_format = set()
@@ -302,4 +300,3 @@ class NcConverter(AbstractCollectionConverter):
         """:type arch: :class:`ocgis.Field`"""
 
         self._write_archetype_(arch, ds, self._variable_kwargs)
-

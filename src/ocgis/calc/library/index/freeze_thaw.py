@@ -1,9 +1,11 @@
+import datetime as dt
+
+import numpy as np
+
 from ocgis import env
 from ocgis.calc import base
-from ocgis.util.helpers import iter_array
 from ocgis.util.units import get_are_units_equal_by_string_or_cfunits
-import numpy as np
-import datetime as dt
+
 
 class FreezeThaw(base.AbstractUnivariateSetFunction, base.AbstractParameterizedFunction):
     key = 'freezethaw'
@@ -35,12 +37,10 @@ class FreezeThaw(base.AbstractUnivariateSetFunction, base.AbstractParameterizedF
             else:
                 raise NotImplementedError
 
-
-
         # Unit conversion
         units = self.field.data_variables[0].units
         if get_are_units_equal_by_string_or_cfunits(units, 'C',
-                                            try_cfunits=env.USE_CFUNITS):
+                                                    try_cfunits=env.USE_CFUNITS):
             tas = values
         elif get_are_units_equal_by_string_or_cfunits(units, 'K',
                                                       try_cfunits=env.USE_CFUNITS):
@@ -77,16 +77,16 @@ def freezethaw1d(x, threshold):
             x = x.compressed()
 
     # This avoids issues when the threshold is reached right at the first value.
-    x = np.concatenate([[0,], x])
+    x = np.concatenate([[0, ], x])
 
     # Compute the cumulative degree days relative to the freezing point.
     cx = np.cumsum(x)
 
     # Find the places where the temperature crosses the freezing point (FP).
     over = x >= 0
-    cross = np.concatenate([[0,], np.nonzero(np.diff(over) != 0)[0]])
+    cross = np.concatenate([[0, ], np.nonzero(np.diff(over) != 0)[0]])
 
-    cycles = [0,]
+    cycles = [0, ]
     for ci in cross:
 
         # Skip FP crossing if it occurs before the threshold is reached.
@@ -108,4 +108,4 @@ def freezethaw1d(x, threshold):
                 cycles.append(s * (w + ci))
 
     # Return the number of transitions from frozen to thawed or vice-versa
-    return float(len(cycles) - 2) # There are two "artificial" transitions
+    return float(len(cycles) - 2)  # There are two "artificial" transitions

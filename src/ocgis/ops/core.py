@@ -144,7 +144,7 @@ class OcgOperations(AbstractOcgisObject):
         self.prefix = Prefix(prefix or env.PREFIX)
         self.output_format = OutputFormat(output_format)
         self.output_format_options = OutputFormatOptions(output_format_options)
-        self.agg_selection = agg_selection #AggregateSelection(agg_selection, output_format=self.output_format)
+        self.agg_selection = agg_selection  # AggregateSelection(agg_selection, output_format=self.output_format)
         self.geom_select_sql_where = GeomSelectSqlWhere(geom_select_sql_where)
         self.geom_select_uid = GeomSelectUid(geom_select_uid or select_ugid)
         self.geom_uid = GeomUid(geom_uid)

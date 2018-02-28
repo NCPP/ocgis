@@ -1,5 +1,6 @@
 from ocgis.base import AbstractOcgisObject
 from ocgis.constants import DriverKey
+from ocgis.driver.nc_scrip import DriverNetcdfSCRIP
 from .base import AbstractDriver
 from .csv_ import DriverCSV
 from .nc import DriverNetcdf, DriverNetcdfCF
@@ -20,6 +21,7 @@ driver_registry.drivers.append(DriverNetcdfCF)
 driver_registry.drivers.append(DriverVector)
 driver_registry.drivers.append(DriverNetcdfUGRID)
 driver_registry.drivers.append(DriverESMFUnstruct)
+driver_registry.drivers.append(DriverNetcdfSCRIP)
 
 
 def get_driver_class(key_class_or_instance, default=None):

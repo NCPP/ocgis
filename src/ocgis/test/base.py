@@ -47,8 +47,9 @@ Definitions for various "attrs":
  * data: test requires a data file
  * icclim: test requires ICCLIM
  * benchmark: test used for benchmarking/performance
+ * cli: test related to the command line interface. requires click as a dependency.
 
-nosetests -vs --with-id -a '!slow,!remote' ocgisf
+nosetests -vs --with-id -a '!slow,!remote' ocgis
 """
 
 
@@ -416,6 +417,37 @@ class TestBase(unittest.TestCase):
             warnings.simplefilter('always')
             meth()
             self.assertTrue(any(item.category == warning for item in warning_list))
+
+    def assertWeightFilesEquivalent(self, global_weights_filename, merged_weights_filename):
+        """Assert weight files are equivalent."""
+
+        nwf = RequestDataset(merged_weights_filename).get()
+        gwf = RequestDataset(global_weights_filename).get()
+        nwf_row = nwf['row'].get_value()
+        gwf_row = gwf['row'].get_value()
+        self.assertAsSetEqual(nwf_row, gwf_row)
+        nwf_col = nwf['col'].get_value()
+        gwf_col = gwf['col'].get_value()
+        self.assertAsSetEqual(nwf_col, gwf_col)
+        nwf_S = nwf['S'].get_value()
+        gwf_S = gwf['S'].get_value()
+        self.assertEqual(nwf_S.sum(), gwf_S.sum())
+        unique_src = np.unique(nwf_row)
+        diffs = []
+        for us in unique_src.flat:
+            nwf_S_idx = np.where(nwf_row == us)[0]
+            nwf_col_sub = nwf_col[nwf_S_idx]
+            nwf_S_sub = nwf_S[nwf_S_idx].sum()
+
+            gwf_S_idx = np.where(gwf_row == us)[0]
+            gwf_col_sub = gwf_col[gwf_S_idx]
+            gwf_S_sub = gwf_S[gwf_S_idx].sum()
+
+            self.assertAsSetEqual(nwf_col_sub, gwf_col_sub)
+
+            diffs.append(nwf_S_sub - gwf_S_sub)
+        diffs = np.abs(diffs)
+        self.assertLess(diffs.max(), 1e-14)
 
     @staticmethod
     def barrier_print(*args, **kwargs):

@@ -1,6 +1,5 @@
 import ocgis
 
-
 ocgis.env.DIR_OUTPUT = '/home/local/WX/ben.koziol/links/project/ocg/presentation/2013-ESGF-F2F/ocgis_output'
 ocgis.env.DIR_DATA = '/usr/local/climate_data'
 

@@ -178,7 +178,7 @@ class OcgInterpreter(Interpreter):
         :returns: A progress object to use when executing the operations.
         :rtype: :class:`ocgis.util.logging_ocgis.ProgressOcgOperations`
         """
-
+        # TODO: This method should use ocgis.env.configure_logging().
         # If file logging is enabled, check where or if the log should be written.
         if env.ENABLE_FILE_LOGGING and self.ops.add_auxiliary_files is True:
             if self.ops.output_format in self._no_directory:

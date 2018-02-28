@@ -167,6 +167,20 @@ def get_variables(target, parent):
     return tuple(ret)
 
 
+@contextmanager
+def grid_abstraction_scope(grid, abstraction, strict=False):
+    orig_abstraction = grid.abstraction
+    if abstraction in grid.abstractions_available:
+        grid.abstraction = abstraction
+    else:
+        if strict:
+            raise ValueError('abstraction "{}" not available on the grid'.format(abstraction))
+    try:
+        yield None
+    finally:
+        grid.abstraction = orig_abstraction
+
+
 def is_field(target):
     from ocgis import Field
     return isinstance(target, Field)

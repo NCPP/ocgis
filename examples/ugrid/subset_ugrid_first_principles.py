@@ -7,7 +7,7 @@ from shapely.geometry import box
 
 import ocgis
 from ocgis import vm
-from ocgis.spatial.grid_splitter import GridSplitter
+from ocgis.spatial.grid_chunker import GridChunker
 from ocgis.test.base import create_gridxy_global, create_exact_field
 from ocgis.util.helpers import arange_from_dimension
 from ocgis.variable.dimension import create_distributed_dimension
@@ -151,7 +151,7 @@ if __name__ == '__main__':
 
     field.write(os.path.join(OUTDIR, 'dst_field_1km.nc'))
 
-    gs = GridSplitter(grid, grid, (10, 10))
+    gs = GridChunker(grid, grid, (10, 10))
 
     ctr = 1
     for grid_sub in gs.iter_dst_grid_subsets():

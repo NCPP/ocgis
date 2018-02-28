@@ -218,6 +218,9 @@ Drivers
 .. autoclass:: ocgis.driver.nc.DriverNetcdfCF
     :show-inheritance:
 
+.. autoclass:: ocgis.driver.nc_scrip.DriverNetcdfSCRIP
+    :show-inheritance:
+
 .. autoclass:: ocgis.driver.nc_ugrid.DriverNetcdfUGRID
     :show-inheritance:
 
@@ -230,7 +233,7 @@ Drivers
 Grid Splitter
 -------------
 
-.. autoclass:: ocgis.spatial.grid_splitter.GridSplitter
+.. autoclass:: ocgis.spatial.grid_chunker.GridChunker
     :members:
 
 Base Classes

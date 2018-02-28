@@ -12,6 +12,9 @@
 *~
 *.log
 *.nc
+*.out
+*.ESMF_LogFile
+*.Log
 
 # Sphinx #
 ##########
@@ -30,8 +33,11 @@
 # iPython Notebooks #
 #####################
 *.ipynb_checkpoints*
+ipynb_code.py
 
 # setuptools #
 ##############
 *ocgis.egg-info
-/test_ocgis.out
+.cache
+build
+dist

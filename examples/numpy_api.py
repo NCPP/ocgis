@@ -1,10 +1,8 @@
 import ocgis
 from ocgis import constants
-from ocgis.constants import OutputFormatName
 
 URI = '/usr/local/climate_data/CanCM4/tas_day_CanCM4_decadal2010_r2i1p1_20110101-20201231.nc'
 VARIABLE = 'tas'
-
 
 rd = ocgis.RequestDataset(uri=URI, variable='tas')
 ops = ocgis.OcgOperations(dataset=rd, output_format=constants.OutputFormatName.OCGIS, time_region={'month': [1]})

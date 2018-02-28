@@ -52,8 +52,12 @@ class Field(VariableCollection):
     :param crs: (``='auto'``) A coordinate reference system variable. If ``'auto'``, use the coordinate system from
      the ``grid`` or ``geom``. ``geom`` is given preference if both are present.
     :type crs: :class:`str` | ``None`` | :class:`~ocgis.variable.crs.AbstractCRS`
-    :param str grid_abstraction: See keyword argument ``abstraction`` for :class:`~ocgis.Grid`.
     :param str format_time: See keyword argument ``format_time`` for :class:`~ocgis.TemporalVariable`.
+    :param str grid_abstraction: See keyword argument ``abstraction`` for :class:`~ocgis.Grid`.
+    :param grid_is_isomporphic: (``='auto'``) If ``True``, the grid is isomorphic with repeated, topologically adjancent
+     cells (i.e. a logically rectangular grid). If ``False``, the grid elements change shapes (i.e. boundaries like a
+     watershed). If ``'auto'``, let the driver determine the grid default.
+    :type grid_is_isomorphic: bool | str
     """
 
     def __init__(self, **kwargs):
@@ -85,6 +89,9 @@ class Field(VariableCollection):
         grid_abstraction = kwargs.pop(KeywordArgument.GRID_ABSTRACTION, 'auto')
         if grid_abstraction is None:
             raise ValueError("'{}' may not be None.".format(KeywordArgument.GRID_ABSTRACTION))
+        grid_is_isomorphic = kwargs.pop('grid_is_isomorphic', 'auto')
+        if grid_is_isomorphic is None:
+            raise ValueError("'{}' may not be None.".format('grid_is_isomorphic'))
 
         # TODO: This should maybe be part of the dimension map? Time variables are not dependent on fields.
         self.format_time = kwargs.pop(KeywordArgument.FORMAT_TIME, True)
@@ -93,9 +100,6 @@ class Field(VariableCollection):
         is_data = kwargs.pop(KeywordArgument.IS_DATA, [])
 
         VariableCollection.__init__(self, **kwargs)
-
-        # if dimension_map is not None and grid is not None:
-        #     raise ValueError("A 'dimension_map' cannot be provided when a 'grid' is provided.")
 
         dimension_map = deepcopy(dimension_map)
         if dimension_map is None:
@@ -109,6 +113,8 @@ class Field(VariableCollection):
             self.dimension_map.set_driver(driver)
         if grid_abstraction != 'auto':
             self.dimension_map.set_grid_abstraction(grid_abstraction)
+        if grid_is_isomorphic != 'auto':
+            self.dimension_map.set_property(DMK.IS_ISOMORPHIC, grid_is_isomorphic)
 
         # Append the data variable tagged variable names.
         is_data = list(get_iter(is_data, dtype=Variable))

@@ -646,7 +646,10 @@ def _update_aggregation_wrapping_crs_(obj, alias, sfield, subset_sdim, subset_ug
                 geom = sfield.geom
                 copied_geom = geom.get_value().copy()
                 geom.set_value(copied_geom)
-                geom.wrap()
+                # Some grids do not play nicely with wrapping. Bounds may be less than zero for an unwrapped grid.
+                # Force wrapping if it is requested. Normally, when force is false there is a pass-through that will
+                # leave the data untouched.
+                geom.wrap(force=True)
                 ocgis_lh('finished wrapping output geometries', obj._subset_log, alias=alias, ugid=subset_ugid,
                          level=logging.DEBUG)
 

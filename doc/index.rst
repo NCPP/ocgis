@@ -22,6 +22,7 @@ Contents:
    contact
    install
    operations
+   cli
    classes
    functions
    computation

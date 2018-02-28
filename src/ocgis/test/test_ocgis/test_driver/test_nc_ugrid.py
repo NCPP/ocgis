@@ -21,6 +21,18 @@ class TestDriverNetcdfUGRID(TestBase):
         du = DriverNetcdfUGRID(rd)
         return du
 
+    def test_system_is_isomorphic(self):
+        """Test the is_isomorphic property on UGRID drivers."""
+
+        f = self.fixture()
+        field = f.create_field()
+        self.assertFalse(field.grid.is_isomorphic)
+
+        for g in [True, False]:
+            f = self.fixture(grid_is_isomorphic=g)
+            field = f.create_field()
+            self.assertEqual(field.grid.is_isomorphic, g)
+
     def test_create_dimension_map(self):
         du = self.fixture()
         group_metadata = du.rd.metadata
@@ -179,9 +191,11 @@ def get_ugrid_data_structure():
     # vc.write(path)
     # self.ncdump(path)
     #
-    # # ==============================================================================================================
+
+    # ==============================================================================================================
     # import matplotlib.pyplot as plt
     # from descartes import PolygonPatch
+    # from shapely.geometry import Polygon, MultiPolygon
     #
     # BLUE = '#6699cc'
     # GRAY = '#999999'
@@ -215,5 +229,6 @@ def get_ugrid_data_structure():
     # plt.scatter(center_xc, center_yc, zorder=1)
     #
     # plt.show()
+    # ===============================================================================================================
 
     return vc

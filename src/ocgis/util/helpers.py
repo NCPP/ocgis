@@ -1094,7 +1094,7 @@ def create_unique_global_array(arr):
                 req_select_send_size.wait()
                 select_send_size = select_send_size[0]
 
-                u_src = np.zeros(select_send_size, dtype=np_type)
+                u_src = np.zeros(select_send_size.astype(int), dtype=np_type)
                 req = vm.comm.Irecv([u_src, mpi_type], source=o, tag=tag_overlap)
                 req.wait()
 

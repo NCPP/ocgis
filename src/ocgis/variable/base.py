@@ -76,6 +76,11 @@ class AbstractContainer(AbstractNamedObject):
         return self._get_dimensions_()
 
     @property
+    def driver(self):
+        """Get the parent's driver class or object."""
+        return self.parent.driver
+
+    @property
     def group(self):
         """
         :return: The group index in the parent/child hierarchy. Returns ``None`` if this collection is the head.
@@ -608,10 +613,10 @@ class Variable(AbstractContainer, Attributes):
         """Return ``True`` if the variable contains string data."""
         ret = False
         dtype = self.dtype
-        if dtype == object or str(dtype).startswith('|S') or dtype in six.string_types or np.issubdtype(dtype, str):
+        if is_string(dtype):
             if len(self.dimensions) > 0:
                 archetype = self.get_value().flatten()[0]
-                if isinstance(archetype, six.string_types):
+                if is_string(type(archetype)):
                     ret = True
         return ret
 
@@ -897,7 +902,8 @@ class Variable(AbstractContainer, Attributes):
 
     def get_masked_value(self):
         """
-        :return: The variable's value as a masked array.
+        Return the variable's value as a masked array.
+
         :rtype: :class:`numpy.ma.MaskedArray`
         """
         if isinstance(self.dtype, ObjectType):
@@ -1359,6 +1365,14 @@ class Variable(AbstractContainer, Attributes):
         implementations is in :class:`~ocgis.variable.SourcedVariable`
         """
 
+    def m(self):
+        """See :meth:`ocgis.Variable.get_mask`"""
+        return self.get_mask()
+
+    def mv(self):
+        """See :meth:`ocgis.Variable.get_masked_value`"""
+        return self.get_masked_value()
+
     def reshape(self, *args):
         assert not self.has_bounds
 
@@ -1463,6 +1477,10 @@ class Variable(AbstractContainer, Attributes):
             self._name_ugid = variable.name
             if attr_link_name is not None:
                 self.attrs[attr_link_name] = variable.name
+
+    def v(self):
+        """See :meth:`ocgis.Variable.get_value`"""
+        return self.get_value()
 
     def write(self, *args, **kwargs):
         """
@@ -2030,6 +2048,12 @@ class VariableCollection(AbstractCollection, AbstractContainer, Attributes):
                         if k not in header_map_keys:
                             new_yld[k] = v
                 yld = new_yld
+
+            # Remove the calculation key if it is present on a non-melted format.
+            if not has_melted:
+                if HeaderName.CALCULATION_KEY in yld:
+                    yld.pop(HeaderName.CALCULATION_KEY)
+
             yld = geom_value, yld
             yield yld
 
@@ -2353,6 +2377,14 @@ def init_from_source(variable):
     request_dataset = variable._request_dataset
     if request_dataset is not None:
         request_dataset.driver.init_variable_from_source(variable)
+
+
+def is_string(dtype):
+    ret = False
+    if dtype == object or str(dtype).startswith('|S') or dtype in six.string_types or np.issubdtype(dtype, np.string_) \
+            or np.issubdtype(dtype, np.unicode) or dtype == str:
+        ret = True
+    return ret
 
 
 def set_attribute_property(variable, name, value):

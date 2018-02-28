@@ -1086,6 +1086,5 @@ class SimpleNc360(NcFactory):
 
         rootgrp.close()
 
-
         # if __name__ == '__main__':
         #    make_simple()

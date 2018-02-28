@@ -1,8 +1,8 @@
+import os
 from ConfigParser import SafeConfigParser
+
 from fabric.operations import local, sudo
 from fabric.state import env
-import os
-
 
 conf_path = os.getenv('OCGIS_CONF_PATH')
 parser = SafeConfigParser()

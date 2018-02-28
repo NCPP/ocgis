@@ -1,8 +1,8 @@
 import os
 
+import ocgis
 from ocgis import OcgOperations, RequestDataset, env
 from ocgis.test.base import create_gridxy_global, create_exact_field
-import ocgis
 
 # Only return the first time slice.
 SNIPPET = True

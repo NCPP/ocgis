@@ -1,4 +1,5 @@
 import abc
+import logging
 from collections import deque
 
 import numpy as np
@@ -10,11 +11,12 @@ from shapely.geometry.multipolygon import MultiPolygon
 
 from ocgis import env, vm
 from ocgis.base import raise_if_empty, is_unstructured_driver
-from ocgis.constants import KeywordArgument, GridAbstraction, VariableName, AttributeName, GridSplitterConstants, \
+from ocgis.constants import KeywordArgument, GridAbstraction, VariableName, AttributeName, GridChunkerConstants, \
     RegriddingRole, DMK, MPITag, DriverKey, ConversionTarget, MPI_EMPTY_VALUE
 from ocgis.exc import RequestableFeature
 from ocgis.spatial.base import AbstractXYZSpatialContainer
 from ocgis.util.helpers import get_formatted_slice, arange_from_dimension, create_unique_global_array
+from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import get_dslice, Variable
 from ocgis.variable.dimension import create_distributed_dimension
 from ocgis.variable.geom import GeometryProcessor, GeometryVariable
@@ -214,10 +216,6 @@ class AbstractGeometryCoordinates(AbstractXYZSpatialContainer):
         """
 
         return self.archetype.dimensions[0]
-
-    @property
-    def resolution(self):
-        raise NotImplementedError('Unstructured data does not have a resolution.')
 
     @property
     def shape(self):
@@ -467,8 +465,8 @@ class AbstractGeometryCoordinates(AbstractXYZSpatialContainer):
 
     @format_gridunstruct_return
     def get_spatial_subset_operation(self, spatial_op, subset_geom, return_slice=False, original_mask=None,
-                                     keep_touches=True,
-                                     cascade=True, optimized_bbox_subset=False, apply_slice=True, geom_name=None):
+                                     keep_touches=True, cascade=True, optimized_bbox_subset=False, apply_slice=True,
+                                     geom_name=None):
         """
         Perform intersects or intersection operations on the object.
 
@@ -640,12 +638,15 @@ class AbstractGeometryCoordinates(AbstractXYZSpatialContainer):
 
         :rtype: :class:`~ocgis.spatial.geomc.AbstractGeometryCoordinates`
         """
+        ocgis_lh(msg='entering reduce_global', logger='geomc', level=logging.DEBUG)
         raise_if_empty(self)
 
         if self.cindex is None:
             raise ValueError('A coordinate index is required to reduce coordinates.')
 
+        ocgis_lh(msg='starting reduce_reindex_coordinate_index', logger='geomc', level=logging.DEBUG)
         new_cindex, uidx = reduce_reindex_coordinate_index(self.cindex, start_index=self.start_index)
+        ocgis_lh(msg='finished reduce_reindex_coordinate_index', logger='geomc', level=logging.DEBUG)
 
         new_cindex = Variable(name=self.cindex.name, value=new_cindex, dimensions=self.cindex.dimensions)
 
@@ -660,37 +661,69 @@ class AbstractGeometryCoordinates(AbstractXYZSpatialContainer):
         ret._cindex_name = None
         ret.parent = new_parent
         ret.cindex = new_cindex
-
+        ocgis_lh(msg='exiting reduce_global', logger='geomc', level=logging.DEBUG)
         return ret
 
     def _get_dimensions_(self):
-        return (self.element_dim,)
+        return tuple([self.element_dim])
 
     def _get_extent_(self):
-        minx = self.x.get_value().min()
-        maxx = self.x.get_value().max()
-        miny = self.y.get_value().min()
-        maxy = self.y.get_value().max()
-        return minx, miny, maxx, maxy
+        # Get the x and y coordinate values.
+        x, y = self.x.v(), self.y.v()
+
+        # # Treat coordinates differently if there is a grid mask.
+        # if self.has_mask:
+        #     # Name of the mask variable dimension.
+        #     maskdim = self.mask_variable.dimensions[0].name
+        #     # Location of the mask dimension in the coordinate variable dimensions.
+        #     maskidx = self.x.dimension_names.index(maskdim)
+        #     # Only works if the mask dimension is the first dimension.
+        #     assert maskidx == 0
+        #     # Get the actual boolean mask values.
+        #     mask = self.get_mask()
+        #     # If everything is masked, there is nothing to do.
+        #     if mask.all():
+        #         raise AllElementsMaskedError
+        #
+        #     # If there are multiple dimensions in the coordinate variable. Adjust the mask accordingly.
+        #     if mask.shape != x.shape:
+        #         nmask = np.zeros(x.shape, dtype=bool)
+        #         for ii in mask.flat:
+        #             if ii:
+        #                 nmask[ii, :] = True
+        #         mask = nmask
+        #
+        #     # Convert coordinate arrays to masked arrays.
+        #     x = np.ma.array(x, mask=mask)
+        #     y = np.ma.array(y, mask=mask)
+
+        return x.min(), y.min(), x.max(), y.max()
 
     def _get_is_empty_(self):
         return self.parent.is_empty
 
     @staticmethod
-    def _gs_create_global_indices_(*args, **kwargs):
+    def _gc_create_global_indices_(*args, **kwargs):
         return None
 
-    def _gs_initialize_(self, regridding_role):
+    def _gc_initialize_(self, regridding_role):
         if regridding_role == RegriddingRole.SOURCE:
-            name = GridSplitterConstants.IndexFile.NAME_SRCIDX_GUID
+            name = GridChunkerConstants.IndexFile.NAME_SRCIDX_GUID
         elif regridding_role == RegriddingRole.DESTINATION:
-            name = GridSplitterConstants.IndexFile.NAME_DSTIDX_GUID
+            name = GridChunkerConstants.IndexFile.NAME_DSTIDX_GUID
         else:
             raise NotImplementedError(regridding_role)
         element_dim = self.element_dim
         src_index = arange_from_dimension(element_dim, start=1, dtype=env.NP_INT)
         src_index_var = Variable(name=name, value=src_index, dimensions=element_dim)
         self.parent.add_variable(src_index_var)
+
+    def _gc_nchunks_dst_(self, grid_chunker):
+        try:
+            ret = super(AbstractGeometryCoordinates, self)._gc_nchunks_dst_(grid_chunker)
+        except NotImplementedError:
+            ret = (100,)
+        return ret
 
     def _initialize_parent_(self, *args, **kwargs):
         return self._get_parent_class_()(*args, **kwargs)
@@ -767,9 +800,8 @@ def create_buffer_array(value=MPI_EMPTY_VALUE, dtype='i'):
 
 
 def create_Irecv(source, tag, dtype='i', mtype=None):
-    from mpi4py import MPI
     if mtype is None:
-        mtype = MPI.INT
+        mtype = vm.get_mpi_type(np.int32)
 
     buf = create_buffer_array(dtype=dtype)
     req = vm.comm.Irecv([buf, mtype], source=source, tag=tag)
@@ -857,10 +889,17 @@ def reduce_reindex_coordinate_index(cindex, start_index=0):
     :param int start_index: The first index to use for the re-indexing of ``cindex``. This may be ``0`` or ``1``.
     :rtype: tuple
     """
+    ocgis_lh(msg='entering reduce_reindex_coordinate_index', logger='geomc', level=logging.DEBUG)
 
     # Get the coordinate index values as a NumPy array.
     try:
+
+        ocgis_lh(msg='calling cindex.get_value()', logger='geomc', level=logging.DEBUG)
+        ocgis_lh(msg='cindex.has_allocated_value={}'.format(cindex.has_allocated_value), logger='geomc',
+                 level=logging.DEBUG)
+        ocgis_lh(msg='cindex.dimensions[0]={}'.format(cindex.dimensions[0]), logger='geomc', level=logging.DEBUG)
         cindex = cindex.get_value()
+        ocgis_lh(msg='finished cindex.get_value()', logger='geomc', level=logging.DEBUG)
     except AttributeError:
         # Assume this is already a NumPy array.
         pass
@@ -872,9 +911,12 @@ def reduce_reindex_coordinate_index(cindex, start_index=0):
     cindex = cindex.flatten()
 
     # Create the unique coordinate index array.
-    # barrier_print('before create_unique_global_array')
-    u = np.array(create_unique_global_array(cindex))
-    # barrier_print('after create_unique_global_array')
+    ocgis_lh(msg='calling create_unique_global_array', logger='geomc', level=logging.DEBUG)
+    if vm.size > 1:
+        u = np.array(create_unique_global_array(cindex))
+    else:
+        u = np.unique(cindex)
+    ocgis_lh(msg='finished create_unique_global_array', logger='geomc', level=logging.DEBUG)
 
     # Synchronize the data type for the new coordinate index.
     lrank = vm.rank

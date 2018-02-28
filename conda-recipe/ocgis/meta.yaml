@@ -7,7 +7,7 @@ source:
     git_tag: next
 
 build:
-    number: 1
+    number: 2
 
 requirements:
     build:
@@ -39,7 +39,7 @@ requirements:
         - six
         - numpy
 
-#        - icclim ==4.2.5 #Optional!
+#        - icclim==4.2.9n #Optional!
 #        - esmpy==7.0.0  #Optional!
 #        - mpi4py  #Optional!
 

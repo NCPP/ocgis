@@ -34,6 +34,15 @@ Usage
 
 .. literalinclude:: sphinx_examples/chunked_rwg_help.sh
 
+--------------------
+ESMF Cross-Reference
+--------------------
+
+* `Supported File Formats <http://www.earthsystemmodeling.org/esmf_releases/last_built/ESMF_refdoc/node3.html#SECTION03028000000000000000>`_
+* `Regrid Methods <http://www.earthsystemmodeling.org/esmf_releases/last_built/ESMF_refdoc/node3.html#SECTION03023000000000000000>`_
+* `Weight File Format Description <http://www.earthsystemmodeling.org/esmf_releases/last_built/ESMF_refdoc/node3.html#SECTION03029000000000000000>`_
+* `ESMPy <http://www.earthsystemmodeling.org/esmf_releases/last_built/esmpy_doc/html/index.html>`_
+
 -----------
 Limitations
 -----------

@@ -179,6 +179,17 @@ class TestGeometryVariable(AbstractTestInterface, FixturePolygonWithHole):
         self.assertIsInstance(gvar.get_masked_value(), MaskedArray)
         self.assertEqual(gvar.ndim, 1)
 
+        # The geometry variable should set itself as the representative geometry on its parent field if that parent does
+        # not have a representative geometry set.
+        self.assertIsNotNone(gvar.parent.geom)
+
+        # Test with a parent that already has a geometry.
+        field = Field()
+        field.set_geom(GeometryVariable(name='empty'))
+        gvar = self.get_geometryvariable(parent=field)
+        self.assertEqual(field.geom.name, 'empty')
+        self.assertIn(gvar.name, field)
+
         # Test passing a "crs".
         gvar = self.get_geometryvariable(crs=WGS84(), name='my_geom', dimensions='ngeom')
         self.assertEqual(gvar.crs, WGS84())

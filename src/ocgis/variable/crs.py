@@ -530,14 +530,14 @@ class CoordinateReferenceSystem(AbstractProj4CRS, AbstractInterfaceObject):
     def __ne__(self, other):
         return not self.__eq__(other)
 
-    def __repr__(self):
-        msg = [str(type(self))]
-        elements = []
-        elements.append("name  = {}".format(self.name))
-        elements.append("value = {}".format(self.value))
-        elements = [' {}'.format(e) for e in elements]
-        msg.extend(elements)
-        return '\n'.join(msg)
+    # def __repr__(self):
+    #     msg = [str(type(self))]
+    #     elements = []
+    #     elements.append("name  = {}".format(self.name))
+    #     elements.append("value = {}".format(self.value))
+    #     elements = [' {}'.format(e) for e in elements]
+    #     msg.extend(elements)
+    #     return '\n'.join(msg)
 
     @property
     def dtype(self):

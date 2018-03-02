@@ -90,8 +90,9 @@ class SpatialCollection(VariableCollection):
         ret = OrderedDict()
         for k, v in list(self.children.items()):
             ret[k] = OrderedDict()
-            for variable in v.iter_data_variables():
-                ret[k][variable.name] = variable.get_value()[0]
+            if v.has_data_variables:
+                for variable in v.iter_data_variables():
+                    ret[k][variable.name] = variable.get_value()[0]
         return ret
 
     def add_field(self, field, container, force=False):

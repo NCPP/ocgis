@@ -1,8 +1,16 @@
+"""
+Create a CF-Grid compliant NetCDF file and calculate a monthly mean. Write the calculation to another CF-Grid compliant
+NetCDF file.
+"""
+
+import os
+import tempfile
+
 import ocgis
 from ocgis.test.base import create_gridxy_global, create_exact_field
 
 # Path to the output netCDf file.
-PATH = '/tmp/foo.nc'
+PATH = os.path.join(tempfile.gettempdir(), 'ocgis_simple_mean.nc')
 
 # Create a test grid.
 grid = create_gridxy_global()
@@ -13,7 +21,7 @@ field.write(PATH)
 
 # Calculate a monthly mean.
 ops = ocgis.OcgOperations(dataset={'uri': PATH}, calc=[{'func': 'mean', 'name': 'mean'}], calc_grouping=['month'])
-# Exexcute the operations. This may be done in parallel with "mpirun".
+# Execute the operations. This may be done in parallel with "mpirun".
 ret = ops.execute()
 
 # Inspect the data on rank 0 only.

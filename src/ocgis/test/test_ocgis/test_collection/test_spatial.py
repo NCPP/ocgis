@@ -110,3 +110,12 @@ class TestSpatialCollection(AbstractTestInterface):
         field1.set_abstraction_geom()
         field1.write(path3, driver=DriverVector)
         poi.write(path2, driver=DriverVector)
+
+    def test_properties(self):
+        # Test an empty properties dictionary is created if there are no data variables on the container/parent field.
+        gvar = GeometryVariable(name='empty', value=[Point(1, 2)], ugid=20, dimensions='ngeom')
+        info = Variable(name='info')
+        gvar.parent.add_variable(info)
+        sc = SpatialCollection()
+        sc.add_field(Field(name='what'), gvar.parent)
+        self.assertEqual(len(sc.properties), 1)

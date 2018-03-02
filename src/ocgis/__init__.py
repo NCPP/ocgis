@@ -14,6 +14,7 @@ from .spatial.geom_cabinet import GeomCabinet, GeomCabinetIterator, ShpCabinet, 
 from .util.zipper import format_return
 from .variable import crs
 from .variable.crs import CoordinateReferenceSystem, CRS
+from .variable import crs
 from .collection.field import Field
 from .collection.spatial import SpatialCollection
 from .variable.temporal import TemporalVariable

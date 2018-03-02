@@ -212,6 +212,11 @@ class GeometryVariable(AbstractSpatialVariable):
             ugid_var = Variable(name=HeaderName.ID_SELECTION_GEOMETRY, value=[ugid], dimensions=self.dimensions)
             self.set_ugid(ugid_var)
 
+        # If the parent field has no representative geometry, then this variable should be set as the representative
+        # geometry.
+        if self.parent.geom is None:
+            self.parent.set_geom(self)
+
     @property
     def area(self):
         """

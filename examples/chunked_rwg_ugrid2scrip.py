@@ -1,3 +1,7 @@
+"""
+Use chunked regrid weight generation and spatial subsetting for UGRID and SCRIP grid combinations.
+"""
+
 import os
 import subprocess
 import sys

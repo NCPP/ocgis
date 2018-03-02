@@ -5,7 +5,7 @@ import tempfile
 from setuptools import setup, Command, find_packages
 from setuptools.command.test import test as TestCommand
 
-VERSION = '2.1.0.dev1'
+VERSION = '2.1.0.dev2'
 
 
 ########################################################################################################################
@@ -71,8 +71,16 @@ class UninstallCommand(Command):
         try:
             import ocgis
 
+            print('')
             print('To uninstall, manually remove the Python package folder located here: {0}'.format(
                 os.path.split(ocgis.__file__)[0]))
+            if hasattr(shutil, 'which'):
+                print('')
+                ocli_path = shutil.which('ocli')
+                if ocli_path is not None:
+                    msg = 'The "ocli" OpenClimateGIS command line interface should also be removed: {}'
+                    print(msg.format(ocli_path))
+                    print('')
         except ImportError:
             raise ImportError("Either OpenClimateGIS is not installed or not available on the Python path.")
 
@@ -88,7 +96,7 @@ package_data = {'ocgis.test': bin_files}
 # Create temporary target for the command-line-interface ---------------------------------------------------------------
 tmpdir = tempfile.mkdtemp()
 tmptarget = os.path.join(tmpdir, 'ocli')
-shutil.copyfile(os.path.join('src', 'ocli.py'), tmptarget)
+shutil.copyfile(os.path.join('src', 'ocgis', 'ocli.py'), tmptarget)
 
 setup(
     name='ocgis',

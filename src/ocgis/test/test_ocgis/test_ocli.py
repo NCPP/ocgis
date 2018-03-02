@@ -8,10 +8,10 @@ from click.testing import CliRunner
 import ocgis
 from ocgis import RequestDataset, Variable, Grid, vm
 from ocgis import env
+from ocgis.ocli import ocli
 from ocgis.test.base import TestBase, attr, create_gridxy_global, create_exact_field
 from ocgis.util.addict import Dict
 from ocgis.variable.crs import Spherical
-from ocli import ocli
 
 
 @attr('cli')
@@ -130,12 +130,12 @@ class TestChunkedRWG(TestBase):
         with self.assertRaises(ValueError):
             _ = runner.invoke(ocli, args=cli_args, catch_exceptions=False)
 
-    @mock.patch('ocli._write_spatial_subset_')
+    @mock.patch('ocgis.ocli._write_spatial_subset_')
     @mock.patch('os.makedirs')
     @mock.patch('shutil.rmtree')
     @mock.patch('tempfile.mkdtemp')
-    @mock.patch('ocli.GridChunker')
-    @mock.patch('ocli.RequestDataset')
+    @mock.patch('ocgis.ocli.GridChunker')
+    @mock.patch('ocgis.ocli.RequestDataset')
     @attr('mpi', 'slow', 'no-3.5')
     def test_system_mock_combinations(self, mRequestDataset, mGridChunker, m_mkdtemp, m_rmtree, m_makedirs,
                                       m_write_spatial_subset):

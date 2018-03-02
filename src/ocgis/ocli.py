@@ -28,10 +28,10 @@ def ocli():
 @click.option('-d', '--destination', required=True, type=click.Path(exists=True, dir_okay=False),
               help='Path to the destination grid NetCDF file.')
 @click.option('-n', '--nchunks_dst',
-              help='Single integer or sequence defining the chunking decomposition for the destination grid. For '
-                   'unstructured grids, provide a single value (i.e. 100). For logically rectangular grids, two values '
-                   'are needed to describe the x and y decomposition (i.e. 10,20). Required if --genweights and not '
-                   '--spatial_subset.')
+              help='Single integer or sequence defining the chunking decomposition for the destination grid. Each '
+                   'value is the number of chunks along each decomposed axis. For unstructured grids, provide a single '
+                   'value (i.e. 100). For logically rectangular grids, two values are needed to describe the x and y '
+                   'decomposition (i.e. 10,20). Required if --genweights and not --spatial_subset.')
 @click.option('--merge/--no_merge', default=True,
               help='(default=merge) If --merge, merge weight file chunks into a global weight file.')
 @click.option('-w', '--weight', required=False, type=click.Path(exists=False, dir_okay=False),
@@ -56,10 +56,10 @@ def ocli():
                    'isomorphic structure. Spatial resolution is the mean distance between grid cell center '
                    'coordinates.')
 @click.option('--buffer_distance', type=float, nargs=1,
-              help='Optional spatial buffer distance (in units of the destination grid) to use when subsetting '
-                   'the source grid by the spatial extent of a destination grid or chunk. This is computed internally '
-                   'if not provided. Useful to override if the area of influence for a source-destination mapping is '
-                   'known apriori.')
+              help='Optional spatial buffer distance (in units of the destination grid coordinates) to use when '
+                   'subsetting the source grid by the spatial extent of a destination grid or chunk. This is computed '
+                   'internally if not provided. Useful to override if the area of influence for a source-destination '
+                   'mapping is known a priori.')
 @click.option('--wd', type=click.Path(exists=False), default=None,
               help="Optional working directory for intermediate chunk files. Creates a directory in the system's "
                    "temporary scratch space if not provided.")

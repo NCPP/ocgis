@@ -1,6 +1,6 @@
 $ ocli chunked_rwg --help
 
-Usage: ocli.py chunked_rwg [OPTIONS]
+Usage: ocli chunked_rwg [OPTIONS]
 
   Generate regridding weights using a spatial decomposition.
 
@@ -11,12 +11,13 @@ Options:
                                   [required]
   -n, --nchunks_dst TEXT          Single integer or sequence defining the
                                   chunking decomposition for the destination
-                                  grid. For unstructured grids, provide a
-                                  single value (i.e. 100). For logically
-                                  rectangular grids, two values are needed to
-                                  describe the x and y decomposition (i.e.
-                                  10,20). Required if --genweights and not
-                                  --spatial_subset.
+                                  grid. Each value is the number of chunks
+                                  along each decomposed axis. For unstructured
+                                  grids, provide a single value (i.e. 100).
+                                  For logically rectangular grids, two values
+                                  are needed to describe the x and y
+                                  decomposition (i.e. 10,20). Required if
+                                  --genweights and not --spatial_subset.
   --merge / --no_merge            (default=merge) If --merge, merge weight
                                   file chunks into a global weight file.
   -w, --weight PATH               Path to the output global weight file.
@@ -46,13 +47,13 @@ Options:
                                   resolution is the mean distance between grid
                                   cell center coordinates.
   --buffer_distance FLOAT         Optional spatial buffer distance (in units
-                                  of the destination grid) to use when
-                                  subsetting the source grid by the spatial
-                                  extent of a destination grid or chunk. This
-                                  is computed internally if not provided.
-                                  Useful to override if the area of influence
-                                  for a source-destination mapping is known
-                                  apriori.
+                                  of the destination grid coordinates) to use
+                                  when subsetting the source grid by the
+                                  spatial extent of a destination grid or
+                                  chunk. This is computed internally if not
+                                  provided. Useful to override if the area of
+                                  influence for a source-destination mapping
+                                  is known a priori.
   --wd PATH                       Optional working directory for intermediate
                                   chunk files. Creates a directory in the
                                   system's temporary scratch space if not

@@ -23,5 +23,5 @@ from .driver.request.core import RequestDataset
 from .driver.request.multi_request import MultiRequestDataset
 from .ops.core import OcgOperations
 
-__version__ = '2.1.0.dev2'
-__release__ = '2.1.0.dev2'
+__version__ = '2.1.0.rc1'
+__release__ = '2.1.0.rc1'

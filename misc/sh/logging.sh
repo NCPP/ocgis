@@ -36,5 +36,6 @@ log() {
         # Expand escaped characters, wrap at 70 chars, indent wrapped lines
 #        echo -e "[${OCGIS_BASH_LOGNAME}]:[$datestring]:$2" | fold -w70 -s | sed '2~1s/^/  /' >&3
         echo -e "[${OCGIS_BASH_LOGNAME}]:[$datestring]:$2" >&3
+#        echo -e "[${OCGIS_BASH_LOGNAME}]:[$datestring]:$2"
     fi
 }

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-source ./logging.sh
+source ./logging.sh || exit 1
+source ./test-core.sh || exit 1
 
 PYTHON_VERSIONS=( "3.6" "2.7" )
 CONDA_ROOT=/home/ubuntu/anaconda3
@@ -9,19 +10,19 @@ export OCGIS_BASH_LOGNAME="ocgis.aws-run-tests"
 export OCGIS_DIR=~/sandbox/ocgis/src/ocgis
 export OCGIS_DIR_TEST_DATA=~/storage/ocgis_test_data
 export OCGIS_DIR_GEOMCABINET=${OCGIS_DIR_TEST_DATA}/shp
+export OCGIS_TEST_EXHAUSTIVE="true"
+export OCGIS_TEST_OUT_FILE=~/htmp/test-ocgis.out
 
 notify "starting"
 
 # Run full test suites
 if [ ${OCGIS_TEST_EXHAUSTIVE} != "false" ]; then
-    rm ~/htmp/test-ocgis-python*.out
     for ii in "${PYTHON_VERSIONS[@]}"; do
         inf "running test suite for python version: ${ii}"
         cd ${OCGIS_DIR}/misc/sh || exit 1
         CONDA_ENV=ocgis-py${ii}|| exit 1
         source activate ${CONDA_ENV} || exit 1
-        export OCGIS_TEST_OUT_FILE=~/htmp/test-ocgis-python${ii}.out
-        bash ./test.sh || exit 1
+        run_tests_core || exit 1
     done
 
     # Run tests without big optional dependencies - no mpi4py, ESMF, icclim

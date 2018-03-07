@@ -1,15 +1,13 @@
 package:
     name: icclim
-    version: 4.2.9n
+    version: {{ environ['CONDA_ICCLIM_VER'] }}
 
 source:
-    git_url: https://github.com/NESII/icclim.git
-#    git_url: https://github.com/cerfacs-globc/icclim
-    git_tag: i-py3-imports
-#    git_tag: 4.2.9
+    git_url: {{ environ['CONDA_ICCLIM_REP'] }}
+    git_tag: {{ environ['CONDA_ICCLIM_VER'] }}
 
 build:
-    number: 1
+    number: {{ environ['CONDA_ICCLIM_BNO'] }}
 
 requirements:
     build:

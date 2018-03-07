@@ -4,7 +4,7 @@ package:
 
 source:
     git_url: {{ environ['CONDA_ICCLIM_REP'] }}
-    git_tag: {{ environ['CONDA_ICCLIM_VER'] }}
+    git_tag: {{ environ['CONDA_ICCLIM_TAG'] }}
 
 build:
     number: {{ environ['CONDA_ICCLIM_BNO'] }}

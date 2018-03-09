@@ -7,7 +7,7 @@ env:
     - CONDA_OCGIS_TAG="next"
     - CONDA_OCGIS_VER="2.1.0rc1"
     - CONDA_OCGIS_BNO=0
-    - CONDA_OCGIS_UPL="false"
+    - CONDA_OCGIS_UPL="true"
 
 #    - CONDA_ICCLIM_REP="https://github.com/NESII/icclim.git"
     - CONDA_ICCLIM_REP="https://github.com/cerfacs-globc/icclim"

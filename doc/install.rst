@@ -127,7 +127,7 @@ Optional dependencies are listed below. OpenClimateGIS will still operate withou
 ============= ======= ====================================================== =================================================================================================================================
 Package Name  Version  URL                                                    Usage
 ============= ======= ====================================================== =================================================================================================================================
-``ESMF``      7.1.0   https://www.earthsystemcog.org/projects/esmpy/releases Supports regridding operations.
+``ESMF``      7.1.0r  https://www.earthsystemcog.org/projects/esmpy/releases Supports regridding operations.
 ``mpi4py``    3.0.0   http://mpi4py.readthedocs.io/en/stable/                Required for parallel execution.
 ``rtree``     0.8.3   https://pypi.python.org/pypi/Rtree/                    Constructs spatial indexes at runtime. Useful for complicated GIS operations (i.e. large or complex polygons for subsetting)
 ``cf_units``  1.2.0   https://github.com/SciTools/cf_units                   Allows unit transformations.

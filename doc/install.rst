@@ -131,7 +131,7 @@ Package Name  Version  URL                                                    Us
 ``mpi4py``    3.0.0   http://mpi4py.readthedocs.io/en/stable/                Required for parallel execution.
 ``rtree``     0.8.3   https://pypi.python.org/pypi/Rtree/                    Constructs spatial indexes at runtime. Useful for complicated GIS operations (i.e. large or complex polygons for subsetting)
 ``cf_units``  1.2.0   https://github.com/SciTools/cf_units                   Allows unit transformations.
-``icclim``    4.2.9n  http://icclim.readthedocs.io/en/latest/                Calculation of the full suite of European Climate Assessment (ECA) indices with optimized code implementation.
+``icclim``    4.2.10  http://icclim.readthedocs.io/en/latest/                Calculation of the full suite of European Climate Assessment (ECA) indices with optimized code implementation.
 ``nose``      1.3.7   https://nose.readthedocs.io/en/latest/                 Run unit tests.
 ``mock``      2.0.0   https://pypi.python.org/pypi/mock/                     Run unit tests.
 ============= ======= ====================================================== =================================================================================================================================

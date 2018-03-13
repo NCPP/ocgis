@@ -279,7 +279,7 @@ class TestGeometryVariable(AbstractTestInterface, FixturePolygonWithHole):
         # clip/intersection is then performed for each geometry object.
         sub, slc = grid.get_intersection(subset_geom, return_slice=True)
         slc = {dim.name: se for dim, se in zip(grid.dimensions, slc)}  # Just how to convert to a dictionary slice...
-        # Weights are computed on demand is equal to intersection_area/clipped_area.
+        # Weights are computed on demand and is equal to original_area/clipped_area.
         weights = sub.weights
         self.assertAlmostEqual(weights.sum(), 24.799999999999997)
 

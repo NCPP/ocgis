@@ -1,5 +1,6 @@
 import itertools
 
+import numpy as np
 from shapely import wkt
 from shapely.geometry import MultiPolygon
 
@@ -141,6 +142,9 @@ class TestDriverESMFUnstruct(TestBase):
 
         actual = DriverESMFUnstruct._get_field_write_target_(field)
         self.assertNotEqual(id(field), id(actual))
+        self.assertEqual(actual['numElementConn'].dtype, np.int32)
+        self.assertEqual(actual['elementConn'].dtype, np.int32)
+        self.assertNotIn(field.grid.cindex.name, actual)
 
         path = self.get_temporary_file_path('foo.nc')
         actual.write(path)

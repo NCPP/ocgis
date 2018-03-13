@@ -107,7 +107,8 @@ class DriverESMFUnstruct(AbstractUnstructuredDriver, AbstractDriverNetcdfCF):
         # Create the new data representation. ##########################################################################
 
         connection_count = create_distributed_dimension(esmf_element_conn.size, name='connectionCount')
-        esmf_element_conn_var = Variable(name='elementConn', value=esmf_element_conn, dimensions=connection_count)
+        esmf_element_conn_var = Variable(name='elementConn', value=esmf_element_conn, dimensions=connection_count,
+                                         dtype=np.int32)
         esmf_element_conn_var.attrs[CFName.LONG_NAME] = 'Node indices that define the element connectivity.'
         mbv = cindex.attrs.get(OcgisConvention.Name.MULTI_BREAK_VALUE)
         if mbv is not None:
@@ -125,7 +126,8 @@ class DriverESMFUnstruct(AbstractUnstructuredDriver, AbstractDriverNetcdfCF):
         num_element_conn = Variable(name='numElementConn',
                                     value=num_element_conn_data,
                                     dimensions=cindex.dimensions[0],
-                                    attrs={CFName.LONG_NAME: 'Number of nodes per element.'})
+                                    attrs={CFName.LONG_NAME: 'Number of nodes per element.'},
+                                    dtype=np.int32)
         ret.add_variable(num_element_conn)
 
         node_coords = Variable(name='nodeCoords', dimensions=(grid.node_dim, coord_dim))
@@ -141,5 +143,9 @@ class DriverESMFUnstruct(AbstractUnstructuredDriver, AbstractDriverNetcdfCF):
 
         ret.attrs['gridType'] = 'unstructured'
         ret.attrs['version'] = '0.9'
+
+        # Remove the coordinate index, this does not matter.
+        if field.grid.cindex is not None:
+            ret.remove_variable(field.grid.cindex.name)
 
         return ret

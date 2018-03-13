@@ -1970,6 +1970,56 @@ class VariableCollection(AbstractCollection, AbstractContainer, Attributes):
     def get_mask(self, *args, **kwargs):
         super(VariableCollection, self).get_mask(*args, **kwargs)
 
+    def groups_to_variable(self, **kwargs):
+        """
+        Convert the group identifier to a variable using the variable creation keyword arguments ``kwargs``. The
+        dimension of the new variable will be used to stack other variables sharing that dimension along that dimension.
+
+        :param kwargs: See :class:`ocgis.Variable`
+        :rtype: :class:`ocgis.VariableCollection`
+        """
+
+        kwargs = kwargs.copy()
+
+        new_size = len(self.groups)
+        new_value = np.array(self.groups.keys())
+
+        kwargs['value'] = new_value
+        new_var = Variable(**kwargs)
+
+        ret = self.children.values()[0].copy()
+
+        variables_to_stack = []
+        for child in self.children.values():
+            for var in child.iter_variables_by_dimensions(new_var.dimensions[0]):
+                variables_to_stack.append(var)
+            break
+
+        for var in variables_to_stack:
+            ret.remove_variable(var.name)
+
+            new_stack_dims = OrderedDict()
+            for dim in var.dimensions:
+                new_stack_dims[dim.name] = len(dim)
+            new_stack_dims[new_var.dimension_names[0]] = new_size
+
+            for k, v in new_stack_dims.items():
+                new_stack_dims[k] = Dimension(name=k, size=v)
+            new_stack_var = Variable(name=var.name, dimensions=new_stack_dims.values(), dtype=var.dtype)
+            new_stack_var.allocate_value()
+
+            for ii, src_vc in enumerate(self.children.values()):
+                slc = {new_var.dimensions[0].name: ii}
+                src_var = src_vc[var.name]
+                fill_ref = new_stack_var[slc]
+                fill_ref.v()[:] = src_var.v()
+
+            ret.add_variable(new_stack_var)
+
+        ret.add_variable(new_var)
+
+        return ret
+
     def iter(self, **kwargs):
         """
         :return: Yield record dictionaries for variables in the collection.

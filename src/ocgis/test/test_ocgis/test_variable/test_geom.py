@@ -3,6 +3,7 @@ from collections import OrderedDict
 from copy import deepcopy
 
 import numpy as np
+import shapely
 from mock import mock
 from nose.plugins.skip import SkipTest
 from numpy.ma import MaskedArray
@@ -12,6 +13,7 @@ from shapely.geometry.base import BaseMultipartGeometry
 from shapely.geometry.multilinestring import MultiLineString
 from shapely.geometry.multipolygon import MultiPolygon
 
+import ocgis
 from ocgis import RequestDataset, vm, Field
 from ocgis import env, CoordinateReferenceSystem
 from ocgis.constants import DMK, WrappedState, OcgisConvention, DriverKey
@@ -256,6 +258,33 @@ class TestGeometryVariable(AbstractTestInterface, FixturePolygonWithHole):
                     tas = unioned.parent['tas']
                     self.assertFalse(tas.is_empty)
                     self.assertAlmostEqual(tas.get_value().sum(), desired[vm.size], places=4)
+
+    def test_system_spatial_averaging_weights(self):
+        """Test creating averaging weights from first principles."""
+
+        # x/y coordinate arrays and grid objects. Coordinates may be two-dimensional otherwise,
+        x = ocgis.Variable(name='xc', dimensions='dimx', value=np.arange(5, 360, 10, dtype=float))
+        y = ocgis.Variable(name='yc', dimensions='dimy', value=np.arange(-85, 90, 10, dtype=float))
+        grid = ocgis.Grid(x, y, crs=ocgis.crs.Spherical())
+        # Create spatial bounds on the grid coordinates. This allows us to use polygons as opposed to points for the
+        # spatial averaging.
+        grid.set_extrapolated_bounds('xc_bounds', 'yc_bounds', 'bounds')
+        self.assertEqual(grid.abstraction, ocgis.constants.Topology.POLYGON)
+
+        # This is the subset geometry. OCGIS geometry variables may be used to take advantage of wrapping and coordinate
+        # system conversion.
+        subset_geom = shapely.geometry.box(52, -70, 83, 10)
+
+        # Perform an intersection. First, data is reduced in spatial extent using an intersects operation. A
+        # clip/intersection is then performed for each geometry object.
+        sub, slc = grid.get_intersection(subset_geom, return_slice=True)
+        slc = {dim.name: se for dim, se in zip(grid.dimensions, slc)}  # Just how to convert to a dictionary slice...
+        # Weights are computed on demand is equal to intersection_area/clipped_area.
+        weights = sub.weights
+        self.assertAlmostEqual(weights.sum(), 24.799999999999997)
+
+        # The OCGIS operation "get_unioned" will apply weights and union associated geometries. Works in parallel...
+        # u = sub.get_unioned(spatial_average=[<varnames>, ...])
 
     def test_area(self):
         gvar = self.get_geometryvariable()

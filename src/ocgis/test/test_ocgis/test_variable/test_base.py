@@ -1647,6 +1647,28 @@ class TestVariableCollection(AbstractTestInterface):
         self.assertNotEqual(id(vc['b']), id(vc_copy['b']))
         self.assertNotEqual(id(vc['b'].get_value()), id(vc_copy['b'].get_value()))
 
+    def test_groups_to_variable(self):
+
+        np.random.seed(5)
+
+        def _make_child_(parent, ii):
+            child = VariableCollection(name=ii)
+            var = Variable(name='cvar', value=np.random.rand(3, 1) + ii, dimensions=['time', 'to_agg'])
+            dummy = Variable(name='dummy', dimensions=[])
+            child.add_variable(var)
+            child.add_variable(dummy)
+            parent.add_child(child)
+
+        lead = VariableCollection(name='lead')
+        for ii in range(4):
+            _make_child_(lead, ii)
+
+        actual = lead.groups_to_variable(name='concat', dimensions='to_agg')
+
+        self.assertAlmostEqual(actual['cvar'].v().sum(), 23.906239731796518)
+        self.assertEqual(actual.keys(), ['dummy', 'cvar', 'concat'])
+        self.assertEqual(actual['concat'].v().tolist(), list(range(4)))
+
     def test_remove_variable(self):
         v1 = Variable(name='vone', value=[1, 2, 3], dimensions='three')
         v1.set_extrapolated_bounds('vone_bounds', 'bounds')

@@ -801,9 +801,19 @@ class GeometryVariable(AbstractSpatialVariable):
 
     def get_unioned(self, dimensions=None, union_dimension=None, spatial_average=None, root=0):
         """
-        Unions _unmasked_ geometry objects. Collective across the current :class:`~ocgis.OcgVM`.
+        Unions _unmasked_ geometry objects and applies spatial averaging weights to variables in the parent collection
+        if requested. Collective across the current :class:`~ocgis.OcgVM`.
+
+        :param dimensions: Dimensions to union. If ``None``, default to the object's dimensions.
+        :type dimensions: tuple(:class:`ocgis.Dimension`, ...) | tuple(str, ...)
+        :param union_dimension: The new dimension for the unioned geometry.
+        :type union_dimension: :class:`ocgis.Dimension` | str
+        :param spatial_average: The variables to spatially average. Other variables will be left untouched.
+        :type spatial_average: tuple(:class:`ocgis.Variable`, ...) | tuple(str, ...)
+        :param int root: If executing in parallel, the root rank to send all data. On non-root ranks, ``None`` will be
+         returned.
+        :rtype: :class:`ocgis.GeometryVariable`
         """
-        # TODO: optimize!
 
         # Get dimension names and lengths for the dimensions to union.
         if dimensions is None:

@@ -130,7 +130,13 @@ class DriverESMFUnstruct(AbstractUnstructuredDriver, AbstractDriverNetcdfCF):
                                     dtype=np.int32)
         ret.add_variable(num_element_conn)
 
-        node_coords = Variable(name='nodeCoords', dimensions=(grid.node_dim, coord_dim))
+        # Check that the node count dimension is appropriately named.
+        gn_name = grid.node_dim.name
+        if gn_name != 'nodeCount':
+            ret.dimensions[gn_name] = ret.dimensions[gn_name].copy()
+            ret.rename_dimension(gn_name, 'nodeCount')
+
+        node_coords = Variable(name='nodeCoords', dimensions=(ret.dimensions['nodeCount'], coord_dim))
         node_coords.units = 'degrees'
         node_coords.attrs[CFName.LONG_NAME] = 'Node coordinate values indexed by element connectivity.'
         node_coords.attrs['coordinates'] = 'x y'

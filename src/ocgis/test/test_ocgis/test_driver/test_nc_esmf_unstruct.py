@@ -137,14 +137,17 @@ class TestDriverESMFUnstruct(TestBase):
         mp2 = mp1.buffer(0.1)
         geoms = [mp1, mp2]
         gvar = GeometryVariable(name='gc', value=geoms, dimensions='elementCount')
-        gc = gvar.convert_to(node_dim_name='nodeCount')
+        gc = gvar.convert_to(node_dim_name='n_node')
         field = gc.parent
+        self.assertEqual(field.grid.node_dim.name, 'n_node')
 
         actual = DriverESMFUnstruct._get_field_write_target_(field)
+        self.assertEqual(field.grid.node_dim.name, 'n_node')
         self.assertNotEqual(id(field), id(actual))
         self.assertEqual(actual['numElementConn'].dtype, np.int32)
         self.assertEqual(actual['elementConn'].dtype, np.int32)
         self.assertNotIn(field.grid.cindex.name, actual)
+        self.assertEqual(actual['nodeCoords'].dimensions[0].name, 'nodeCount')
 
         path = self.get_temporary_file_path('foo.nc')
         actual.write(path)

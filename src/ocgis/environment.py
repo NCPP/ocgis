@@ -105,6 +105,8 @@ class Environment(AbstractOcgisObject):
         # If a coordinate system object, the current coordinate system is a dummy coordinate system and should be
         # removed before writing and replaced with the original.
         self.COORDSYS_ACTUAL = EnvParm('COORDSYS_ACTUAL', None)
+        # The maximum string length to use when creating NetCDF string variables.
+        self.STRING_MAX_LENGTH = EnvParm('STRING_MAX_LENGTH', 255)
 
         if self.PREFER_NETCDFTIME is None:
             self.PREFER_NETCDFTIME = get_netcdftime_preference()

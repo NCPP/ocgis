@@ -38,6 +38,7 @@ class AbstractCRS(AbstractInterfaceObject):
     _cf_attributes_to_remove = ('units', 'standard_name')
     _default_towgs84 = None
     _fuzzy_value = None
+    _string_max_length_global = None
 
     def __init__(self, angular_units=OcgisUnits.DEGREES, linear_units=None):
         self._angular_units = angular_units
@@ -305,7 +306,7 @@ class AbstractCRS(AbstractInterfaceObject):
 
         return subset_geom
 
-    def set_string_max_length_global(self):
+    def set_string_max_length_global(self, value=None):
         """Here for variable compatibility."""
 
     def wrap_or_unwrap(self, action, target, force=False):

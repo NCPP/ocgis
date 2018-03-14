@@ -194,6 +194,11 @@ class NcConverter(AbstractCollectionConverter):
                                    dtype=dt,
                                    dimensions=(udim,)), )
 
+                # Propagate max string length if it is set.
+                smg = coll.children[ugid][key].string_max_length_global
+                if smg is not None:
+                    field[key].set_string_max_length_global(value=smg)
+
             # ------------------ Dimension update ------------------------ #
             # Modify the dimensions for the number of geometries
             gdim = field.dimensions[udim]

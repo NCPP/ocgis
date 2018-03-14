@@ -492,6 +492,8 @@ class Field(VariableCollection):
                             continue
                         dtype = get_dtype_from_fiona_type(v, data_model=data_model)
                         var = Variable(name=k, dtype=dtype, dimensions=dim)
+                        if v.startswith('str:'):
+                            var.set_string_max_length_global(value=int(v.split(':')[1]))
                         field.add_variable(var)
                 for k, v in list(record['properties'].items()):
                     if k == uid.name:

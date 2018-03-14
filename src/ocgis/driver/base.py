@@ -7,7 +7,7 @@ from warnings import warn
 
 import six
 
-from ocgis import constants, GridUnstruct
+from ocgis import constants, GridUnstruct, env
 from ocgis import vm
 from ocgis.base import AbstractOcgisObject, raise_if_empty
 from ocgis.base import get_variable_names
@@ -760,7 +760,8 @@ class AbstractDriver(AbstractOcgisObject):
 
         # Global string lengths are needed by the write. Set those while we still have global access.
         for var in vc.values():
-            var.set_string_max_length_global()
+            if var._string_max_length_global is None:
+                var.set_string_max_length_global()
 
         for write_mode in write_modes:
             cls._write_variable_collection_main_(vc, opened_or_path, write_mode, **kwargs)

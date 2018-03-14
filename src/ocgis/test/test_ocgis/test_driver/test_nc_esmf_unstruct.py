@@ -149,6 +149,14 @@ class TestDriverESMFUnstruct(TestBase):
         path = self.get_temporary_file_path('foo.nc')
         actual.write(path)
 
+        try:
+            import ESMF
+        except ImportError:
+            pass
+        else:
+            import ESMF
+            _ = ESMF.Mesh(filename=path, filetype=ESMF.FileFormat.ESMFMESH)
+
         path2 = self.get_temporary_file_path('foo2.nc')
         driver = DriverKey.NETCDF_ESMF_UNSTRUCT
         field.write(path2, driver=driver)

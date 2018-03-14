@@ -154,7 +154,6 @@ class TestDriverESMFUnstruct(TestBase):
         except ImportError:
             pass
         else:
-            import ESMF
             _ = ESMF.Mesh(filename=path, filetype=ESMF.FileFormat.ESMFMESH)
 
         path2 = self.get_temporary_file_path('foo2.nc')

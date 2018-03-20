@@ -9,7 +9,6 @@ import six
 from numpy.core.multiarray import ndarray
 from numpy.ma import MaskedArray
 from numpy.ma.core import MaskedConstant
-
 from ocgis import constants, vm
 from ocgis.base import AbstractNamedObject, get_dimension_names, get_variable_names, get_variables, iter_dict_slices, \
     orphaned, raise_if_empty
@@ -20,7 +19,7 @@ from ocgis.exc import VariableInCollectionError, BoundsAlreadyAvailableError, Em
     ResolutionError, NoUnitsError, DimensionsRequiredError, DimensionMismatchError, MaskedDataFound, \
     PayloadProtectedError
 from ocgis.util.helpers import get_iter, get_formatted_slice, get_bounds_from_1d, get_extrapolated_corners_esmf, \
-    create_ocgis_corners_from_esmf_corners, is_crs_variable, arange_from_bool_ndarray
+    create_ocgis_corners_from_esmf_corners, is_crs_variable, arange_from_bool_ndarray, dict_first
 from ocgis.util.helpers import is_auto_dtype
 from ocgis.util.units import get_units_object, get_conformed_units
 from ocgis.variable.attributes import Attributes
@@ -1982,12 +1981,12 @@ class VariableCollection(AbstractCollection, AbstractContainer, Attributes):
         kwargs = kwargs.copy()
 
         new_size = len(self.groups)
-        new_value = np.array(self.groups.keys())
+        new_value = np.array(list(self.groups.keys()))
 
         kwargs['value'] = new_value
         new_var = Variable(**kwargs)
 
-        ret = self.children.values()[0].copy()
+        ret = dict_first(self.children.values()).copy()
 
         variables_to_stack = []
         for child in self.children.values():

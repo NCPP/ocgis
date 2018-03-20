@@ -1,4 +1,3 @@
-import datetime
 import itertools
 import os
 import sys
@@ -8,6 +7,7 @@ from copy import deepcopy
 from pprint import pprint
 from tempfile import mkdtemp
 
+import datetime
 import fiona
 import numpy as np
 import six
@@ -15,14 +15,13 @@ from fiona.crs import from_epsg
 from netCDF4 import netcdftime
 from numpy.core.multiarray import ndarray
 from numpy.ma import MaskedArray
+from ocgis.constants import MPITag
+from ocgis.exc import SingleElementError, ShapeError, AllElementsMaskedError
 from shapely.geometry import Point
 from shapely.geometry.base import BaseGeometry, BaseMultipartGeometry
 from shapely.geometry.geo import mapping
 from shapely.geometry.polygon import Polygon
 from shapely.wkb import loads as wkb_loads
-
-from ocgis.constants import MPITag
-from ocgis.exc import SingleElementError, ShapeError, AllElementsMaskedError
 
 
 class ProgressBar(object):
@@ -146,6 +145,11 @@ def arange_from_dimension(dim, start=0, dtype=None, dist=True):
     ret = np.arange(start, start + local_size, dtype=dtype)
 
     return ret
+
+
+def dict_first(target):
+    for element in target:
+        return element
 
 
 def get_added_slice(slice1, slice2):

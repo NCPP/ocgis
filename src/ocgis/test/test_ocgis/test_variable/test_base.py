@@ -6,8 +6,6 @@ from unittest import SkipTest
 import numpy as np
 from numpy.core.multiarray import ndarray
 from numpy.testing.utils import assert_equal
-from shapely.geometry import Point
-
 from ocgis import RequestDataset, vm, env
 from ocgis.base import get_variable_names
 from ocgis.collection.field import Field
@@ -22,6 +20,7 @@ from ocgis.variable.base import Variable, SourcedVariable, VariableCollection, O
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.vmachine.mpi import MPI_SIZE, MPI_RANK, OcgDist, MPI_COMM, hgather, variable_scatter, variable_gather
+from shapely.geometry import Point
 
 
 class Test(TestBase):
@@ -1654,6 +1653,7 @@ class TestVariableCollection(AbstractTestInterface):
         def _make_child_(parent, ii):
             child = VariableCollection(name=ii)
             var = Variable(name='cvar', value=np.random.rand(3, 1) + ii, dimensions=['time', 'to_agg'])
+            self.assertEqual(var.shape, (3, 1))
             dummy = Variable(name='dummy', dimensions=[])
             child.add_variable(var)
             child.add_variable(dummy)
@@ -1666,7 +1666,7 @@ class TestVariableCollection(AbstractTestInterface):
         actual = lead.groups_to_variable(name='concat', dimensions='to_agg')
 
         self.assertAlmostEqual(actual['cvar'].v().sum(), 23.906239731796518)
-        self.assertEqual(actual.keys(), ['dummy', 'cvar', 'concat'])
+        self.assertEqual(list(actual.keys()), ['dummy', 'cvar', 'concat'])
         self.assertEqual(actual['concat'].v().tolist(), list(range(4)))
 
     def test_remove_variable(self):

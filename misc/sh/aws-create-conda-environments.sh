@@ -20,3 +20,16 @@ done
 # Create a core environment without optional dependencies.
 conda create -y -n ocgis-core ${CHANNELS} ocgis nose mock python=3.6
 conda remove -y rtree cf_units ocgis
+
+# Build the NetCDF4 parallel environment.
+d=~/sandbox/conda-recipes-nesii/src
+mkdir -p ${d}
+cd ${d}
+git clone https://github.com/NESII/conda-recipes-nesii.git
+cd conda-recipes-nesii
+bc="conda build -c conda-forge "
+${bc} hdf5
+${bc} libnetcdf
+${bc} netcdf4
+${bc} mpi4py
+conda create -n nc4-parallel -c conda-forge --use-local netcdf4 mpi4py

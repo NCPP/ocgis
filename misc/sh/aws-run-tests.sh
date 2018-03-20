@@ -6,7 +6,7 @@ source ./test-core.sh || exit 1
 PYTHON_VERSIONS=( "3.6" "2.7" )
 CONDA_ROOT=/home/ubuntu/anaconda3
 
-export OCGIS_BASH_LOGNAME="ocgis.aws-run-tests"
+export OCGIS_BASH_LOGNAME="aws-run-tests"
 export OCGIS_DIR=~/sandbox/ocgis/src/ocgis
 export OCGIS_DIR_TEST_DATA=~/storage/ocgis_test_data
 export OCGIS_DIR_GEOMCABINET=${OCGIS_DIR_TEST_DATA}/shp

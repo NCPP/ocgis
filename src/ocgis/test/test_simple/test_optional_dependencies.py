@@ -1,17 +1,9 @@
-from collections import OrderedDict
 from copy import deepcopy
 
-import numpy as np
-import shapely
-
-import ocgis
-from ocgis.base import orphaned, get_variable_names
-from ocgis.constants import Topology
-from ocgis.variable.crs import Spherical
 from shapely.geometry import Point
 
 from ocgis import RequestDataset, OcgOperations
-from ocgis.test.base import attr, create_gridxy_global, create_exact_field
+from ocgis.test.base import attr
 from ocgis.test.test_simple.make_test_data import SimpleNcNoLevel
 from ocgis.test.test_simple.test_simple import TestSimpleBase
 from ocgis.util.units import get_units_object

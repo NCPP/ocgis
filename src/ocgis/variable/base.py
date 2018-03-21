@@ -9,6 +9,7 @@ import six
 from numpy.core.multiarray import ndarray
 from numpy.ma import MaskedArray
 from numpy.ma.core import MaskedConstant
+
 from ocgis import constants, vm
 from ocgis.base import AbstractNamedObject, get_dimension_names, get_variable_names, get_variables, iter_dict_slices, \
     orphaned, raise_if_empty

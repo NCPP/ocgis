@@ -6,7 +6,7 @@ source ./test-core.sh || exit 1
 PYTHON_VERSIONS=( "3.6" "2.7" )
 CONDA_ROOT=/home/ubuntu/anaconda3
 
-export OCGIS_BASH_LOGNAME="aws-run-tests"
+export OCGIS_BASH_LOGNAME="aws-testing"
 export OCGIS_DIR=~/sandbox/ocgis/src/ocgis
 export OCGIS_DIR_TEST_DATA=~/storage/ocgis_test_data
 export OCGIS_DIR_GEOMCABINET=${OCGIS_DIR_TEST_DATA}/shp
@@ -15,9 +15,11 @@ export OCGIS_TEST_OUT_FILE=~/htmp/test-ocgis.out
 
 notify "starting"
 notify "git status"
-notify `git status`
-notify "git log HEAD~1"
-notify `git log HEAD~1`
+msg="$(git status)"
+notify $msg
+notify "git log -1"
+msg="$(git log -1)"
+notify msg
 
 # Run full test suites
 if [ ${OCGIS_TEST_EXHAUSTIVE} != "false" ]; then

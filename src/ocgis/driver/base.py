@@ -7,7 +7,7 @@ from warnings import warn
 
 import six
 
-from ocgis import constants, GridUnstruct, env
+from ocgis import constants, GridUnstruct
 from ocgis import vm
 from ocgis.base import AbstractOcgisObject, raise_if_empty
 from ocgis.base import get_variable_names

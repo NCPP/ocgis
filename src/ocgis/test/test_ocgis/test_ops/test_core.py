@@ -7,7 +7,6 @@ from datetime import datetime as dt
 from unittest import SkipTest
 
 import numpy as np
-from copy import deepcopy
 from shapely.geometry import Point, LineString
 
 import ocgis

@@ -19,7 +19,7 @@ msg="$(git status)"
 notify $msg
 notify "git log -1"
 msg="$(git log -1)"
-notify msg
+notify $msg
 
 # Run full test suites
 if [ ${OCGIS_TEST_EXHAUSTIVE} != "false" ]; then

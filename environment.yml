@@ -1,7 +1,7 @@
 name: ocgis
 
 channels:
-  - nesii/channel/dev-ocgis
+  - nesii
   - conda-forge
 
 dependencies:

@@ -20,7 +20,7 @@ OpenClimateGIS uses data parallelism for operations. Reading, subsetting, and ca
 Spatial Averaging in Parallel
 -----------------------------
 
-OpenClimateGIS has no bit-for-bit guarantees when spatial averaging in parallel. Each rank spatially averages its own data before combining rank sums on the root process. This often leads to floating point summation differences from a spatial average performed in serial. Hence, if the floating point errors affect your analysis, it is recommended that the process be run in serial or an advanced regridding application like `ESMF <http://www.earthsystemmodeling.org/esmf_releases/last_built/ESMF_refdoc/node5.html#SECTION05011000000000000000>`_ is used.
+OpenClimateGIS has no bit-for-bit guarantees when spatial averaging in parallel. Each rank spatially averages its own data before combining rank sums on the root process. This often leads to floating point summation differences from a spatial average performed in serial. Hence, if the floating point errors affect your analysis, it is recommended that the process be run in serial or an advanced regridding application like `ESMF <http://www.earthsystemmodeling.org/esmf_releases/public/last/ESMF_refdoc/node5.html#SECTION05011000000000000000>`_ is used.
 
 .. _parallel-example:
 

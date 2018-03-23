@@ -14,12 +14,8 @@ export OCGIS_TEST_EXHAUSTIVE="true"
 export OCGIS_TEST_OUT_FILE=~/htmp/test-ocgis.out
 
 notify "starting"
-notify "git status"
-msg="$(git status)"
-notify $msg
-notify "git log -1"
-msg="$(git log -1)"
-notify $msg
+git status
+git log -1
 
 # Run full test suites
 if [ ${OCGIS_TEST_EXHAUSTIVE} != "false" ]; then

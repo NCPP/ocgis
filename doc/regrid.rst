@@ -21,7 +21,7 @@ Supported Regridding Methods
 If bounds are present on the source and destination grids (i.e. corners may be constructed), then conservative regridding is performed. Without bounds/corners, a bilinear interpolation method is used. Bilinear is the method used when the regrid option ``’with_corners’`` is ``False``.
 
 The ESMPy documentation provides an overview of regridding methods:
- * http://www.earthsystemmodeling.org/esmf_releases/last_built/esmpy_doc/html/api.html#regridding
+ * http://www.earthsystemmodeling.org/esmf_releases/public/last/esmpy_doc/html/api.html#regridding
 
 ------------------
 Coordinate Systems

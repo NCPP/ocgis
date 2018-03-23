@@ -10,7 +10,7 @@ from ocgis.variable.dimension import create_distributed_dimension, Dimension
 
 class DriverESMFUnstruct(AbstractUnstructuredDriver, AbstractDriverNetcdfCF):
     """
-    Driver for the NetCDF-based ESMF Unstructured Format: http://www.earthsystemmodeling.org/esmf_releases/last_built/ESMF_refdoc/node3.html#SECTION03028200000000000000.
+    Driver for the NetCDF-based ESMF Unstructured Format: http://www.earthsystemmodeling.org/esmf_releases/public/last/ESMF_refdoc/node3.html#SECTION03028200000000000000.
     """
     _priority = False
     key = DriverKey.NETCDF_ESMF_UNSTRUCT

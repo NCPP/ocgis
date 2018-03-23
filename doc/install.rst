@@ -2,7 +2,7 @@
 Installation
 ============
 
-If you would like to subscribe to the low-volume, OpenClimateGIS mailing list, please fill out the :ref:`download form <download-form>` linked below. Filling out the form also helps us collect useful usage statistics.
+If you would like to subscribe to the low-volume, OpenClimateGIS mailing list, please fill out the `OpenClimateGIS Download Form`_. Filling out the form also helps us collect useful usage statistics.
 
 Anaconda Package
 ----------------
@@ -24,11 +24,11 @@ Installation without optional dependencies:
 
    conda install -c conda-forge ocgis
 
-Alternatively, NESII provides linux-64 and osx-64 builds for both OpenClimateGIS and ESMPy:
+Alternatively, NESII provides linux-64 and osx-64 builds for both OpenClimateGIS, ESMPy, and ICCLIM:
 
 .. code-block:: sh
 
-   conda install -c nesii -c conda-forge ocgis esmpy
+   conda install -c nesii -c conda-forge ocgis esmpy icclim
 
 Using an Environment File
 +++++++++++++++++++++++++
@@ -43,12 +43,7 @@ An Anaconda `environment file <https://conda.io/docs/using/envs.html#use-environ
 Building from Source
 --------------------
 
-.. _download-form:
-
-1. Download the current release:
-
- * http://www.earthsystemmodeling.org/ocgis_releases/public/ocgis-2.0.0/reg/OCGIS_Framework_Reg.html
-
+1. Download the current release using the `OpenClimateGIS Download Form`_.
 2. Extract the file using your favorite extraction utility.
 3. Navigate into extracted directory.
 4. Run the command:
@@ -152,3 +147,4 @@ The ``uninstall`` command will simply provide you with the directory location of
 
 .. _bash script: https://github.com/NCPP/ocgis/blob/master/misc/sh/install_geospatial.sh
 .. _source: https://github.com/NCPP/ocgis
+.. _OpenClimateGIS Download Form: http://cli.re/openclimategisdownloadform

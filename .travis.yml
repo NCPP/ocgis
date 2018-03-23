@@ -5,7 +5,7 @@ osx_image: xcode6.4
 env:
   global:
     - CONDA_OCGIS_TAG="next"
-    - CONDA_OCGIS_VER="2.1.0rc1"
+    - CONDA_OCGIS_VER="2.1.0"
     - CONDA_OCGIS_BNO=0
     - CONDA_OCGIS_UPL="true"
 

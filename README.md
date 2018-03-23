@@ -16,7 +16,7 @@ OpenClimateGIS supports many NetCDF metadata conventions (ESRI Shapefiles / File
 
 # GIS Capabilities
 
-* Subsetting (intersects and intersection) of climate datasets by bounding box, Shapely geometries, or shapefiles (polygon, line, point) (city centroid, river reach, a single county or watershed, state boundaries).
+* Subsetting (intersects and intersection) of climate datasets by bounding box, Shapely geometries, or shapefiles (city centroid, river reach, a single county or watershed, state boundaries).
 * Time and level range subsetting. Also allows for arbitrary label-based slicing.
 * Single or multi-dataset requests (concatenation).
 * Area-weighted aggregation (spatial averaging) to selection geometries.

@@ -113,7 +113,7 @@ class Test(TestBase):
 
         ops.prefix = 'ocgis'
         ret_ocgis = ops.execute()
-        self.assertNcEqual(ret, ret_ocgis, check_fill_value=False, check_types=False,
+        self.assertNcEqual(ret, ret_ocgis, check_fill_value=False, check_types=False, close=True,
                            ignore_attributes={'global': ['history'], 'ln': ['_FillValue']})
 
     @attr('data')

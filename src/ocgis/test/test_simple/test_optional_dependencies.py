@@ -53,3 +53,8 @@ class TestOptionalDependencies(TestSimpleBase):
         si.add(1, Point(1, 2))
         ret = list(si.iter_intersects(Point(1, 2), geom_mapping))
         self.assertEqual(ret, [1])
+
+    @attr('xarray')
+    def test_xarray(self):
+        import xarray as xr
+        _ = xr.DataArray(data=[1, 2, 3])

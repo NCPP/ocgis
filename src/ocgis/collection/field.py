@@ -181,19 +181,33 @@ class Field(VariableCollection):
         return ret
 
     @property
+    def bounds_variables(self):
+        """
+        Create a tuple of bounds variables associated with :meth:`~ocgis.collection.field.Field.coordinate_variables`.
+
+        :rtype: tuple(:class:`ocgis.Variable`, ...)
+        """
+        ret = [c.bounds for c in self.coordinate_variables if c.bounds is not None]
+        ret = tuple(ret)
+        return ret
+
+    @property
     def coordinate_variables(self):
         """
-        Return a tuple of spatial coordinate variables. This will attempt to access coordinate variables on the field's
-        grid. If no grid is available, spatial coordinates will be pulled from the dimension map. The tuple may have a
-        length of zero if no coordinate variables are available on the field.
+        Return a tuple of coordinate variables. This will attempt to access spatial coordinate variables on the field's
+        grid. If no grid is available, spatial coordinates will be pulled from the dimension map. Time will always be
+        pulled from the field. The tuple may have a length of zero if no coordinate variables are available on the
+        field.
 
         :rtype: tuple
         """
         grid = self.grid
         if grid is not None:
-            ret = grid.coordinate_variables
+            ret = list(grid.coordinate_variables)
+            if self.time is not None:
+                ret.insert(0, self.time)
         else:
-            poss = [self.x, self.y, self.level]
+            poss = [self.x, self.y, self.level, self.time]
             poss = [p for p in poss if p is not None]
             ret = tuple(poss)
         return ret
@@ -947,6 +961,24 @@ class Field(VariableCollection):
         """
 
         set_field_property(self, DimensionMapKey.Y, variable, force, dimension=dimension, should_add=should_add)
+
+    def to_xarray(self, **kwargs):
+        """
+        Convert the field to a :class:`xarray.Dataset` with CF metadata interpretation.
+
+        Limitations:
+        * Bounds are treated as data arrays inside the ``xarray`` dataset.
+        * Integer masked arrays are upcast to float data types in ``xarray``.
+        * Group hierarchies are not supported in ``xarray``.
+
+        :param dict kwargs: Optional keyword arguments to dataset creation. See :meth:`ocgis.VariableCollection.to_xarray`
+         for additional information.
+        :rtype: :class:`xarray.Dataset`
+        """
+        from xarray import decode_cf
+        ret = super(Field, self).to_xarray(**kwargs)
+        ret = decode_cf(ret)
+        return ret
 
     def unwrap(self):
         """

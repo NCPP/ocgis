@@ -48,6 +48,7 @@ Definitions for various "attrs":
  * icclim: test requires ICCLIM
  * benchmark: test used for benchmarking/performance
  * cli: test related to the command line interface. requires click as a dependency.
+ * xarray: test related to xarray optional dependency
 
 nosetests -vs --with-id -a '!slow,!remote' ocgis
 """
@@ -251,6 +252,8 @@ class TestBase(unittest.TestCase):
                                     self.assertNumpyAllClose(var_value[idx], dvar_value[idx])
                                 else:
                                     self.assertNumpyAll(var_value[idx], dvar_value[idx], check_arr_dtype=check_types)
+                        elif var_value.dtype == np.dtype('|S1'):
+                            self.assertEqual(var_value.tolist(), dvar_value.tolist())
                         else:
                             if close:
                                 self.assertNumpyAllClose(var_value, dvar_value)

@@ -28,6 +28,12 @@ class AbstractInterfaceObject(AbstractOcgisObject):
         """Return a deep copy of self."""
         return deepcopy(self)
 
+    def to_xarray(self, **kwargs):
+        """
+        Convert this object to a type understood by ``xarray``. This should be overloaded by subclasses.
+        """
+        raise NotImplementedError
+
 
 @six.add_metaclass(abc.ABCMeta)
 class AbstractNamedObject(AbstractInterfaceObject):

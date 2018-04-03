@@ -244,10 +244,16 @@ def get_versions():
         v_nose = None
     else:
         v_nose = nose.__version__
+    try:
+        import xarray
+    except ImportError:
+        v_xarray = None
+    else:
+        v_xarray = xarray.__version__
 
     versions = dict(esmf=v_esmf, cfunits=v_cfunits, rtree=v_rtree, gdal=v_gdal, numpy=v_numpy, netcdf4=v_netcdf4,
                     icclim=v_icclim, fiona=v_fiona, cf_units=v_cf_units, mpi4py=v_mpi4py, six=v_six, pyproj=v_pyproj,
-                    python=sys.version_info, nose=v_nose)
+                    python=sys.version_info, nose=v_nose, xarray=v_xarray)
     return versions
 
 

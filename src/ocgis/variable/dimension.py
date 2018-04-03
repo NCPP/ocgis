@@ -394,6 +394,14 @@ class Dimension(AbstractNamedObject):
                 msg = 'Distributed dimensions require a size definition using "size" or "size_current".'
                 raise ValueError(msg)
 
+    def to_xarray(self):
+        """
+        Convert this object to a type understood by ``xarray``.
+
+        :rtype: str
+        """
+        return self.name
+
     def __getitem_main__(self, ret, slc):
         length_self = len(self)
         try:

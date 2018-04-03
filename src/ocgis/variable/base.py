@@ -814,6 +814,27 @@ class Variable(AbstractContainer, Attributes):
         if should_set_mask:
             self.set_mask(mask_to_set, update=update_mask)
 
+    def to_xarray(self):
+        """
+        Convert the variable to a :class:`xarray.DataArray`. This *does not* traverse the parent's hierararchy. Use the
+        conversion method on the variable's parent to convert all variables in the collection.
+
+        :rtype: :class:`xarray.DataArray`
+        """
+        from xarray import DataArray
+
+        # Always access a time variable's numeric data.
+        if hasattr(self, 'value_numtime'):
+            data = self.value_numtime.data
+        else:
+            # Make sure we are passing the masked data array when converting the underlying dataset.
+            data = self.mv()
+
+        # Collect the variable's dimensions.
+        dims = [d.to_xarray() for d in self.dimensions]
+
+        return DataArray(data=data, dims=dims, attrs=self.attrs, name=self.name)
+
     def copy(self):
         """
         :return: A shallow copy of the variable.
@@ -1422,7 +1443,8 @@ class Variable(AbstractContainer, Attributes):
             self._bounds_name = value.name
             self.attrs[bounds_attr_name] = value.name
             parent.add_variable(value, force=force)
-            if clobber_units:
+            # Do not naively set the units as it may insert a None into the attributes dictionary.
+            if clobber_units and self.units is not None:
                 value.units = self.units
 
             # This will synchronize the bounds mask with the variable's mask.
@@ -2241,6 +2263,28 @@ class VariableCollection(AbstractCollection, AbstractContainer, Attributes):
         self._storage = OrderedDict()
         self._dimensions = OrderedDict()
         self.children = OrderedDict()
+
+    def to_xarray(self, **kwargs):
+        """
+        Convert all the variables in the collection to an :class:`xarray.Dataset`.
+
+        :param kwargs: Optional keyword arguments to pass to the dataset creation. ``data_vars`` and ``attrs`` are
+         always overloaded by this method.
+        :rtype: :class:`xarray.Dataset`
+        """
+        from xarray import Dataset
+
+        data_vars = OrderedDict()
+        # Convert each variable to data array.
+        for v in self.values():
+            data_vars[v.name] = v.to_xarray()
+
+        # Create the arguments for the dataset creation.
+        kwargs = kwargs.copy()
+        kwargs['data_vars'] = data_vars
+        kwargs['attrs'] = self.attrs
+
+        return Dataset(**kwargs)
 
     def write(self, *args, **kwargs):
         """

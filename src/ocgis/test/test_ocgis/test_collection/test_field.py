@@ -15,7 +15,7 @@ from ocgis import constants
 from ocgis.base import get_variable_names
 from ocgis.collection.field import Field, get_name_mapping
 from ocgis.collection.spatial import SpatialCollection
-from ocgis.constants import HeaderName, KeywordArgument, DriverKey, DimensionMapKey, DMK
+from ocgis.constants import HeaderName, KeywordArgument, DriverKey, DimensionMapKey, DMK, Topology
 from ocgis.conv.nc import NcConverter
 from ocgis.driver.csv_ import DriverCSV
 from ocgis.driver.nc import DriverNetcdf
@@ -23,7 +23,7 @@ from ocgis.driver.vector import DriverVector
 from ocgis.spatial.base import create_spatial_mask_variable
 from ocgis.spatial.geom_cabinet import GeomCabinetIterator
 from ocgis.spatial.grid import Grid
-from ocgis.test.base import attr, AbstractTestInterface
+from ocgis.test.base import attr, AbstractTestInterface, create_gridxy_global, create_exact_field
 from ocgis.util.helpers import reduce_multiply
 from ocgis.variable.base import Variable
 from ocgis.variable.crs import CoordinateReferenceSystem, WGS84, Spherical
@@ -445,6 +445,18 @@ class TestField(AbstractTestInterface):
                 desired = k.calendar
             self.assertEqual(f.time.calendar, desired)
             self.assertEqual(f.time.bounds.calendar, desired)
+
+    @attr('xarray')
+    def test_to_xarray(self):
+        grid = create_gridxy_global(crs=Spherical())
+        field = create_exact_field(grid, 'foo', ntime=3)
+        field.attrs['i_am_global'] = 'confirm'
+        field.grid.abstraction = Topology.POINT
+        field.set_abstraction_geom()
+        field.time.set_extrapolated_bounds('time_bounds', 'bounds')
+        xr = field.to_xarray()
+        self.assertEqual(xr.attrs['i_am_global'], 'confirm')
+        self.assertGreater(len(xr.coords), 0)
 
     def test_update_crs(self):
         # Test copying allows the CRS to be updated on the copy w/out changing the source CRS.

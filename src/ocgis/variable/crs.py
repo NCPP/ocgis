@@ -142,7 +142,7 @@ class AbstractCRS(AbstractInterfaceObject):
             updates = {}
             for c in spatial_obj.coordinate_variables:
                 i = spatial_obj.dimension_map.inquire_is_xyz(c)
-                if i != DMK.LEVEL:
+                if i != DMK.LEVEL and i is not None:
                     updates[c] = self._cf_attributes[i]
 
             for target, name_values in updates.items():
@@ -308,6 +308,17 @@ class AbstractCRS(AbstractInterfaceObject):
 
     def set_string_max_length_global(self, value=None):
         """Here for variable compatibility."""
+
+    def to_xarray(self, **kwargs):
+        """
+        Convert the CRS variable to a :class:`xarray.DataArray`. This *does not* traverse the parent's hierararchy. Use
+        the conversion method on the variable's parent to convert all variables in the collection.
+
+        :rtype: :class:`xarray.DataArray`
+        """
+        from xarray import DataArray
+
+        return DataArray(attrs=self.attrs, name=self.name, data=[])
 
     def wrap_or_unwrap(self, action, target, force=False):
         from ocgis.variable.geom import GeometryVariable

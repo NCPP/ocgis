@@ -290,7 +290,7 @@ class DimensionMap(AbstractOcgisObject):
         :type parent: :class:`~ocgis.VariableCollection`
         :param bool nullable: If ``True`` and ``parent`` is not ``None``, return ``None`` if the variable is not found
          in ``parent``.
-        :rtype: str
+        :rtype: str | None
         """
         ret = self._get_element_(entry_key, DMK.VARIABLE, None)
 

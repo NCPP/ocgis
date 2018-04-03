@@ -1049,6 +1049,7 @@ class TestVariable(AbstractTestInterface):
     def test_set_extrapolated_bounds(self):
         bv = self.get_boundedvariable(mask=[False, True, False])
         self.assertIsNotNone(bv.bounds)
+        self.assertNotIn('units', bv.bounds.attrs)
         bv.set_bounds(None)
         self.assertIsNone(bv.bounds)
         bv.set_extrapolated_bounds('x_bounds', 'bounds')
@@ -1120,6 +1121,39 @@ class TestVariable(AbstractTestInterface):
         self.assertEqual(len(dim), 3)
         self.assertEqual(len(sub.dimensions[0]), 1)
         self.assertEqual(sub.shape, (1,))
+
+    @attr('xarray')
+    def test_to_xarray(self):
+        # Test a simple variable with a mask and single dimension.
+        var = Variable(name='foo', value=[1, 2, 3], mask=[False, True, False], dimensions='single', dtype=int,
+                       attrs={'hi': 'there'})
+        xr = var.to_xarray()
+        self.assertTrue(np.isnan(xr.values[1]))
+        self.assertEqual(np.nansum(xr.values), 4)
+        self.assertEqual(xr.attrs, var.attrs)
+        self.assertEqual(xr.dims, ('single',))
+
+        # Test variable type is maintained without a mask.
+        var = Variable(name='foo', value=[1, 2, 3], dimensions='single', dtype=int, attrs={'hi': 'there'})
+        xr = var.to_xarray()
+        self.assertEqual(xr.values.dtype, int)
+
+        # Test a variable with multiple dimensions.
+        value = np.random.rand(2, 3, 4)
+        var = Variable(name='nd', value=value, dimensions=('two', 'three', 'four'))
+        xr = var.to_xarray()
+        self.assertNumpyAll(var.v(), xr.values)
+        self.assertEqual(xr.dims, var.dimension_names)
+
+        # Test a variable with no dimensions.
+        var = Variable(name='no_dimensions')
+        xr = var.to_xarray()
+        self.assertEqual(xr.name, var.name)
+
+        # Test a variable with no dimensions and a scalar value.
+        var = Variable(name='scalar', value=5.6, dimensions=[])
+        xr = var.to_xarray()
+        self.assertEqual(xr.values, 5.6)
 
     def test_units(self):
         var = Variable(name='empty')
@@ -1701,3 +1735,22 @@ class TestVariableCollection(AbstractTestInterface):
         self.assertEqual(id(parent), id(vc))
         vc.rename_dimension('one', 'one_renamed')
         self.assertEqual(var.dimensions[0].name, 'one_renamed')
+
+    @attr('xarray')
+    def test_to_xarray(self):
+        from xarray import Dataset
+
+        vc = self.get_variablecollection()
+        xr = vc.to_xarray()
+        self.assertIsInstance(xr, Dataset)
+        self.assertEqual(vc.keys(), xr.variables.keys())
+        for k, v in xr.items():
+            # print(k, v)
+            ovar_value = vc[k].v()
+            xr_value = v.values
+            if ovar_value is None:
+                self.assertIsNone(xr_value.tolist())
+            else:
+                actual = xr_value.tolist()
+                desired = ovar_value.tolist()
+                self.assertEqual(actual, desired)

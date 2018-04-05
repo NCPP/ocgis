@@ -462,11 +462,13 @@ class GeometryVariable(AbstractSpatialVariable):
                         else:
                             if split_interiors:
                                 geom = gsplitter.split()
+                                is_multi = True
                             else:
                                 raise ValueError('Interiors are not handled unless they are split.')
 
                         if node_threshold is not None and get_node_count(geom) > node_threshold:
                             geom = get_split_polygon_by_node_threshold(geom, node_threshold)
+                            is_multi = True
 
                     fill_cidx = np.array([], dtype=env.NP_INT)
 
@@ -565,6 +567,7 @@ class GeometryVariable(AbstractSpatialVariable):
             ret = klass(variables[0], variables[1], **kwds)
         else:
             raise RequestableFeature('This conversion target is not supported: {}'.format(target))
+
         return ret
 
     @classmethod

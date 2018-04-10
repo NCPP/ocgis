@@ -3,17 +3,11 @@ from collections import OrderedDict
 from copy import deepcopy
 
 import numpy as np
+import ocgis
 import shapely
 from mock import mock
 from nose.plugins.skip import SkipTest
 from numpy.ma import MaskedArray
-from shapely import wkt
-from shapely.geometry import Point, box, MultiPoint, LineString, Polygon
-from shapely.geometry.base import BaseMultipartGeometry
-from shapely.geometry.multilinestring import MultiLineString
-from shapely.geometry.multipolygon import MultiPolygon
-
-import ocgis
 from ocgis import RequestDataset, vm, Field
 from ocgis import env, CoordinateReferenceSystem
 from ocgis.constants import DMK, WrappedState, OcgisConvention, DriverKey
@@ -27,6 +21,11 @@ from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable, GeometryProcessor, get_split_polygon_by_node_threshold, \
     GeometrySplitter
 from ocgis.vmachine.mpi import OcgDist, MPI_RANK, variable_scatter, MPI_SIZE, variable_gather, MPI_COMM
+from shapely import wkt
+from shapely.geometry import Point, box, MultiPoint, LineString, Polygon
+from shapely.geometry.base import BaseMultipartGeometry
+from shapely.geometry.multilinestring import MultiLineString
+from shapely.geometry.multipolygon import MultiPolygon
 
 
 class TestGeometryProcessor(AbstractTestInterface):
@@ -162,7 +161,7 @@ class TestGeometrySplitter(TestBase, FixturePolygonWithHole):
 class TestGeometryVariable(AbstractTestInterface, FixturePolygonWithHole):
 
     @staticmethod
-    def get_geometryvariable_with_parent():
+    def fixture_geometryvariable_with_parent():
         vpa = np.array([None, None, None])
         vpa[:] = [Point(1, 2), Point(3, 4), Point(5, 6)]
         value = np.arange(0, 30).reshape(10, 3)
@@ -458,7 +457,7 @@ class TestGeometryVariable(AbstractTestInterface, FixturePolygonWithHole):
         self.assertEqual(sub.get_value().shape, (2, 1))
 
         # Test slicing with a parent.
-        pa = self.get_geometryvariable_with_parent()
+        pa = self.fixture_geometryvariable_with_parent()
         desired_obj = pa.parent['tas']
         self.assertIsNotNone(pa.parent)
         desired = desired_obj[:, 1].get_value()

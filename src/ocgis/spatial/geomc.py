@@ -1,9 +1,8 @@
 import abc
 import logging
-from collections import deque
-
 import numpy as np
 import six
+from collections import deque
 from shapely.geometry import Point, Polygon
 from shapely.geometry.base import BaseGeometry, BaseMultipartGeometry
 from shapely.geometry.linestring import LineString
@@ -109,6 +108,11 @@ class AbstractGeometryCoordinates(AbstractXYZSpatialContainer):
         # Set the spatial mask following work with element connectivity to avoid a race condition.
         if mask is not None:
             self.set_mask(mask)
+
+    def to_esmf(self, **kwargs):
+        # tdk:ORDER
+        # tdk:DOC
+        raise NotImplementedError
 
     def __getitem__(self, slc):
         slc = get_formatted_slice(slc, self.ndim)
@@ -758,6 +762,40 @@ class PolygonGC(AbstractGeometryCoordinates):
     __shapely_geometry_class__ = Polygon
     __shapely_multipart_class__ = MultiPolygon
     __use_bounds_intersects_optimizations__ = False
+
+    def to_esmf(self, **kwargs):
+        # tdk:ORDER
+        # tdk:DOC/COMMENT
+        import ESMF
+
+        if self.has_z:
+            raise NotImplementedError
+        else:
+            ndim = 2
+
+        elemConn = np.hstack(self.cindex.v())
+
+        nodeCoord = np.hstack((self.x.v().reshape(-1, 1), self.y.v().reshape(-1, 1)))
+        nodeCoord = nodeCoord.reshape(-1)
+
+        # tdk: FEATURE: what happens when the coordinates are not stored in a ragged object array
+        elemType = np.array([ii.size for ii in self.cindex.v().flat])
+
+        mesh = ESMF.Mesh(parametric_dim=2, spatial_dim=2)
+
+        # tdk: FEATURE: how to track unique identifiers for nodes and elements?
+        nodeId = np.arange(nodeCoord.size / ndim)
+        elemId = np.arange(self.element_dim.size)
+
+        # tdk: why zeros?
+        nodeOwner = np.zeros(nodeCoord.size / ndim)
+
+        mesh.add_nodes(nodeCoord.size / ndim, nodeId, nodeCoord, nodeOwner)
+
+        # tdk: FEAURE: support element_coords if there are points
+        mesh.add_elements(self.element_dim.size, elemId, elemType, elemConn, element_coords=None)
+
+        return mesh
 
     def get_element_node_connectivity_by_index(self, element_connectivity, idx):
         # TODO: OPTIMIZE: Driver-specific method to load polygon coordinate indices.

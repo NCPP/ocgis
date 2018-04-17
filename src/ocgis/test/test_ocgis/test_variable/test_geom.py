@@ -1,13 +1,19 @@
 import itertools
+import numpy as np
+import os
+import shapely
 from collections import OrderedDict
 from copy import deepcopy
-
-import numpy as np
-import ocgis
-import shapely
 from mock import mock
 from nose.plugins.skip import SkipTest
 from numpy.ma import MaskedArray
+from shapely import wkt
+from shapely.geometry import Point, box, MultiPoint, LineString, Polygon
+from shapely.geometry.base import BaseMultipartGeometry
+from shapely.geometry.multilinestring import MultiLineString
+from shapely.geometry.multipolygon import MultiPolygon
+
+import ocgis
 from ocgis import RequestDataset, vm, Field
 from ocgis import env, CoordinateReferenceSystem
 from ocgis.constants import DMK, WrappedState, OcgisConvention, DriverKey
@@ -21,11 +27,6 @@ from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable, GeometryProcessor, get_split_polygon_by_node_threshold, \
     GeometrySplitter
 from ocgis.vmachine.mpi import OcgDist, MPI_RANK, variable_scatter, MPI_SIZE, variable_gather, MPI_COMM
-from shapely import wkt
-from shapely.geometry import Point, box, MultiPoint, LineString, Polygon
-from shapely.geometry.base import BaseMultipartGeometry
-from shapely.geometry.multilinestring import MultiLineString
-from shapely.geometry.multipolygon import MultiPolygon
 
 
 class TestGeometryProcessor(AbstractTestInterface):
@@ -159,6 +160,122 @@ class TestGeometrySplitter(TestBase, FixturePolygonWithHole):
 
 
 class TestGeometryVariable(AbstractTestInterface, FixturePolygonWithHole):
+
+    @staticmethod
+    def fixture_esmf_mesh():
+        """
+        Scraped from: http://www.earthsystemmodeling.org/esmf_releases/last_built/esmpy_doc/html/examples.html#create-a-5-element-mesh
+
+        PRECONDITIONS: None
+        POSTCONDITIONS: A 5 element Mesh has been created.
+        RETURN VALUES: \n Mesh :: mesh \n
+
+          4.0   31 ------ 32 ------ 33
+                |         |  22  /   |
+                |    21   |     /    |
+                |         |   /  23  |
+          2.0   21 ------ 22 ------ 23
+                |         |          |
+                |    11   |    12    |
+                |         |          |
+          0.0   11 ------ 12 ------ 13
+
+               0.0       2.0        4.0
+
+              Node Ids at corners
+              Element Ids in centers
+
+        Note: This mesh is not parallel, it can only be used in serial
+        """
+        if vm.size > 1:
+            raise ValueError('vm.size > 1')
+
+        import ESMF
+        # Two parametric dimensions, and two spatial dimensions
+        mesh = ESMF.Mesh(parametric_dim=2, spatial_dim=2)
+
+        num_node = 9
+        num_elem = 5
+        nodeId = np.array([11, 12, 13, 21, 22, 23, 31, 32, 33])
+        nodeCoord = np.array([0.0, 0.0,  # node 11
+                              2.0, 0.0,  # node 12
+                              4.0, 0.0,  # node 13
+                              0.0, 2.0,  # node 21
+                              2.0, 2.0,  # node 22
+                              4.0, 2.0,  # node 23
+                              0.0, 4.0,  # node 31
+                              2.0, 4.0,  # node 32
+                              4.0, 4.0])  # node 33
+        nodeOwner = np.zeros(num_node)
+
+        elemId = np.array([11, 12, 21, 22, 23])
+        elemType = np.array([ESMF.MeshElemType.QUAD,
+                             ESMF.MeshElemType.QUAD,
+                             ESMF.MeshElemType.QUAD,
+                             ESMF.MeshElemType.TRI,
+                             ESMF.MeshElemType.TRI])
+        elemConn = np.array([0, 1, 4, 3,  # element 11
+                             1, 2, 5, 4,  # element 12
+                             3, 4, 7, 6,  # element 21
+                             4, 8, 7,  # element 22
+                             4, 5, 8])  # element 23
+        elemCoord = np.array([1.0, 1.0,
+                              3.0, 1.0,
+                              1.0, 3.0,
+                              2.5, 3.5,
+                              3.5, 2.5])
+
+        mesh.add_nodes(num_node, nodeId, nodeCoord, nodeOwner)
+
+        mesh.add_elements(num_elem, elemId, elemType, elemConn, element_coords=elemCoord)
+
+        return mesh, nodeCoord, nodeOwner, elemType, elemConn, elemCoord
+
+    @attr('esmf')
+    def test_to_esmf(self):
+        # tdk:ORDER
+        # tdk: 'to_esmf' should be a method on GeometryCoordinates not GeometryVariable
+        # tdk:NOTE: does not support elemCoord (element representative coordinates)
+        import ESMF
+
+        # tdk: REMOVE
+        ESMF.Manager(debug=True)
+
+        mesh, nodeCoord, nodeOwner, elemType, elemConn, elemCoord = self.fixture_esmf_mesh()
+
+        geoms = []
+        num_elem = elemType.size
+        ndim = 2  # number of spatial coordinates - 2 for two-dimension, 3 for three-dimensional
+        start = 0
+        for ii in range(num_elem):
+            stop = start + int(elemType[ii])
+            curr_elemConn = elemConn[start:stop]
+            coords = np.zeros((curr_elemConn.size, ndim))
+            # print(curr_elemConn)
+            for jj in range(curr_elemConn.size):
+                ec = curr_elemConn[jj]
+                coords[jj, :] = nodeCoord[ec * ndim:(ec * ndim + ndim)]
+            poly = Polygon(coords)
+            geoms.append(poly)
+            start = stop
+        gvar = GeometryVariable(name='geoms', value=geoms, dimensions='ngeom')
+        # path = os.path.expanduser('~/Dropbox/dtmp/mesh.shp')
+        # gvar.write_vector(path)
+        gc = gvar.convert_to()
+        # print(gc.parent.grid)
+        # import pdb;pdb.set_trace()
+
+        actual = gc.x.v().sum() + gc.y.v().sum()
+        desired = nodeCoord.sum()
+        self.assertEqual(actual, desired)
+
+        mesh2 = gc.to_esmf()
+        self.assertIsInstance(mesh2, ESMF.Mesh)
+
+        # print(gc.__dict__)
+        # print(gc.cindex.v())
+
+        self.fail()
 
     @staticmethod
     def fixture_geometryvariable_with_parent():

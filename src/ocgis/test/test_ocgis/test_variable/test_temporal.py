@@ -320,8 +320,7 @@ class TestTemporalVariable(AbstractTestTemporal):
         # Test MFTime can handle variables with bounds.
         paths = create_mftime_nc_files(self, units_on_time_bounds=False, calendar_on_second=False)
         rd = RequestDataset(paths)
-        t = rd.create_field().time.value_datetime
-
+        _ = rd.create_field().time.value_datetime
 
     @attr('cfunits')
     def test_cfunits(self):

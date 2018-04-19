@@ -5,7 +5,6 @@ from collections import deque, OrderedDict
 
 import numpy as np
 from netCDF4 import date2num, num2date, netcdftime
-
 from ocgis import Dimension
 from ocgis import RequestDataset
 from ocgis import constants
@@ -317,6 +316,12 @@ class TestTemporalVariable(AbstractTestTemporal):
         field = rd.get()
         self.assertIsNone(field.time.bounds)
         self.assertIsNotNone(field.time.value_datetime)
+
+        # Test MFTime can handle variables with bounds.
+        paths = create_mftime_nc_files(self, units_on_time_bounds=False, calendar_on_second=False)
+        rd = RequestDataset(paths)
+        t = rd.create_field().time.value_datetime
+
 
     @attr('cfunits')
     def test_cfunits(self):

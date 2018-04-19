@@ -8,7 +8,6 @@ import netCDF4 as nc
 import numpy as np
 import six
 from netCDF4._netCDF4 import VLType, MFDataset, MFTime
-
 from ocgis import constants, vm
 from ocgis import env
 from ocgis.base import orphaned, raise_if_empty
@@ -618,7 +617,11 @@ def get_value_from_request_dataset(variable):
         if isinstance(variable, TemporalVariable) and isinstance(source, MFDataset) and rd.format_time:
             # MFTime may fail if time_bnds do not have a calendar attribute.
             # Use rd.dimension_map.set_bounds('time', None) to disable indexing on time_bnds.
-            ncvar = MFTime(ncvar)
+            try:
+                ncvar = MFTime(ncvar, units=variable.units, calendar=variable.calendar)
+            except TypeError:
+                # Older versions of netcdf4-python do not support the calendar argument.
+                ncvar = MFTime(ncvar, units=variable.units)
         ret = get_variable_value(ncvar, variable.dimensions)
     return ret
 

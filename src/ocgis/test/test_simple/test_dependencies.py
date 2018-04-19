@@ -3,7 +3,6 @@ from unittest.case import SkipTest
 
 import numpy as np
 from netCDF4._netCDF4 import MFDataset, MFTime
-
 from ocgis import CoordinateReferenceSystem, Variable, vm
 from ocgis.test.base import TestBase, attr
 
@@ -53,6 +52,18 @@ class TestDependencies(TestBase):
         try:
             with self.assertRaises(ValueError):
                 MFTime(mfd['time_bounds'])
+        finally:
+            mfd.close()
+
+        # Test bounds can be passed to MFTime.
+        paths = create_mftime_nc_files(self, units_on_time_bounds=True, calendar_on_second=False)
+        mfd = MFDataset(paths)
+        try:
+            try:
+                _ = MFTime(mfd['time_bounds'], calendar='standard')
+            except TypeError:
+                with self.assertRaises(ValueError):
+                    MFTime(mfd['time_bounds'])
         finally:
             mfd.close()
 

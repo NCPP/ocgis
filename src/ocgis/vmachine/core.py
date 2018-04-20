@@ -1,7 +1,6 @@
 from contextlib import contextmanager
 
 import numpy as np
-
 from ocgis.base import AbstractOcgisObject
 from ocgis.constants import MPIOps
 from ocgis.exc import SubcommNotFoundError, SubcommAlreadyCreatedError
@@ -196,7 +195,7 @@ class OcgVM(AbstractOcgisObject):
         return self.scoped(name, live_ranks)
 
     def scoped_by_name(self, name):
-        return vm_scoped_by_name(name)
+        return vm_scoped_by_name(self, name)
 
 
 @contextmanager

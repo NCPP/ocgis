@@ -8,6 +8,7 @@ import netCDF4 as nc
 import numpy as np
 import six
 from netCDF4._netCDF4 import VLType, MFDataset, MFTime
+
 from ocgis import constants, vm
 from ocgis import env
 from ocgis.base import orphaned, raise_if_empty
@@ -552,7 +553,7 @@ def init_variable_using_metadata_for_netcdf(variable, metadata):
         variable.convert_to_empty()
     else:
         # Update data type and fill value.
-        if is_auto_dtype(variable._dtype):
+        if is_auto_dtype(variable._dtype) or var.get('dtype_packed') is not None:
             var_dtype = var['dtype']
             desired_dtype = deepcopy(var_dtype)
             if isinstance(var_dtype, VLType):

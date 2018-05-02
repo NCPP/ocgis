@@ -8,18 +8,6 @@ from warnings import warn
 from ocgis.base import AbstractOcgisObject
 from ocgis.exc import OcgWarning
 
-# HACK!! on some systems, there are issues with loading a parallel ESMF installation if this import occurs in a
-# different location. it is unclear what mechanism causes the import issue. ESMF is not a required package, so a failed
-# import is okay (if it is not installed).
-try:
-    import ESMF
-
-    req_esmf_version = '7.1.0 beta snapshot'
-    if ESMF.__version__ != req_esmf_version:
-        raise ImportError('ESMF version requirement not met: {}'.format(req_esmf_version))
-except ImportError:
-    pass
-
 # HACK!! the gdal data is often not read correctly by the osgeo installation. remove the necessity for users to set this
 # variable when installing.
 
@@ -111,9 +99,6 @@ class Environment(AbstractOcgisObject):
         if self.PREFER_NETCDFTIME is None:
             self.PREFER_NETCDFTIME = get_netcdftime_preference()
 
-        from ocgis.variable.crs import CFSpherical
-        self.DEFAULT_COORDSYS = EnvParm('DEFAULT_COORDSYS', CFSpherical())
-
         if self.USE_NETCDF4_MPI is None:
             import netCDF4
             self.USE_NETCDF4_MPI = False
@@ -148,6 +133,12 @@ class Environment(AbstractOcgisObject):
             attr.value = value
             if attr.on_change is not None:
                 attr.on_change()
+
+    @property
+    def DEFAULT_COORDSYS(self):
+        """Here to handle circular imports."""
+        from ocgis.variable.crs import CFSpherical
+        return EnvParm('DEFAULT_COORDSYS', CFSpherical())
 
     def configure_logging(self, with_header=True):
         from ocgis.util.logging_ocgis import ocgis_lh

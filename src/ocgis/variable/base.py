@@ -337,12 +337,16 @@ class Variable(AbstractContainer, Attributes):
         Set the this variable's value and mask to the other variable's value and mask in the index space defined by
         ``slc``.
 
-        :param slc: The index space for setting data from ``variable``. ``slc`` must have the same length as the
-         target variable's dimension count.
-        :type slc: (:class:`slice`-like, ...)
+        :param slc: The index space for setting data from ``variable``. If ``slc`` is a sequence, it must have the same
+         length as the target variable's dimension count. If ``slc`` is a dictionary, there must be a key for each
+         dimension name.
+        :type slc: (:class:`slice`-like, ...) | dict(<str>=<`slice-like`>, ...)
         :param variable: The variable to use for setting values in the target.
         :type variable: :class:`~ocgis.Variable`
         """
+
+        if isinstance(slc, dict):
+            slc = [slc[ii] for ii in self.dimension_names]
 
         slc = get_formatted_slice(slc, self.ndim)
         self.get_value()[slc] = variable.get_value()
@@ -2529,6 +2533,96 @@ def set_mask_by_variable(source_variable, target_variable, slice_map=None, updat
                         template[m[1]] = slc[m[0]]
                     mask_target[template] = True
         target_variable.set_mask(mask_target, update=update)
+
+
+def stack(targets, stack_dim):
+    """
+    Stack targets vertically using the stack dimension. For example, this function may be used to concatenate
+    variables along the time dimension.
+
+    * For variables, the stack dimension object, value, and mask on the new variable will be a deep copy.
+    * For variables, the collection hierarchy is not traversed. Use the parent collections directly for the stack
+      method.
+    * For collections, the returned value is a copy of the first field with stacked variables as deep copies. If a
+      variable's dimensions does not contain the stacked dimension, it is a returned as a copy.
+
+    :param targets: List of variables, variable collections, or fields to stack vertically along the stack
+     dimension.
+    :type targets: [:class:`~ocgis.Variable` | :class:`~ocgis.VariableCollection` | :class:`~ocgis.Field`, ...]
+    :param stack_dim: Dimension to use for vertical stacking.
+    :type stack_dim: ``str`` | :class:`~ocgis.Dimension`
+    :rtype: Same as input type to ``targets``.
+    """
+
+    # The archetype is used as a template for attributes and dimension iteration.
+    arch = targets[0]
+
+    raise_if_empty(arch)
+
+    if isinstance(arch, VariableCollection):
+        # Collection stacking will call the stack method recursively for each variable that shares a stack
+        # dimension.
+        to_stack = get_variable_names(arch.iter_variables_by_dimensions(stack_dim))
+        # A shallow copy of the collection will be the return target.
+        ret = arch.copy()
+        # Stack each variable that shares the stack dimension.
+        stacked = [stack([vc[varname] for vc in targets], stack_dim) for varname in to_stack]
+        # Replace the stacked variables and dimension on the outgoing collection.
+        for s in stacked:
+            for dim in s.dimensions:
+                ret.dimensions[dim.name] = dim
+            ret.add_variable(s, force=True)  # Variable already exists in the outgoing collection so must be forced
+    else:
+        # Name of the stack dimension.
+        stack_dim = get_dimension_names(stack_dim)[0]
+        # Will hold new size for the stack dimension.
+        new_size = 0
+
+        # Accumulate the size of the new dimension by adding it size form the incoming variables.
+        for var in targets:
+            new_size += len(var.dimensions_dict[stack_dim])
+
+        # The dimensions on stacked variables will be modified. Load any data from disk before modifying those
+        # dimensions as the source relationships will be lost.
+        for var in targets:
+            var.load()
+
+        # Construct the new dimensions for the stacked variable.
+        new_dimensions = [None] * arch.ndim
+        for ii, dim in enumerate(arch.dimensions):
+            if dim.name == stack_dim:
+                # If this is the stack dimension, we need to create a new dimension as the size will change.
+                is_unlimited = dim.is_unlimited  # Maintain a dimension's unlimited state.
+                if is_unlimited:
+                    nd = Dimension(name=dim.name, size_current=new_size)
+                else:
+                    nd = Dimension(name=dim.name, size=new_size)
+            else:
+                nd = dim
+            new_dimensions[ii] = nd
+
+        # Construct the outgoing variable.
+        new_var = Variable(name=arch.name, dtype=arch.dtype, dimensions=new_dimensions, attrs=arch.attrs,
+                           fill_value=arch.fill_value)
+
+        # Fill the outgoing variable with data from the original variables.
+        for ii, var in enumerate(targets):
+            if ii == 0:
+                # Construct the template slice if this is the first iteration.
+                slc = {dim.name: slice(0, len(dim)) for dim in var.dimensions}
+            else:
+                # Adjust the slice as we progress through the source variables.
+                for dim in var.dimensions:
+                    if dim.name == stack_dim:
+                        prev_stop = slc[dim.name].stop
+                        slc[dim.name] = slice(prev_stop, prev_stop + len(dim))
+                        break
+            # Set the data using variable set item capabilities.
+            new_var[slc] = var
+
+        ret = new_var
+
+    return ret
 
 
 def update_unlimited_dimension_length(variable_value, dimensions):

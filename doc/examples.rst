@@ -134,3 +134,10 @@ Calculating TG90p using ``icclim``
 *TG90p* is a European Climate Assessment (ECA) climate indice.
 
 .. literalinclude:: sphinx_examples/tg90p_with_icclim.py
+
+Stack Subsetted Data From Spatial Collections
+---------------------------------------------
+
+Stack (concatenate) subsetted data from multiple files using the unlimited time dimension.
+
+.. literalinclude:: sphinx_examples/stacking_subsets.py

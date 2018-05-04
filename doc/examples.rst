@@ -141,3 +141,10 @@ Stack Subsetted Data From Spatial Collections
 Stack (concatenate) subsetted data from multiple files using the unlimited time dimension.
 
 .. literalinclude:: sphinx_examples/stacking_subsets.py
+
+Convert Nonstandard Units
+-------------------------
+
+Convert units not supported by the ``cfunits`` conversion library.
+
+.. literalinclude:: sphinx_examples/convert_nonstandard_units.py

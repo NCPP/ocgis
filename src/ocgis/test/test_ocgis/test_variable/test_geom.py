@@ -1,9 +1,9 @@
 import itertools
-import numpy as np
-import os
-import shapely
 from collections import OrderedDict
 from copy import deepcopy
+
+import numpy as np
+import shapely
 from mock import mock
 from nose.plugins.skip import SkipTest
 from numpy.ma import MaskedArray
@@ -230,52 +230,6 @@ class TestGeometryVariable(AbstractTestInterface, FixturePolygonWithHole):
         mesh.add_elements(num_elem, elemId, elemType, elemConn, element_coords=elemCoord)
 
         return mesh, nodeCoord, nodeOwner, elemType, elemConn, elemCoord
-
-    @attr('esmf')
-    def test_to_esmf(self):
-        # tdk:ORDER
-        # tdk: 'to_esmf' should be a method on GeometryCoordinates not GeometryVariable
-        # tdk:NOTE: does not support elemCoord (element representative coordinates)
-        import ESMF
-
-        # tdk: REMOVE
-        ESMF.Manager(debug=True)
-
-        mesh, nodeCoord, nodeOwner, elemType, elemConn, elemCoord = self.fixture_esmf_mesh()
-
-        geoms = []
-        num_elem = elemType.size
-        ndim = 2  # number of spatial coordinates - 2 for two-dimension, 3 for three-dimensional
-        start = 0
-        for ii in range(num_elem):
-            stop = start + int(elemType[ii])
-            curr_elemConn = elemConn[start:stop]
-            coords = np.zeros((curr_elemConn.size, ndim))
-            # print(curr_elemConn)
-            for jj in range(curr_elemConn.size):
-                ec = curr_elemConn[jj]
-                coords[jj, :] = nodeCoord[ec * ndim:(ec * ndim + ndim)]
-            poly = Polygon(coords)
-            geoms.append(poly)
-            start = stop
-        gvar = GeometryVariable(name='geoms', value=geoms, dimensions='ngeom')
-        # path = os.path.expanduser('~/Dropbox/dtmp/mesh.shp')
-        # gvar.write_vector(path)
-        gc = gvar.convert_to()
-        # print(gc.parent.grid)
-        # import pdb;pdb.set_trace()
-
-        actual = gc.x.v().sum() + gc.y.v().sum()
-        desired = nodeCoord.sum()
-        self.assertEqual(actual, desired)
-
-        mesh2 = gc.to_esmf()
-        self.assertIsInstance(mesh2, ESMF.Mesh)
-
-        # print(gc.__dict__)
-        # print(gc.cindex.v())
-
-        self.fail()
 
     @staticmethod
     def fixture_geometryvariable_with_parent():
@@ -968,6 +922,37 @@ class TestGeometryVariable(AbstractTestInterface, FixturePolygonWithHole):
         gvar.size = 2
         with self.assertRaises(RequestableFeature):
             GeometryVariable.prepare(gvar)
+
+    @attr('esmf')
+    def test_to_esmf(self):
+        # tdk:NOTE: does not support elemCoord (element representative coordinates)
+        import ESMF
+
+        mesh, nodeCoord, nodeOwner, elemType, elemConn, elemCoord = self.fixture_esmf_mesh()
+
+        geoms = []
+        num_elem = elemType.size
+        ndim = 2  # number of spatial coordinates - 2 for two-dimension, 3 for three-dimensional
+        start = 0
+        for ii in range(num_elem):
+            stop = start + int(elemType[ii])
+            curr_elemConn = elemConn[start:stop]
+            coords = np.zeros((curr_elemConn.size, ndim))
+            for jj in range(curr_elemConn.size):
+                ec = curr_elemConn[jj]
+                coords[jj, :] = nodeCoord[ec * ndim:(ec * ndim + ndim)]
+            poly = Polygon(coords)
+            geoms.append(poly)
+            start = stop
+        gvar = GeometryVariable(name='geoms', value=geoms, dimensions='ngeom')
+        gc = gvar.convert_to()
+
+        actual = gc.x.v().sum() + gc.y.v().sum()
+        desired = nodeCoord.sum()
+        self.assertEqual(actual, desired)
+
+        mesh2 = gc.to_esmf()
+        self.assertIsInstance(mesh2, ESMF.Mesh)
 
     def test_unwrap(self):
         geom = box(195, -40, 225, -30)

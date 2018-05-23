@@ -14,13 +14,13 @@ requirements:
         - python
         - setuptools
         - numpy
-        - netcdf4
+        - netcdf4 <1.4
         - gcc
 
     run:
         - python
         - numpy
-        - netcdf4
+        - netcdf4 <1.4
         - libgcc
 
 test:

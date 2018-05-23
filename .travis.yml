@@ -13,7 +13,7 @@ env:
     - CONDA_ICCLIM_REP="https://github.com/cerfacs-globc/icclim"
     - CONDA_ICCLIM_TAG="4.2.10"
     - CONDA_ICCLIM_VER="4.2.10"
-    - CONDA_ICCLIM_BNO=0
+    - CONDA_ICCLIM_BNO=1
   matrix:
     - CONDA_PY="27"
     - CONDA_PY="35"

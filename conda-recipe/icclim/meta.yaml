@@ -20,7 +20,7 @@ requirements:
     run:
         - python
         - numpy
-        - netcdf4
+        - netcdf4 <1.4
         - libgcc
 
 test:

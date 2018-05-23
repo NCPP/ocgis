@@ -4,9 +4,9 @@ sudo: false
 
 env:
   global:
-    - CONDA_OCGIS_TAG="next"
+    - CONDA_OCGIS_TAG="v2.1.0"
     - CONDA_OCGIS_VER="2.1.0"
-    - CONDA_OCGIS_BNO=0
+    - CONDA_OCGIS_BNO=1
     - CONDA_OCGIS_UPL="true"
 
 #    - CONDA_ICCLIM_REP="https://github.com/NESII/icclim.git"

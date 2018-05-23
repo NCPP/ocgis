@@ -799,9 +799,9 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         self.y.set_extrapolated_bounds(name_y_variable, name_dimension)
         self.parent = self.y.parent
 
-    def update_crs(self, to_crs):
+    def update_crs(self, *args, **kwargs):
         self.expand()
-        super(AbstractGrid, self).update_crs(to_crs)
+        super(AbstractGrid, self).update_crs(*args, **kwargs)
 
     def write(self, *args, **kwargs):
         """

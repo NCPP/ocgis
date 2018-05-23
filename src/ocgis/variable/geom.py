@@ -1054,7 +1054,7 @@ class GeometryVariable(AbstractSpatialVariable):
 
         return ret
 
-    def update_crs(self, to_crs):
+    def update_crs(self, to_crs, from_crs=None):
         """
         Update the coordinate system of the geometry variable in-place.
         
@@ -1062,8 +1062,12 @@ class GeometryVariable(AbstractSpatialVariable):
         :type to_crs: :class:`~ocgis.variable.crs.AbstractCRS`
         """
 
-        super(GeometryVariable, self).update_crs(to_crs)
-        members = [self.crs, to_crs]
+        super(GeometryVariable, self).update_crs(to_crs, from_crs=from_crs)
+
+        if from_crs is None:
+            from_crs = self.crs
+
+        members = [from_crs, to_crs]
         contains_cartesian = any([isinstance(ii, Cartesian) for ii in members])
 
         if contains_cartesian:
@@ -1071,16 +1075,32 @@ class GeometryVariable(AbstractSpatialVariable):
                 inverse = False
             else:
                 inverse = True
-            self.crs.transform_geometry(to_crs, self, inverse=inverse)
-        elif self.crs != to_crs:
+            from_crs.transform_geometry(to_crs, self, inverse=inverse)
+        elif from_crs != to_crs:
             # Be sure and project masked geometries to maintain underlying geometries.
             r_value = self.get_value().reshape(-1)
             r_loads = wkb.loads
             r_create = ogr.CreateGeometryFromWkb
             to_sr = to_crs.sr
-            from_sr = self.crs.sr
+            from_sr = from_crs.sr
+
+            the_mask = self.get_mask()
+            if the_mask is not None:
+                the_mask = the_mask.flatten()
+
             for idx, geom in enumerate(r_value.flat):
-                ogr_geom = r_create(geom.wkb)
+                try:
+                    # Get the well known binary representation of the geometry object.
+                    geom_wkb = geom.wkb
+                except AttributeError:
+                    # The geometry may be masked in which case it has no binary whatever. Confirm the geometry is
+                    # masked or raise an exception.
+                    if the_mask is None or not the_mask[idx]:
+                        raise
+                    else:
+                        continue
+
+                ogr_geom = r_create(geom_wkb)
                 ogr_geom.AssignSpatialReference(from_sr)
                 ogr_geom.TransformTo(to_sr)
                 r_value[idx] = r_loads(ogr_geom.ExportToWkb())

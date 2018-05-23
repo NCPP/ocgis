@@ -991,21 +991,20 @@ class Field(VariableCollection):
 
         wrap_or_unwrap(self, WrapAction.UNWRAP)
 
-    def update_crs(self, to_crs):
+    def update_crs(self, to_crs, from_crs=None):
         """
-        Update the field coordinates contained in its grid and/or geometry.
-        
-        :param to_crs: The destination coordinate reference system.
-        :type to_crs: :class:`~ocgis.variable.crs.AbstractCRS`
-        :raises: :class:`~ocgis.exc.EmptyObjectError`
+        See :meth:`ocgis.spatial.base.AbstractOperationsSpatialObject.update_crs`
         """
 
         raise_if_empty(self)
 
+        if from_crs is None:
+            from_crs = self.crs
+
         if self.grid is not None:
-            self.grid.update_crs(to_crs)
-        else:
-            self.geom.update_crs(to_crs)
+            self.grid.update_crs(to_crs, from_crs=from_crs)
+        if self.geom is not None:
+            self.geom.update_crs(to_crs, from_crs=from_crs)
 
         self.dimension_map.set_crs(to_crs)
 

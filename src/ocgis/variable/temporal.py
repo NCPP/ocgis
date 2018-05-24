@@ -735,7 +735,7 @@ class TemporalVariable(SourcedVariable):
 
     def set_value(self, value, **kwargs):
         # Special handling for template units.
-        if str(self.units) == 'day as %Y%m%d.%f' and kwargs.get(KeywordArgument.FORMAT_TIME, True):
+        if str(self.units) == 'day as %Y%m%d.%f' and self.format_time:
             value = get_datetime_from_template_time_units(value)
             # Update the units.
             self.units = constants.DEFAULT_TEMPORAL_UNITS

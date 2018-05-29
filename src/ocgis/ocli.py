@@ -6,8 +6,6 @@ import shutil
 import tempfile
 
 import click
-from shapely.geometry import box
-
 import ocgis
 from ocgis import RequestDataset, GeometryVariable
 from ocgis.base import grid_abstraction_scope
@@ -15,6 +13,7 @@ from ocgis.constants import DriverKey, Topology, GridChunkerConstants
 from ocgis.spatial.grid_chunker import GridChunker
 from ocgis.spatial.spatial_subset import SpatialSubsetOperation
 from ocgis.util.logging_ocgis import ocgis_lh
+from shapely.geometry import box
 
 
 @click.group()
@@ -69,9 +68,12 @@ def ocli():
               help='(default=eager) If --eager, load all data from the grids into memory before subsetting. This will '
                    'increase performance as loading data for each chunk is avoided. Set this to --not_eager for a more '
                    'memory efficient execution at the expense of additional IO operations.')
+@click.option('--ignore_degenerate/--no_ignore_degenerate', default=False,
+              help='(default=no_ignore_degenerate) If --ignore_degenerate, skip degenerate coordinates when regridding '
+                   'and do not raise an exception.')
 def chunked_rwg(source, destination, weight, nchunks_dst, merge, esmf_src_type, esmf_dst_type, genweights,
                 esmf_regrid_method, spatial_subset, src_resolution, dst_resolution, buffer_distance, wd, persist,
-                eager):
+                eager, ignore_degenerate):
     if not ocgis.env.USE_NETCDF4_MPI:
         msg = ('env.USE_NETCDF4_MPI is False. Considerable performance gains are possible if this is True. Is '
                'netCDF4-python built with parallel support?')
@@ -127,7 +129,8 @@ def chunked_rwg(source, destination, weight, nchunks_dst, merge, esmf_src_type, 
         paths = {'wd': wd}
 
     # Arguments to ESMF regridding.
-    esmf_kwargs = {'regrid_method': esmf_regrid_method}
+    esmf_kwargs = {'regrid_method': esmf_regrid_method,
+                   'ignore_degenerate': ignore_degenerate}
 
     # Create the chunked regridding object. This is used for both chunked regridding and a regrid with a spatial subset.
     gs = GridChunker(rd_src, rd_dst, nchunks_dst=nchunks_dst, src_grid_resolution=src_resolution, paths=paths,
@@ -148,9 +151,16 @@ def chunked_rwg(source, destination, weight, nchunks_dst, merge, esmf_src_type, 
     # file.
     if merge and not spatial_subset:
         # Weight file merge only works in serial.
+        exc = None
         with ocgis.vm.scoped('weight file merge', [0]):
             if not ocgis.vm.is_null:
                 gs.create_merged_weight_file(weight)
+        excs = ocgis.vm.gather(exc)
+        excs = ocgis.vm.bcast(excs)
+        for exc in excs:
+            if exc is not None:
+                raise exc
+
         ocgis.vm.barrier()
 
     # Remove the working directory unless the persist flag is provided.

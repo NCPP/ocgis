@@ -3,8 +3,6 @@ from collections import OrderedDict
 from collections import deque
 from copy import deepcopy
 
-from shapely.geometry import shape
-
 from ocgis import env, DimensionMap, VariableCollection
 from ocgis.base import get_dimension_names, get_variable_names, get_variables, renamed_dimensions_on_variables, \
     revert_renamed_dimensions_on_variables, raise_if_empty
@@ -18,6 +16,7 @@ from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.variable.iterator import Iterator
 from ocgis.variable.temporal import TemporalGroupVariable, TemporalVariable
+from shapely.geometry import shape
 
 
 class Field(VariableCollection):
@@ -1099,7 +1098,8 @@ def set_field_property(field, dmap_key, variable, force, dimension=None, dimensi
     # Remove the variable if it exists in the field. The "in field" check is needed when the field initialization has an
     # incoming dimension map so this function thinks the variable should exist in the field.
     if should_add and curr is not None and curr in field:
-        field.remove_variable(curr)
+        if id(field[curr]) != id(variable):
+            field.remove_variable(curr)
     if variable is None:
         if not nullable:
             raise ValueError("'variable' is None and the property has 'nullable=False'")

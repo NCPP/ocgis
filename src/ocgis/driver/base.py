@@ -5,8 +5,8 @@ from contextlib import contextmanager
 from copy import deepcopy
 from warnings import warn
 
+import numpy as np
 import six
-
 from ocgis import constants, GridUnstruct
 from ocgis import vm
 from ocgis.base import AbstractOcgisObject, raise_if_empty
@@ -488,25 +488,48 @@ class AbstractDriver(AbstractOcgisObject):
         1:    <varying>                                               See :meth:`ocgis.Variable.get_mask`
         ===== ======================================================= ===================================
 
-        :param kwargs: See keyword arguments to :meth:`ocgis.Variable.get_mask`
+        :param dict kwargs: See keyword arguments to :meth:`~ocgis.Variable.get_mask`. If ``create`` and ``check_value``
+         are ``True`` and no mask variable exists, then coordinate variable masks are combined using a logical OR
+         operation.
         :rtype: :class:`numpy.ndarray`
         """
         from ocgis.spatial.base import create_spatial_mask_variable
 
         args = list(args)
-        sobj = args[0]
+        sobj = args[0]  # Spatial object containing coordinate variables
         args = args[1:]
 
         create = kwargs.get(KeywordArgument.CREATE, False)
+        check_value = kwargs.get(KeywordArgument.CHECK_VALUE, False)
+
+        # Check for existing mask variable
         mask_variable = sobj.mask_variable
+
         ret = None
         if mask_variable is None:
             if create:
-                mask_variable = create_spatial_mask_variable(VariableName.SPATIAL_MASK, None, sobj.dimensions)
+                if check_value:
+                    # Combine coordinate variable masks using a logical OR operation
+                    for ii, cvar in enumerate(sobj.coordinate_variables):
+                        currmask = cvar.get_mask(create=True, check_value=True)
+                        if ii == 0:
+                            mask_value = currmask
+                        else:
+                            mask_value = np.logical_or(currmask, mask_value)
+                else:
+                    # Let the mask creation function handling the creation of mask values
+                    mask_value = None
+
+                # Create the spatial mask variable and set it
+                mask_variable = create_spatial_mask_variable(VariableName.SPATIAL_MASK, mask_value, sobj.dimensions)
                 sobj.set_mask(mask_variable)
+
         if mask_variable is not None:
+            # Validate the mask variable checking attributes, data types, etc.
             sobj.driver.validate_spatial_mask(mask_variable)
+            # Get the actual boolean array from the mask variable
             ret = mask_variable.get_mask(*args, **kwargs)
+
         return ret
 
     def get_variable_collection(self, **kwargs):
@@ -681,21 +704,29 @@ class AbstractDriver(AbstractOcgisObject):
         from ocgis.spatial.base import create_spatial_mask_variable
         from ocgis.variable.base import Variable
 
-        if isinstance(value, Variable):
-            sobj.parent.add_variable(value, force=True)
-            mask_variable = value
+        if value is None:
+            # Remove the mask variable from the parent object and update the dimension map.
+            if sobj.has_mask:
+                sobj.parent.remove_variable(sobj.mask_variable)
+                sobj.dimension_map.set_spatial_mask(None)
         else:
-            mask_variable = sobj.mask_variable
-            if mask_variable is None:
-                dimensions = sobj.dimensions
-                mask_variable = create_spatial_mask_variable(VariableName.SPATIAL_MASK, value, dimensions)
-                sobj.parent.add_variable(mask_variable)
+            if isinstance(value, Variable):
+                # Set the mask variable from the incoming value.
+                sobj.parent.add_variable(value, force=True)
+                mask_variable = value
             else:
-                mask_variable.set_mask(value)
-        sobj.dimension_map.set_spatial_mask(mask_variable)
+                # Convert the incoming boolean array into a mask variable.
+                mask_variable = sobj.mask_variable
+                if mask_variable is None:
+                    dimensions = sobj.dimensions
+                    mask_variable = create_spatial_mask_variable(VariableName.SPATIAL_MASK, value, dimensions)
+                    sobj.parent.add_variable(mask_variable)
+                else:
+                    mask_variable.set_mask(value)
+            sobj.dimension_map.set_spatial_mask(mask_variable)
 
-        if cascade:
-            grid_set_mask_cascade(sobj)
+            if cascade:
+                grid_set_mask_cascade(sobj)
 
     def validate_field(self, field):
         pass

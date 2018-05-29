@@ -3,9 +3,8 @@ import sys
 from unittest import SkipTest
 
 import mock
-from click.testing import CliRunner
-
 import ocgis
+from click.testing import CliRunner
 from ocgis import RequestDataset, Variable, Grid, vm
 from ocgis import env
 from ocgis.ocli import ocli
@@ -42,6 +41,7 @@ class TestChunkedRWG(TestBase):
         poss.no_merge = ['__exclude__', '__include__']
         poss.spatial_subset = ['__exclude__', '__include__']
         poss.not_eager = ['__exclude__', '__include__']
+        poss.ignore_degenerate = ['__exclude__', '__include__']
 
         return poss
 

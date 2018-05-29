@@ -7,11 +7,6 @@ import fiona
 import mock
 import numpy as np
 from numpy.testing.utils import assert_equal
-from shapely import wkt
-from shapely.geometry import Point, box, MultiPolygon, shape
-from shapely.geometry import Polygon
-from shapely.geometry.base import BaseGeometry
-
 from ocgis import RequestDataset, vm, env
 from ocgis.base import get_variable_names
 from ocgis.collection.field import Field
@@ -31,6 +26,10 @@ from ocgis.variable.crs import WGS84, CoordinateReferenceSystem, Spherical, Cart
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.vmachine.mpi import MPI_RANK, MPI_COMM, variable_gather, MPI_SIZE, OcgDist, variable_scatter
+from shapely import wkt
+from shapely.geometry import Point, box, MultiPolygon, shape
+from shapely.geometry import Polygon
+from shapely.geometry.base import BaseGeometry
 
 
 class Test(AbstractTestInterface):
@@ -128,7 +127,7 @@ class TestGrid(AbstractTestInterface):
             self.assertEqual(_get_is_ascending_(grid_x.get_value()),
                              _get_is_ascending_(grid.corners.data[1, 0, :][:, 0]))
 
-    def get_iter_gridxy(self, return_kwargs=False):
+    def fixture_iter_gridxy(self, return_kwargs=False):
         poss = [True, False]
         kwds = dict(with_2d_variables=poss)
         for k in self.iter_product_keywords(kwds, as_namedtuple=False):
@@ -136,6 +135,29 @@ class TestGrid(AbstractTestInterface):
             if return_kwargs:
                 ret = (ret, k)
             yield ret
+
+    @staticmethod
+    def fixture_masked_grid(filename=None):
+        x = Variable(name='x', value=[1., 2., 3., 4., 5.], dimensions='dx', dtype=float)
+        y = Variable(name='y', value=[6., 7., 8., 9., 10., 11.], dimensions='dy', dtype=float)
+        grid = Grid(x, y)
+
+        mask = np.ones(grid.shape)
+        mask[0, 2] = False
+        mask[1, 1:4] = False
+        mask[2, :] = False
+        mask[3, :] = False
+        mask[4, 1:4] = False
+        mask[5, 2] = False
+        grid.set_mask(mask)
+
+        if filename is not None:
+            grid.parent.write(filename)
+            ret = filename
+        else:
+            ret = grid
+
+        return ret
 
     def test_init(self):
         # Test with nothing.
@@ -301,6 +323,39 @@ class TestGrid(AbstractTestInterface):
         actual_field.set_abstraction_geom()
         self.assertNumpyAll(actual_field.geom.get_mask(), grid.get_mask())
 
+    def test_system_masking_spatial(self):
+        """Test spatial operations on a masked grid."""
+
+        filename = [None, self.get_temporary_file_path('foo.nc')]
+
+        for fn in filename:
+            grid = self.fixture_masked_grid(filename=fn)
+
+            if fn is not None:
+                grid = RequestDataset(fn).create_field().grid
+
+            # Test a subset that returns the whole grid.
+            extent = grid.extent
+            subset_geom = box(*extent).buffer(2.0)
+            desired = deepcopy(grid.get_mask())
+            actual = grid.get_intersects(subset_geom).get_mask()
+            self.assertNumpyAll(actual, desired)
+
+            # Test a corner subset that contains some masked values as a full row.
+            subset_geom = box(3.5, 5.5, 5.5, 8.5)
+            subsetted_grid = grid.get_intersects(subset_geom)
+            actual = subsetted_grid.get_value_stacked().tolist()
+            desired = [[[7.0, 7.0], [8.0, 8.0]], [[4.0, 5.0], [4.0, 5.0]]]
+            self.assertEqual(actual, desired)
+            actual = subsetted_grid.get_mask().tolist()
+            desired = subsetted_grid.get_mask().tolist()
+            self.assertEqual(actual, desired)
+
+            # Test subsetting a masked portion of the grid.
+            subset_geom = box(4.9, 5.9, 5.1, 6.1)
+            with self.assertRaises(EmptySubsetError):
+                grid.get_intersects(subset_geom)
+
     def test_abstraction(self):
         grid = self.get_gridxy(abstraction=GridAbstraction.POINT)
         self.assertEqual(grid.abstraction, grid.parent.grid_abstraction)
@@ -431,10 +486,20 @@ class TestGrid(AbstractTestInterface):
         self.assertEqual(mask.ndim, 2)
         self.assertFalse(np.any(mask))
         self.assertTrue(grid.is_vectorized)
-        # grid.parent.dimension_map.pprint()
         self.assertEqual(grid.parent.dimension_map.get_spatial_mask(), grid.mask_variable.name)
         grid = self.get_gridxy()
         self.assertIsNone(grid.get_mask())
+
+        # Test creating a mask by checking fill values in the coordinate variables.
+        x = Variable(name='x', value=[1., 2., 3.], dimensions='dx', fill_value=-999.)
+        y = Variable(name='y', value=[10., 20., 30., 40.], dimensions='dy', fill_value=-900.)
+        grid = Grid(x, y)
+        grid.expand()
+        grid.x.v()[1, 1] = -999.
+        grid.y.v()[1, 2] = -900.
+        mask = grid.get_mask(create=True, check_value=True)
+        desired = [[False, False, False], [False, True, True], [False, False, False], [False, False, False]]
+        self.assertEqual(mask.tolist(), desired)
 
     def test_get_intersects(self):
         subset = box(100.7, 39.71, 102.30, 42.30)
@@ -1010,7 +1075,7 @@ class TestGrid(AbstractTestInterface):
         self.assertNumpyMayShareMemory(rdata.get_value(), data.get_value())
 
     def test_resolution(self):
-        for grid in self.get_iter_gridxy():
+        for grid in self.fixture_iter_gridxy():
             self.assertEqual(grid.resolution, 1.)
 
         # Test resolution with a singleton dimension.
@@ -1151,8 +1216,16 @@ class TestGrid(AbstractTestInterface):
                 self.assertTrue(mask[1:3, 1, :].all())
             self.assertEqual(mask.sum(), 20)
 
+        # Test the mask variable is removed.
+        grid = self.get_gridxy()
+        _ = grid.get_mask(create=True)
+        self.assertIn(VariableName.SPATIAL_MASK, grid.parent)
+        grid.set_mask(None)
+        self.assertNotIn(VariableName.SPATIAL_MASK, grid.parent)
+        self.assertIsNone(grid.dimension_map.get_spatial_mask())
+
     def test_shape(self):
-        for grid in self.get_iter_gridxy():
+        for grid in self.fixture_iter_gridxy():
             self.assertEqual(grid.shape, (4, 3))
             self.assertEqual(grid.ndim, 2)
 

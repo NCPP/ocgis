@@ -9,7 +9,6 @@ import six
 from numpy.core.multiarray import ndarray
 from numpy.ma import MaskedArray
 from numpy.ma.core import MaskedConstant
-
 from ocgis import constants, vm
 from ocgis.base import AbstractNamedObject, get_dimension_names, get_variable_names, get_variables, iter_dict_slices, \
     orphaned, raise_if_empty
@@ -1001,7 +1000,7 @@ class Variable(AbstractContainer, Attributes):
         """
         :param bool create: If ``True``, create the mask if it does not exist.
         :param check_value: If ``True``, check the variable's value for values matching
-         :attr:`~ocgis.Variabe.fill_value`. Matching indices are set to ``True`` in the created mask.
+         :attr:`~ocgis.Variable.fill_value`. Matching indices are set to ``True`` in the created mask.
         :return: An array of ``bool`` data type with shape matching :attr:`~ocgis.Variable.shape`.
         :rtype: :class:`numpy.ndarray`
         """
@@ -1390,13 +1389,13 @@ class Variable(AbstractContainer, Attributes):
         implementations is in :class:`~ocgis.variable.SourcedVariable`
         """
 
-    def m(self):
+    def m(self, *args, **kwargs):
         """See :meth:`ocgis.Variable.get_mask`"""
-        return self.get_mask()
+        return self.get_mask(*args, **kwargs)
 
-    def mv(self):
+    def mv(self, *args, **kwargs):
         """See :meth:`ocgis.Variable.get_masked_value`"""
-        return self.get_masked_value()
+        return self.get_masked_value(*args, **kwargs)
 
     def reshape(self, *args):
         assert not self.has_bounds
@@ -2479,8 +2478,7 @@ def init_from_source(variable):
 
 def is_string(dtype):
     ret = False
-    if dtype == object or str(dtype).startswith('|S') or dtype in six.string_types or np.issubdtype(dtype, np.string_) \
-            or np.issubdtype(dtype, np.unicode) or dtype == str:
+    if dtype == object or np.dtype(dtype).kind in {'U', 'S'}:
         ret = True
     return ret
 

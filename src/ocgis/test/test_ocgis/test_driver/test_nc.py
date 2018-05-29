@@ -6,8 +6,6 @@ from unittest import SkipTest
 import fiona
 import numpy as np
 from mock import mock
-from shapely.geometry.geo import shape, box
-
 from ocgis import GeomCabinet, vm
 from ocgis import RequestDataset
 from ocgis import env
@@ -30,6 +28,7 @@ from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.variable.temporal import TemporalVariable
 from ocgis.vmachine.mpi import MPI_RANK, MPI_COMM, OcgDist, variable_scatter
+from shapely.geometry.geo import shape, box
 
 
 class Test(TestBase):
@@ -389,6 +388,38 @@ class TestDriverNetcdf(TestBase):
         sv = SourcedVariable(name='the_mask', request_dataset=rd)
         self.assertEqual(sv.get_value().tolist(), [1, 222, 222, 4])
         self.assertNumpyAll(sv.get_mask(), v.get_mask())
+
+    @attr('mpi')
+    def test_write_variable_fill_value_is_maintained(self):
+
+        if vm.size != 4:
+            raise SkipTest('vm.size != 4')
+
+        dist = OcgDist()
+        dim = dist.create_dimension('dim', 8, dist=True)
+        dist.update_dimension_bounds()
+
+        var = Variable(name='var', dimensions=dim, fill_value=2.)
+        var.v()[0] = 1
+        var.v()[1] = 2
+        var.get_mask(create=True, check_value=True)
+
+        if vm.rank == 0:
+            path = self.get_temporary_file_path('foo.nc')
+        else:
+            path = None
+        path = vm.bcast(path)
+
+        var.parent.write(path)
+
+        # if vm.rank == 0:
+        #     self.ncdump(path, header_only=False)
+
+        with vm.scoped('read test', [0]):
+            if not vm.is_null:
+                invar = RequestDataset(path).create_field()['var']
+                self.assertEqual(invar.get_mask().sum(), 4)
+                self.assertEqual(invar.fill_value, 2.)
 
     @attr('mpi')
     def test_write_variable_collection(self):

@@ -1,6 +1,5 @@
-from copy import deepcopy
-
 import numpy as np
+from copy import deepcopy
 
 from ocgis import OcgOperations
 from ocgis import RequestDataset
@@ -179,7 +178,7 @@ class TestRegrid(TestSimpleBase):
             self.assertEqual(regridded.crs, source.crs)
             for variable in regridded.data_variables:
                 self.assertGreater(variable.get_value().mean(), 2.0)
-                self.assertNumpyAll(variable.get_value(), source[variable.name].get_value().squeeze())
+                self.assertNumpyAll(variable.get_value(), source[variable.name].get_value())
                 self.assertFalse(np.may_share_memory(variable.get_value(), source[variable.name].get_value()))
 
     @attr('esmf')
@@ -222,7 +221,7 @@ class TestRegrid(TestSimpleBase):
         value_mask[1, 1] = True
 
         regridded = regrid_field(source, destination, value_mask=value_mask)
-        self.assertTrue(np.all(regridded.data_variables[0].get_mask()[:, 1, 1]))
+        self.assertTrue(np.all(regridded.data_variables[0].get_mask()[:, :, 1, 1]))
 
     @attr('data', 'esmf')
     def test_system_regrid_field_nonoverlapping_extents(self):
@@ -273,7 +272,7 @@ class TestRegrid(TestSimpleBase):
             fill = np.append(fill, app)
 
         # Without splitting, the time index is a single slice.
-        self.assertTrue(all([ii == slice(None) for ii in fill['tidx']]))
+        self.assertTrue(all([ii is None for ii in fill['tidx']]))
 
         # There are two variables.
         self.assertEqual(fill.shape[0], 2)

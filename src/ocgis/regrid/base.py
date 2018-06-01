@@ -1,13 +1,13 @@
-import logging
-from copy import deepcopy
-
 import ESMF
+import logging
 import numpy as np
 from ESMF.api.constants import RegridMethod
+from collections import OrderedDict
+from copy import deepcopy
 
-from ocgis import constants
+from ocgis import constants, Dimension
 from ocgis import env
-from ocgis.base import AbstractOcgisObject, get_dimension_names
+from ocgis.base import AbstractOcgisObject, get_dimension_names, iter_dict_slices
 from ocgis.collection.field import Field
 from ocgis.constants import DMK
 from ocgis.exc import RegriddingError, CornersInconsistentError
@@ -136,7 +136,7 @@ def get_ocgis_grid_from_esmf_grid(egrid):
     var_y = Variable(name=dmap.get_variable(DMK.Y), value=coords[1], dimensions=edims)
 
     # Build OCGIS corners array if corners are present on the ESMF grid object.
-    has_corners = get_esmf_grid_has_corners(egrid)
+    has_corners = esmf_grid_has_corners(egrid)
     if has_corners:
         corner = egrid.coords[ESMF.StaggerLoc.CORNER]
         if egrid.periodic_dim == 0:
@@ -272,7 +272,7 @@ def get_esmf_field_from_ocgis_field(ofield, esmf_field_name=None, **kwargs):
     return efield
 
 
-def get_esmf_grid_has_corners(egrid):
+def esmf_grid_has_corners(egrid):
     return egrid.has_corners
 
 
@@ -491,9 +491,9 @@ def iter_esmf_fields(ofield, regrid_method='auto', value_mask=None, split=True):
     :type ofield: :class:`ocgis.Field`
     :param regrid_method: See :func:`~ocgis.regrid.base.get_esmf_grid`.
     :param value_mask: See :func:`~ocgis.regrid.base.get_esmf_grid`.
-    :param bool split: If ``True``, yield a single time slice/coordinate from the source field. If ``False``, yield all
-     time coordinates. When ``False``, OCGIS uses ESMF's ``ndbounds`` argument to field creation. Use ``True`` if
-     there are memory limitations. Use ``False`` for faster performance.
+    :param bool split: If ``True``, yield a single extra dimension slice from the source field. If ``False``, yield all
+     data. When ``False``, OCGIS uses ESMF's ``ndbounds`` argument to field creation. Use ``True`` if there are memory
+     limitations. Use ``False`` for faster performance.
     :rtype: tuple(str, :class:`ESMF.driver.field.Field`, int)
 
     The returned tuple elements are:
@@ -508,70 +508,71 @@ def iter_esmf_fields(ofield, regrid_method='auto', value_mask=None, split=True):
 
     :raises: AssertionError
     """
-    # Only one level and realization allowed.
-    if ofield.level is not None and ofield.level.ndim > 0:
-        assert ofield.level.shape[0] == 1
-    if ofield.realization is not None:
-        assert ofield.realization.shape[0] == 1
 
-    # Retrieve the mask from the first variable.
+    archetype = ofield.data_variables[0]  # Archetype data variable
+    dimension_names = archetype.dimension_names  # Archetype dimension names
+    # Spatial coordinate dimensions
+    spatial_coordinate_dimensions = OrderedDict([(dim.name, dim) for dim in ofield.grid.dimensions])
+    # Extra dimension objects
+    extra_dimensions = OrderedDict([(dim.name, dim) for dim in archetype.dimensions
+                                    if dim.name not in spatial_coordinate_dimensions])
+    # These dimensions may become singleton and need to be squeezed. It does not include spatial coordinate dimensions.
+    to_squeeze = [ii for ii, dim in enumerate(dimension_names) if dim in extra_dimensions.keys()]
+    # ESMF dimension names in Fortran order
+    esmf_dimensions = list(deepcopy(dimension_names))
+    esmf_dimensions.reverse()
+    esmf_dimensions = tuple(esmf_dimensions)
+
+    # If there are no extra dimensions, then there is no need to split fields.
+    if len(extra_dimensions) == 0:
+        split = False
+
     if value_mask is None:
-        if ofield.time is not None:
-            sfield = ofield.get_field_slice({'time': 0})
-        else:
-            sfield = ofield
-        archetype = sfield.data_variables[0]
-        value_mask = archetype.get_mask()
-        if value_mask is not None and value_mask.ndim == 3 and value_mask.shape[0] == 1:
-            value_mask = np.squeeze(value_mask, 0)
+        # Retrieve the mask from the first variable
+        if archetype.has_masked_values:
+            slc = {k: 0 for k in extra_dimensions.keys()}
+            sub = archetype[slc]
+            value_mask = sub.get_mask()
+            if len(extra_dimensions) > 0:
+                value_mask = np.squeeze(value_mask, axis=to_squeeze)
 
-    # Create the ESMF grid.
+    # Create the ESMF grid
     egrid = get_esmf_grid(ofield.grid, regrid_method=regrid_method, value_mask=value_mask)
 
-    # Produce a new ESMF field for each variable.
-    if ofield.time is not None:
-        time_name = ofield.time.dimensions[0].name
+    if split:
+        # Not extra dimensions
+        ndbounds = None
     else:
-        # If there is no time, there is no need to split anything by the time slice.
-        split = False
-        time_name = None
+        # Size of the extra dimensions
+        ndbounds = [len(dim) for dim in extra_dimensions.values()]
+        ndbounds.reverse()  # Reverse for Fortran ordering
 
-    # These dimensions will become singletons.
-    dimension_names_to_squeeze = []
-    if ofield.level is not None and ofield.level.ndim > 0:
-        dimension_names_to_squeeze.append(ofield.level.dimensions[0].name)
-    if ofield.realization is not None:
-        dimension_names_to_squeeze.append(ofield.realization.dimensions[0].name)
-
+    # We need to regrid each data variable
     for variable in ofield.data_variables:
-        variable = variable.extract()
-        dimensions_to_squeeze = [idx for idx, d in enumerate(variable.dimensions) if
-                                 d.name in dimension_names_to_squeeze]
-        extra_dimensions = [d.name for d in variable.dimensions if d.name != time_name]
-        slice_template = {name: None for name in extra_dimensions}
-        variable_name = variable.name
-        if split:
-            for tidx in range(ofield.time.shape[0]):
-                efield = ESMF.Field(egrid, name=variable_name)
-                slice_template[time_name] = tidx
-                fill_data = np.squeeze(variable[slice_template].get_value(), axis=dimensions_to_squeeze)
-                fill_data = np.swapaxes(fill_data, 0, 1)
-                efield.data[:] = fill_data
-                yield variable_name, efield, tidx
-        else:
-            if ofield.time is not None:
-                ndbounds = [ofield.time.shape[0]]
-                slice_template[time_name] = None
+        variable = variable.extract()  # Yank the variable from its collection
+        variable_name = variable.name  # Reference the variable name
+        with broadcast_scope(variable, esmf_dimensions):  # The OCGIS and ESMF ordering must align
+            if split:
+                # The ESMF dimensions to squeeze (not spatial coordinate dimensions)
+                esmf_to_squeeze = [ii for ii, dim in enumerate(esmf_dimensions) if dim in extra_dimensions]
+                # The extra dimension iterator to generate slices
+                iargs = (list(extra_dimensions.keys()), [len(dim) for dim in extra_dimensions.values()])
+                for current_slice in iter_dict_slices(*iargs):
+                    sub = variable[current_slice]
+                    efield_data = sub.v()
+                    # Squeeze out the extra dimensions in the outgoing ESMF field data
+                    if len(esmf_to_squeeze) > 0:
+                        efield_data = np.squeeze(efield_data, axis=esmf_to_squeeze)
+                    # Create the ESMF source field and insert the data into it
+                    efield = ESMF.Field(egrid, name=variable_name)
+                    efield.data[:] = efield_data
+                    yield variable_name, efield, current_slice
             else:
-                ndbounds = None
-            efield = ESMF.Field(egrid, name=variable_name, ndbounds=ndbounds)
-            slice_template[ofield.x.dimensions[0].name] = None
-            slice_template[ofield.y.dimensions[0].name] = None
-            fill_data = np.squeeze(variable[slice_template].get_value(), axis=dimensions_to_squeeze)
-            fill_data = np.swapaxes(fill_data, 0, -1)
-            efield.data[:] = fill_data
-            tidx = slice(None)
-            yield variable_name, efield, tidx
+                # Create the ESMF field with ungridded dimensions
+                efield = ESMF.Field(egrid, name=variable_name, ndbounds=ndbounds)
+                current_slice = None  # The current slice is None since we are doing the regrid in bulk
+                efield.data[:] = variable.v()  # Fill the field data
+                yield variable_name, efield, current_slice
 
 
 def check_fields_for_regridding(source, destination, regrid_method='auto'):
@@ -637,25 +638,59 @@ def regrid_field(source, destination, regrid_method='auto', value_mask=None, spl
     # This function runs a series of asserts to make sure the sources and destination are compatible.
     check_fields_for_regridding(source, destination, regrid_method=regrid_method)
 
+    dst_grid = destination.grid  # Reference the destination grid
+    # Spatial coordinate dimensions for the destination grid
+    dst_spatial_coordinate_dimensions = OrderedDict([(dim.name, dim) for dim in dst_grid.dimensions])
+    # Spatial coordinate dimensions for the source grid
+    src_spatial_coordinate_dimensions = OrderedDict([(dim.name, dim) for dim in source.grid.dimensions])
+    archetype = source.data_variables[0]  # Reference an archetype data variable.
+    # Extra dimensions (like time or level) to iterate over or use for ndbounds depending on the split protocol
+    extra_dimensions = OrderedDict([(dim.name, dim) for dim in archetype.dimensions
+                                    if dim.name not in dst_spatial_coordinate_dimensions and
+                                    dim.name not in src_spatial_coordinate_dimensions])
+
+    # If there are no extra dimensions, then there is no need to split fields.
+    if len(extra_dimensions) == 0:
+        split = False
+
+    if split:
+        # There are no extra, ungridded dimensions for ESMF to use.
+        ndbounds = None
+    else:
+        # These are the extra, ungridded dimensions for ESMF to use (ndbounds).
+        ndbounds = [len(dim) for dim in extra_dimensions.values()]
+        ndbounds.reverse()  # Fortran order is used by ESMF
+
     # Regrid each source.
     ocgis_lh(logger='iter_regridded_fields', msg='starting source regrid loop', level=logging.DEBUG)
-    # for source in sources:
-    build = True
-    fills = {}
-    for variable_name, src_efield, tidx in iter_esmf_fields(source, regrid_method=regrid_method,
-                                                            value_mask=value_mask, split=split):
+    build = True  # Flag for first loop
+    fills = {}  # Holds destination field fill variables.
+
+    # TODO: OPTIMIZE: The source and destination field objects should be reused and refilled when split=False
+    # Main field iterator for use in the regridding loop
+    for variable_name, src_efield, current_slice in iter_esmf_fields(source, regrid_method=regrid_method,
+                                                                     value_mask=value_mask, split=split):
         # We need to generate new variables given the change in shape
         if variable_name not in fills:
-            if source.time is not None:
-                new_dimensions = list(source.time.dimensions) + list(destination.grid.dimensions)
+            # Create the destination data variable dimensions. These are a combination of the extra dimensions and
+            # spatial coordinate dimensions.
+            if len(extra_dimensions) > 0:
+                new_dimensions = list(extra_dimensions.values())
             else:
-                new_dimensions = list(destination.grid.dimensions)
+                new_dimensions = []
+            new_dimensions += list(dst_grid.dimensions)
+
+            # Reverse the dimensions for the creation as we are working in Fortran ordering with ESMF.
+            new_dimensions.reverse()
+
+            # Create the destination fill variable and cache it
             source_variable = source[variable_name]
-            new_variable = Variable(name=variable_name, dimensions=new_dimensions, dtype=source_variable.dtype,
-                                    fill_value=source_variable.fill_value)
+            new_variable = Variable(name=variable_name, dimensions=new_dimensions,
+                                    dtype=source_variable.dtype, fill_value=source_variable.fill_value,
+                                    attrs=source_variable.attrs)
             fills[variable_name] = new_variable
 
-        # Only build the regrid objects once.
+        # Only build the ESMF/OCGIS destination grids and fields once.
         if build:
             # Build the destination grid once.
             ocgis_lh(logger='iter_regridded_fields', msg='before get_esmf_grid', level=logging.DEBUG)
@@ -663,40 +698,36 @@ def regrid_field(source, destination, regrid_method='auto', value_mask=None, spl
 
             # Check for corners on the destination grid. If they exist, conservative regridding is possible.
             if regrid_method == 'auto':
-                if get_esmf_grid_has_corners(esmf_destination_grid) and get_esmf_grid_has_corners(src_efield.grid):
+                if esmf_grid_has_corners(esmf_destination_grid) and esmf_grid_has_corners(src_efield.grid):
                     regrid_method = ESMF.RegridMethod.CONSERVE
                 else:
                     regrid_method = None
-
-            if split:
-                ndbounds = None
-            else:
-                ndbounds = [source.time.shape[0]]
 
             # Prepare the regridded sourced field. This amounts to exchanging the grids between the objects.
             regridded_source = source.copy()
             regridded_source.grid.extract(clean_break=True)
             regridded_source.set_grid(destination.grid.extract())
 
-            build = False
-
+        # Destination ESMF field
         dst_efield = ESMF.Field(esmf_destination_grid, name='destination', ndbounds=ndbounds)
-        fill_variable = fills[variable_name]
-        fv = fill_variable.fill_value
-        if fv is None:
-            fv = np.ma.array([0], dtype=fill_variable.dtype).fill_value
-        dst_efield.data.fill(fv)
+        fill_variable = fills[variable_name]  # Reference the destination data variable object
+        fv = fill_variable.fill_value  # The fill value used for the variable data type
+        dst_efield.data.fill(fv)  # Fill the ESMF destination field with that fill value to help track masks
 
         # Construct the regrid object. Weight generation actually occurs in this call.
         ocgis_lh(logger='iter_regridded_fields', msg='before ESMF.Regrid', level=logging.DEBUG)
-        regrid = ESMF.Regrid(src_efield, dst_efield, unmapped_action=ESMF.UnmappedAction.IGNORE,
-                             regrid_method=regrid_method, src_mask_values=[0], dst_mask_values=[0])
+        if build:  # Only create the regrid object once. It may be reused if split=True.
+            regrid = ESMF.Regrid(src_efield, dst_efield, unmapped_action=ESMF.UnmappedAction.IGNORE,
+                                 regrid_method=regrid_method, src_mask_values=[0], dst_mask_values=[0])
+            build = False
         ocgis_lh(logger='iter_regridded_fields', msg='after ESMF.Regrid', level=logging.DEBUG)
 
         # Perform the regrid operation. "zero_region" only fills values involved with regridding.
         ocgis_lh(logger='iter_regridded_fields', msg='before regrid', level=logging.DEBUG)
         regridded_esmf_field = regrid(src_efield, dst_efield, zero_region=ESMF.Region.SELECT)
-        e_data = regridded_esmf_field.data
+        e_data = regridded_esmf_field.data  # Regridded data values
+
+        # These are the unmapped values coming out of the ESMF regrid operation.
         unmapped_mask = e_data[:] == fv
 
         # If all data is masked, raise an exception.
@@ -705,54 +736,42 @@ def regrid_field(source, destination, regrid_method='auto', value_mask=None, spl
             destroy_esmf_objects([regrid, dst_efield, esmf_destination_grid])
             msg = 'All regridded elements are masked. Do the input spatial extents overlap?'
             raise RegriddingError(msg)
-        # Fill the new variables.
-        fv_value = fill_variable.get_value()
-        fv_mask = fill_variable.get_mask(create=True)
 
-        has_split_tidx = fv_value.ndim == 3
-        if has_split_tidx:
-            fill_data = np.swapaxes(e_data, 0, -1)
-            fv_value[tidx, :, :] = fill_data
+        if current_slice is not None:
+            # Create an OCGIS variable to use for setting on the destination. We want to use label-based slicing since
+            # arbitrary dimensions are possible with the extra dimensions. First, set defaults for the spatial
+            # coordinate slices.
+            for k in dst_spatial_coordinate_dimensions.keys():
+                current_slice[k] = slice(None)
+            # The spatial coordinate dimension names for ESMF in Fortran order
+            e_data_dimensions = deepcopy(list(dst_spatial_coordinate_dimensions.keys()))
+            e_data_dimensions.reverse()
+            # The extra dimension names for ESMF in Fortran order
+            e_data_dimensions_extra = deepcopy(list(extra_dimensions.keys()))
+            e_data_dimensions_extra.reverse()
+            # Wrap the ESMF data in an OCGIS variable
+            e_data_var = Variable(name='e_data', value=e_data, dimensions=e_data_dimensions, mask=unmapped_mask)
+            # Expand the new variable's dimension to account for the extra dimensions
+            reshape_dims = list(e_data_var.dimensions) + [Dimension(name=n, size=1) for n in e_data_dimensions_extra]
+            e_data_var.reshape(reshape_dims)
+            # Set the destination fill variable with the ESMF regridded data
+            fill_variable[current_slice] = e_data_var
         else:
-            # Assume no time index.
-            fill_data = np.swapaxes(e_data, 0, 1)
-            fv_value[:, :] = fill_data
-
-        if regridded_esmf_field.grid.mask[0] is not None:
-            e_mask = np.invert(regridded_esmf_field.grid.mask[0].astype(bool))
-            if has_split_tidx:
-                fill_data = np.swapaxes(e_mask, 0, -1)
-                fv_mask[tidx, :, :] = fill_data
-            else:
-                # Assume no time index.
-                fill_data = np.swapaxes(e_mask, 0, 1)
-                fv_mask[:, :] = fill_data
-
-        if has_split_tidx:
-            unmapped_mask = np.swapaxes(unmapped_mask, 0, -1)
-            fill_variable_mask = np.logical_or(unmapped_mask, fv_mask[tidx, :, :])
-        else:
-            # Assume no time index.
-            unmapped_mask = np.swapaxes(unmapped_mask, 0, 1)
-            fill_variable_mask = np.logical_or(unmapped_mask, fv_mask[:, :])
-
-        if has_split_tidx:
-            fv_mask[tidx, :, :] = fill_variable_mask
-        else:
-            # Assume no time index.
-            fv_mask[:, :] = fill_variable_mask
-        fill_variable.set_mask(fv_mask)
-
-        # Destroy ESMF objects, but keep the grid until all splits have finished. If split=False, there is only one
-        # split.
-        destroy_esmf_objects([regrid, dst_efield, src_efield])
+            # ESMF and OCGIS dimensions align at this point, so just insert the data
+            fill_variable.v()[:] = e_data
 
         # Create a new variable collection and add the variables to the output field.
-        # source.variables = VariableCollection()
         for v in list(fills.values()):
             regridded_source.add_variable(v, is_data=True, force=True)
 
-    destroy_esmf_objects([esmf_destination_grid])
+    # Destroy ESMF objects.
+    destroy_esmf_objects([regrid, dst_efield, src_efield, esmf_destination_grid])
+
+    # Broadcast ESMF (Fortran) ordering to Python (C) ordering.
+    dst_names = [dim.name for dim in new_dimensions]
+    dst_names.reverse()
+    for data_variable in regridded_source.data_variables:
+        broadcast_variable(data_variable, dst_names)
 
     return regridded_source
 

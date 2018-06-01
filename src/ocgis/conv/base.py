@@ -1,11 +1,10 @@
 import abc
 import csv
+import fiona
 import logging
 import os.path
-from pprint import pformat
-
-import fiona
 import six
+from pprint import pformat
 
 from ocgis import constants, vm
 from ocgis import env
@@ -338,7 +337,7 @@ def _write_source_meta_(path, operations):
         to_write.append('== Dataset Identifer (DID): {}'.format(element.uid))
         to_write.append('===========================')
         to_write.append('')
-        dimension_map = pformat(element.dimension_map)
+        dimension_map = pformat(element.dimension_map.as_dict())
         to_write.append('== Dimension Map ==========')
         to_write.append('')
         to_write.append(dimension_map)

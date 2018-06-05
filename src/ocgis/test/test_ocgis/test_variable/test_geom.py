@@ -1,9 +1,8 @@
 import itertools
-from collections import OrderedDict
-from copy import deepcopy
-
 import numpy as np
 import shapely
+from collections import OrderedDict
+from copy import deepcopy
 from mock import mock
 from nose.plugins.skip import SkipTest
 from numpy.ma import MaskedArray
@@ -953,6 +952,18 @@ class TestGeometryVariable(AbstractTestInterface, FixturePolygonWithHole):
 
         mesh2 = gc.to_esmf()
         self.assertIsInstance(mesh2, ESMF.Mesh)
+
+    @attr('esmf')
+    def test_to_esmf_state_boundaries(self):
+        """Test converting state boundaries shapefile to single element ESMF meshes."""
+
+        geoms = ocgis.RequestDataset(self.path_state_boundaries).create_field().geom
+
+        for ii in range(geoms.size):
+            sub = geoms[ii]
+            coords = sub.convert_to()
+            mesh = coords.to_esmf()
+            print(mesh.__dict__)
 
     def test_unwrap(self):
         geom = box(195, -40, 225, -30)

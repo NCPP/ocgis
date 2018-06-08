@@ -14,7 +14,7 @@ from ocgis.constants import DMK, WrappedState, OcgisConvention, DriverKey
 from ocgis.exc import EmptySubsetError, NoInteriorsError, RequestableFeature
 from ocgis.spatial.grid import Grid, get_geometry_variable
 from ocgis.test import strings
-from ocgis.test.base import attr, AbstractTestInterface, create_gridxy_global, TestBase
+from ocgis.test.base import attr, AbstractTestInterface, create_gridxy_global, TestBase, create_exact_field
 from ocgis.variable.base import Variable, VariableCollection
 from ocgis.variable.crs import WGS84, Spherical, Cartesian
 from ocgis.variable.dimension import Dimension
@@ -957,14 +957,20 @@ class TestGeometryVariable(AbstractTestInterface, FixturePolygonWithHole):
     def test_to_esmf_state_boundaries(self):
         """Test converting state boundaries shapefile to single element ESMF meshes."""
         # tdk: fix: test is failing for multi-geometries; we need the ability to add mesh element with a break value
+        # tdk: rename: this is a system test for regridding now with mesh elements
         import ESMF
+        from ocgis.regrid.base import RegridOperation
 
         ESMF.Manager(debug=True)  # tdk: remove
 
         geoms = ocgis.RequestDataset(self.path_state_boundaries).create_field().geom
-        # tdk: fix: i have no idea why, but this is comming out as polygon from the fiona metadata
+        geoms.update_crs(Spherical())  # tdk: update to avoid crs changes later
+        # tdk: fix: i have no idea why, but this is coming out as polygon from the fiona metadata
         # geoms._geom_type = 'MultiPolygon'
         # self.assertEqual(geoms.geom_type, 'MultiPolygon')
+
+        src_grid = create_gridxy_global(resolution=3.0, crs=Spherical())
+        src_field = create_exact_field(src_grid, 'foo')
 
         for ii in range(geoms.size):
             sub = geoms[ii]
@@ -972,13 +978,13 @@ class TestGeometryVariable(AbstractTestInterface, FixturePolygonWithHole):
 
             if isinstance(sgeom, MultiPolygon):
                 is_multi = True
+                sub.v()[0] = sgeom[0]  # tdk: remove: this is here to work only with single geometries
             else:
                 is_multi = False
 
             is_multi = False  # tdk: remove
 
-            coords = sub.convert_to(start_index=1)
-            self.assertEqual(coords.cindex.v()[0].tolist()[0], 1)
+            coords = sub.convert_to(start_index=0)
 
             if is_multi:
                 self.assertEqual(sub.geom_type, 'MultiPolygon')
@@ -991,6 +997,14 @@ class TestGeometryVariable(AbstractTestInterface, FixturePolygonWithHole):
 
             mesh = coords.to_esmf()
             self.assertIsInstance(mesh, ESMF.Mesh)
+
+            sub_src_field = src_field.grid.get_intersects(sub).parent
+            import ipdb;
+            ipdb.set_trace()
+            ro = RegridOperation(sub_src_field, coords.parent)
+            regridded = ro.execute()
+
+            print(sub_src_field.grid.shape)
 
     def test_unwrap(self):
         geom = box(195, -40, 225, -30)

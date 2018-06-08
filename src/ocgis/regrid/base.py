@@ -4,7 +4,6 @@ from copy import deepcopy
 import ESMF
 import numpy as np
 from ESMF.api.constants import RegridMethod
-
 from ocgis import constants
 from ocgis import env
 from ocgis.base import AbstractOcgisObject, get_dimension_names
@@ -646,10 +645,15 @@ def regrid_field(source, destination, regrid_method='auto', value_mask=None, spl
                                                             value_mask=value_mask, split=split):
         # We need to generate new variables given the change in shape
         if variable_name not in fills:
-            if source.time is not None:
-                new_dimensions = list(source.time.dimensions) + list(destination.grid.dimensions)
+            if destination.grid is not None:
+                destination_dimensions = destination.grid.dimensions
             else:
-                new_dimensions = list(destination.grid.dimensions)
+                destination_dimensions = destination.geom.dimensions
+
+            if source.time is not None:
+                new_dimensions = list(source.time.dimensions) + list(destination_dimensions)
+            else:
+                new_dimensions = list(destination_dimensions)
             source_variable = source[variable_name]
             new_variable = Variable(name=variable_name, dimensions=new_dimensions, dtype=source_variable.dtype,
                                     fill_value=source_variable.fill_value)
@@ -659,7 +663,12 @@ def regrid_field(source, destination, regrid_method='auto', value_mask=None, spl
         if build:
             # Build the destination grid once.
             ocgis_lh(logger='iter_regridded_fields', msg='before get_esmf_grid', level=logging.DEBUG)
-            esmf_destination_grid = get_esmf_grid(destination.grid, regrid_method=regrid_method, value_mask=value_mask)
+            if destination.grid is not None:
+                esmf_destination_grid = get_esmf_grid(destination.grid, regrid_method=regrid_method,
+                                                      value_mask=value_mask)
+            else:
+                esmf_destination_grid = create_esmf_mesh(destination.grid, regrid_method=regrid_method,
+                                                         value_mask=value_mask)
 
             # Check for corners on the destination grid. If they exist, conservative regridding is possible.
             if regrid_method == 'auto':

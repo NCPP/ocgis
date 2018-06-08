@@ -1,13 +1,9 @@
 import abc
 import logging
+from collections import deque
+
 import numpy as np
 import six
-from collections import deque
-from shapely.geometry import Point, Polygon
-from shapely.geometry.base import BaseGeometry, BaseMultipartGeometry
-from shapely.geometry.linestring import LineString
-from shapely.geometry.multipolygon import MultiPolygon
-
 from ocgis import env, vm
 from ocgis.base import raise_if_empty, is_unstructured_driver
 from ocgis.constants import KeywordArgument, GridAbstraction, VariableName, AttributeName, GridChunkerConstants, \
@@ -20,6 +16,10 @@ from ocgis.variable.base import get_dslice, Variable
 from ocgis.variable.dimension import create_distributed_dimension
 from ocgis.variable.geom import GeometryProcessor, GeometryVariable
 from ocgis.vmachine.mpi import cancel_free_requests
+from shapely.geometry import Point, Polygon
+from shapely.geometry.base import BaseGeometry, BaseMultipartGeometry
+from shapely.geometry.linestring import LineString
+from shapely.geometry.multipolygon import MultiPolygon
 
 
 def format_gridunstruct_return(func):
@@ -788,9 +788,10 @@ class PolygonGC(AbstractGeometryCoordinates):
         elemId = np.arange(self.element_dim.size)
 
         # tdk: why zeros?
-        nodeOwner = np.zeros(nodeCoord.size / ndim)
+        n = int(nodeCoord.size / ndim)
+        nodeOwner = np.zeros(n)
 
-        mesh.add_nodes(nodeCoord.size / ndim, nodeId, nodeCoord, nodeOwner)
+        mesh.add_nodes(n, nodeId, nodeCoord, nodeOwner)
 
         # tdk: FEAURE: support element_coords if there are points
         mesh.add_elements(self.element_dim.size, elemId, elemType, elemConn, element_coords=None)

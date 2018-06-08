@@ -1,7 +1,6 @@
 from collections import OrderedDict
 
 import numpy as np
-
 from ocgis.util.enum import Enum, IntEnum
 
 UNINITIALIZED = -999
@@ -473,7 +472,7 @@ class OcgisConvention(object):
         YC_DIMENSION = 'ydim'
 
     class Value(object):
-        MULTI_BREAK_VALUE = -8
+        MULTI_BREAK_VALUE = -7
         ROLE_COORDSYS = 'coordinate_system'
 
 

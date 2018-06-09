@@ -1,6 +1,6 @@
-import numpy as np
 from copy import deepcopy
 
+import numpy as np
 from ocgis import OcgOperations
 from ocgis import RequestDataset
 from ocgis import Variable

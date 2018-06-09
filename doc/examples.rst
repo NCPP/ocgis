@@ -126,7 +126,15 @@ Standard operations scripts may be run in parallel using ``mpirun`` with no spec
 Regridding
 ----------
 
+Regridding Through Operations
++++++++++++++++++++++++++++++
+
 .. literalinclude:: sphinx_examples/regridding.py
+
+Single Mesh Elements with ``xarray`` Conversion
++++++++++++++++++++++++++++++++++++++++++++++++
+
+.. literalinclude:: sphinx_examples/regridding_single_mesh_elements.py
 
 Calculating TG90p using ``icclim``
 ----------------------------------

@@ -1,11 +1,11 @@
-import ESMF
 import logging
-import numpy as np
-from ESMF.api.constants import RegridMethod
 from collections import OrderedDict
 from copy import deepcopy
 
-from ocgis import constants, Dimension
+import ESMF
+import numpy as np
+from ESMF.api.constants import RegridMethod
+from ocgis import Dimension, GridUnstruct
 from ocgis import constants
 from ocgis import env
 from ocgis.base import AbstractOcgisObject, get_dimension_names, iter_dict_slices
@@ -15,7 +15,7 @@ from ocgis.exc import RegriddingError, CornersInconsistentError
 from ocgis.spatial.grid import Grid, expand_grid
 from ocgis.spatial.spatial_subset import SpatialSubsetOperation
 from ocgis.util.broadcaster import broadcast_scope, broadcast_variable
-from ocgis.util.helpers import get_esmf_corners_from_ocgis_corners, create_ocgis_corners_from_esmf_corners
+from ocgis.util.helpers import get_esmf_corners_from_ocgis_corners, create_ocgis_corners_from_esmf_corners, dict_first
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import Variable
 from ocgis.variable.crs import Spherical, create_crs
@@ -58,7 +58,6 @@ class RegridOperation(AbstractOcgisObject):
 
         :rtype: :class:`ocgis.Field`
         """
-
         regrid_destination, backtransform_dst_crs = self._get_regrid_destination_()
         regrid_source, backtransform_src_crs = self._get_regrid_source_()
 
@@ -364,6 +363,7 @@ def get_esmf_grid(ogrid, regrid_method='auto', value_mask=None):
     pkwds['coord_sys'] = ESMF.CoordSys.SPH_DEG
     pkwds['staggerloc'] = ESMF.StaggerLoc.CENTER
     pkwds['max_index'] = max_index
+    pkwds['coord_sys'] = ESMF.CoordSys.CART  # tdk: remove
     egrid = ESMF.Grid(**pkwds)
 
     egrid._ocgis['dimnames'] = (x_dimension.name, y_dimension.name)
@@ -621,7 +621,8 @@ def check_fields_for_regridding(source, destination, regrid_method='auto'):
             raise CornersInconsistentError(msg)
 
 
-def regrid_field(source, destination, regrid_method='auto', value_mask=None, split=True):
+def regrid_field(source, destination, regrid_method='auto', value_mask=None, split=True, weights_out=None,
+                 weights_only=False):
     """
     Regrid ``source`` data to match the grid of ``destination``.
 
@@ -635,7 +636,8 @@ def regrid_field(source, destination, regrid_method='auto', value_mask=None, spl
     :param bool split: See :func:`~ocgis.regrid.base.iter_esmf_fields`.
     :rtype: :class:`ocgis.Field`
     """
-
+    # tdk: doc
+    # tdk: comment
     # This function runs a series of asserts to make sure the sources and destination are compatible.
     check_fields_for_regridding(source, destination, regrid_method=regrid_method)
 
@@ -695,16 +697,18 @@ def regrid_field(source, destination, regrid_method='auto', value_mask=None, spl
         if build:
             # Build the destination grid once.
             ocgis_lh(logger='iter_regridded_fields', msg='before get_esmf_grid', level=logging.DEBUG)
-            if destination.grid is not None:
-                esmf_destination_grid = get_esmf_grid(destination.grid, regrid_method=regrid_method,
+            if isinstance(dst_grid, Grid):
+                esmf_destination_grid = get_esmf_grid(dst_grid, regrid_method=regrid_method,
                                                       value_mask=value_mask)
             else:
-                esmf_destination_grid = create_esmf_mesh(destination.grid, regrid_method=regrid_method,
-                                                         value_mask=value_mask)
+                # Convert the geometry coordinates to an ESMF mesh if we are working with an unstructured grid
+                esmf_destination_grid = dict_first(dst_grid.abstractions_available.values()).to_esmf()
 
             # Check for corners on the destination grid. If they exist, conservative regridding is possible.
             if regrid_method == 'auto':
-                if esmf_grid_has_corners(esmf_destination_grid) and esmf_grid_has_corners(src_efield.grid):
+                if isinstance(esmf_destination_grid, ESMF.Mesh):
+                    regrid_method = ESMF.RegridMethod.CONSERVE
+                elif esmf_grid_has_corners(esmf_destination_grid) and esmf_grid_has_corners(src_efield.grid):
                     regrid_method = ESMF.RegridMethod.CONSERVE
                 else:
                     regrid_method = None
@@ -712,10 +716,21 @@ def regrid_field(source, destination, regrid_method='auto', value_mask=None, spl
             # Prepare the regridded sourced field. This amounts to exchanging the grids between the objects.
             regridded_source = source.copy()
             regridded_source.grid.extract(clean_break=True)
-            regridded_source.set_grid(destination.grid.extract())
+
+            # tdk: feature: extract needs to be implemented on unstructured grids; right now it's just a copy
+            if isinstance(dst_grid, GridUnstruct):
+                extracted = dst_grid.copy()
+            else:
+                extracted = dst_grid.extract()
+
+            regridded_source.set_grid(extracted)
+        else:
+            esmf_destination_grid, ndbounds = [None, None]
 
         # Destination ESMF field
-        dst_efield = ESMF.Field(esmf_destination_grid, name='destination', ndbounds=ndbounds)
+        # tdk: meshloc should only be used with meshes
+        dst_efield = ESMF.Field(esmf_destination_grid, name='destination', ndbounds=ndbounds,
+                                meshloc=ESMF.MeshLoc.ELEMENT)
         fill_variable = fills[variable_name]  # Reference the destination data variable object
         fv = fill_variable.fill_value  # The fill value used for the variable data type
         dst_efield.data.fill(fv)  # Fill the ESMF destination field with that fill value to help track masks
@@ -723,10 +738,20 @@ def regrid_field(source, destination, regrid_method='auto', value_mask=None, spl
         # Construct the regrid object. Weight generation actually occurs in this call.
         ocgis_lh(logger='iter_regridded_fields', msg='before ESMF.Regrid', level=logging.DEBUG)
         if build:  # Only create the regrid object once. It may be reused if split=True.
+            if weights_out is None:
+                filename = None
+            else:
+                filename = weights_out
             regrid = ESMF.Regrid(src_efield, dst_efield, unmapped_action=ESMF.UnmappedAction.IGNORE,
-                                 regrid_method=regrid_method, src_mask_values=[0], dst_mask_values=[0])
+                                 regrid_method=regrid_method, src_mask_values=[0], dst_mask_values=[0],
+                                 filename=weights_out)
             build = False
         ocgis_lh(logger='iter_regridded_fields', msg='after ESMF.Regrid', level=logging.DEBUG)
+
+        # If this is a weight only operation, we are done.
+        if weights_only:
+            destroy_esmf_objects([regrid, src_efield.grid, src_efield, dst_efield, esmf_destination_grid])
+            return
 
         # Perform the regrid operation. "zero_region" only fills values involved with regridding.
         ocgis_lh(logger='iter_regridded_fields', msg='before regrid', level=logging.DEBUG)

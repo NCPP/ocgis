@@ -6,8 +6,6 @@ from unittest import SkipTest
 import numpy as np
 from numpy.core.multiarray import ndarray
 from numpy.testing.utils import assert_equal
-from shapely.geometry import Point
-
 from ocgis import RequestDataset, vm, env
 from ocgis.base import get_variable_names
 from ocgis.collection.field import Field
@@ -24,6 +22,7 @@ from ocgis.variable.crs import Spherical
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.vmachine.mpi import MPI_SIZE, MPI_RANK, OcgDist, MPI_COMM, hgather, variable_scatter, variable_gather
+from shapely.geometry import Point
 
 
 class Test(TestBase):

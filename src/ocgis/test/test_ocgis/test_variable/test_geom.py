@@ -1,4 +1,5 @@
 import itertools
+import os
 from collections import OrderedDict
 from copy import deepcopy
 
@@ -15,6 +16,7 @@ from ocgis.exc import EmptySubsetError, NoInteriorsError, RequestableFeature
 from ocgis.spatial.grid import Grid, get_geometry_variable
 from ocgis.test import strings
 from ocgis.test.base import attr, AbstractTestInterface, create_gridxy_global, TestBase, create_exact_field
+from ocgis.util.helpers import create_exact_field_value
 from ocgis.variable.base import Variable, VariableCollection
 from ocgis.variable.crs import WGS84, Spherical, Cartesian
 from ocgis.variable.dimension import Dimension
@@ -953,58 +955,93 @@ class TestGeometryVariable(AbstractTestInterface, FixturePolygonWithHole):
         mesh2 = gc.to_esmf()
         self.assertIsInstance(mesh2, ESMF.Mesh)
 
-    @attr('esmf', 'slow')
+    @attr('esmf', 'slow', 'xarray')
     def test_to_esmf_state_boundaries(self):
         """Test converting state boundaries shapefile to single element ESMF meshes."""
         # tdk: fix: test is failing for multi-geometries; we need the ability to add mesh element with a break value
         # tdk: rename: this is a system test for regridding now with mesh elements
+        # tdk: comment
         import ESMF
+        import xarray
         from ocgis.regrid.base import RegridOperation
 
         ESMF.Manager(debug=True)  # tdk: remove
 
         geoms = ocgis.RequestDataset(self.path_state_boundaries).create_field().geom
-        geoms.update_crs(Spherical())  # tdk: update to avoid crs changes later
+        geoms.update_crs(Spherical())
         # tdk: fix: i have no idea why, but this is coming out as polygon from the fiona metadata
         # geoms._geom_type = 'MultiPolygon'
         # self.assertEqual(geoms.geom_type, 'MultiPolygon')
 
-        src_grid = create_gridxy_global(resolution=3.0, crs=Spherical())
-        src_field = create_exact_field(src_grid, 'foo')
+        src_grid = create_gridxy_global(resolution=1.0, crs=Spherical())
+        src_field = create_exact_field(src_grid, 'exact', ntime=3)
 
-        for ii in range(geoms.size):
-            sub = geoms[ii]
-            sgeom = sub.v()[0]
+        max_errors = []
 
-            if isinstance(sgeom, MultiPolygon):
-                is_multi = True
-                sub.v()[0] = sgeom[0]  # tdk: remove: this is here to work only with single geometries
-            else:
-                is_multi = False
+        # write_weights = [False, True]
+        write_weights = [True]
 
-            is_multi = False  # tdk: remove
+        for ww in write_weights:
+            for ii in range(geoms.size):
+                if ww:
+                    weights_out = os.path.join(self.current_dir_output, 'geom_weights_{}.nc'.format(ii))
+                    weights_only = True
+                else:
+                    weights_out = None
+                    weights_only = False
 
-            coords = sub.convert_to(start_index=0)
+                sub = geoms[ii]
+                sgeom = sub.v()[0]
 
-            if is_multi:
-                self.assertEqual(sub.geom_type, 'MultiPolygon')
-                self.assertTrue(coords.has_multi)
-                self.assertEqual(coords.multi_break_value, -7)  # ESMF uses -7 for its break value
-                sel = coords.cindex.v()[0] == -7
-                self.assertGreater(sel.sum(), 0)
-            else:
-                self.assertFalse(coords.has_multi)
+                if isinstance(sgeom, MultiPolygon):
+                    is_multi = True
+                    sub.v()[0] = sgeom[0]  # tdk: remove: this is here to work only with single geometries
+                else:
+                    is_multi = False
 
-            mesh = coords.to_esmf()
-            self.assertIsInstance(mesh, ESMF.Mesh)
+                is_multi = False  # tdk: remove: this is here to work only with single geometries
 
-            sub_src_field = src_field.grid.get_intersects(sub).parent
-            import ipdb;
-            ipdb.set_trace()
-            ro = RegridOperation(sub_src_field, coords.parent)
-            regridded = ro.execute()
+                coords = sub.convert_to(start_index=0)
 
-            print(sub_src_field.grid.shape)
+                if is_multi:
+                    self.assertEqual(sub.geom_type, 'MultiPolygon')
+                    self.assertTrue(coords.has_multi)
+                    self.assertEqual(coords.multi_break_value, -7)  # ESMF uses -7 for its break value
+                    sel = coords.cindex.v()[0] == -7
+                    self.assertGreater(sel.sum(), 0)
+                else:
+                    self.assertFalse(coords.has_multi)
+
+                mesh = coords.to_esmf()
+                self.assertIsInstance(mesh, ESMF.Mesh)
+
+                sub_src_field = src_field.grid.get_intersects(sub.envelope).parent
+
+                regrid_options = {'split': False, 'weights_out': weights_out, 'weights_only': weights_only}
+                ro = RegridOperation(sub_src_field, coords.parent, regrid_options=regrid_options)
+                regridded = ro.execute()
+
+                if weights_only:
+                    self.assertIsNone(regridded)
+                    actual = RequestDataset(weights_out).create_field()['S'].v().min()
+                    self.assertGreater(actual, 0)
+                else:
+                    for dv in regridded.data_variables:
+                        sub.parent.add_variable(dv.extract(), is_data=True)
+                    sub.parent.set_time(regridded.time.extract())
+
+                    desired = create_exact_field_value([sgeom.centroid.x], [sgeom.centroid.y])[0]
+                    desired = [(10 * (ii + 1)) + desired for ii in range(regridded.time.size)]
+                    desired = np.array(desired).reshape(regridded.data_variables[0].shape)
+                    diff = np.abs(desired - regridded.data_variables[0].v())
+                    max_errors.append(diff.max())
+
+                    x = sub.parent.to_xarray()
+                    self.assertIsInstance(x, xarray.Dataset)
+                    self.assertEqual(len(x), 9)
+
+        if not weights_only:
+            self.assertLessEqual(np.max(max_errors), 0.084)
 
     def test_unwrap(self):
         geom = box(195, -40, 225, -30)

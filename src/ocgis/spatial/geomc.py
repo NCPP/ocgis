@@ -781,7 +781,8 @@ class PolygonGC(AbstractGeometryCoordinates):
         # tdk: FEATURE: what happens when the coordinates are not stored in a ragged object array
         elemType = np.array([ii.size for ii in self.cindex.v().flat])
 
-        mesh = ESMF.Mesh(parametric_dim=2, spatial_dim=2)
+        # tdk: remove this and it should be ESMF.CoordSys.SPH_DEG
+        mesh = ESMF.Mesh(parametric_dim=2, spatial_dim=2, coord_sys=ESMF.CoordSys.CART)
 
         # tdk: FEATURE: how to track unique identifiers for nodes and elements?
         nodeId = np.arange(nodeCoord.size / ndim)
@@ -793,8 +794,12 @@ class PolygonGC(AbstractGeometryCoordinates):
 
         mesh.add_nodes(n, nodeId, nodeCoord, nodeOwner)
 
-        # tdk: FEAURE: support element_coords if there are points
-        mesh.add_elements(self.element_dim.size, elemId, elemType, elemConn, element_coords=None)
+        # tdk: feature: support element_coords through geometry iterable for more than one element
+        center = [ii[1].centroid for ii in self.iter_geometries()]
+        center = [center[0].x, center[0].y]
+        element_coords = np.array(center)
+
+        mesh.add_elements(self.element_dim.size, elemId, elemType, elemConn, element_coords=element_coords)
 
         return mesh
 

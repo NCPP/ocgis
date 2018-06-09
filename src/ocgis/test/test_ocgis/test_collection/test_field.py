@@ -7,10 +7,6 @@ import numpy as np
 from mock import Mock
 from netCDF4 import netcdftime
 from nose.plugins.skip import SkipTest
-from shapely.geometry import Point
-from shapely.geometry import box
-from shapely.geometry.base import BaseGeometry
-
 from ocgis import RequestDataset, vm, DimensionMap
 from ocgis import constants
 from ocgis.base import get_variable_names
@@ -32,6 +28,9 @@ from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.variable.temporal import TemporalVariable
 from ocgis.vmachine.mpi import MPI_SIZE, MPI_RANK, MPI_COMM
+from shapely.geometry import Point
+from shapely.geometry import box
+from shapely.geometry.base import BaseGeometry
 
 
 class TestField(AbstractTestInterface):

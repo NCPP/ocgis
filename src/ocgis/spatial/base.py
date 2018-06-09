@@ -4,15 +4,14 @@ from abc import abstractmethod
 
 import numpy as np
 import six
-from pyproj import Proj, transform
-from shapely.geometry import box
-
 from ocgis import Variable, SourcedVariable, vm
 from ocgis.base import raise_if_empty, is_field, AbstractInterfaceObject
 from ocgis.constants import KeywordArgument, VariableName, WrapAction, DMK
 from ocgis.exc import GridDeficientError
 from ocgis.variable import crs
 from ocgis.variable.base import AbstractContainer
+from pyproj import Proj, transform
+from shapely.geometry import box
 
 
 class AbstractSpatialObject(AbstractInterfaceObject):

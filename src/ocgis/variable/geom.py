@@ -4,13 +4,6 @@ from itertools import product
 
 import numpy as np
 from numpy.core.multiarray import ndarray
-from shapely import wkb
-from shapely.geometry import Point, Polygon, MultiPolygon, mapping, MultiPoint, box
-from shapely.geometry.base import BaseGeometry
-from shapely.geometry.polygon import orient
-from shapely.ops import cascaded_union
-from shapely.prepared import prep
-
 from ocgis import Variable, vm
 from ocgis import constants
 from ocgis import env
@@ -28,6 +21,12 @@ from ocgis.variable.base import get_dimension_lengths, ObjectType
 from ocgis.variable.crs import Cartesian
 from ocgis.variable.dimension import create_distributed_dimension, Dimension
 from ocgis.variable.iterator import Iterator
+from shapely import wkb
+from shapely.geometry import Point, Polygon, MultiPolygon, mapping, MultiPoint, box
+from shapely.geometry.base import BaseGeometry
+from shapely.geometry.polygon import orient
+from shapely.ops import cascaded_union
+from shapely.prepared import prep
 
 CreateGeometryFromWkb, Geometry, wkbGeometryCollection, wkbPoint = ogr.CreateGeometryFromWkb, ogr.Geometry, \
                                                                    ogr.wkbGeometryCollection, ogr.wkbPoint

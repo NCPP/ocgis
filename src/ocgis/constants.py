@@ -302,6 +302,7 @@ class KeywordArgument(object):
     ATTRS = 'attrs'
     BOUNDS_NAMES = 'bounds_names'
     CASCADE = 'cascade'
+    CHECK_VALUE = 'check_value'
     COMM = 'comm'
     CREATE = 'create'
     CRS = 'crs'

@@ -3,8 +3,6 @@ import sys
 
 import numpy as np
 from mock import mock, PropertyMock
-from shapely.geometry import box
-
 from ocgis import RequestDataset, Field, vm, env
 from ocgis.base import get_variable_names
 from ocgis.constants import MPIWriteMode, GridChunkerConstants, VariableName
@@ -18,6 +16,7 @@ from ocgis.variable.crs import Spherical
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.temporal import TemporalVariable
 from ocgis.vmachine.mpi import MPI_COMM, MPI_RANK
+from shapely.geometry import box
 
 
 class Test(TestBase):
@@ -196,9 +195,11 @@ class TestGridChunker(AbstractTestInterface, FixtureDriverNetcdfSCRIP):
         # Test ESMF keyword arguments.
         mock_ESMF = mock.Mock()
         with mock.patch.dict(sys.modules, {'ESMF': mock_ESMF}):
-            gs = self.fixture_grid_chunker(genweights=True)
+            esmf_kwargs = {'ignore_degenerate': True}
+            gs = self.fixture_grid_chunker(genweights=True, esmf_kwargs=esmf_kwargs)
             self.assertGreaterEqual(len(gs.esmf_kwargs), 2)
             self.assertTrue(gs.genweights)
+            self.assertTrue(gs.esmf_kwargs['ignore_degenerate'])
 
     def test_system_regrid_target_types(self):
         """Test grids are retrieved from the supported input regrid target types."""

@@ -141,17 +141,20 @@ class AbstractOperationsSpatialObject(AbstractSpatialObject):
         return get_extent_global(self)
 
     @abstractmethod
-    def update_crs(self, to_crs):
+    def update_crs(self, to_crs, from_crs=None):
         """
         Update the coordinate system in place.
 
         :param to_crs: The destination coordinate system.
         :type to_crs: :class:`~ocgis.variable.crs.AbstractCRS`
+        :param from_crs: Optional original coordinate system to temporarily assign to the data. Useful when the
+         object's coordinate system is different from the desired coordinate system.
+        :type from_crs: :class:`~ocgis.variable.crs.AbstractCRS`
         """
 
         raise_if_empty(self)
 
-        if self.crs is None:
+        if self.crs is None and from_crs is None:
             msg = 'The current CRS is None and cannot be updated. Has the coordinate system been assigned ' \
                   'appropriately?'
             raise ValueError(msg)
@@ -510,21 +513,24 @@ class AbstractXYZSpatialContainer(AbstractSpatialContainer):
                     ret.append(target.bounds)
         return ret
 
-    def update_crs(self, to_crs):
-        super(AbstractXYZSpatialContainer, self).update_crs(to_crs)
+    def update_crs(self, to_crs, from_crs=None):
+        super(AbstractXYZSpatialContainer, self).update_crs(to_crs, from_crs=from_crs)
+
+        if from_crs is None:
+            from_crs = self.crs
 
         if isinstance(self.crs, crs.Cartesian) or isinstance(to_crs, crs.Cartesian):
             if isinstance(to_crs, crs.Cartesian):
                 inverse = False
             else:
                 inverse = True
-            self.crs.transform_grid(to_crs, self, inverse=inverse)
+            from_crs.transform_grid(to_crs, self, inverse=inverse)
         elif isinstance(self.crs, crs.CFRotatedPole):
-            self.crs.update_with_rotated_pole_transformation(self, inverse=False)
+            from_crs.update_with_rotated_pole_transformation(self, inverse=False)
         elif isinstance(to_crs, crs.CFRotatedPole):
             to_crs.update_with_rotated_pole_transformation(self, inverse=True)
         else:
-            src_proj4 = self.crs.proj4
+            src_proj4 = from_crs.proj4
             dst_proj4 = to_crs.proj4
 
             src_proj4 = Proj(src_proj4)
@@ -535,7 +541,6 @@ class AbstractXYZSpatialContainer(AbstractSpatialContainer):
 
             value_row = self.y.get_value().reshape(-1)
             value_col = self.x.get_value().reshape(-1)
-
             tvalue_col, tvalue_row = transform(src_proj4, dst_proj4, value_col, value_row)
 
             self.x.set_value(tvalue_col.reshape(self.shape))

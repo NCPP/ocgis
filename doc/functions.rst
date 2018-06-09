@@ -15,3 +15,6 @@ Function Reference
 
 .. automodule:: ocgis.regrid.base
      :members: iter_esmf_fields, regrid_field, get_esmf_grid
+
+.. automodule:: ocgis.variable
+     :members: stack

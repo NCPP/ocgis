@@ -15,10 +15,12 @@ from ocgis.constants import HeaderName
 from ocgis.exc import VariableInCollectionError, EmptySubsetError, NoUnitsError, PayloadProtectedError, \
     DimensionsRequiredError
 from ocgis.ops.core import OcgOperations
-from ocgis.test.base import attr, nc_scope, AbstractTestInterface, TestBase
+from ocgis.test.base import attr, nc_scope, AbstractTestInterface, TestBase, create_gridxy_global, create_exact_field
 from ocgis.util.units import get_units_object, get_are_units_equal
+from ocgis.variable import stack
 from ocgis.variable.base import Variable, SourcedVariable, VariableCollection, ObjectType, init_from_source, \
     create_typed_variable_from_data_model
+from ocgis.variable.crs import Spherical
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.vmachine.mpi import MPI_SIZE, MPI_RANK, OcgDist, MPI_COMM, hgather, variable_scatter, variable_gather
@@ -31,6 +33,74 @@ class Test(TestBase):
         actual = create_typed_variable_from_data_model(string_name, data_model=netcdf_file_format,
                                                        name='test', value=[1, 2, 3, 4], dimensions='dim')
         self.assertEqual(actual.dtype, np.int32)
+
+    def test_stack(self):
+
+        if vm.size > 2:
+            raise (SkipTest('vm.size > 2'))
+
+        # Test with a single dimension and masked values ###############################################################
+
+        attrs = {'a_value': 50}
+        var1 = Variable(name='foo', value=[1, 2, 3], dimensions='one', mask=[False, True, False], attrs=attrs)
+        var2 = Variable(name='foo', value=[4, 5, 6, 7], dimensions='one', mask=[False, False, True, False], attrs=attrs)
+
+        to_stack_vars = [var1, var2]
+        to_stack_dim = 'one'
+
+        stacked_var = stack(to_stack_vars, to_stack_dim)
+
+        self.assertEqual(stacked_var.v().sum(), 28)
+        self.assertEqual(stacked_var.mv().sum(), 20)
+        self.assertEqual(stacked_var.attrs['a_value'], 50)
+
+        # Test with multiple dimensions, two of which are stacked ######################################################
+
+        dim_a = Dimension('a', 4)
+
+        dim_b3 = Dimension('b', size_current=2)
+        dim_b4 = Dimension('b', size_current=7)
+
+        dim_c = Dimension('c', 5)
+
+        value = np.arange(40).reshape(4, 2, 5)
+        dims = [dim_a, dim_b3, dim_c]
+        var3 = Variable(name='foo', value=value, dimensions=dims)
+
+        value = np.arange(40, 180).reshape(4, 7, 5)
+        dims = [dim_a, dim_b4, dim_c]
+        var4 = Variable(name='foo', value=value, dimensions=dims)
+
+        stacked_var = stack([var3, var4], 'b')
+
+        self.assertEqual(stacked_var.v().sum(), var3.v().sum() + var4.v().sum())
+        self.assertEqual(stacked_var.shape, (4, 9, 5))
+        self.assertTrue(stacked_var.dimensions[1].is_unlimited)
+
+        # Test stacking fields #########################################################################################
+
+        fields = []
+        for ii in range(1, 4):
+            grid = create_gridxy_global(crs=Spherical())
+            field = create_exact_field(grid, 'foo', ntime=3)
+            field.time.v()[:] += ii * 10
+            field['foo'].v()[:] += ii * 10
+            fields.append(field)
+
+        stacked_field = stack(fields, field.time.dimensions[0])
+        actual = stacked_field.time.v().tolist()
+        desired = [11.0, 12.0, 13.0, 21.0, 22.0, 23.0, 31.0, 32.0, 33.0]
+        self.assertEqual(actual, desired)
+        self.assertEqual(stacked_field.keys(), field.keys())
+        self.assertEqual(id(stacked_field), id(stacked_field.time.parent))
+        self.assertEqual(stacked_field.time.parent.keys(), stacked_field.keys())
+        stacked_field._validate_()
+
+        if vm.size == 1:
+            desired = (9, 180, 360)
+        else:
+            desired = (9, 90, 360)
+        self.assertEqual(stacked_field['foo'].shape, desired)
 
 
 class TestVariable(AbstractTestInterface):

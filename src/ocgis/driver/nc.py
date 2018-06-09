@@ -8,7 +8,6 @@ import netCDF4 as nc
 import numpy as np
 import six
 from netCDF4._netCDF4 import VLType, MFDataset, MFTime
-
 from ocgis import constants, vm
 from ocgis import env
 from ocgis.base import orphaned, raise_if_empty
@@ -120,8 +119,10 @@ class DriverNetcdf(AbstractDriver):
 
             # Only use the fill value if something is masked.
             is_nc3 = dataset.data_model.startswith('NETCDF3')
-            if ((len(dimensions) > 0 and var.has_masked_values) and not file_only) or (
-                    is_nc3 and not var.has_allocated_value and len(dimensions) > 0):
+            if ((len(dimensions) > 0 and var.has_masked_values) and (
+                    write_mode == MPIWriteMode.TEMPLATE or not file_only)) or (
+                    is_nc3 and not var.has_allocated_value and len(
+                dimensions) > 0):
                 fill_value = cls.get_variable_write_fill_value(var)
             else:
                 # Copy from original attributes.
@@ -553,7 +554,7 @@ def init_variable_using_metadata_for_netcdf(variable, metadata):
         variable.convert_to_empty()
     else:
         # Update data type and fill value.
-        if is_auto_dtype(variable._dtype):
+        if is_auto_dtype(variable._dtype) or var.get('dtype_packed') is not None:
             var_dtype = var['dtype']
             desired_dtype = deepcopy(var_dtype)
             if isinstance(var_dtype, VLType):
@@ -618,7 +619,11 @@ def get_value_from_request_dataset(variable):
         if isinstance(variable, TemporalVariable) and isinstance(source, MFDataset) and rd.format_time:
             # MFTime may fail if time_bnds do not have a calendar attribute.
             # Use rd.dimension_map.set_bounds('time', None) to disable indexing on time_bnds.
-            ncvar = MFTime(ncvar)
+            try:
+                ncvar = MFTime(ncvar, units=variable.units, calendar=variable.calendar)
+            except TypeError:
+                # Older versions of netcdf4-python do not support the calendar argument.
+                ncvar = MFTime(ncvar, units=variable.units)
         ret = get_variable_value(ncvar, variable.dimensions)
     return ret
 

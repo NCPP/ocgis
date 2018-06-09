@@ -3,11 +3,8 @@ import itertools
 from collections import OrderedDict
 
 import numpy as np
-import six
-from shapely.geometry import Polygon, Point, box
-from shapely.geometry.base import BaseGeometry, BaseMultipartGeometry
-
 import ocgis
+import six
 from ocgis import Variable, vm
 from ocgis.base import get_dimension_names, raise_if_empty, AbstractOcgisObject, get_variable_names, \
     is_unstructured_driver
@@ -22,6 +19,8 @@ from ocgis.variable.base import get_dslice, get_dimension_lengths
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable, get_masking_slice, GeometryProcessor
 from ocgis.vmachine.mpi import MPI_SIZE
+from shapely.geometry import Polygon, Point, box
+from shapely.geometry.base import BaseGeometry, BaseMultipartGeometry
 
 CreateGeometryFromWkb, Geometry, wkbGeometryCollection, wkbPoint = ogr.CreateGeometryFromWkb, ogr.Geometry, \
                                                                    ogr.wkbGeometryCollection, ogr.wkbPoint
@@ -595,6 +594,8 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         else:
             subset_geom = subset_geom.get_value()[0]
 
+        # Flag indicating presence of mask on grid prior to subsetting. If there is a mask, we always want to maintain
+        # it. If not, only add a mask if some values will be masked.
         if self.get_mask() is None:
             original_grid_has_mask = False
         else:
@@ -799,9 +800,9 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         self.y.set_extrapolated_bounds(name_y_variable, name_dimension)
         self.parent = self.y.parent
 
-    def update_crs(self, to_crs):
+    def update_crs(self, *args, **kwargs):
         self.expand()
-        super(AbstractGrid, self).update_crs(to_crs)
+        super(AbstractGrid, self).update_crs(*args, **kwargs)
 
     def write(self, *args, **kwargs):
         """

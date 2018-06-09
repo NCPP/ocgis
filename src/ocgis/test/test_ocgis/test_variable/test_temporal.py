@@ -5,7 +5,6 @@ from collections import deque, OrderedDict
 
 import numpy as np
 from netCDF4 import date2num, num2date, netcdftime
-
 from ocgis import Dimension
 from ocgis import RequestDataset
 from ocgis import constants
@@ -183,9 +182,10 @@ class TestTemporalVariable(AbstractTestTemporal):
             kwargs[KeywordArgument.DIMENSIONS] = constants.DimensionName.TEMPORAL
         return TemporalVariable(**kwargs)
 
-    def get_template_units(self):
+    def get_template_units(self, format_time=True):
         units = 'day as %Y%m%d.%f'
-        td = self.init_temporal_variable(value=self.value_template_units, units=units, calendar='proleptic_gregorian')
+        td = self.init_temporal_variable(value=self.value_template_units, units=units, calendar='proleptic_gregorian',
+                                         format_time=format_time)
         return td
 
     def test_init(self):
@@ -205,6 +205,10 @@ class TestTemporalVariable(AbstractTestTemporal):
         bounds = self.init_temporal_variable(name='time_bounds', dimensions=['time', 'bounds'], value=[[1, 2], [2, 3]])
         t = self.init_temporal_variable(name='time', dimensions=['time'], value=[1.5, 2.5], bounds=bounds)
         self.assertIsInstance(t.bounds, TemporalVariable)
+
+        # Test with template units and no formatting.
+        td = self.get_template_units(format_time=False)
+        self.assertEqual(td.units, 'day as %Y%m%d.%f')
 
     @attr('data')
     def test_init_data(self):
@@ -317,6 +321,11 @@ class TestTemporalVariable(AbstractTestTemporal):
         field = rd.get()
         self.assertIsNone(field.time.bounds)
         self.assertIsNotNone(field.time.value_datetime)
+
+        # Test MFTime can handle variables with bounds.
+        paths = create_mftime_nc_files(self, units_on_time_bounds=False, calendar_on_second=False)
+        rd = RequestDataset(paths)
+        _ = rd.create_field().time.value_datetime
 
     @attr('cfunits')
     def test_cfunits(self):

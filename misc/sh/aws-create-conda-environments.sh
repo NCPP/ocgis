@@ -5,7 +5,7 @@
 PYTHON_VERSIONS=( "2.7" "3.6" )
 CONDA_TEST_PREFIX="ocgis-py"
 CHANNELS="-c nesii/channel/dev-ocgis -c nesii/channel/dev-esmf -c conda-forge"
-BASE_DEPENDENCIES="ocgis esmpy mpi4py rtree cf_units icclim nose mock"
+BASE_DEPENDENCIES="ocgis esmpy mpi4py rtree cf_units icclim nose mock xarray"
 OCGIS_DIR=~/l/ocgis
 
 

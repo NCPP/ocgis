@@ -4,6 +4,7 @@ from collections import OrderedDict
 from copy import deepcopy
 
 import numpy as np
+from mock import Mock
 from netCDF4 import netcdftime
 from nose.plugins.skip import SkipTest
 from shapely.geometry import Point
@@ -464,11 +465,27 @@ class TestField(AbstractTestInterface):
         gvar = GeometryVariable(value=[Point(1, 2)], name='geom', dimensions='geom')
         field = Field(crs=desired, geom=gvar)
         cfield = field.copy()
-
         self.assertEqual(cfield.crs, desired)
         new_crs = CoordinateReferenceSystem(name='i_am_new', epsg=4326)
         cfield.update_crs(new_crs)
         self.assertEqual(field.crs, desired)
+
+        # Test geometry crs update is called.
+        mfield = Mock(Field)
+        mfield.is_empty = False
+        mfield.dimension_map = Mock(DimensionMap)
+        mfield.grid = Mock(Grid)
+        mfield.geom = Mock(GeometryVariable)
+        mcrs = Mock(Spherical)
+        Field.update_crs(mfield, mcrs)
+        mfield.grid.update_crs.assert_called_once_with(mcrs, from_crs=mfield.crs)
+        mfield.geom.update_crs.assert_called_once_with(mcrs, from_crs=mfield.crs)
+        from_crs = Mock(WGS84)
+        mfield.grid.update_crs.reset_mock()
+        mfield.geom.update_crs.reset_mock()
+        Field.update_crs(mfield, mcrs, from_crs=from_crs)
+        mfield.grid.update_crs.assert_called_once_with(mcrs, from_crs=from_crs)
+        mfield.geom.update_crs.assert_called_once_with(mcrs, from_crs=from_crs)
 
     def test_write(self):
         # Test writing a basic grid.

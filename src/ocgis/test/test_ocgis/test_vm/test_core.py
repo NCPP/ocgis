@@ -1,5 +1,6 @@
 from unittest import SkipTest
 
+from mock import Mock
 from ocgis import OcgVM, vm, Dimension, env
 from ocgis.driver.request.core import RequestDataset
 from ocgis.test.base import TestBase, attr
@@ -85,6 +86,27 @@ class TestOcgVM(TestBase):
 
         self.assertEqual(recv_data[0][0], send_data[0][0])
         self.assertEqual(comm._send_recv, {0: {}})
+
+    @attr('mpi')
+    def test_system_raise_exception_subcommunicator(self):
+        if vm.size != 4:
+            raise (SkipTest('vm.size != 4'))
+
+        raiser = Mock(side_effect=IndexError('oops'))
+
+        with self.assertRaises(IndexError):
+            e = None
+            with vm.scoped('the sub which will raise', [2]):
+                if not vm.is_null:
+                    try:
+                        raiser()
+                    except IndexError as exc:
+                        e = exc
+            es = vm.gather(e)
+            es = vm.bcast(es)
+            for e in es:
+                if e is not None:
+                    raise e
 
     @attr('mpi')
     def test_barrier(self):

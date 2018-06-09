@@ -3,8 +3,6 @@ import os
 
 import netCDF4 as nc
 import numpy as np
-from shapely.geometry import box
-
 from ocgis.base import AbstractOcgisObject, grid_abstraction_scope
 from ocgis.collection.field import Field
 from ocgis.constants import GridChunkerConstants, RegriddingRole, Topology, DMK
@@ -18,6 +16,7 @@ from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.vmachine.core import vm
 from ocgis.vmachine.mpi import redistribute_by_src_idx
+from shapely.geometry import box
 
 
 class GridChunker(AbstractOcgisObject):
@@ -79,12 +78,13 @@ class GridChunker(AbstractOcgisObject):
     :param dict esmf_kwargs: Optional overloads for keyword arguments to ESMF interfaces. Currently supported keyword
      arguments are below.
 
-    ===================== ============== ===============================================================
-    Name                  Default        Possible
-    ===================== ============== ===============================================================
-    ``'regrid_method'``   ``'CONSERVE'`` ``'CONSERVE'``, ``'BILINEAR'``, ``'PATCH'``, ``'NEAREST_STOD'``
-    ``'unmapped_action'`` ``'IGNORE'``   ``'IGNORE'``, ``'ERROR'``
-    ===================== ============== ===============================================================
+    ======================= ============== ===============================================================
+    Name                    Default        Possible
+    ======================= ============== ===============================================================
+    ``'regrid_method'``     ``'CONSERVE'`` ``'CONSERVE'``, ``'BILINEAR'``, ``'PATCH'``, ``'NEAREST_STOD'``
+    ``'unmapped_action'``   ``'IGNORE'``   ``'IGNORE'``, ``'ERROR'``
+    ``'ignore_degenerate'`` ``False``      ``True``/``False``
+    ======================= ============== ===============================================================
 
     :param bool use_spatial_decomp: If ``True``, use a spatial decomposition as opposed to an index-based decomposition
      when creating destination chunks. A spatial decomposition ensures destination coordinates are spatially "clumped"
@@ -291,7 +291,7 @@ class GridChunker(AbstractOcgisObject):
         weight_filename = ifile[gidx[ifc.NAME_WEIGHTS_VARIABLE]]
         wv = weight_filename.join_string_value()
         split_weight_file_directory = self.paths['wd']
-        for wfn in map(lambda x: os.path.join(split_weight_file_directory, x), wv):
+        for wfn in map(lambda x: os.path.join(split_weight_file_directory, os.path.split(x)[1]), wv):
             if not os.path.exists(wfn):
                 if strict:
                     raise IOError(wfn)
@@ -329,7 +329,7 @@ class GridChunker(AbstractOcgisObject):
                     odata = self._gc_remap_weight_variable_(ii, wvn, odata, src_indices, dst_indices, ifile, gidx,
                                                             split_grids_directory=split_grids_directory)
                 except IndexError as e:
-                    msg = "Weight filename: '{}'; Weight Variable Name: '{}'. {}".format(wfn, wvn, e.message)
+                    msg = "Weight filename: '{}'; Weight Variable Name: '{}'. {}".format(wfn, wvn, str(e))
                     raise IndexError(msg)
                 out_wds[wvn][sidx:sidx + odata.size] = odata
                 out_wds.sync()
@@ -702,6 +702,7 @@ class GridChunker(AbstractOcgisObject):
                     y_bounds = ifile[gidx[ifc.NAME_Y_DST_BOUNDS_VARIABLE]].get_value()
                     x_bounds = ifile[gidx[ifc.NAME_X_DST_BOUNDS_VARIABLE]].get_value()
                     indices = dst_indices
+
             elif wvn == 'col':
                 is_unstruct = isinstance(self.src_grid, GridUnstruct)
                 if is_unstruct:
@@ -712,13 +713,16 @@ class GridChunker(AbstractOcgisObject):
                     y_bounds = ifile[gidx[ifc.NAME_Y_SRC_BOUNDS_VARIABLE]].get_value()
                     x_bounds = ifile[gidx[ifc.NAME_X_SRC_BOUNDS_VARIABLE]].get_value()
                     indices = src_indices
+
             else:
                 raise NotImplementedError
+
             if not is_unstruct:
                 islice = [slice(y_bounds[ii][0], y_bounds[ii][1]),
                           slice(x_bounds[ii][0], x_bounds[ii][1])]
                 oindices = indices[islice]
                 oindices = oindices.flatten()
+
             odata = oindices[odata - 1]
 
         return odata
@@ -781,7 +785,17 @@ def create_esmf_grid(filename, grid, esmf_kwargs):
         else:
             add_corner_stagger = True
 
-        ret = klass(filename=filename, filetype=filetype, add_corner_stagger=add_corner_stagger, is_sphere=False)
+        # If there is a spatial mask, pass this information to grid creation.
+        grid_mask = grid.get_mask()
+        if grid_mask is not None and grid_mask.any():
+            add_mask = True
+            varname = grid.mask_variable.name
+        else:
+            add_mask = False
+            varname = None
+
+        ret = klass(filename=filename, filetype=filetype, add_corner_stagger=add_corner_stagger, is_sphere=False,
+                    add_mask=add_mask, varname=varname)
     else:
         meshname = str(grid.dimension_map.get_variable(DMK.ATTRIBUTE_HOST))
         ret = klass(filename=filename, filetype=filetype, meshname=meshname)

@@ -21,19 +21,22 @@ before_install:
   - conda info -a
 
 install:
-  - travis_retry conda create -n test-minimal -c $NESII_CHANNEL -c conda-forge $CONDA_PYTHON ocgis nose mock
+  - travis_retry conda create -n test-minimal -c conda-forge -c $NESII_CHANNEL $CONDA_PYTHON ocgis nose mock
+#  - travis_retry conda create -n test-minimal -c $NESII_CHANNEL -c conda-forge $CONDA_PYTHON ocgis nose mock
   - source activate test-minimal
   - conda remove ocgis
   - python setup.py install
 
-  - travis_retry conda create -n test-full -c $NESII_CHANNEL -c conda-forge $CONDA_PYTHON ocgis nose mock rtree cf_units mpi4py $OCGIS_DEPS_ADDS
+  - travis_retry conda create -n test-full -c conda-forge -c $NESII_CHANNEL $CONDA_PYTHON ocgis nose mock rtree cf_units mpi4py $OCGIS_DEPS_ADDS
+#  - travis_retry conda create -n test-full -c $NESII_CHANNEL -c conda-forge $CONDA_PYTHON ocgis nose mock rtree cf_units mpi4py $OCGIS_DEPS_ADDS
   - source activate test-full
   - conda remove ocgis
   - |
     # The current ESMPy installation must come from the NESII channel.
     if [[ $CONDA_PYTHON = "python=2.7" ]]; then
       conda remove esmpy esmf
-      conda install -c nesii/label/dev-esmf -c conda-forge --no-deps esmf esmpy
+      conda install -c conda-forge -c $NESII_CHANNEL --no-deps esmf esmpy
+#      conda install -c $NESII_CHANNEL -c conda-forge --no-deps esmf esmpy
     fi
 
   - python setup.py install

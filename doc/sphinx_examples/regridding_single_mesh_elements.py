@@ -52,19 +52,13 @@ for ii in range(geoms.size):
     # just pass through.
     sub.update_crs(ocgis.crs.Spherical())
 
-    # HACK: We are working on multi-geometries created in-memory for ESMF meshes. Right now, just use the first
-    #  geometry. Hopefully it is just minor implementation details at this point.
-    sgeom = sub.v()[0]
-    try:
-        if len(sgeom) > 1:
-            sub.v()[0] = sgeom[0]  # tdk: remove: this is here to work only with single geometries
-    except TypeError:
-        # Assume a normal polygon so just fine
-        pass
-
     # Convert the Shapely geometry (OCGIS geometry variable) object to an in-memory coordinate representation. In other
-    # words, create an unstructured grid. This is needed to create an ESMPy mesh.
-    coords = sub.convert_to(start_index=0)
+    # words, create an unstructured grid with a UGRID-like schema. This is needed to create an ESMPy mesh. When pack
+    # is False, we do not de-duplicate coordinates. This is okay since this is useful for topologies and with a single
+    # element, it does not matter. The node threshold will limit the number of nodes per geometry which makes ESMF
+    # triangulation faster and the conversion to coordinates a little slower.
+    print(' Converting to coordinates...')
+    coords = sub.convert_to(start_index=0, pack=False, node_threshold=500)
 
     print(' Subsetting...')
     # Buffer the subset geometry to make sure we have enough spatial halo for a conservative regridding operation
@@ -88,6 +82,7 @@ for ii in range(geoms.size):
         sub.parent.set_time(regridded.time.extract())
 
         # Compute the max error using the exact field and timestep adjustments
+        sgeom = sub.v()[0]
         desired = ocgis.util.helpers.create_exact_field_value([sgeom.centroid.x], [sgeom.centroid.y])[0]
         desired = [(10 * (ii + 1)) + desired for ii in range(regridded.time.size)]
         desired = np.array(desired).reshape(regridded.data_variables[0].shape)

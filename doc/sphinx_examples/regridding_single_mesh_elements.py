@@ -56,9 +56,10 @@ for ii in range(geoms.size):
     # words, create an unstructured grid with a UGRID-like schema. This is needed to create an ESMPy mesh. When pack
     # is False, we do not de-duplicate coordinates. This is okay since this is useful for topologies and with a single
     # element, it does not matter. The node threshold will limit the number of nodes per geometry which makes ESMF
-    # triangulation faster and the conversion to coordinates a little slower.
+    # triangulation faster and the conversion to coordinates a little slower. This dataset also has polygon holes
+    # (interiors) that need to handled.
     print(' Converting to coordinates...')
-    coords = sub.convert_to(start_index=0, pack=False, node_threshold=500)
+    coords = sub.convert_to(start_index=0, pack=False, node_threshold=500, split_interiors=True)
 
     print(' Subsetting...')
     # Buffer the subset geometry to make sure we have enough spatial halo for a conservative regridding operation

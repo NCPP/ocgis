@@ -958,7 +958,6 @@ class TestGeometryVariable(AbstractTestInterface, FixturePolygonWithHole):
     @attr('esmf', 'slow', 'xarray')
     def test_to_esmf_state_boundaries(self):
         """Test converting state boundaries shapefile to single element ESMF meshes."""
-        # tdk: fix: test is failing for multi-geometries; we need the ability to add mesh element with a break value
         # tdk: rename: this is a system test for regridding now with mesh elements
         # tdk: comment
         import ESMF
@@ -969,17 +968,15 @@ class TestGeometryVariable(AbstractTestInterface, FixturePolygonWithHole):
 
         geoms = ocgis.RequestDataset(self.path_state_boundaries).create_field().geom
         geoms.update_crs(Spherical())
-        # tdk: fix: i have no idea why, but this is coming out as polygon from the fiona metadata
-        # geoms._geom_type = 'MultiPolygon'
-        # self.assertEqual(geoms.geom_type, 'MultiPolygon')
+        self.assertEqual(geoms.geom_type, 'MultiPolygon')
 
         src_grid = create_gridxy_global(resolution=1.0, crs=Spherical())
         src_field = create_exact_field(src_grid, 'exact', ntime=3)
 
         max_errors = []
 
-        # write_weights = [False, True]
-        write_weights = [True]
+        write_weights = [False, True]  # tdk: re-enable
+        # write_weights = [True]
 
         for ww in write_weights:
             for ii in range(geoms.size):
@@ -995,22 +992,19 @@ class TestGeometryVariable(AbstractTestInterface, FixturePolygonWithHole):
 
                 if isinstance(sgeom, MultiPolygon):
                     is_multi = True
-                    sub.v()[0] = sgeom[0]  # tdk: remove: this is here to work only with single geometries
                 else:
                     is_multi = False
 
-                is_multi = False  # tdk: remove: this is here to work only with single geometries
-
                 coords = sub.convert_to(start_index=0)
 
+                self.assertEqual(sub.geom_type, 'MultiPolygon')
+                self.assertTrue(coords.has_multi)
+
+                self.assertEqual(coords.multi_break_value, -8)  # ESMF uses -7 for its break value
+
                 if is_multi:
-                    self.assertEqual(sub.geom_type, 'MultiPolygon')
-                    self.assertTrue(coords.has_multi)
-                    self.assertEqual(coords.multi_break_value, -7)  # ESMF uses -7 for its break value
-                    sel = coords.cindex.v()[0] == -7
+                    sel = coords.cindex.v()[0] == -8
                     self.assertGreater(sel.sum(), 0)
-                else:
-                    self.assertFalse(coords.has_multi)
 
                 mesh = coords.to_esmf()
                 self.assertIsInstance(mesh, ESMF.Mesh)

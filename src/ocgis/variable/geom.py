@@ -380,7 +380,8 @@ class GeometryVariable(AbstractSpatialVariable):
         max_element_coords = kwargs.pop('max_element_coords', None)
         ocgis_convention = constants.OcgisConvention
         name_mbv = ocgis_convention.Name.MULTI_BREAK_VALUE
-        multi_break_value = kwargs.pop(name_mbv, ocgis_convention.Value.MULTI_BREAK_VALUE)
+        multi_break_value = kwargs.pop(name_mbv,
+                                       ocgis_convention.Value.MULTI_BREAK_VALUE) - 1  # tdk: how to deal with esmpy adding one?
         node_threshold = kwargs.pop('node_threshold', None)
         split_interiors = kwargs.pop('split_interiors', False)
         driver = get_driver_class(kwargs.pop('driver', None), default=DriverKey.NETCDF_UGRID)

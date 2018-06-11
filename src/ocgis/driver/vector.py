@@ -5,8 +5,6 @@ from copy import deepcopy
 
 import fiona
 import numpy as np
-from shapely.geometry import mapping
-
 from ocgis import constants, vm
 from ocgis.constants import MPIWriteMode, DimensionName, KeywordArgument, DriverKey, DMK, SourceIndexType, VariableName
 from ocgis.driver.base import driver_scope, AbstractTabularDriver
@@ -17,6 +15,7 @@ from ocgis.util.helpers import is_auto_dtype
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.crs import CoordinateReferenceSystem
 from ocgis.variable.geom import GeometryVariable
+from shapely.geometry import mapping
 
 
 class DriverVector(AbstractTabularDriver):
@@ -86,7 +85,9 @@ class DriverVector(AbstractTabularDriver):
         group_metadata = kwargs.get('group_metadata')
         if group_metadata is None:
             group_metadata = self.rd.metadata
-        geom_type = group_metadata['schema']['geometry']
+
+        # geom_type = group_metadata['schema']['geometry'] # tdk: this is unreliable for some reason
+        geom_type = 'auto'
 
         GeometryVariable(name=VariableName.GEOMETRY_VARIABLE, request_dataset=self.rd, parent=field,
                          geom_type=geom_type, dimensions=DimensionName.GEOMETRY_DIMENSION)

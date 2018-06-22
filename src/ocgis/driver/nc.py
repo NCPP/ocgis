@@ -1,13 +1,13 @@
 import itertools
 import logging
-from abc import ABCMeta
-from collections import OrderedDict
-from copy import deepcopy
-
 import netCDF4 as nc
 import numpy as np
 import six
+from abc import ABCMeta
+from collections import OrderedDict
+from copy import deepcopy
 from netCDF4._netCDF4 import VLType, MFDataset, MFTime
+
 from ocgis import constants, vm
 from ocgis import env
 from ocgis.base import orphaned, raise_if_empty
@@ -152,7 +152,7 @@ class DriverNetcdf(AbstractDriver):
                             try:
                                 curr_value = data_value[idx - fill_slice[0].start]
                             except Exception as e:
-                                msg = "Variable name is '{}'. Original message: ".format(var.name) + e.message
+                                msg = "Variable name is '{}'. Original message: ".format(var.name) + str(e)
                                 raise e.__class__(msg)
                             for sidx, sval in enumerate(curr_value):
                                 ncvar[idx, sidx] = sval
@@ -162,7 +162,7 @@ class DriverNetcdf(AbstractDriver):
                         try:
                             ncvar.__setitem__(fill_slice, data_value)
                         except Exception as e:
-                            msg = "Variable name is '{}'. Original message: ".format(var.name) + e.message
+                            msg = "Variable name is '{}'. Original message: ".format(var.name) + str(e)
                             raise e.__class__(msg)
 
         # Only set variable attributes if this is not a fill operation.

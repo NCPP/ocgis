@@ -1,13 +1,13 @@
 import itertools
 import logging
-import netCDF4 as nc
-import numpy as np
-import six
 from abc import ABCMeta
 from collections import OrderedDict
 from copy import deepcopy
-from netCDF4._netCDF4 import VLType, MFDataset, MFTime
 
+import netCDF4 as nc
+import numpy as np
+import six
+from netCDF4._netCDF4 import VLType, MFDataset, MFTime
 from ocgis import constants, vm
 from ocgis import env
 from ocgis.base import orphaned, raise_if_empty
@@ -835,9 +835,14 @@ def update_group_metadata(rootgrp, fill):
                 except AttributeError:
                     fill_value = 'auto'
 
+        if isinstance(value.datatype, VLType):
+            the_dtype = ObjectType(value.dtype)
+        else:
+            the_dtype = value.dtype
+
         variables.update({key: {'dimensions': value.dimensions,
                                 'attrs': subvar,
-                                'dtype': value.dtype,
+                                'dtype': the_dtype,
                                 'name': value._name,
                                 'fill_value': fill_value,
                                 'dtype_packed': dtype_packed,

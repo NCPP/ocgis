@@ -6,8 +6,6 @@ from unittest import SkipTest
 import numpy as np
 from numpy.core.multiarray import ndarray
 from numpy.testing.utils import assert_equal
-from shapely.geometry import Point
-
 from ocgis import RequestDataset, vm, env
 from ocgis.base import get_variable_names
 from ocgis.collection.field import Field
@@ -24,6 +22,7 @@ from ocgis.variable.crs import Spherical
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.vmachine.mpi import MPI_SIZE, MPI_RANK, OcgDist, MPI_COMM, hgather, variable_scatter, variable_gather
+from shapely.geometry import Point
 
 
 class Test(TestBase):
@@ -311,9 +310,13 @@ class TestVariable(AbstractTestInterface):
             self.assertNumpyAll(np.array(v.get_value()[idx]), desired[idx])
         v_actual = SourcedVariable(request_dataset=RequestDataset(uri=path, variable='foo'), name='foo')
 
+        self.assertIsInstance(v_actual.dtype, ObjectType)
         actual = v[1].get_masked_value()[0]
         desired = np.array(value[1], dtype=np.float32)
         self.assertNumpyAll(desired, actual)
+
+        another_path = self.get_temporary_file_path('out.nc')
+        v_actual.write(another_path)
 
         for idx in range(v.shape[0]):
             a = v_actual[idx].get_value()[0]

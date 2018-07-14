@@ -562,8 +562,8 @@ class AbstractXYZSpatialContainer(AbstractSpatialContainer):
         ret = dimension_map.get_variable(entry_key, parent=self.parent, nullable=nullable)
         return ret
 
-    def _gc_iter_dst_grid_slices_(self, grid_chunker):
-        return self.driver._gc_iter_dst_grid_slices_(grid_chunker)
+    def _gc_iter_dst_grid_slices_(self, grid_chunker, yield_idx=None):
+        return self.driver._gc_iter_dst_grid_slices_(grid_chunker, yield_idx=yield_idx)
 
     def _gc_nchunks_dst_(self, grid_chunker):
         return self.driver._gc_nchunks_dst_(grid_chunker)
@@ -709,6 +709,7 @@ def iter_spatial_decomposition(sobj, splits, **kwargs):
     :rtype: :class:`ocgis.spatial.base.AbstractXYZSpatialContainer`
     """
     kwargs = kwargs.copy()
+    yield_idx = kwargs.pop('yield_idx', None)
     kwargs[KeywordArgument.RETURN_SLICE] = True
 
     # Adjust the split definition to work with polygon creation call. --------------------------------------------------
@@ -725,6 +726,11 @@ def iter_spatial_decomposition(sobj, splits, **kwargs):
     extent_global = sobj.extent_global
     bbox = box(*extent_global)
     split_polygons = create_split_polygons(bbox, split_shape)
-    for sp in split_polygons:
+    for ctr, sp in enumerate(split_polygons):
+        if yield_idx is not None:
+            if ctr < yield_idx:
+                continue
+            else:
+                break
         yield sobj.get_intersects(sp, **kwargs)
     # ------------------------------------------------------------------------------------------------------------------

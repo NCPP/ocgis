@@ -376,28 +376,29 @@ class GridChunker(AbstractOcgisObject):
                         ds.variables[data_variable.name][time_index, y_bounds[vidx][0]:y_bounds[vidx][1],
                         x_bounds[vidx][0]:x_bounds[vidx][1]] = source_data.get_value()
 
-    def iter_dst_grid_slices(self):
+    def iter_dst_grid_slices(self, yield_idx=None):
         """
         Yield global slices for the destination grid using guidance from ``nchunks_dst``.
 
+        :param int yield_idx: If a zero-based integer, only yield for this chunk index and skip everything else.
         :return: A dictionary with keys as the grid dimension names and the values the associated slice for that
          dimension.
         :rtype: dict
 
         >>> example_yield = {'dimx': slice(2, 4), 'dimy': slice(10, 20)}
         """
+        return self.dst_grid._gc_iter_dst_grid_slices_(self, yield_idx=yield_idx)
 
-        return self.dst_grid._gc_iter_dst_grid_slices_(self)
-
-    def iter_dst_grid_subsets(self, yield_slice=False):
+    def iter_dst_grid_subsets(self, yield_slice=False, yield_idx=None):
         """
         Yield destination grid subsets.
 
+        :param int yield_idx: If a zero-based integer, only yield for this chunk index and skip everything else.
         :param bool yield_slice: If ``True``, yield the slice used on the destination grid.
         :rtype: :class:`ocgis.spatial.grid.AbstractGrid`
         """
         if self.use_spatial_decomp:
-            for sub, slc in iter_spatial_decomposition(self.dst_grid, self.nchunks_dst, optimized_bbox_subset=True):
+            for sub, slc in iter_spatial_decomposition(self.dst_grid, self.nchunks_dst, optimized_bbox_subset=True, yield_idx=yield_idx):
                 if yield_slice:
                     # Spatial subset may be empty on a rank...
                     if sub.is_empty:
@@ -409,21 +410,21 @@ class GridChunker(AbstractOcgisObject):
                 else:
                     yield sub
         else:
-            for slc in self.iter_dst_grid_slices():
+            for slc in self.iter_dst_grid_slices(yield_idx=yield_idx):
                 sub = self.dst_grid.get_distributed_slice(slc)
                 if yield_slice:
                     yield sub, slc
                 else:
                     yield sub
 
-    def iter_src_grid_subsets(self, yield_dst=False):
+    def iter_src_grid_subsets(self, yield_dst=False, yield_idx=None):
         """
         Yield source grid subset using the extent of its associated destination grid subset.
 
         :param bool yield_dst: If ``True``, yield the destination subset as well as the source grid subset.
+        :param int yield_idx: If a zero-based integer, only yield for this chunk index and skip everything else.
         :rtype: tuple(:class:`ocgis.spatial.grid.AbstractGrid`, `slice-like`)
         """
-
         if yield_dst:
             yield_slice = True
         else:
@@ -436,9 +437,9 @@ class GridChunker(AbstractOcgisObject):
 
         # Use a destination grid iterator if provided.
         if self.iter_dst is not None:
-            iter_dst = self.iter_dst(self, yield_slice=yield_slice)
+            iter_dst = self.iter_dst(self, yield_slice=yield_slice, yield_idx=yield_idx)
         else:
-            iter_dst = self.iter_dst_grid_subsets(yield_slice=yield_slice)
+            iter_dst = self.iter_dst_grid_subsets(yield_slice=yield_slice, yield_idx=yield_idx)
 
         # Loop over each destination grid subset.
         ocgis_lh(logger='grid_chunker', msg='starting "for yld in iter_dst"', level=logging.DEBUG)

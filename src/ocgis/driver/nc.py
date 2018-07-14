@@ -442,7 +442,7 @@ class DriverNetcdfCF(AbstractDriverNetcdfCF):
         return ret
 
     @staticmethod
-    def _gc_iter_dst_grid_slices_(grid_chunker):
+    def _gc_iter_dst_grid_slices_(grid_chunker, yield_idx=None):
         slice_store = []
         ydim_name = grid_chunker.dst_grid.dimensions[0].name
         xdim_name = grid_chunker.dst_grid.dimensions[1].name
@@ -452,7 +452,12 @@ class DriverNetcdfCF(AbstractDriverNetcdfCF):
             size = dst_grid_shape_global[idx]
             slices = create_slices_for_dimension(size, splits)
             slice_store.append(slices)
-        for slice_y, slice_x in itertools.product(*slice_store):
+        for ctr, (slice_y, slice_x) in enumerate(itertools.product(*slice_store)):
+            if yield_idx is not None and yield_idx != ctr:
+                if ctr > yield_idx:
+                    break
+                else:
+                    continue
             yield {ydim_name: create_slice_from_tuple(slice_y),
                    xdim_name: create_slice_from_tuple(slice_x)}
 

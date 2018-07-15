@@ -970,13 +970,20 @@ class Field(VariableCollection):
         * Integer masked arrays are upcast to float data types in ``xarray``.
         * Group hierarchies are not supported in ``xarray``.
 
+        :keyword bool decode_cf: (``=True``) If ``True``, run the ``xarray`` function ``decode_cf`` on the returned
+         dataset.
         :param dict kwargs: Optional keyword arguments to dataset creation. See :meth:`ocgis.VariableCollection.to_xarray`
          for additional information.
         :rtype: :class:`xarray.Dataset`
         """
         from xarray import decode_cf
+
+        kwargs = kwargs.copy()
+        should_decode_cf = kwargs.pop('decode_cf', True)
+
         ret = super(Field, self).to_xarray(**kwargs)
-        ret = decode_cf(ret)
+        if should_decode_cf:
+            ret = decode_cf(ret)
         return ret
 
     def unwrap(self):

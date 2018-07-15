@@ -23,7 +23,7 @@ field = create_exact_field(grid, 'foo')
 field.write(GRIDFN)
 
 
-def create_spatial_chunk(src_filename, dst_filename, nchunks, chunk_idx, **kwargs):
+def apply_by_spatial_chunk(src_filename, dst_filename, nchunks, chunk_idx, **kwargs):
     """
     Create a spatial chunk from source and destination CF-Grid NetCDF files. Each source and destination chunk is
     converted to a :class:`xarray.Dataset`. See :class:`~ocgis.spatial.grid_chunker.GridChunker` for more documentation
@@ -54,7 +54,7 @@ def create_spatial_chunk(src_filename, dst_filename, nchunks, chunk_idx, **kwarg
 nchunks = (5, 5)  # The chunking decomposition for the destination grid. Five chunks along each spatial dimension.
 results = []  # Will hold integer return codes (a placeholder for another return type)
 for ii in range(np.prod(nchunks)):  # Each chunk is a separate dask task
-    d = dask.delayed(create_spatial_chunk)(GRIDFN, GRIDFN, nchunks, ii)  # Graph the chunking decomposition
+    d = dask.delayed(apply_by_spatial_chunk)(GRIDFN, GRIDFN, nchunks, ii)  # Graph the chunking decomposition
     results.append(d)
 
 dask.delayed(print)(results).compute(scheduler='threads')

@@ -44,8 +44,8 @@ def apply_by_spatial_chunk(src_filename, dst_filename, nchunks, chunk_idx, **kwa
     rd_dst = ocgis.RequestDataset(dst_filename)
     gc = GridChunker(rd_src, rd_dst, nchunks_dst=nchunks, **kwargs)
     for ctr, (src_grid, src_slice, dst_grid, dst_slice) in enumerate(gc.iter_src_grid_subsets(yield_dst=True, yield_idx=chunk_idx)):
-        xsrc = src_grid.parent.to_xarray()
-        xdst = dst_grid.parent.to_xarray()
+        xsrc = src_grid.parent.to_xarray(decode_cf=False)
+        xdst = dst_grid.parent.to_xarray(decode_cf=False)
         rc = 0
     assert ctr == 0  # Ensure we only have a single loop
     return rc

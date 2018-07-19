@@ -230,8 +230,8 @@ Drivers
 .. autoclass:: ocgis.driver.csv_.DriverCSV
     :show-inheritance:
 
-Grid Splitter
--------------
+Grid Chunker
+------------
 
 .. autoclass:: ocgis.spatial.grid_chunker.GridChunker
     :members:

@@ -620,7 +620,7 @@ def check_fields_for_regridding(source, destination, regrid_method='auto'):
             raise CornersInconsistentError(msg)
 
 
-def regrid_field(source, destination, regrid_method='auto', value_mask=None, split=True):
+def regrid_field(source, destination, regrid_method='auto', value_mask=None, split=True, fill_value=None):
     """
     Regrid ``source`` data to match the grid of ``destination``.
 
@@ -632,6 +632,9 @@ def regrid_field(source, destination, regrid_method='auto', value_mask=None, spl
     :param value_mask: See :func:`~ocgis.regrid.base.iter_esmf_fields`.
     :type value_mask: :class:`numpy.ndarray`
     :param bool split: See :func:`~ocgis.regrid.base.iter_esmf_fields`.
+    :param fill_value: Destination fill value used to fill the destination field before regridding. If ``None``, then
+     the default fill value for the destination field data type will be used.
+    :type fill_value: int | float
     :rtype: :class:`ocgis.Field`
     """
 
@@ -711,7 +714,12 @@ def regrid_field(source, destination, regrid_method='auto', value_mask=None, spl
         # Destination ESMF field
         dst_efield = ESMF.Field(esmf_destination_grid, name='destination', ndbounds=ndbounds)
         fill_variable = fills[variable_name]  # Reference the destination data variable object
-        fv = fill_variable.fill_value  # The fill value used for the variable data type
+
+        if fill_value is None:
+            fv = fill_variable.fill_value  # The fill value used for the variable data type
+        else:
+            fv = fill_value
+
         dst_efield.data.fill(fv)  # Fill the ESMF destination field with that fill value to help track masks
 
         # Construct the regrid object. Weight generation actually occurs in this call.

@@ -168,7 +168,7 @@ class TestRegrid(TestSimpleBase):
         destination = deepcopy(source)
         desired = deepcopy(source)
 
-        keywords = dict(split=[False, True])
+        keywords = dict(split=[False, True], fill_value=[None, 1e20])
 
         for k in itr_products_keywords(keywords, as_namedtuple=True):
             from ocgis.regrid.base import regrid_field

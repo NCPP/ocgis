@@ -1293,7 +1293,7 @@ class AbstractTestField(TestBase):
 
 def create_exact_field(grid, data_varname, ntime=1, fill_data_var=True, crs='auto'):
     tdim = Dimension(name='time', size=None, size_current=ntime)
-    tvar = TemporalVariable(name='time', value=range(1, ntime + 1), dimensions=tdim, dtype=np.float32,
+    tvar = TemporalVariable(name='time', value=range(100, ntime + 100), dimensions=tdim, dtype=np.float32,
                             attrs={'axis': 'T'})
     dvar_dims = [tdim] + list(grid.dimensions)
     dvar = Variable(name=data_varname, dimensions=dvar_dims, dtype=np.float32)
@@ -1328,8 +1328,8 @@ def create_gridxy_global(resolution=1.0, with_bounds=True, wrapped=True, crs=Non
         ompi.update_dimension_bounds()
 
     if MPI_RANK == 0:
-        x = Variable(name='x', value=x, dimensions='x', dtype=dtype)
-        y = Variable(name='y', value=y, dimensions='y', dtype=dtype)
+        x = Variable(name='x', value=x, dimensions='dimx', dtype=dtype)
+        y = Variable(name='y', value=y, dimensions='dimy', dtype=dtype)
     else:
         x, y = [None] * 2
 

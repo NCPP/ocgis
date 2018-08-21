@@ -3,12 +3,13 @@ from collections import OrderedDict
 from collections import deque
 from copy import deepcopy
 
+import six
 from ocgis import env, DimensionMap, VariableCollection
 from ocgis.base import get_dimension_names, get_variable_names, get_variables, renamed_dimensions_on_variables, \
     revert_renamed_dimensions_on_variables, raise_if_empty
 from ocgis.constants import DimensionMapKey, WrapAction, TagName, HeaderName, DimensionName, UNINITIALIZED, \
     KeywordArgument, DMK
-from ocgis.util.helpers import get_iter
+from ocgis.util.helpers import get_iter, is_xarray
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import Variable, get_bounds_names_1d, create_typed_variable_from_data_model
 from ocgis.variable.crs import CoordinateReferenceSystem
@@ -773,12 +774,13 @@ class Field(VariableCollection):
                 raise ValueError('No grid available to set abstraction geometry.')
             else:
                 self.set_geom_from_grid(force=force)
-        if self.geom.ugid is None and create_ugid:
-            ocgis_lh(msg='before self.geom.create_ugid_global in {}'.format(self.__class__), level=logging.DEBUG)
-            self.geom.create_ugid_global(ugid_name, start=ugid_start)
-            ocgis_lh(msg='after self.geom.create_ugid_global in {}'.format(self.__class__), level=logging.DEBUG)
-        if set_ugid_as_data:
-            self.add_variable(self.geom.ugid, force=True, is_data=True)
+        if not is_xarray(self.geom):
+            if self.geom.ugid is None and create_ugid:
+                ocgis_lh(msg='before self.geom.create_ugid_global in {}'.format(self.__class__), level=logging.DEBUG)
+                self.geom.create_ugid_global(ugid_name, start=ugid_start)
+                ocgis_lh(msg='after self.geom.create_ugid_global in {}'.format(self.__class__), level=logging.DEBUG)
+            if set_ugid_as_data:
+                self.add_variable(self.geom.ugid, force=True, is_data=True)
 
     def set_crs(self, value, force=True, should_add=True):
         """
@@ -836,12 +838,16 @@ class Field(VariableCollection):
             else:
                 dimensionless = False
 
-        variable_crs = variable.crs
         if crs != 'auto':
-            if variable_crs is not None and variable_crs != crs:
-                raise ValueError('Geometry and field do not have matching coordinate reference systems.')
+            self.set_crs(crs, should_add=should_add)
         else:
-            self.set_crs(variable_crs, should_add=should_add)
+            if not is_xarray(variable):
+                variable_crs = variable.crs
+                if crs != 'auto':
+                    if variable_crs is not None and variable_crs != crs:
+                        raise ValueError('Geometry and field do not have matching coordinate reference systems.')
+                else:
+                    self.set_crs(variable_crs, should_add=should_add)
         set_field_property(self, DimensionMapKey.GEOM, variable, force, dimensionless=dimensionless,
                            should_add=should_add)
 
@@ -1111,7 +1117,8 @@ def set_field_property(field, dmap_key, variable, force, dimension=None, dimensi
         if not nullable:
             raise ValueError("'variable' is None and the property has 'nullable=False'")
     else:
-        if should_add:
+        # Allow string variable names to be passed.
+        if should_add and not isinstance(variable, six.string_types):
             field.add_variable(variable, force=force)
     update_dimension_map_with_variable(dimension_map, dmap_key, variable, dimension, dimensionless=dimensionless)
 

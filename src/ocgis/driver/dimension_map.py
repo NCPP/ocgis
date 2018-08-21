@@ -7,7 +7,7 @@ from ocgis.base import get_dimension_names
 from ocgis.base import get_variable_names
 from ocgis.constants import DIMENSION_MAP_TEMPLATE, DMK, DEFAULT_DRIVER, GridAbstraction
 from ocgis.exc import DimensionMapError, VariableNotInCollection
-from ocgis.util.helpers import pprint_dict, get_or_create_dict, get_formatted_slice
+from ocgis.util.helpers import pprint_dict, get_or_create_dict, get_formatted_slice, is_xarray
 
 
 class DimensionMap(AbstractOcgisObject):
@@ -330,8 +330,14 @@ class DimensionMap(AbstractOcgisObject):
             bnds = self.get_bounds(entry_key)
             ret = get_variable_from_field(ret, parent, nullable)
             # Set the bounds on the outgoing variable if they are not already set by the object.
-            if bnds is not None and not ret.has_bounds:
-                ret.set_bounds(get_variable_from_field(bnds, parent, False), force=True)
+            try:
+                if bnds is not None and not ret.has_bounds:
+                    ret.set_bounds(get_variable_from_field(bnds, parent, False), force=True)
+            except AttributeError:
+                if not is_xarray(ret):
+                    raise
+                else:
+                    pass
         return ret
 
     def inquire_is_xyz(self, variable):
@@ -494,7 +500,10 @@ class DimensionMap(AbstractOcgisObject):
 
         try:
             if bounds is None:
-                bounds = variable.bounds
+                if is_xarray(variable):
+                    bounds = getattr(variable, 'bounds', None)
+                else:
+                    bounds = variable.bounds
             if dimension is None:
                 if variable.ndim > 1:
                     if pos is None and not dimensionless:
@@ -507,10 +516,13 @@ class DimensionMap(AbstractOcgisObject):
                     pos = None
                 # We can have scalar dimensions.
                 if pos is not None and not dimensionless:
-                    dimension = variable.dimensions[pos]
+                    dimension = variable.dims[pos]
         except AttributeError:
             # Assume string type.
-            pass
+            if is_xarray(variable):
+                raise
+            else:
+                pass
 
         value = get_variable_names(variable)[0]
         if bounds is not None:
@@ -621,3 +633,8 @@ def get_dmap_group(dmap, keyseq, create=False, last=None):
                 else:
                     raise
     return curr
+
+
+def is_bounded(dmap, key):
+    # tdk: DOC
+    return dmap.get_bounds(key) is not None

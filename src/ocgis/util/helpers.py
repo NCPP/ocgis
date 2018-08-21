@@ -43,6 +43,22 @@ class ProgressBar(object):
         sys.stdout.flush()
 
 
+def is_xarray(target):
+    # tdk: DOC
+    import xarray as xr
+
+    return isinstance(target, (xr.Dataset, xr.DataArray))
+
+
+def wrap_get_value(target, **kwargs):
+    #tdk: DOC
+    try:
+        ret = target.get_value(**kwargs)
+    except AttributeError:
+        ret = target.values
+    return ret
+
+
 def add_shapefile_unique_identifier(in_path, out_path, name=None, template=None):
     """
     >>> add_shapefile_unique_identifier('/path/to/foo.shp', '/path/to/new_foo.shp')

@@ -1179,38 +1179,43 @@ def get_masking_slice(intersects_mask_value, target, apply_slice=True):
             _, local_slice = get_trimmed_array_by_mask(intersects_mask_value, return_adjustments=True)
             local_slice = [(l.start, l.stop) for l in local_slice]
 
-    if local_slice is not None:
-        offset_local_slice = [None] * len(local_slice)
-        for idx in range(len(local_slice)):
-            offset = target.dimensions[idx].bounds_local[0]
-            offset_local_slice[idx] = (local_slice[idx][0] + offset, local_slice[idx][1] + offset)
-    else:
-        offset_local_slice = None
+    # tdk: HACK: this needs to be handled differently by the xarray driver. this code is for parallel ocgis
+    # if local_slice is not None:
+    #     offset_local_slice = [None] * len(local_slice)
+    #     for idx in range(len(local_slice)):
+    #         offset = target.dimensions[idx].bounds_local[0]
+    #         offset_local_slice[idx] = (local_slice[idx][0] + offset, local_slice[idx][1] + offset)
+    # else:
+    #     offset_local_slice = None
 
-    gathered_offset_local_slices = vm.gather(offset_local_slice)
-    if vm.rank == 0:
-        gathered_offset_local_slices = [g for g in gathered_offset_local_slices if g is not None]
-        if len(gathered_offset_local_slices) == 0:
-            raise_empty_subset = True
-        else:
-            raise_empty_subset = False
-            offset_array = np.array(gathered_offset_local_slices)
-            global_slice = [None] * offset_array.shape[1]
-            for idx in range(len(global_slice)):
-                global_slice[idx] = (np.min(offset_array[:, idx, :]), np.max(offset_array[:, idx, :]))
-    else:
-        global_slice = None
-        raise_empty_subset = None
+    # tdk: HACK: this is for parallel ocgis
+    # gathered_offset_local_slices = vm.gather(offset_local_slice)
 
-    raise_empty_subset = vm.bcast(raise_empty_subset)
-    if raise_empty_subset:
-        raise EmptySubsetError
-    global_slice = vm.bcast(global_slice)
-    global_slice = tuple([slice(g[0], g[1]) for g in global_slice])
+    # tdk: HACK: this is required for parallel ocgis
+    # if vm.rank == 0:
+    #     gathered_offset_local_slices = [g for g in gathered_offset_local_slices if g is not None]
+    #     if len(gathered_offset_local_slices) == 0:
+    #         raise_empty_subset = True
+    #     else:
+    #         raise_empty_subset = False
+    #         offset_array = np.array(gathered_offset_local_slices)
+    #         global_slice = [None] * offset_array.shape[1]
+    #         for idx in range(len(global_slice)):
+    #             global_slice[idx] = (np.min(offset_array[:, idx, :]), np.max(offset_array[:, idx, :]))
+    # else:
+    #     global_slice = None
+    #     raise_empty_subset = None
+    #
+    # raise_empty_subset = vm.bcast(raise_empty_subset)
+    # if raise_empty_subset:
+    #     raise EmptySubsetError
+    # global_slice = vm.bcast(global_slice)
+    # global_slice = tuple([slice(g[0], g[1]) for g in global_slice])
 
     intersects_mask = Variable(name='mask_gather', value=intersects_mask_value, dimensions=target.dimensions,
                                dtype=bool)
 
+    global_slice = local_slice
     if apply_slice:
         if vm.size_global > 1:
             ret = target.get_distributed_slice(global_slice)

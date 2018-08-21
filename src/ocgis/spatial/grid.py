@@ -3,6 +3,8 @@ import itertools
 from collections import OrderedDict
 
 import numpy as np
+from ocgis.driver.dimension_map import is_bounded
+
 import ocgis
 import six
 from ocgis import Variable, vm
@@ -14,7 +16,7 @@ from ocgis.environment import ogr, env
 from ocgis.exc import GridDeficientError, EmptySubsetError, AllElementsMaskedError
 from ocgis.spatial.base import AbstractXYZSpatialContainer
 from ocgis.spatial.geomc import AbstractGeometryCoordinates, PolygonGC, PointGC, LineGC
-from ocgis.util.helpers import get_formatted_slice, get_iter
+from ocgis.util.helpers import get_formatted_slice, get_iter, wrap_get_value, is_xarray
 from ocgis.variable.base import get_dslice, get_dimension_lengths
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable, get_masking_slice, GeometryProcessor
@@ -50,8 +52,8 @@ class GridGeometryProcessor(GeometryProcessor):
             abstraction = 'point'
 
         if abstraction == 'point':
-            x_data = grid.x.get_value()
-            y_data = grid.y.get_value()
+            x_data = wrap_get_value(grid.x)
+            y_data = wrap_get_value(grid.y)
             for idx_row, idx_col in itertools.product(*[list(range(ii)) for ii in grid.shape]):
                 if hint_mask is not None and hint_mask[idx_row, idx_col]:
                     yld = None
@@ -64,11 +66,12 @@ class GridGeometryProcessor(GeometryProcessor):
                         x = x_data[idx_row, idx_col]
                     yld = Point(x, y)
                 yield (idx_row, idx_col), yld
-        elif abstraction == 'polygon':
+        elif abstraction == GridAbstraction.POLYGON:
             if grid.has_bounds:
                 # We want geometries for everything even if masked.
-                x_bounds = grid.x.bounds.get_value()
-                y_bounds = grid.y.bounds.get_value()
+                xv = wrap_get_value(grid.parent[grid.x.bounds])
+                yv = wrap_get_value(grid.parent[grid.y.bounds])
+
                 range_row = list(range(grid.shape[0]))
                 range_col = list(range(grid.shape[1]))
                 if is_vectorized:
@@ -76,14 +79,14 @@ class GridGeometryProcessor(GeometryProcessor):
                         if hint_mask is not None and hint_mask[row, col]:
                             polygon = None
                         else:
-                            min_x, max_x = np.min(x_bounds[col, :]), np.max(x_bounds[col, :])
-                            min_y, max_y = np.min(y_bounds[row, :]), np.max(y_bounds[row, :])
+                            min_x, max_x = np.min(xv[col, :]), np.max(xv[col, :])
+                            min_y, max_y = np.min(yv[row, :]), np.max(yv[row, :])
                             polygon = box(min_x, min_y, max_x, max_y)
                         yield (row, col), polygon
                 else:
                     # TODO: We should be able to avoid the creation of this corners array.
-                    corners = np.vstack((y_bounds, x_bounds))
-                    corners = corners.reshape([2] + list(x_bounds.shape))
+                    corners = np.vstack((yv, xv))
+                    corners = corners.reshape([2] + list(xv.shape))
                     for row, col in itertools.product(range_row, range_col):
                         if hint_mask is not None and hint_mask[row, col]:
                             polygon = None
@@ -258,6 +261,7 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
 
         if not isinstance(slc, dict):
             slc = get_dslice(self.dimensions, slc)
+
         ret = self.copy()
         new_parent = ret.parent[slc]
         ret.parent = new_parent
@@ -338,7 +342,7 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
 
         :rtype: bool
         """
-        return self.archetype.has_bounds
+        return is_bounded(self.dimension_map, DMK.X)
 
     @property
     def has_shared_dimension(self):
@@ -367,7 +371,14 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         :rtype: :class:`tuple` of :class:`int`
         """
 
-        return get_dimension_lengths(self.dimensions)
+        if is_xarray(self.archetype):
+            if self.is_vectorized:
+                ret = (self.y.shape[0], self.x.shape[0])
+            else:
+                ret = self.y.shape
+        else:
+            ret = get_dimension_lengths(self.dimensions)
+        return ret
 
     def copy(self):
         """
@@ -657,7 +668,10 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
                 if mask is not None:
                     original_mask = np.logical_or(mask, hint_mask)
 
-        ret = self.copy()
+        # tdk: HACK: it's not clear if xarray needs a copy here
+        # ret = self.copy()
+        ret = self
+
         if original_grid_has_mask:
             ret.set_mask(ret.get_mask().copy())
 
@@ -721,8 +735,8 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         return ret
 
     def get_value_stacked(self):
-        y = self.y.get_value()
-        x = self.x.get_value()
+        y = wrap_get_value(self.y)
+        x = wrap_get_value(self.x)
 
         if self.is_vectorized:
             x, y = np.meshgrid(x, y)
@@ -754,7 +768,7 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         reorder_dimension = self.dimensions[1].name
         varying_dimension = self.dimensions[0].name
 
-        if self.dimensions[1].dist and MPI_SIZE > 1:
+        if self.dimensions[1].dist and vm.size > 1:
             raise ValueError('The reorder dimension may not be distributed.')
 
         # Reorder indices identify where the index translation occurs.
@@ -844,42 +858,30 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         dmap = self._get_canonical_dimension_map_()
         ydim_name = dmap.get_dimension(DMK.Y)[0]
         xdim_name = dmap.get_dimension(DMK.X)[0]
-        dimensions = self.parent.dimensions
-        ret = (dimensions[ydim_name], dimensions[xdim_name])
+        if is_xarray(self.archetype):
+            ret = (ydim_name, xdim_name)
+        else:
+            dimensions = self.parent.dimensions
+            ret = (dimensions[ydim_name], dimensions[xdim_name])
         return ret
 
     def _get_extent_(self):
         if self.is_empty:
             return None
 
-        if not self.is_vectorized:
-            if self.has_bounds:
-                x_bounds = self.x.bounds.get_value()
-                y_bounds = self.y.bounds.get_value()
-                minx = x_bounds.min()
-                miny = y_bounds.min()
-                maxx = x_bounds.max()
-                maxy = y_bounds.max()
-            else:
-                x_value = self.x.get_value()
-                y_value = self.y.get_value()
-                minx = x_value.min()
-                miny = y_value.min()
-                maxx = x_value.max()
-                maxy = y_value.max()
+        has_bounds = is_bounded(self.parent.dimension_map, DMK.X)
+        if has_bounds:
+            x = wrap_get_value(self.parent[self.x.bounds])
+            y = wrap_get_value(self.parent[self.y.bounds])
         else:
-            row = self.y
-            col = self.x
-            if not self.has_bounds:
-                minx = col.get_value().min()
-                miny = row.get_value().min()
-                maxx = col.get_value().max()
-                maxy = row.get_value().max()
-            else:
-                minx = col.bounds.get_value().min()
-                miny = row.bounds.get_value().min()
-                maxx = col.bounds.get_value().max()
-                maxy = row.bounds.get_value().max()
+            x = wrap_get_value(self.x)
+            y = wrap_get_value(self.y)
+
+        minx = x.min()
+        miny = y.min()
+        maxx = x.max()
+        maxy = y.max()
+
         return minx, miny, maxx, maxy
 
     def _get_is_empty_(self):
@@ -1197,6 +1199,10 @@ def get_geometry_variable(grid, value=None, mask=None, use_bounds=True):
         name = grid._polygon_name
     ret = GeometryVariable(name=name, value=value, mask=mask, attrs={'axis': 'ocgis_geom'}, dimensions=grid.dimensions,
                            crs=grid.crs)
+
+    # tdk: FEATURE: this needs to be done with the xarray driver i think
+    ret = ret.to_xarray()
+
     return ret
 
 
@@ -1230,8 +1236,8 @@ def get_coordinate_boolean_array(grid_target, keep_touches, max_target, min_targ
 
 
 def get_hint_mask_from_geometry_bounds(grid, bbox, invert=True):
-    grid_x = grid.x.get_value()
-    grid_y = grid.y.get_value()
+    grid_x = wrap_get_value(grid.x)
+    grid_y = wrap_get_value(grid.y)
 
     minx, miny, maxx, maxy = bbox
     select_x = np.logical_and(grid_x >= minx, grid_x <= maxx)

@@ -4,6 +4,7 @@ from abc import abstractmethod
 
 import numpy as np
 import six
+from ocgis.util.helpers import wrap_get_value
 from pyproj import Proj, transform
 from shapely.geometry import box
 
@@ -308,7 +309,7 @@ class AbstractXYZSpatialContainer(AbstractSpatialContainer):
             else:
                 raise ValueError("'x' and 'y' coordinates are required without a parent.")
 
-        if x.dimensions is None or y.dimensions is None or (z is not None and z.dimensions is None):
+        if x.dims is None or y.dims is None or (z is not None and z.dims is None):
             raise ValueError('Coordinate variables must have dimensions.')
 
         # --------------------------------------------------------------------------------------------------------------
@@ -435,7 +436,7 @@ class AbstractXYZSpatialContainer(AbstractSpatialContainer):
 
         :rtype: float
         """
-        return self.driver.array_resolution(self.x.get_value(), 1)
+        return self.driver.array_resolution(wrap_get_value(self.x), 1)
 
     @property
     def resolution_y(self):
@@ -444,7 +445,7 @@ class AbstractXYZSpatialContainer(AbstractSpatialContainer):
 
         :rtype: float
         """
-        return self.driver.array_resolution(self.y.get_value(), 0)
+        return self.driver.array_resolution(wrap_get_value(self.y), 0)
 
     @property
     def shape_global(self):

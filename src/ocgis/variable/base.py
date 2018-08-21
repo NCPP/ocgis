@@ -19,7 +19,7 @@ from ocgis.exc import VariableInCollectionError, BoundsAlreadyAvailableError, Em
     ResolutionError, NoUnitsError, DimensionsRequiredError, DimensionMismatchError, MaskedDataFound, \
     PayloadProtectedError
 from ocgis.util.helpers import get_iter, get_formatted_slice, get_bounds_from_1d, get_extrapolated_corners_esmf, \
-    create_ocgis_corners_from_esmf_corners, is_crs_variable, arange_from_bool_ndarray, dict_first
+    create_ocgis_corners_from_esmf_corners, is_crs_variable, arange_from_bool_ndarray, dict_first, is_xarray
 from ocgis.util.helpers import is_auto_dtype
 from ocgis.util.units import get_units_object, get_conformed_units
 from ocgis.variable.attributes import Attributes
@@ -73,6 +73,11 @@ class AbstractContainer(AbstractNamedObject):
         :rtype: :class:`~collections.OrderedDict`
         """
         return self._get_dimensions_()
+
+    @property
+    def dims(self):
+        #tdk: DOC
+        return self.dimensions
 
     @property
     def driver(self):
@@ -1762,29 +1767,34 @@ class VariableCollection(AbstractCollection, AbstractContainer, Attributes):
         if not isinstance(item_or_slc, dict):
             ret = AbstractCollection.__getitem__(self, item_or_slc)
         else:
-            # Assume a dictionary slice.
-            self_dimensions = self.dimensions
-            if len(self_dimensions) == 0:
-                raise DimensionsRequiredError
+            #tdk: HACK: this will have to be driver-based as well
+            if is_xarray(self.first()):
+                ret = self._storage.sel(**item_or_slc)
+            else:
+                # Assume a dictionary slice.
+                self_dimensions = self.dimensions
+                if len(self_dimensions) == 0:
+                    raise DimensionsRequiredError
 
-            ret = self.copy()
-            for dimension_name, slc in list(item_or_slc.items()):
-                ret.dimensions[dimension_name] = self_dimensions[dimension_name].__getitem__(slc)
-            names = set(item_or_slc.keys())
-            for k, v in list(ret.items()):
-                with orphaned(v):
-                    if v.ndim > 0:
-                        v_dimension_names = set(v.dimension_names)
-                        if len(v_dimension_names.intersection(names)) > 0:
-                            mapped_slc = [None] * len(v.dimension_names)
-                            for idx, dname in enumerate(v.dimension_names):
-                                mapped_slc[idx] = item_or_slc.get(dname, slice(None))
-                            v_sub = v.__getitem__(mapped_slc)
+                ret = self.copy()
+                for dimension_name, slc in list(item_or_slc.items()):
+                    ret.dimensions[dimension_name] = self_dimensions[dimension_name].__getitem__(slc)
+                names = set(item_or_slc.keys())
+                for k, v in list(ret.items()):
+                    with orphaned(v):
+                        if v.ndim > 0:
+                            v_dimension_names = set(v.dimension_names)
+                            if len(v_dimension_names.intersection(names)) > 0:
+                                mapped_slc = [None] * len(v.dimension_names)
+                                for idx, dname in enumerate(v.dimension_names):
+                                    mapped_slc[idx] = item_or_slc.get(dname, slice(None))
+                                v_sub = v.__getitem__(mapped_slc)
+                            else:
+                                v_sub = v.copy()
                         else:
                             v_sub = v.copy()
-                    else:
-                        v_sub = v.copy()
-                ret.add_variable(v_sub, force=True)
+                    ret.add_variable(v_sub, force=True)
+
         return ret
 
     @property
@@ -1852,24 +1862,27 @@ class VariableCollection(AbstractCollection, AbstractContainer, Attributes):
         :raises: :class:`~ocgis.exc.VariableInCollectionError`
         """
 
-        if variable.is_orphaned:
-            if not force and variable.name in self:
-                raise VariableInCollectionError(variable)
-            self[variable.name] = variable
-            variable.parent = self
-        else:
-            # Only check the source index if the incoming variable does not have an allocated value. The source index
-            # will only be used to load the values.
-            if variable.has_allocated_value:
-                check_src_idx = False
+        try:
+            if variable.is_orphaned:
+                if not force and variable.name in self:
+                    raise VariableInCollectionError(variable)
+                self[variable.name] = variable
+                variable.parent = self
             else:
-                check_src_idx = True
+                # Only check the source index if the incoming variable does not have an allocated value. The source index
+                # will only be used to load the values.
+                if variable.has_allocated_value:
+                    check_src_idx = False
+                else:
+                    check_src_idx = True
 
-            for dimension in list(variable.parent.dimensions.values()):
-                self.add_dimension(dimension, force=force, check_src_idx=check_src_idx)
-            for var in list(variable.parent.values()):
-                var.parent = None
-                self.add_variable(var, force=force)
+                for dimension in list(variable.parent.dimensions.values()):
+                    self.add_dimension(dimension, force=force, check_src_idx=check_src_idx)
+                for var in list(variable.parent.values()):
+                    var.parent = None
+                    self.add_variable(var, force=force)
+        except AttributeError:
+            self._storage.update({variable.name: variable})
 
     def append_to_tags(self, tag, to_append, create=True):
         """
@@ -1908,12 +1921,13 @@ class VariableCollection(AbstractCollection, AbstractContainer, Attributes):
 
         ret = AbstractCollection.copy(self)
         ret._tags = deepcopy(self._tags)
-        ret._dimensions = ret._dimensions.copy()
-        for v in list(ret.values()):
-            with orphaned(v):
-                ret[v.name] = v.copy()
-            ret[v.name].parent = ret
-        ret.children = ret.children.copy()
+        # tdk: HACK: copy should be done by the driver?
+        # ret._dimensions = ret._dimensions.copy()
+        # for v in list(ret.values()):
+        #     with orphaned(v):
+        #         ret[v.name] = v.copy()
+        #     ret[v.name].parent = ret
+        # ret.children = ret.children.copy()
         return ret
 
     def create_tag(self, tag):
@@ -2311,7 +2325,7 @@ class VariableCollection(AbstractCollection, AbstractContainer, Attributes):
         return self._dimensions
 
     def _get_is_empty_(self):
-        return get_is_empty_recursive(self)
+        return is_empty_recursive(self)
 
     def _initialize_parent_(self, *args, **kwargs):
         # Endless recursion if a collection always initializes a parent.
@@ -2395,17 +2409,25 @@ def get_dimension_lengths(dimensions):
 
 
 def get_dslice(dimensions, slc):
-    return {d.name: s for d, s in zip(dimensions, slc)}
+    ret = {}
+    for d, s in zip(get_dimension_names(dimensions), slc):
+        if not isinstance(s, slice):
+            s = slice(*s)
+        ret[d] = s
+    return ret
 
 
-def get_is_empty_recursive(target):
-    if target._is_empty is None:
-        ret = any([v.is_empty for v in list(target.values())])
-        if not ret:
-            for child in list(target.children.values()):
-                ret = get_is_empty_recursive(child)
+def is_empty_recursive(target):
+    if is_xarray(target) or is_xarray(dict_first(target.values())):
+        ret = False
     else:
-        ret = target._is_empty
+        if target._is_empty is None:
+            ret = any([v.is_empty for v in list(target.values())])
+            if not ret:
+                for child in list(target.children.values()):
+                    ret = is_empty_recursive(child)
+        else:
+            ret = target._is_empty
     return ret
 
 
@@ -2474,6 +2496,14 @@ def init_from_source(variable):
     request_dataset = variable._request_dataset
     if request_dataset is not None:
         request_dataset.driver.init_variable_from_source(variable)
+
+
+def is_empty(varlike):
+    if is_xarray(varlike):
+        ret = False
+    else:
+        ret = True
+    return ret
 
 
 def is_string(dtype):
@@ -2646,3 +2676,4 @@ def variable_get_zeros(dimensions, dtype, fill=None):
     if fill is not None:
         ret.fill(fill)
     return ret
+

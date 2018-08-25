@@ -62,6 +62,7 @@ class TestDriverXarray(TestBase):
         bbox = box(*[-40, -30, 40, 40])
         res = m.grid.get_intersects(bbox)
 
-        import ipdb;ipdb.set_trace()
+        # tdk: FEATURE: re-work geometry variabl to not need xarray
+        coords = m.geom.convert_to(pack=False)
 
         pass

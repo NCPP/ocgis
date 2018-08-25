@@ -64,11 +64,12 @@ class TestDriverXarray(TestBase):
         bbox = box(*[-40, -30, 40, 40])
         res = m.grid.get_intersects(bbox)
 
-        # tdk: FEATURE: re-work geometry variable to not need xarray
-        coords = m.geom.convert_to(pack=False)
+        # tdk: FEATURE: re-work geometry variable to not need ocgis
+        # coords = m.geom.convert_to(pack=False)
 
         pass
 
     def test_init(self):
         rd = mock.create_autospec(RequestDataset)
         xd = DriverXarray(rd)
+        self.assertIsInstance(xd, DriverXarray)

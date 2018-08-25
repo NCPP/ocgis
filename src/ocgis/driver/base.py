@@ -430,7 +430,13 @@ class AbstractDriver(AbstractOcgisObject):
         :type field: :class:`~ocgis.Field`
         :rtype: :class:`ocgis.spatial.grid.AbstractGrid` | ``None``
         """
-        raise NotImplementedError
+
+        from ocgis import Grid
+        try:
+            ret = Grid(parent=field)
+        except GridDeficientError:
+            ret = None
+        return ret
 
     @staticmethod
     def get_group_metadata(group_index, metadata, has_root=False):

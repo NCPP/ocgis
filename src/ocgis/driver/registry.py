@@ -7,6 +7,7 @@ from .nc import DriverNetcdf, DriverNetcdfCF
 from .nc_esmf_unstruct import DriverESMFUnstruct
 from .nc_ugrid import DriverNetcdfUGRID
 from .vector import DriverVector
+from .dxarray import DriverXarray
 
 
 class DriverRegistry(AbstractOcgisObject):
@@ -22,6 +23,7 @@ driver_registry.drivers.append(DriverVector)
 driver_registry.drivers.append(DriverNetcdfUGRID)
 driver_registry.drivers.append(DriverESMFUnstruct)
 driver_registry.drivers.append(DriverNetcdfSCRIP)
+driver_registry.drivers.append(DriverXarray)
 
 
 def get_driver_class(key_class_or_instance, default=None):

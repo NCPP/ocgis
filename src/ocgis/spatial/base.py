@@ -54,7 +54,15 @@ class AbstractSpatialObject(AbstractInterfaceObject):
                 field.pop(curr_crs.name)
             if value is not None:
                 field.add_variable(value, force=True)
-                value.format_spatial_object(self)
+                # tdk: FEATURE: format_spatial_object should be implemented on driver
+                try:
+                    value.format_spatial_object(self)
+                except:
+                    import xarray as xr
+                    if isinstance(value, xr.DataArray):
+                        pass
+                    else:
+                        raise
             self.dimension_map.set_crs(value)
 
     @property

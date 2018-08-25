@@ -265,9 +265,12 @@ class Field(VariableCollection):
         :rtype: :class:`~ocgis.TemporalVariable` | ``None``
         """
         ret = get_field_property(self, 'time')
+        # tdk: FEATURE: time selection should be handled by the driver
         if ret is not None:
-            if not isinstance(ret, TemporalGroupVariable):
-                ret = TemporalVariable.from_variable(ret, format_time=self.format_time)
+            import xarray as xr
+            if not isinstance(ret, xr.DataArray):
+                if not isinstance(ret, TemporalGroupVariable):
+                    ret = TemporalVariable.from_variable(ret, format_time=self.format_time)
         return ret
 
     @property
@@ -340,7 +343,16 @@ class Field(VariableCollection):
             # Overload the geometry coordinate system if set on the field. Otherwise, this will use the coordinate
             # system on the geometry variable.
             if crs is not None:
-                ret.crs = crs
+                try:
+                    ret.crs = crs
+                except:
+                    # tdk: FEATURE: no knowledge in xarray of a crs on spatial objects
+                    import xarray as xr
+                    if isinstance(ret, xr.DataArray):
+                        pass
+                    else:
+                        raise
+
         return ret
 
     @property
@@ -799,7 +811,15 @@ class Field(VariableCollection):
         if value is not None:
             if should_add:
                 self.add_variable(value, force=force)
-            value.format_spatial_object(self)
+            # tdk: FEATURE: format_spatial_object should be implemented on driver
+            try:
+                value.format_spatial_object(self)
+            except:
+                import xarray as xr
+                if isinstance(value, xr.DataArray):
+                    pass
+                else:
+                    raise
         self.dimension_map.set_crs(value)
 
     def set_driver(self, driver):
@@ -1075,7 +1095,13 @@ def get_field_property(field, name, strict=False):
         if ret is not None:
             ret.attrs.update(field.dimension_map.get_attrs(name))
             if bounds is not None:
-                ret.set_bounds(field.get(bounds), force=True)
+                try:
+                    ret.set_bounds(field.get(bounds), force=True)
+                except AttributeError:
+                    # tdk: FEATURE: bounds management should be handled by the driver i guess
+                    import xarray as xr
+                    if isinstance(ret, xr.DataArray):
+                        ret.attrs['bounds'] = bounds
     return ret
 
 

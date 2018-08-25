@@ -1,12 +1,12 @@
-from ocgis.driver.base import AbstractDriver
+from ocgis.driver.nc import DriverNetcdfCF
 
 
-class DriverXarray(AbstractDriver):
+class DriverXarray(DriverNetcdfCF):
     key = 'xarray'
-    extensions = None
-    output_formats = None
+    extensions = []
+    output_formats = []
 
-    def get_variable_value(self, variable):
+    def get_variable_value(self, *args, **kwargs):
         raise NotImplementedError
 
     def _get_metadata_main_(self):

@@ -433,15 +433,6 @@ class DriverNetcdfCF(AbstractDriverNetcdfCF):
         return ret
 
     @staticmethod
-    def get_grid(field):
-        from ocgis import Grid
-        try:
-            ret = Grid(parent=field)
-        except GridDeficientError:
-            ret = None
-        return ret
-
-    @staticmethod
     def _gc_iter_dst_grid_slices_(grid_chunker, yield_idx=None):
         slice_store = []
         ydim_name = grid_chunker.dst_grid.dimensions[0].name

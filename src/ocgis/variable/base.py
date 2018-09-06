@@ -2298,15 +2298,21 @@ class VariableCollection(AbstractCollection, AbstractContainer, Attributes):
          always overloaded by this method.
         :rtype: :class:`xarray.Dataset`
         """
+        #tdk: DOC: array_kwargs
         from xarray import Dataset
+
+        kwargs = kwargs.copy()
+        array_kwargs = kwargs.pop('array_kwargs', {})
 
         data_vars = OrderedDict()
         # Convert each variable to data array.
         for v in self.values():
-            data_vars[v.name] = v.to_xarray()
+            if not is_xarray(v):
+                data_vars[v.name] = v.to_xarray(**array_kwargs)
+            else:
+                data_vars[v.name] = v
 
         # Create the arguments for the dataset creation.
-        kwargs = kwargs.copy()
         kwargs['data_vars'] = data_vars
         kwargs['attrs'] = self.attrs
 

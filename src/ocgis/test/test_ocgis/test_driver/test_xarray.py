@@ -116,6 +116,8 @@ class TestDriverXarray(TestBase):
         for res in gc.iter_src_grid_subsets(yield_dst=True):
             print(res[0].extent)
             print(res)
+            print(res[0].parent.to_xarray())
+            print(res[2].parent.to_xarray())
 
     def test_system_unstructured_grid(self):
         path = self.fixture_esmf_unstructured()

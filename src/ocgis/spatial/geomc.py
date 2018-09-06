@@ -10,12 +10,12 @@ from shapely.geometry.linestring import LineString
 from shapely.geometry.multipolygon import MultiPolygon
 
 from ocgis import env, vm
-from ocgis.base import raise_if_empty, is_unstructured_driver
+from ocgis.base import raise_if_empty, is_unstructured_driver, get_dimension_names
 from ocgis.constants import KeywordArgument, GridAbstraction, VariableName, AttributeName, GridChunkerConstants, \
     RegriddingRole, DMK, MPITag, DriverKey, ConversionTarget, MPI_EMPTY_VALUE
 from ocgis.exc import RequestableFeature
 from ocgis.spatial.base import AbstractXYZSpatialContainer
-from ocgis.util.helpers import get_formatted_slice, arange_from_dimension, create_unique_global_array
+from ocgis.util.helpers import get_formatted_slice, arange_from_dimension, create_unique_global_array, is_xarray
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import get_dslice, Variable
 from ocgis.variable.dimension import create_distributed_dimension
@@ -102,7 +102,9 @@ class AbstractGeometryCoordinates(AbstractXYZSpatialContainer):
         self.cindex = cindex
 
         if cindex is not None:
-            if not self.is_empty and self.element_dim.name == self.node_dim.name and self.abstraction != GridAbstraction.POINT:
+            name_ed = get_dimension_names(self.element_dim)[0]
+            name_nd = get_dimension_names(self.node_dim)[0]
+            if not self.is_empty and name_ed == name_nd and self.abstraction != GridAbstraction.POINT:
                 msg = 'The element and node dimensions must have different names.'
                 raise ValueError(msg)
 
@@ -215,7 +217,7 @@ class AbstractGeometryCoordinates(AbstractXYZSpatialContainer):
         :rtype: :class:`~ocgis.Dimension`
         """
 
-        return self.archetype.dimensions[0]
+        return self.archetype.dims[0]
 
     @property
     def shape(self):

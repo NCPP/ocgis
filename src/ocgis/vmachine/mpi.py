@@ -583,8 +583,8 @@ def find_dimension_in_sequence(dimension_name, dimensions):
 
 def get_nonempty_ranks(target, the_vm):
     """Collective!"""
-
-    gathered = the_vm.gather(target.is_empty)
+    from ocgis.variable.base import is_empty
+    gathered = the_vm.gather(is_empty(target))
     if the_vm.rank == 0:
         ret = []
         for idx, rank in enumerate(the_vm.ranks):

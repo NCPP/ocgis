@@ -23,7 +23,7 @@ from ocgis.exc import EmptySubsetError, RequestableFeature, NoInteriorsError
 from ocgis.spatial.base import AbstractSpatialVariable, create_split_polygons
 from ocgis.util.addict import Dict
 from ocgis.util.helpers import iter_array, get_trimmed_array_by_mask, get_swap_chain, find_index, \
-    iter_exploded_geometries, get_iter
+    iter_exploded_geometries, get_iter, is_xarray
 from ocgis.variable.base import get_dimension_lengths, ObjectType
 from ocgis.variable.crs import Cartesian
 from ocgis.variable.dimension import create_distributed_dimension, Dimension
@@ -1028,9 +1028,13 @@ class GeometryVariable(AbstractSpatialVariable):
         dced = False
         if crs is not None or archetype is not None:
             if crs is not None:
-                ret = self.deepcopy()
+                try:
+                    ret = self.deepcopy()
+                except:  # tdk: FIX: need to resolve copies/deep copies with xarray
+                    ret = deepcopy(self)
+
                 dced = True
-                ret = crs.prepare_geometry_variable(ret)
+                ret = crs.values.tolist().prepare_geometry_variable(ret)  # tdk: HACK: accessing ocgis crs variable
 
             # Update the coordinate system if it differs from the archetype.
             if archetype is not None:

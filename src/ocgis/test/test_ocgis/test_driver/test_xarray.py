@@ -1,17 +1,32 @@
+from copy import deepcopy
+
 from mock import Mock, mock
 from ocgis.driver.dxarray import DriverXarray
 from ocgis.driver.nc import DriverNetcdfCF
+from ocgis.driver.nc_esmf_unstruct import DriverESMFUnstruct
+from ocgis.driver.nc_ugrid import DriverNetcdfUGRID
+from ocgis.driver.registry import get_driver_class
+from ocgis.spatial.grid_chunker import GridChunker
 from ocgis.util.addict import Dict
-from ocgis.variable.crs import Spherical
+from ocgis.variable.crs import Spherical, CFSpherical
 from shapely.geometry import Polygon, box
 
-from ocgis import Field, Grid, RequestDataset, DimensionMap
-from ocgis.constants import DMK, GridAbstraction
+from ocgis import Field, Grid, RequestDataset, DimensionMap, GridUnstruct
+from ocgis.constants import DMK, GridAbstraction, DriverKey, Topology
 from ocgis.test import create_gridxy_global, create_exact_field
 from ocgis.test.base import TestBase
+import xarray as xr
 
 
 class TestDriverXarray(TestBase):
+
+    def fixture_esmf_unstructured(self):
+        rd = RequestDataset(self.path_state_boundaries)
+        field = rd.get()
+        gc = field.geom.convert_to(use_geometry_iterator=True, pack=False)
+        path = self.get_temporary_file_path('unstruct.nc')
+        gc.parent.write(path, driver=DriverKey.NETCDF_ESMF_UNSTRUCT)
+        return path
 
     def test(self):
         # tdk: wish list for xarray:
@@ -19,9 +34,7 @@ class TestDriverXarray(TestBase):
 
         # tdk: TEST: data variables on ocgis fiel
 
-        import xarray as xr
-
-        grid = create_gridxy_global()
+        grid = create_gridxy_global(resolution=2.0)
         field = create_exact_field(grid, 'foo', ntime=31)
         path = self.get_temporary_file_path('foo.nc')
         field.write(path)
@@ -37,15 +50,9 @@ class TestDriverXarray(TestBase):
         # m.set_x(xname, 'dimx')
         # m.set_y(yname, 'dimy')
 
-        xmeta = Dict()
-        for dimname, dimsize in ds.dims.items():
-            xmeta.dimensions[dimname] = {'name': dimname, 'size': dimsize}
-        for varname, var in ds.variables.items():
-            xmeta.variables[varname] = {'name': varname, 'dimensions': var.dims, 'attrs': var.attrs}
+        xmeta = create_metadata_from_xarray(ds)
 
-        # tdk: FEATURE: we should not have to pass an instance of request dataset to DimensionMap.from_metadata
-        rd = RequestDataset(uri=path)
-        xdimmap = DimensionMap.from_metadata(DriverNetcdfCF(rd), xmeta)
+        xdimmap = create_dimension_map(xmeta, DriverNetcdfCF, path)
 
         f = Field(initial_data=ds, dimension_map=xdimmap, driver='xarray')
         self.assertIsInstance(f.x, xr.DataArray)
@@ -73,7 +80,7 @@ class TestDriverXarray(TestBase):
         self.assertIsNone(f.geom)
 
         print(grid1.shape)
-        self.assertEqual(grid1.shape, (180, 360))
+        self.assertEqual(grid1.shape, (90, 180))
 
         f.set_abstraction_geom()
 
@@ -85,11 +92,69 @@ class TestDriverXarray(TestBase):
         # tdk: FEATURE: re-work geometry variable to not need ocgis
         # coords = m.geom.convert_to(pack=False)
 
-        # tdk: RESUME: continue testing with an unstructured grid
+    def test_system_grid_chunking(self):
+        grid = create_gridxy_global(resolution=2.0)
+        field = create_exact_field(grid, 'foo', ntime=10)
+        path = self.get_temporary_file_path('foo.nc')
+        field.write(path)
 
-        pass
+        ds1 = xr.open_dataset(path, decode_coords=False, decode_cf=False, decode_times=False, autoclose=True)
+        ds2 = xr.open_dataset(path, decode_coords=False, decode_cf=False, decode_times=False, autoclose=True)
+
+        xmeta1 = create_metadata_from_xarray(ds1)
+        xdimmap1 = create_dimension_map(xmeta1, DriverNetcdfCF, path)
+
+        xdimmap2 = deepcopy(xdimmap1)
+
+        f1 = Field(initial_data=ds1, dimension_map=xdimmap1)
+        f1['latitude_longitude'] = CFSpherical()  # tdk: FIX: need to resolve CRS in xarray - need behaviors on crs
+        f2 = Field(initial_data=ds2, dimension_map=xdimmap2)
+        f2['latitude_longitude'] = CFSpherical()
+
+        gc = GridChunker(f1, f2, nchunks_dst=(5, 5))
+        # tdk: RESUME: continue testing grid chunker - lots of issues; doesn't seem to work with all parameters
+        for res in gc.iter_src_grid_subsets(yield_dst=True):
+            print(res[0].extent)
+            print(res)
+
+    def test_system_unstructured_grid(self):
+        path = self.fixture_esmf_unstructured()
+        # tdk: FIX: the load step is incredibly slow; what is it doing?
+        ds = xr.open_dataset(path, autoclose=True)
+        xmeta = create_metadata_from_xarray(ds)
+        xdimmap = create_dimension_map(xmeta, DriverESMFUnstruct, path)
+        f = Field(initial_data=ds, dimension_map=xdimmap, driver=DriverESMFUnstruct)
+        self.assertIsInstance(f.grid, GridUnstruct)
+        self.assertEqual(f.grid.abstraction, Topology.POLYGON)
+
+        # tdk: TEST: add test for field properties with unstructured grids
+        # tdk: RESUME: continue working with unstructured grids; eventual goal is conversion to ESMF
+
+        self.assertIsInstance(f.x, xr.DataArray)
 
     def test_init(self):
         rd = mock.create_autospec(RequestDataset)
         xd = DriverXarray(rd)
         self.assertIsInstance(xd, DriverXarray)
+
+
+def create_dimension_map(meta, driver, path):
+    # tdk: DOC
+    # tdk: FIX: remove path from argument list
+
+    # tdk: FEATURE: we should not have to pass an instance of request dataset to DimensionMap.from_metadata
+    driver = get_driver_class(driver)
+    rd = RequestDataset(uri=path)
+    dimmap = DimensionMap.from_metadata(driver(rd), meta)
+    return dimmap
+
+
+def create_metadata_from_xarray(ds):
+    # tdk: DOC
+    xmeta = Dict()
+    for dimname, dimsize in ds.dims.items():
+        xmeta.dimensions[dimname] = {'name': dimname, 'size': dimsize}
+    for varname, var in ds.variables.items():
+        xmeta.variables[varname] = {'name': varname, 'dimensions': var.dims, 'attrs': var.attrs}
+    xmeta = dict(xmeta)
+    return xmeta

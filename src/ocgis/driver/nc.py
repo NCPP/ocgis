@@ -10,7 +10,7 @@ import six
 from netCDF4._netCDF4 import VLType, MFDataset, MFTime
 from ocgis import constants, vm
 from ocgis import env
-from ocgis.base import orphaned, raise_if_empty
+from ocgis.base import orphaned, raise_if_empty, get_dimension_names
 from ocgis.collection.field import Field
 from ocgis.constants import MPIWriteMode, DimensionMapKey, KeywordArgument, DriverKey, CFName, SourceIndexType
 from ocgis.driver.base import AbstractDriver, driver_scope
@@ -435,8 +435,9 @@ class DriverNetcdfCF(AbstractDriverNetcdfCF):
     @staticmethod
     def _gc_iter_dst_grid_slices_(grid_chunker, yield_idx=None):
         slice_store = []
-        ydim_name = grid_chunker.dst_grid.dimensions[0].name
-        xdim_name = grid_chunker.dst_grid.dimensions[1].name
+        grid_dimnames = get_dimension_names(grid_chunker.dst_grid.dims)
+        ydim_name = grid_dimnames[0]
+        xdim_name = grid_dimnames[1]
         dst_grid_shape_global = grid_chunker.dst_grid.shape_global
         for idx in range(grid_chunker.dst_grid.ndim):
             splits = grid_chunker.nchunks_dst[idx]

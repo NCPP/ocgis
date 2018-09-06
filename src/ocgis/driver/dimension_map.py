@@ -311,15 +311,27 @@ class DimensionMap(AbstractOcgisObject):
                     has_sections = True
                     section = get_formatted_slice(section, base_variable_ndim)
                     new_variable = base_variable[section]
-                    new_dimensions = [d for d in new_variable.dimensions if d.size > 1]
-                    new_variable.reshape(new_dimensions)
-                    new_variable.set_name(ii)
+
+                    if is_xarray(new_variable):
+                        new_dimensions = [d for ii, d in enumerate(new_variable.dims) if new_variable.shape[ii] > 1]
+                    else:
+                        new_dimensions = [d for d in new_variable.dims if d.size > 1]
+
+                    if is_xarray(new_variable):
+                        new_variable = new_variable.squeeze()
+                        new_variable.name = ii
+                    else:
+                        new_variable.reshape(new_dimensions)
+                        ew_variable = new_variable.extract()
+                        new_variable.set_name(ii)
+
                     entry[DMK.VARIABLE] = new_variable.name
                     entry.pop(DMK.SECTION)
-                    new_variable = new_variable.extract()
+
                     parent.add_variable(new_variable)
                     if base_variable.name not in to_remove:
                         to_remove.append(base_variable.name)
+
             if has_sections:
                 for tt in to_remove:
                     parent.remove_variable(tt)
@@ -633,6 +645,20 @@ def get_dmap_group(dmap, keyseq, create=False, last=None):
                 else:
                     raise
     return curr
+
+
+def has_bounds(target):
+    # tdk: DOC
+    try:
+        ret = target.has_bounds
+    except AttributeError:
+        if is_xarray(target):
+            ret = False
+            if getattr(target, 'bounds', None) is not None:
+                ret = True
+        else:
+            raise
+    return ret
 
 
 def is_bounded(dmap, key):

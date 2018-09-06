@@ -4,7 +4,7 @@ from abc import abstractmethod
 
 import numpy as np
 import six
-from ocgis.util.helpers import wrap_get_value
+from ocgis.util.helpers import wrap_get_value, is_xarray
 from pyproj import Proj, transform
 from shapely.geometry import box
 
@@ -83,7 +83,10 @@ class AbstractSpatialObject(AbstractInterfaceObject):
             if self.crs is None:
                 ret = None
             else:
-                ret = self.crs.get_wrapped_state(self)
+                if is_xarray(self.crs):  # tdk: FEATURE: xarray has no crs concept
+                    ret = None
+                else:
+                    ret = self.crs.get_wrapped_state(self)
         else:
             ret = self._wrapped_state
         return ret
@@ -466,15 +469,18 @@ class AbstractXYZSpatialContainer(AbstractSpatialContainer):
 
         raise_if_empty(self)
 
-        maxd = [max(d.bounds_global) for d in self.dimensions]
-        shapes = vm.gather(maxd)
-        if vm.rank == 0:
-            shape_global = tuple(np.max(shapes, axis=0))
+        if is_xarray(self.archetype):
+            return self.shape
         else:
-            shape_global = None
-        shape_global = vm.bcast(shape_global)
+            maxd = [max(d.bounds_global) for d in self.dimensions]
+            shapes = vm.gather(maxd)
+            if vm.rank == 0:
+                shape_global = tuple(np.max(shapes, axis=0))
+            else:
+                shape_global = None
+            shape_global = vm.bcast(shape_global)
 
-        return shape_global
+            return shape_global
 
     @property
     def x(self):

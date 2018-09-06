@@ -41,7 +41,12 @@ class DriverESMFUnstruct(AbstractUnstructuredDriver, AbstractDriverNetcdfCF):
 
     @staticmethod
     def get_element_dimension(gc):
-        return gc.parent.dimensions['elementCount']
+        try:
+            ret = gc.parent.dimensions['elementCount']
+        except:
+            # xarray does not have dimension objects
+            ret = 'elementCount'
+        return ret
 
     @staticmethod
     def get_multi_break_value(cindex):
@@ -114,7 +119,8 @@ class DriverESMFUnstruct(AbstractUnstructuredDriver, AbstractDriverNetcdfCF):
         if mbv is not None:
             esmf_element_conn_var.attrs['polygon_break_value'] = mbv
         esmf_element_conn_var.attrs['start_index'] = grid.start_index
-        ret = VariableCollection(variables=field.copy().values(), force=True)
+        # ret = VariableCollection(variables=field.copy().values(), force=True)
+        ret = field.copy()
 
         # Rename the element count dimension.
         original_name = ret[cindex.name].dimensions[0].name

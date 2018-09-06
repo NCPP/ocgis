@@ -3,7 +3,7 @@ import itertools
 from collections import OrderedDict
 
 import numpy as np
-from ocgis.driver.dimension_map import is_bounded
+from ocgis.driver.dimension_map import is_bounded, has_bounds
 
 import ocgis
 import six
@@ -17,7 +17,7 @@ from ocgis.exc import GridDeficientError, EmptySubsetError, AllElementsMaskedErr
 from ocgis.spatial.base import AbstractXYZSpatialContainer
 from ocgis.spatial.geomc import AbstractGeometryCoordinates, PolygonGC, PointGC, LineGC
 from ocgis.util.helpers import get_formatted_slice, get_iter, wrap_get_value, is_xarray
-from ocgis.variable.base import get_dslice, get_dimension_lengths
+from ocgis.variable.base import get_dslice, get_dimension_lengths, is_empty
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable, get_masking_slice, GeometryProcessor
 from ocgis.vmachine.mpi import MPI_SIZE
@@ -516,19 +516,24 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         if self.has_shared_dimension:
             raise ValueError('Grid coordinate variables may not have shared dimensions when slicing.')
 
-        if isinstance(slc, dict):
-            y_slc = slc[self.dimensions[0].name]
-            x_slc = slc[self.dimensions[1].name]
-            slc = [y_slc, x_slc]
-
         ret = self.copy()
-        if self.is_vectorized:
-            dummy_var = Variable(name='__ocgis_dummy_var__', dimensions=ret.dimensions)
-            ret.parent.add_variable(dummy_var)
-            ret.parent = dummy_var.get_distributed_slice(slc, **kwargs).parent
-            ret.parent.pop(dummy_var.name)
+        if is_xarray(self.archetype):
+            ret.parent._storage = ret.parent._storage[slc]
         else:
-            ret.parent = self.archetype.get_distributed_slice(slc, **kwargs).parent
+            ret = self.copy()
+            if isinstance(slc, dict):
+                y_slc = slc[self.dimension_names[0]]
+                x_slc = slc[self.dimension_names[1]]
+                slc = [y_slc, x_slc]
+
+            if self.is_vectorized:
+                dummy_var = Variable(name='__ocgis_dummy_var__', dimensions=ret.dimensions)
+                ret.parent.add_variable(dummy_var)
+                ret.parent = dummy_var.get_distributed_slice(slc, **kwargs).parent
+                ret.parent.pop(dummy_var.name)
+            else:
+                ret.parent = self.archetype.get_distributed_slice(slc, **kwargs).parent
+
         return ret
 
     def get_nearest(self, *args, **kwargs):
@@ -595,15 +600,15 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         # TODO: This should be merged with geometry coordinates spatial subset operation.
         raise_if_empty(self)
 
-        try:
-            subset_geom.prepare()
-        except AttributeError:
-            if not isinstance(subset_geom, BaseGeometry):
-                msg = 'Only Shapely geometries allowed for subsetting. Subset type is "{}".'.format(
-                    type(subset_geom))
-                raise ValueError(msg)
-        else:
-            subset_geom = subset_geom.get_value()[0]
+        # try:
+        subset_geom.prepare()
+        # except AttributeError:
+        #     if not isinstance(subset_geom, BaseGeometry):
+        #         msg = 'Only Shapely geometries allowed for subsetting. Subset type is "{}".'.format(
+        #             type(subset_geom))
+        #         raise ValueError(msg)
+        # else:
+        subset_geom = subset_geom.get_value()[0]
 
         # Flag indicating presence of mask on grid prior to subsetting. If there is a mask, we always want to maintain
         # it. If not, only add a mask if some values will be masked.
@@ -678,11 +683,14 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         if optimized_bbox_subset:
             if original_mask is not None and original_mask.any():
                 # TODO: OPTIMIZE: Can we avoid the cascade? There is no reason to cascade the mask if it is going to be sliced off anyway.
-                ret.set_mask(original_mask, cascade=True)
+                # tdk: FIX: how to deal with masking and xarray?
+                # ret.set_mask(original_mask, cascade=True)
+                pass
             sliced_grid, _, the_slice = get_masking_slice(original_mask, ret, apply_slice=apply_slice)
-            sliced_grid_mask = sliced_grid.get_mask()
-            if not original_grid_has_mask and sliced_grid_mask is not None and not sliced_grid_mask.any():
-                sliced_grid.set_mask(None)
+            # tdk: FIX: how to deal with masking and xarray
+            # sliced_grid_mask = sliced_grid.get_mask()
+            # if not original_grid_has_mask and sliced_grid_mask is not None and not sliced_grid_mask.any():
+            #     sliced_grid.set_mask(None)
         else:
             fill_mask = original_mask
             geometry_fill = None
@@ -833,7 +841,7 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
 
     def _get_available_abstractions_(self):
         ret = [GridAbstraction.POINT]
-        if self.archetype.has_bounds:
+        if has_bounds(self.archetype):
             ret.append(GridAbstraction.POLYGON)
         return ret
 
@@ -866,7 +874,7 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         return ret
 
     def _get_extent_(self):
-        if self.is_empty:
+        if is_empty(self):
             return None
 
         has_bounds = is_bounded(self.parent.dimension_map, DMK.X)

@@ -11,7 +11,7 @@ from ocgis.spatial.base import iter_spatial_decomposition
 from ocgis.spatial.geomc import AbstractGeometryCoordinates
 from ocgis.spatial.grid import GridUnstruct, AbstractGrid, Grid
 from ocgis.util.logging_ocgis import ocgis_lh
-from ocgis.variable.base import VariableCollection, Variable
+from ocgis.variable.base import VariableCollection, Variable, is_empty
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.vmachine.core import vm
@@ -476,7 +476,9 @@ class GridChunker(AbstractOcgisObject):
                 else:
                     sub_box, dst_box = [None, None]
 
-            live_ranks = vm.get_live_ranks_from_object(dst_grid_subset)
+            # tdk: FIX: not sure why this isn't working
+            # live_ranks = vm.get_live_ranks_from_object(dst_grid_subset)
+            live_ranks = [0]
             sub_box = vm.bcast(sub_box, root=live_ranks[0])
 
             if self.check_contains:
@@ -526,7 +528,7 @@ class GridChunker(AbstractOcgisObject):
                     pass
                     # src_grid_subset = VariableCollection(is_empty=True)
 
-                if src_grid_subset.is_empty:
+                if is_empty(src_grid_subset):
                     src_grid_slice = None
                 else:
                     src_grid_slice = {src_grid_subset.dimensions[ii].name: src_grid_slice[ii] for ii in

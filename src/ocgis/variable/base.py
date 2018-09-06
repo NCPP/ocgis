@@ -14,6 +14,7 @@ from ocgis.base import AbstractNamedObject, get_dimension_names, get_variable_na
     orphaned, raise_if_empty
 from ocgis.collection.base import AbstractCollection
 from ocgis.constants import HeaderName, KeywordArgument, DriverKey
+from ocgis.driver.dimension_map import has_bounds
 from ocgis.environment import get_dtype, env
 from ocgis.exc import VariableInCollectionError, BoundsAlreadyAvailableError, EmptySubsetError, \
     ResolutionError, NoUnitsError, DimensionsRequiredError, DimensionMismatchError, MaskedDataFound, \
@@ -1921,13 +1922,13 @@ class VariableCollection(AbstractCollection, AbstractContainer, Attributes):
 
         ret = AbstractCollection.copy(self)
         ret._tags = deepcopy(self._tags)
-        # tdk: HACK: copy should be done by the driver?
-        # ret._dimensions = ret._dimensions.copy()
-        # for v in list(ret.values()):
-        #     with orphaned(v):
-        #         ret[v.name] = v.copy()
-        #     ret[v.name].parent = ret
-        # ret.children = ret.children.copy()
+        if not is_xarray(self._storage):
+            ret._dimensions = ret._dimensions.copy()
+            for v in list(ret.values()):
+                with orphaned(v):
+                    ret[v.name] = v.copy()
+                ret[v.name].parent = ret
+            ret.children = ret.children.copy()
         return ret
 
     def create_tag(self, tag):
@@ -2211,24 +2212,31 @@ class VariableCollection(AbstractCollection, AbstractContainer, Attributes):
         """
 
         variable = get_variables(variable, self)[0]
-        dims_to_check = list(get_dimension_names(variable.dimensions))
+        dims_to_check = list(get_dimension_names(variable.dims))
         remove_names = [variable.name]
-        if remove_bounds and variable.has_bounds:
+        if remove_bounds and has_bounds(variable):
             remove_names.append(variable.bounds.name)
-            dims_to_check.extend(list(get_dimension_names(variable.bounds.dimensions)))
+            dims_to_check.extend(list(get_dimension_names(variable.bounds.dims)))
             dims_to_check = set(dims_to_check)
 
-        ret = variable.extract(keep_bounds=remove_bounds, clean_break=False)
+        if not is_xarray(variable):
+            ret = variable.extract(keep_bounds=remove_bounds, clean_break=False)
+        else:
+            ret = variable
 
         # Remove name from tags
         for rn in remove_names:
             for v in list(self._tags.values()):
                 if rn in v:
                     v.remove(rn)
-            self.pop(rn)
+            try:
+                self.pop(rn)
+            except AttributeError:  # This is xarray.
+                self._storage.drop(rn)
 
         # Check for orphaned dimensions.
-        self.remove_orphaned_dimensions(dimensions=dims_to_check)
+        if not is_xarray(variable):
+            self.remove_orphaned_dimensions(dimensions=dims_to_check)
 
         return ret
 
@@ -2322,7 +2330,11 @@ class VariableCollection(AbstractCollection, AbstractContainer, Attributes):
         driver.write_variable_collection(*args, **kwargs)
 
     def _get_dimensions_(self):
-        return self._dimensions
+        if is_xarray(self._storage):
+            ret = self._storage.dims
+        else:
+            ret = self._dimensions
+        return ret
 
     def _get_is_empty_(self):
         return is_empty_recursive(self)

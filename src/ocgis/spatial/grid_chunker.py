@@ -3,7 +3,8 @@ import os
 
 import netCDF4 as nc
 import numpy as np
-from ocgis.base import AbstractOcgisObject, grid_abstraction_scope
+from ocgis.base import AbstractOcgisObject, grid_abstraction_scope, \
+    get_dimension_names
 from ocgis.collection.field import Field
 from ocgis.constants import GridChunkerConstants, RegriddingRole, Topology, DMK
 from ocgis.driver.request.core import RequestDataset
@@ -531,7 +532,8 @@ class GridChunker(AbstractOcgisObject):
                 if is_empty(src_grid_subset):
                     src_grid_slice = None
                 else:
-                    src_grid_slice = {src_grid_subset.dimensions[ii].name: src_grid_slice[ii] for ii in
+                    grid_dimnames = get_dimension_names(src_grid_subset.dimensions)
+                    src_grid_slice = {grid_dimnames[ii]: src_grid_slice[ii] for ii in
                                       range(src_grid_subset.ndim)}
 
             if yield_dst:

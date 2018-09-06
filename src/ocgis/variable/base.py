@@ -1770,7 +1770,8 @@ class VariableCollection(AbstractCollection, AbstractContainer, Attributes):
         else:
             #tdk: HACK: this will have to be driver-based as well
             if is_xarray(self.first()):
-                ret = self._storage.sel(**item_or_slc)
+                ret = self.copy()
+                ret._storage = self._storage.sel(**item_or_slc)
             else:
                 # Assume a dictionary slice.
                 self_dimensions = self.dimensions
@@ -2514,7 +2515,7 @@ def is_empty(varlike):
     if is_xarray(varlike):
         ret = False
     else:
-        ret = True
+        ret = varlike.is_empty
     return ret
 
 

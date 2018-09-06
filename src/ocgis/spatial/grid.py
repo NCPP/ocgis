@@ -893,7 +893,7 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         return minx, miny, maxx, maxy
 
     def _get_is_empty_(self):
-        return self.parent.is_empty
+        return is_empty(self.parent)
 
     @staticmethod
     def _gc_create_global_indices_(global_shape, **kwargs):

@@ -10,15 +10,15 @@ from shapely.geometry import Point, Polygon, box
 from shapely.geometry.base import BaseMultipartGeometry
 from shapely.geometry.multipolygon import MultiPolygon
 
-from ocgis import constants
+from ocgis import constants, VariableCollection
 from ocgis.base import AbstractInterfaceObject, raise_if_empty, AbstractOcgisObject
 from ocgis.constants import MPIWriteMode, WrappedState, WrapAction, KeywordArgument, CFName, OcgisUnits, \
     ConversionFactor, DimensionMapKey, DMK, OcgisConvention
 from ocgis.environment import osr
 from ocgis.exc import ProjectionCoordinateNotFound, ProjectionDoesNotMatch, CRSNotEquivalenError, \
-    WrappedStateEvalTargetMissing, CRSDepthNotImplemented
+    WrappedStateEvalTargetMissing, CRSDepthNotImplemented, VariableNotInCollection
 from ocgis.spatial.wrap import GeometryWrapper, CoordinateArrayWrapper
-from ocgis.util.helpers import iter_array, get_iter
+from ocgis.util.helpers import iter_array, get_iter, wrap_get_value
 
 SpatialReference = osr.SpatialReference
 
@@ -143,9 +143,13 @@ class AbstractCRS(AbstractInterfaceObject):
             for c in spatial_obj.coordinate_variables:
                 i = spatial_obj.dimension_map.inquire_is_xyz(c)
                 if i != DMK.LEVEL and i is not None:
-                    updates[c] = self._cf_attributes[i]
+                    updates[c.name] = self._cf_attributes[i]
 
             for target, name_values in updates.items():
+                if isinstance(spatial_obj, VariableCollection):
+                    target = spatial_obj[target]
+                else:
+                    target = spatial_obj.parent[target]
                 if target is not None:
                     for k, v in name_values.items():
                         _update_attr_(target, k, v)
@@ -244,7 +248,8 @@ class AbstractCRS(AbstractInterfaceObject):
             elif target.is_empty:
                 ret = None
             elif isinstance(target, AbstractXYZSpatialContainer):
-                ret = self._get_wrapped_state_from_array_(target.x.get_value())
+                x_value = wrap_get_value(target.x)
+                ret = self._get_wrapped_state_from_array_(x_value)
             else:
                 stops = (WrappedState.WRAPPED, WrappedState.UNWRAPPED)
                 ret = WrappedState.UNKNOWN

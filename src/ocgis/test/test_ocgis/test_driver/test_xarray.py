@@ -11,7 +11,7 @@ from ocgis.util.addict import Dict
 from ocgis.variable.crs import Spherical, CFSpherical
 from shapely.geometry import Polygon, box
 
-from ocgis import Field, Grid, RequestDataset, DimensionMap, GridUnstruct
+from ocgis import Field, Grid, RequestDataset, DimensionMap, GridUnstruct, env
 from ocgis.constants import DMK, GridAbstraction, DriverKey, Topology
 from ocgis.test import create_gridxy_global, create_exact_field
 from ocgis.test.base import TestBase
@@ -93,26 +93,32 @@ class TestDriverXarray(TestBase):
         # coords = m.geom.convert_to(pack=False)
 
     def test_system_grid_chunking(self):
-        grid = create_gridxy_global(resolution=2.0)
+        grid = create_gridxy_global(resolution=1.0)
         field = create_exact_field(grid, 'foo', ntime=10)
-        path = self.get_temporary_file_path('foo.nc')
-        field.write(path)
+        path1 = self.get_temporary_file_path('foo.nc')
+        field.write(path1)
 
-        ds1 = xr.open_dataset(path, decode_coords=False, decode_cf=False, decode_times=False, autoclose=True)
-        ds2 = xr.open_dataset(path, decode_coords=False, decode_cf=False, decode_times=False, autoclose=True)
+        grid = create_gridxy_global(resolution=1.5)
+        field = create_exact_field(grid, 'foo', ntime=10)
+        path2 = self.get_temporary_file_path('foo2.nc')
+        field.write(path2)
+
+        ds1 = xr.open_dataset(path1, decode_coords=False, decode_cf=False, decode_times=False, autoclose=True)
+        ds2 = xr.open_dataset(path2, decode_coords=False, decode_cf=False, decode_times=False, autoclose=True)
 
         xmeta1 = create_metadata_from_xarray(ds1)
-        xdimmap1 = create_dimension_map(xmeta1, DriverNetcdfCF, path)
+        xdimmap1 = create_dimension_map(xmeta1, DriverNetcdfCF, path1)
+        xdimmap1.set_crs(None)
 
         xdimmap2 = deepcopy(xdimmap1)
 
-        f1 = Field(initial_data=ds1, dimension_map=xdimmap1)
-        f1['latitude_longitude'] = CFSpherical()  # tdk: FIX: need to resolve CRS in xarray - need behaviors on crs
-        f2 = Field(initial_data=ds2, dimension_map=xdimmap2)
-        f2['latitude_longitude'] = CFSpherical()
+        f1 = Field(initial_data=ds1, dimension_map=xdimmap1, crs=CFSpherical())
+        # f1['latitude_longitude'] = CFSpherical()  # tdk: FIX: need to resolve CRS in xarray - need behaviors on crs
+        f2 = Field(initial_data=ds2, dimension_map=xdimmap2, crs=CFSpherical())
+        # f2['latitude_longitude'] = CFSpherical()
 
         gc = GridChunker(f1, f2, nchunks_dst=(5, 5))
-        # tdk: RESUME: continue testing grid chunker - lots of issues; doesn't seem to work with all parameters
+        # tdk: RESUME: continue testing grid chunker - should be working; need to improve xarray to ocgis
         for res in gc.iter_src_grid_subsets(yield_dst=True):
             print(res[0].extent)
             print(res)

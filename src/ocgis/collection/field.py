@@ -809,17 +809,11 @@ class Field(VariableCollection):
         if self.crs is not None:
             self.pop(self.crs.name)
         if value is not None:
+            if is_xarray(value):
+                value = value.values.tolist()
             if should_add:
                 self.add_variable(value, force=force)
-            # tdk: FEATURE: format_spatial_object should be implemented on driver
-            try:
-                value.format_spatial_object(self)
-            except:
-                import xarray as xr
-                if isinstance(value, xr.DataArray):
-                    pass
-                else:
-                    raise
+            value.format_spatial_object(self)
         self.dimension_map.set_crs(value)
 
     def set_driver(self, driver):

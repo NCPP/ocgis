@@ -172,6 +172,8 @@ class DimensionMap(AbstractOcgisObject):
         ret = get_or_create_dict(entry, DMK.VARIABLE, None)
         if parent is not None:
             ret = get_variable_from_field(ret, parent, nullable)
+            if is_xarray(ret):
+                ret = ret.values.tolist()
         return ret
 
     def get_dimension(self, entry_key, dimensions=None):

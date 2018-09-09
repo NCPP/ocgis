@@ -1034,7 +1034,7 @@ class GeometryVariable(AbstractSpatialVariable):
                     ret = deepcopy(self)
 
                 dced = True
-                ret = crs.values.tolist().prepare_geometry_variable(ret)  # tdk: HACK: accessing ocgis crs variable
+                ret = crs.prepare_geometry_variable(ret)
 
             # Update the coordinate system if it differs from the archetype.
             if archetype is not None:

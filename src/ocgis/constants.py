@@ -382,6 +382,7 @@ class KeywordArgument(object):
         IS_DATA = False
         STANDARDIZE = True
         ABSTRACTION = 'auto'
+        ROTATED_POLE_PRIORITY = False
 
 
 class DriverKey(object):

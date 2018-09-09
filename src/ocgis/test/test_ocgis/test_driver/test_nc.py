@@ -896,7 +896,7 @@ class TestDriverNetcdfCF(TestBase):
                 cgm['variables'].pop('lat')
                 cgm['variables'].pop('lon')
             rd.rotated_pole_priority = k.rpp
-            actual = DriverNetcdfCF(rd).get_crs(cgm)
+            actual = DriverNetcdfCF(rd).get_crs(cgm, request_dataset=rd)
             if k.with_spherical:
                 self.assertIsInstance(actual, desired.rpp[k.rpp])
             else:

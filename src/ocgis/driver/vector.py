@@ -59,7 +59,8 @@ class DriverVector(AbstractTabularDriver):
             if conform_units_to is not None:
                 v.cfunits_conform(conform_units_to)
 
-    def get_crs(self, group_metadata):
+    @classmethod
+    def get_crs(cls, group_metadata, request_dataset=None):
         crs = group_metadata['crs']
         if len(crs) == 0:
             ret = None
@@ -71,7 +72,7 @@ class DriverVector(AbstractTabularDriver):
         ret = {DMK.GEOM: {DMK.VARIABLE: VariableName.GEOMETRY_VARIABLE,
                           DMK.DIMENSION: DimensionName.GEOMETRY_DIMENSION}}
         ret = DimensionMap.from_dict(ret)
-        crs = self.get_crs(group_metadata)
+        crs = self.get_crs(group_metadata, request_dataset=self.rd)
         if crs is not None:
             ret.set_crs(crs)
         return ret
@@ -92,7 +93,7 @@ class DriverVector(AbstractTabularDriver):
                          geom_type=geom_type, dimensions=DimensionName.GEOMETRY_DIMENSION)
 
         if group_metadata is not None:
-            crs = self.get_crs(group_metadata)
+            crs = self.get_crs(group_metadata, request_dataset=self.rd)
             if crs is not None:
                 field.add_variable(crs)
 

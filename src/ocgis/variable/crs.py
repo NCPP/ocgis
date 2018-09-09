@@ -104,7 +104,7 @@ class AbstractCRS(AbstractInterfaceObject):
     def convert_to_empty(self):
         pass
 
-    def create_dimension_map(self, group_metadata, strict=False):
+    def create_dimension_map(self, *args, **kwargs):
         from ocgis import DimensionMap
         return DimensionMap()
 

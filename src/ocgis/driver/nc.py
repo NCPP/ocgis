@@ -272,6 +272,7 @@ class DriverNetcdf(AbstractDriver):
 
 @six.add_metaclass(ABCMeta)
 class AbstractDriverNetcdfCF(DriverNetcdf):
+
     def create_dimension_map(self, group_metadata, strict=False):
         dmap = super(AbstractDriverNetcdfCF, self).create_dimension_map(group_metadata, strict=strict)
 
@@ -324,8 +325,13 @@ class AbstractDriverNetcdfCF(DriverNetcdf):
         entries = {k: v for k, v in list(axes.items()) if v is not None}
         return entries
 
-    def _get_crs_main_(self, group_metadata):
-        return get_crs_variable(group_metadata, self.rd.rotated_pole_priority)
+    @classmethod
+    def _get_crs_main_(cls, group_metadata, request_dataset=None):
+        if request_dataset is not None:
+            rpp = request_dataset.rotated_pole_priority
+        else:
+            rpp = KeywordArgument.Defaults.ROTATED_POLE_PRIORITY
+        return get_crs_variable(group_metadata, rpp)
 
     @staticmethod
     def _update_dimension_map_with_entries_(entries, dimension_map):
@@ -372,23 +378,24 @@ class DriverNetcdfCF(AbstractDriverNetcdfCF):
         self._update_dimension_map_with_entries_(entries, dmap)
 
         # Hack to get the original coordinate system. Tell the driver to get rotated pole if it can from the metadata.
-        original_rpp = self.rd.rotated_pole_priority
-        try:
-            self.rd.rotated_pole_priority = True
-            raw_crs = self.get_crs(group_metadata)
-        finally:
-            self.rd.rotated_pole_priority = original_rpp
-        # Swap out correct axis variables for spherical as opposed to rotated latitude longitude
-        if not self.rd.rotated_pole_priority and isinstance(raw_crs, CFRotatedPole):
-            crs = self.get_crs(group_metadata)
-            if isinstance(crs, CFSpherical):
-                axes = {DimensionMapKey.X: {'value': CFName.StandardName.LONGITUDE, 'axis': 'X'},
-                        DimensionMapKey.Y: {'value': CFName.StandardName.LATITUDE, 'axis': 'Y'}}
-                crs_entries = self._create_dimension_map_entries_dict_(axes, group_metadata, strict,
-                                                                       attr_name=CFName.STANDARD_NAME)
-                self._update_dimension_map_with_entries_(crs_entries, dmap)
-                env.SET_GRID_AXIS_ATTRS = False
-                env.COORDSYS_ACTUAL = raw_crs
+        if self.rd is not None:
+            original_rpp = self.rd.rotated_pole_priority
+            try:
+                self.rd.rotated_pole_priority = True
+                raw_crs = self.get_crs(group_metadata, request_dataset=self.rd)
+            finally:
+                self.rd.rotated_pole_priority = original_rpp
+            # Swap out correct axis variables for spherical as opposed to rotated latitude longitude
+            if not self.rd.rotated_pole_priority and isinstance(raw_crs, CFRotatedPole):
+                crs = self.get_crs(group_metadata, request_dataset=self.rd)
+                if isinstance(crs, CFSpherical):
+                    axes = {DimensionMapKey.X: {'value': CFName.StandardName.LONGITUDE, 'axis': 'X'},
+                            DimensionMapKey.Y: {'value': CFName.StandardName.LATITUDE, 'axis': 'Y'}}
+                    crs_entries = self._create_dimension_map_entries_dict_(axes, group_metadata, strict,
+                                                                           attr_name=CFName.STANDARD_NAME)
+                    self._update_dimension_map_with_entries_(crs_entries, dmap)
+                    env.SET_GRID_AXIS_ATTRS = False
+                    env.COORDSYS_ACTUAL = raw_crs
         return dmap
 
     @staticmethod
@@ -585,7 +592,7 @@ def init_variable_using_metadata_for_netcdf(variable, metadata):
 def get_coordinate_system_variable_name(driver_object, group_metadata):
     rd = driver_object.rd
     crs_name = None
-    if rd._has_assigned_coordinate_system:
+    if rd is not None and rd._has_assigned_coordinate_system:
         if rd._crs is not None:
             crs_name = rd._crs.name
     else:

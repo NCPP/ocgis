@@ -41,7 +41,7 @@ class AbstractDriver(AbstractOcgisObject):
     _esmf_grid_class = constants.ESMFGridClass.GRID  # The ESMF grid class type.
     _priority = False
 
-    def __init__(self, rd):
+    def __init__(self, rd=None):
         self.rd = rd
         self._metadata_raw = None
         self._dimension_map_raw = None
@@ -138,12 +138,13 @@ class AbstractDriver(AbstractOcgisObject):
         else:
             cls._close_(obj)
 
-    def get_crs(self, group_metadata):
+    @classmethod
+    def get_crs(cls, group_metadata, request_dataset=None):
         """:rtype: ~ocgis.interface.base.crs.CoordinateReferenceSystem"""
 
-        crs = self._get_crs_main_(group_metadata)
+        crs = cls._get_crs_main_(group_metadata, request_dataset=request_dataset)
         if crs is None:
-            ret = self._default_crs
+            ret = cls._default_crs
         else:
             ret = crs
         return ret
@@ -260,7 +261,7 @@ class AbstractDriver(AbstractOcgisObject):
         # removed.
         to_remove = None
         to_add = None
-        crs = self.get_crs(group_metadata)
+        crs = self.get_crs(group_metadata, request_dataset=self.rd)
         if self.rd._has_assigned_coordinate_system:
             to_add = self.rd._crs
             if crs is not None:
@@ -833,7 +834,8 @@ class AbstractDriver(AbstractOcgisObject):
             write_modes = [MPIWriteMode.NORMAL]
         return write_modes
 
-    def _get_crs_main_(self, group_metadata):
+    @classmethod
+    def _get_crs_main_(cls, group_metadata, request_dataset=None):
         """Return the coordinate system variable or None if not found."""
         return None
 

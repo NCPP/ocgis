@@ -107,7 +107,7 @@ class TestDriverXarray(TestBase):
         ds2 = xr.open_dataset(path2, decode_coords=False, decode_cf=False, decode_times=False, autoclose=True)
 
         xmeta1 = create_metadata_from_xarray(ds1)
-        xdimmap1 = create_dimension_map(xmeta1, DriverNetcdfCF, path1)
+        xdimmap1 = create_dimension_map(xmeta1, DriverNetcdfCF)
         xdimmap1.set_crs(None)
 
         xdimmap2 = deepcopy(xdimmap1)
@@ -146,14 +146,13 @@ class TestDriverXarray(TestBase):
         self.assertIsInstance(xd, DriverXarray)
 
 
-def create_dimension_map(meta, driver, path):
+def create_dimension_map(meta, driver):
     # tdk: DOC
-    # tdk: FIX: remove path from argument list
-
-    # tdk: FEATURE: we should not have to pass an instance of request dataset to DimensionMap.from_metadata
-    driver = get_driver_class(driver)
-    rd = RequestDataset(uri=path)
-    dimmap = DimensionMap.from_metadata(driver(rd), meta)
+    # Check if this is a class or an instance. If it is a class, convert to instance for dimension map
+    # creation.
+    if isinstance(driver, type):
+        driver = driver()
+    dimmap = DimensionMap.from_metadata(driver, meta)
     return dimmap
 
 

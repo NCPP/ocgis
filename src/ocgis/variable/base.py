@@ -1771,7 +1771,7 @@ class VariableCollection(AbstractCollection, AbstractContainer, Attributes):
             #tdk: HACK: this will have to be driver-based as well
             if is_xarray(self.first()):
                 ret = self.copy()
-                ret._storage = self._storage.sel(**item_or_slc)
+                ret._storage = self._storage.isel(**item_or_slc)
             else:
                 # Assume a dictionary slice.
                 self_dimensions = self.dimensions

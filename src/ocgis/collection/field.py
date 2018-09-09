@@ -339,6 +339,8 @@ class Field(VariableCollection):
 
         ret = get_field_property(self, 'geom')
         if ret is not None:
+            if is_xarray(ret):
+                ret = ret.values.tolist()
             crs = self.crs
             # Overload the geometry coordinate system if set on the field. Otherwise, this will use the coordinate
             # system on the geometry variable.

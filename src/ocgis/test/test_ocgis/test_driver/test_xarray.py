@@ -113,9 +113,7 @@ class TestDriverXarray(TestBase):
         xdimmap2 = deepcopy(xdimmap1)
 
         f1 = Field(initial_data=ds1, dimension_map=xdimmap1, crs=CFSpherical())
-        # f1['latitude_longitude'] = CFSpherical()  # tdk: FIX: need to resolve CRS in xarray - need behaviors on crs
         f2 = Field(initial_data=ds2, dimension_map=xdimmap2, crs=CFSpherical())
-        # f2['latitude_longitude'] = CFSpherical()
 
         gc = GridChunker(f1, f2, nchunks_dst=(5, 5))
         # tdk: RESUME: continue testing grid chunker - should be working; need to improve xarray to ocgis
@@ -124,6 +122,7 @@ class TestDriverXarray(TestBase):
             print(res)
             print(res[0].parent.to_xarray())
             print(res[2].parent.to_xarray())
+            arch = res[0].parent.to_xarray()
 
     def test_system_unstructured_grid(self):
         path = self.fixture_esmf_unstructured()

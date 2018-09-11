@@ -119,9 +119,10 @@ class TestDriverXarray(TestBase):
         xdimmap2 = deepcopy(xdimmap1)
 
         f1 = Field(initial_data=ds1, dimension_map=xdimmap1, crs=CFSpherical())
+        f1.grid.set_extrapolated_bounds('xbounds', 'ybounds', 'corners') # tdk: RESUME: need to get extrapolated bounds working
         f2 = Field(initial_data=ds2, dimension_map=xdimmap2, crs=CFSpherical())
-        # tdk: RESUME: there appears to be a bug when slicing the y dimension, x dimension works
-        #              this can be reproduced by doing f1[{'y': slice(0, 31)}]
+        f2.grid.set_extrapolated_bounds('xbounds', 'ybounds', 'corners')
+
         gc = GridChunker(f1, f2, nchunks_dst=(5, 5))
         # tdk: RESUME: continue testing grid chunker - should be working; need to improve xarray to ocgis
         for res in gc.iter_src_grid_subsets(yield_dst=True):

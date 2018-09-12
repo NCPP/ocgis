@@ -103,7 +103,8 @@ class TestDriverXarray(TestBase):
         # path2 = self.get_temporary_file_path('foo2.nc')
         # field.write(path2)
 
-        path1 = r'C:\Users\benko\Dropbox\dtmp\gpw-v4-population-density-rev10_2020_1_deg_tif\gpw_v4_population_density_rev10_2020_1_deg.tif'
+        # path1 = r'C:\Users\benko\Dropbox\dtmp\gpw-v4-population-density-rev10_2020_1_deg_tif\gpw_v4_population_density_rev10_2020_1_deg.tif'
+        path1 = '/home/benkoziol/Dropbox/dtmp/gpw-v4-population-density-rev10_2020_1_deg_tif/gpw_v4_population_density_rev10_2020_1_deg.tif'
         path2 = path1
 
         ds1 = xr.open_rasterio(path1, parse_coordinates=True)
@@ -119,12 +120,11 @@ class TestDriverXarray(TestBase):
         xdimmap2 = deepcopy(xdimmap1)
 
         f1 = Field(initial_data=ds1, dimension_map=xdimmap1, crs=CFSpherical())
-        f1.grid.set_extrapolated_bounds('xbounds', 'ybounds', 'corners') # tdk: RESUME: need to get extrapolated bounds working
+        f1.grid.set_extrapolated_bounds('xbounds', 'ybounds', 'bounds')
         f2 = Field(initial_data=ds2, dimension_map=xdimmap2, crs=CFSpherical())
-        f2.grid.set_extrapolated_bounds('xbounds', 'ybounds', 'corners')
+        f2.grid.set_extrapolated_bounds('xbounds', 'ybounds', 'bounds')
 
         gc = GridChunker(f1, f2, nchunks_dst=(5, 5))
-        # tdk: RESUME: continue testing grid chunker - should be working; need to improve xarray to ocgis
         for res in gc.iter_src_grid_subsets(yield_dst=True):
             print(res[0].extent)
             print(res)

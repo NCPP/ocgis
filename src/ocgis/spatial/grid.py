@@ -16,7 +16,8 @@ from ocgis.environment import ogr, env
 from ocgis.exc import GridDeficientError, EmptySubsetError, AllElementsMaskedError
 from ocgis.spatial.base import AbstractXYZSpatialContainer
 from ocgis.spatial.geomc import AbstractGeometryCoordinates, PolygonGC, PointGC, LineGC
-from ocgis.util.helpers import get_formatted_slice, get_iter, wrap_get_value, is_xarray
+from ocgis.util.helpers import get_formatted_slice, get_iter, wrap_get_value, is_xarray, get_bounds_from_1d, \
+    get_extrapolated_corners_esmf, create_ocgis_corners_from_esmf_corners
 from ocgis.variable.base import get_dslice, get_dimension_lengths, is_empty
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable, get_masking_slice, GeometryProcessor
@@ -818,9 +819,28 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         :param str name_y_variable: Name for the y-coordinate bounds variable.
         :param str name_dimension: Name for the bounds/corner dimension.
         """
-        self.x.set_extrapolated_bounds(name_x_variable, name_dimension)
-        self.y.set_extrapolated_bounds(name_y_variable, name_dimension)
-        self.parent = self.y.parent
+
+        if is_xarray(self.archetype):
+            import xarray as xr
+            names = [name_y_variable, name_x_variable]
+
+            for ii, target in enumerate([self.y, self.x]):
+                values = target.values
+                if target.ndim == 1:
+                    bounds_value = get_bounds_from_1d(values)
+                    new_dims = list(target.dims)
+                else:
+                    # TODO: consider renaming this functions to get_bounds_from_2d.
+                    bounds_value = get_extrapolated_corners_esmf(values)
+                    bounds_value = create_ocgis_corners_from_esmf_corners(bounds_value)
+                    new_dims = list(self.dims)
+                new_dims.append(name_dimension)
+                to_add = xr.DataArray(bounds_value, name=names[ii], dims=new_dims)
+                self.parent.add_variable(to_add)
+        else:
+            self.x.set_extrapolated_bounds(name_x_variable, name_dimension)
+            self.y.set_extrapolated_bounds(name_y_variable, name_dimension)
+            self.parent = self.y.parent
 
     def update_crs(self, *args, **kwargs):
         self.expand()

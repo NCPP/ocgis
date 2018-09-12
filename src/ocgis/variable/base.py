@@ -2551,8 +2551,8 @@ def set_bounds_mask_from_parent(mask, bounds):
 
 
 def set_mask_by_variable(source_variable, target_variable, slice_map=None, update=False):
-    # Do not use an eager mask get. This will not load the data from source. Happens with netCDF data where the mask
-    # is burned into the source data.
+    # Do not use an eager mask get. This will not load the data from source. Happens with netCDF data where
+    # the mask is burned into the source data.
     mask_source = source_variable.get_mask(eager=False)
     mask_target = target_variable.get_mask(eager=False)
 

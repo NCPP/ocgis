@@ -1,18 +1,15 @@
 from copy import deepcopy
 
-from mock import Mock, mock
-from ocgis.driver.dxarray import DriverXarray
+from mock import mock
+from ocgis.driver.dxarray import DriverXarray, create_dimension_map, create_metadata_from_xarray
 from ocgis.driver.nc import DriverNetcdfCF
 from ocgis.driver.nc_esmf_unstruct import DriverESMFUnstruct
-from ocgis.driver.nc_ugrid import DriverNetcdfUGRID
-from ocgis.driver.registry import get_driver_class
 from ocgis.spatial.grid_chunker import GridChunker
-from ocgis.util.addict import Dict
-from ocgis.variable.crs import Spherical, CFSpherical, WGS84
+from ocgis.variable.crs import Spherical, WGS84
 from shapely.geometry import Polygon, box
 
-from ocgis import Field, Grid, RequestDataset, DimensionMap, GridUnstruct, env
-from ocgis.constants import DMK, GridAbstraction, DriverKey, Topology
+from ocgis import Field, Grid, RequestDataset, GridUnstruct
+from ocgis.constants import GridAbstraction, DriverKey, Topology
 from ocgis.test import create_gridxy_global, create_exact_field
 from ocgis.test.base import TestBase
 import xarray as xr
@@ -114,15 +111,19 @@ class TestDriverXarray(TestBase):
         ds2 = xr.Dataset(data_vars={'data': ds2})
 
         xmeta1 = create_metadata_from_xarray(ds1)
-        xdimmap1 = create_dimension_map(xmeta1, DriverNetcdfCF)
+        xdimmap1 = create_dimension_map(xmeta1, DriverNetcdfCF) # tdk: FEATURE: need to get the coordinate system somehow
         xdimmap1.set_crs(None)
 
         xdimmap2 = deepcopy(xdimmap1)
 
         f1 = Field(initial_data=ds1, dimension_map=xdimmap1, crs=WGS84())
         f1.grid.set_extrapolated_bounds('xbounds', 'ybounds', 'bounds')
+        global_indices = f1.grid._gc_create_global_indices_(f1.grid.shape)
+        f1.add_variable(xr.DataArray(global_indices, dims=f1.grid.dims, name='ESMF_Index'))
         f2 = Field(initial_data=ds2, dimension_map=xdimmap2, crs=WGS84())
         f2.grid.set_extrapolated_bounds('xbounds', 'ybounds', 'bounds')
+        global_indices = f2.grid._gc_create_global_indices_(f1.grid.shape)
+        f1.add_variable(xr.DataArray(global_indices, dims=f2.grid.dims, name='ESMF_Index'))
 
         gc = GridChunker(f1, f2, nchunks_dst=(5, 5))
         for res in gc.iter_src_grid_subsets(yield_dst=True):
@@ -151,24 +152,3 @@ class TestDriverXarray(TestBase):
         rd = mock.create_autospec(RequestDataset)
         xd = DriverXarray(rd)
         self.assertIsInstance(xd, DriverXarray)
-
-
-def create_dimension_map(meta, driver):
-    # tdk: DOC
-    # Check if this is a class or an instance. If it is a class, convert to instance for dimension map
-    # creation.
-    if isinstance(driver, type):
-        driver = driver()
-    dimmap = DimensionMap.from_metadata(driver, meta)
-    return dimmap
-
-
-def create_metadata_from_xarray(ds):
-    # tdk: DOC
-    xmeta = Dict()
-    for dimname, dimsize in ds.dims.items():
-        xmeta.dimensions[dimname] = {'name': dimname, 'size': dimsize}
-    for varname, var in ds.variables.items():
-        xmeta.variables[varname] = {'name': varname, 'dimensions': var.dims, 'attrs': var.attrs}
-    xmeta = dict(xmeta)
-    return xmeta

@@ -102,7 +102,7 @@ setup(
     name='ocgis',
     version=VERSION,
     author='NESII/CIRES/NOAA-ESRL',
-    author_email='ocgis_support@list.woc.noaa.gov',
+    author_email='https://github.com/NCPP/ocgis/issues',
     url='http://ocgis.readthedocs.io/en/latest/install.html',
     license='NCSA License',
     platforms=['all'],

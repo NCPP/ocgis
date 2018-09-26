@@ -149,12 +149,23 @@ class TestDriverXarray(TestBase):
         xmeta = create_metadata_from_xarray(ds)
         xdimmap = create_dimension_map(xmeta, DriverNetcdfCF)
 
-        f1 = Field(initial_data=ds, dimension_map=xdimmap)
+        f1 = Field(initial_data=ds, dimension_map=xdimmap, driver='xarray')
 
         poly = Polygon([[270, 40], [230, 20], [310, 40]])
         poly = GeometryVariable(name='subset', value=poly, crs=Spherical(), dimensions='ngeom')
         poly.wrap()
 
+        self.assertIsNone(f1.grid.get_mask())
+
+        # tdk: TEST: add loop with create=[False, True]
+        # tdk: TEST: test with check_value?
+
+        mask = f1.grid.get_mask(create=True)
+        self.assertFalse(mask.any())
+        mask = f1.grid.get_mask()
+        self.assertFalse(mask.any())
+
+        # tdk: RESUME: the mask setting is wonky with xarray
         sub = f1.grid.get_intersects(poly)
 
     def test_system_unstructured_grid(self):

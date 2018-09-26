@@ -2553,16 +2553,25 @@ def set_bounds_mask_from_parent(mask, bounds):
 def set_mask_by_variable(source_variable, target_variable, slice_map=None, update=False):
     # Do not use an eager mask get. This will not load the data from source. Happens with netCDF data where
     # the mask is burned into the source data.
-    mask_source = source_variable.get_mask(eager=False)
-    mask_target = target_variable.get_mask(eager=False)
+    # tdk: HACK: I guess this needs to be on a driver as well
+    if is_xarray(source_variable):
+        mask_source = source_variable.values
+    else:
+        mask_source = source_variable.get_mask(eager=False)
+    if is_xarray(target_variable):
+        mask_target = np.isnan(target_variable.values)
+        target_is_xarray = True  # tdk: FIX: this indirection will slow things down...
+    else:
+        mask_target = target_variable.get_mask(eager=False)
+        target_is_xarray = False
 
     # If the source variable has no mask, there is no need to update the target.
     if mask_source is None:
         pass
     else:
         # This maps slice indices between source and destination.
-        names_source = get_dimension_names(source_variable.dimensions)
-        names_destination = get_dimension_names(target_variable.dimensions)
+        names_source = get_dimension_names(source_variable.dims)
+        names_destination = get_dimension_names(target_variable.dims)
         if slice_map is None:
             slice_map = get_mapping_for_slice(names_source, names_destination)
         # If dimensions are equivalent, do not execute the loop.
@@ -2578,8 +2587,14 @@ def set_mask_by_variable(source_variable, target_variable, slice_map=None, updat
                 if mask_source[slc]:
                     for m in slice_map:
                         template[m[1]] = slc[m[0]]
-                    mask_target[template] = True
-        target_variable.set_mask(mask_target, update=update)
+                    if target_is_xarray:
+                        mask_target[template] = np.nan
+                    else:
+                        mask_target[template] = True
+
+        # tdk: FIX: this probably needs to be on a driver
+        if not is_xarray(target_variable):
+            target_variable.set_mask(mask_target, update=update)
 
 
 def stack(targets, stack_dim):

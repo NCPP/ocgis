@@ -16,7 +16,7 @@ from ocgis.constants import MPIWriteMode, TagName, KeywordArgument, OcgisConvent
 from ocgis.driver.dimension_map import DimensionMap
 from ocgis.exc import DefinitionValidationError, NoDataVariablesFound, DimensionMapError, VariableMissingMetadataError, \
     GridDeficientError
-from ocgis.util.helpers import get_group
+from ocgis.util.helpers import get_group, is_xarray
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import SourcedVariable
 from ocgis.variable.dimension import Dimension
@@ -492,7 +492,7 @@ class AbstractDriver(AbstractOcgisObject):
         Index Type                                                    Description
         ===== ======================================================= ===================================
         0     :class:`ocgis.spatial.base.AbstractXYZSpatialContainer` Target XYZ spatial container
-        1:    <varying>                                               See :meth:`ocgis.Variable.get_mask`
+        1     <varying>                                               See :meth:`ocgis.Variable.get_mask`
         ===== ======================================================= ===================================
 
         :param dict kwargs: See keyword arguments to :meth:`~ocgis.Variable.get_mask`. If ``create`` and ``check_value``
@@ -717,7 +717,7 @@ class AbstractDriver(AbstractOcgisObject):
                 sobj.parent.remove_variable(sobj.mask_variable)
                 sobj.dimension_map.set_spatial_mask(None)
         else:
-            if isinstance(value, Variable):
+            if isinstance(value, Variable) or is_xarray(value):
                 # Set the mask variable from the incoming value.
                 sobj.parent.add_variable(value, force=True)
                 mask_variable = value
@@ -725,11 +725,17 @@ class AbstractDriver(AbstractOcgisObject):
                 # Convert the incoming boolean array into a mask variable.
                 mask_variable = sobj.mask_variable
                 if mask_variable is None:
+                    # tdk: FIX: this is expected to fail with xarray
+                    tkk
                     dimensions = sobj.dimensions
                     mask_variable = create_spatial_mask_variable(VariableName.SPATIAL_MASK, value, dimensions)
                     sobj.parent.add_variable(mask_variable)
                 else:
-                    mask_variable.set_mask(value)
+                    if is_xarray(mask_variable):
+                        mask_variable.values = value
+                    else:
+                        mask_variable.set_mask(value)
+
             sobj.dimension_map.set_spatial_mask(mask_variable)
 
             if cascade:

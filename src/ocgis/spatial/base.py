@@ -658,19 +658,10 @@ def create_spatial_mask_variable(name, mask_value, dimensions):
     :type dimensions: tuple(:class:`ocgis.Dimension`, ...)
     :rtype: :class:`ocgis.Variable`
     """
-    # tdk: FIX: creating the spatial mask variable needs to be a driver feature
-
-    import xarray as xr
-    mask_variable = xr.DataArray(mask_value,
-                                 name=name,
-                                 dims=dimensions,
-                                 attrs={'ocgis_role': 'spatial_mask'})
-
-    # mask_variable = Variable(name, mask=mask_value, dtype=np.dtype('i1'), dimensions=dimensions,
-    #                          attrs={'ocgis_role': 'spatial_mask',
-    #                                 'description': 'values matching fill value are spatially masked'})
-    # mask_variable.allocate_value(fill=0)
-
+    mask_variable = Variable(name, mask=mask_value, dtype=np.dtype('i1'), dimensions=dimensions,
+                             attrs={'ocgis_role': 'spatial_mask',
+                                    'description': 'values matching fill value are spatially masked'})
+    mask_variable.allocate_value(fill=0)
     return mask_variable
 
 

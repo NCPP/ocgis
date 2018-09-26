@@ -1,12 +1,46 @@
+from ocgis.base import get_dimension_names
+
+from ocgis.constants import KeywordArgument, VariableName
+
 from ocgis import DimensionMap
 from ocgis.driver.nc import DriverNetcdfCF
 from ocgis.util.addict import Dict
+import xarray as xr
+import numpy as np
 
 
 class DriverXarray(DriverNetcdfCF):
     key = 'xarray'
     extensions = []
     output_formats = []
+
+    @staticmethod
+    def get_or_create_spatial_mask(*args, **kwargs):
+        # tdk: DOC
+        args = list(args)
+        sobj = args[0]
+
+        create = kwargs.get(KeywordArgument.CREATE, False)
+
+        if sobj.has_mask:
+            mask_variable = sobj.mask_variable
+        else:
+            if create:
+                mask_value = np.zeros(sobj.shape, dtype=bool)
+                mask_variable = xr.DataArray(mask_value,
+                                             name=VariableName.SPATIAL_MASK,
+                                             dims=get_dimension_names(sobj.dimensions),
+                                             attrs={'ocgis_role': 'spatial_mask'})
+                sobj.set_mask(mask_variable)
+            else:
+                mask_variable = None
+
+        if mask_variable is None:
+            ret = None
+        else:
+            ret = mask_variable.values
+
+        return ret
 
     def get_variable_value(self, *args, **kwargs):
         raise NotImplementedError

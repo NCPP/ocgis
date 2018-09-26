@@ -674,9 +674,10 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
                 if mask is not None:
                     original_mask = np.logical_or(mask, hint_mask)
 
-        # tdk: QUESTION: it's not clear if xarray needs a copy here
+        # Shallow copy the outgoing object.
         ret = self.copy()
 
+        # Probably, this is to make sure the returned object has an independently managed mask.
         if original_grid_has_mask:
             ret.set_mask(ret.get_mask().copy())
 
@@ -684,7 +685,6 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
             if original_mask is not None and original_mask.any():
                 # TODO: OPTIMIZE: Can we avoid the cascade? There is no reason to cascade the mask if it is going to be sliced off anyway.
                 ret.set_mask(original_mask, cascade=True)
-                pass
             sliced_grid, _, the_slice = get_masking_slice(original_mask, ret, apply_slice=apply_slice)
             sliced_grid_mask = sliced_grid.get_mask()
             if not original_grid_has_mask and sliced_grid_mask is not None and not sliced_grid_mask.any():

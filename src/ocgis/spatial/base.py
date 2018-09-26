@@ -4,6 +4,8 @@ from abc import abstractmethod
 
 import numpy as np
 import six
+from ocgis.driver.dimension_map import has_bounds
+
 from ocgis.util.helpers import wrap_get_value, is_xarray
 from pyproj import Proj, transform
 from shapely.geometry import box
@@ -518,8 +520,12 @@ class AbstractXYZSpatialContainer(AbstractSpatialContainer):
         for target in targets:
             if target is not None:
                 ret.append(target)
-                if include_bounds and target.has_bounds:
-                    ret.append(target.bounds)
+                if include_bounds and has_bounds(target):
+                    if is_xarray(target):
+                        # tdk: FIX: may need a driver-based method to retrieve bounds from a variable
+                        ret.append(self.parent[target.bounds])
+                    else:
+                        ret.append(target.bounds)
         return ret
 
     def update_crs(self, to_crs, from_crs=None):
@@ -652,10 +658,19 @@ def create_spatial_mask_variable(name, mask_value, dimensions):
     :type dimensions: tuple(:class:`ocgis.Dimension`, ...)
     :rtype: :class:`ocgis.Variable`
     """
-    mask_variable = Variable(name, mask=mask_value, dtype=np.dtype('i1'), dimensions=dimensions,
-                             attrs={'ocgis_role': 'spatial_mask',
-                                    'description': 'values matching fill value are spatially masked'})
-    mask_variable.allocate_value(fill=0)
+    # tdk: FIX: creating the spatial mask variable needs to be a driver feature
+
+    import xarray as xr
+    mask_variable = xr.DataArray(mask_value,
+                                 name=name,
+                                 dims=dimensions,
+                                 attrs={'ocgis_role': 'spatial_mask'})
+
+    # mask_variable = Variable(name, mask=mask_value, dtype=np.dtype('i1'), dimensions=dimensions,
+    #                          attrs={'ocgis_role': 'spatial_mask',
+    #                                 'description': 'values matching fill value are spatially masked'})
+    # mask_variable.allocate_value(fill=0)
+
     return mask_variable
 
 

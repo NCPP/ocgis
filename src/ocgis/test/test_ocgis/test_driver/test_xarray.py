@@ -8,7 +8,7 @@ from ocgis.spatial.grid_chunker import GridChunker
 from ocgis.variable.crs import Spherical, WGS84
 from shapely.geometry import Polygon, box
 
-from ocgis import Field, Grid, RequestDataset, GridUnstruct
+from ocgis import Field, Grid, RequestDataset, GridUnstruct, GeometryVariable
 from ocgis.constants import GridAbstraction, DriverKey, Topology
 from ocgis.test import create_gridxy_global, create_exact_field
 from ocgis.test.base import TestBase
@@ -133,6 +133,30 @@ class TestDriverXarray(TestBase):
             print(res[2].parent.to_xarray())
             arch = res[0].parent.to_xarray()
 
+    def test_system_masking(self):
+        """Test masks are created and maintained when using an xarray backend."""
+
+        grid = create_gridxy_global(resolution=2.0)
+        field = create_exact_field(grid, 'foo', ntime=31)
+        path = self.get_temporary_file_path('foo.nc')
+        field.write(path)
+
+        ds = xr.open_dataset(path, autoclose=True)
+
+        # tdk: FEATURE: no crs support in xarray yet
+        ds['latitude_longitude'] = Spherical()
+
+        xmeta = create_metadata_from_xarray(ds)
+        xdimmap = create_dimension_map(xmeta, DriverNetcdfCF)
+
+        f1 = Field(initial_data=ds, dimension_map=xdimmap)
+
+        poly = Polygon([[270, 40], [230, 20], [310, 40]])
+        poly = GeometryVariable(name='subset', value=poly, crs=Spherical(), dimensions='ngeom')
+        poly.wrap()
+
+        sub = f1.grid.get_intersects(poly)
+
     def test_system_unstructured_grid(self):
         path = self.fixture_esmf_unstructured()
         # tdk: FIX: the load step is incredibly slow; what is it doing?
@@ -149,6 +173,7 @@ class TestDriverXarray(TestBase):
         self.assertIsInstance(f.x, xr.DataArray)
 
     def test_init(self):
+        # tdk: ORDER
         rd = mock.create_autospec(RequestDataset)
         xd = DriverXarray(rd)
         self.assertIsInstance(xd, DriverXarray)

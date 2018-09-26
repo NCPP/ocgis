@@ -601,18 +601,18 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         # TODO: This should be merged with geometry coordinates spatial subset operation.
         raise_if_empty(self)
 
-        # try:
-        subset_geom.prepare()
-        # except AttributeError:
-        #     if not isinstance(subset_geom, BaseGeometry):
-        #         msg = 'Only Shapely geometries allowed for subsetting. Subset type is "{}".'.format(
-        #             type(subset_geom))
-        #         raise ValueError(msg)
-        # else:
-        subset_geom = subset_geom.get_value()[0]
+        try:
+            subset_geom.prepare()
+        except AttributeError:
+            if not isinstance(subset_geom, BaseGeometry):
+                msg = 'Only Shapely or OCGIS geometries allowed for subsetting. Subset type is "{}".'.format(
+                    type(subset_geom))
+                raise ValueError(msg)
+        else:
+            subset_geom = subset_geom.get_value()[0]
 
-        # Flag indicating presence of mask on grid prior to subsetting. If there is a mask, we always want to maintain
-        # it. If not, only add a mask if some values will be masked.
+        # Flag indicating presence of mask on grid prior to subsetting. If there is a mask, we always want to
+        # maintain it. If not, only add a mask if some values will be masked.
         if self.get_mask() is None:
             original_grid_has_mask = False
         else:
@@ -674,9 +674,8 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
                 if mask is not None:
                     original_mask = np.logical_or(mask, hint_mask)
 
-        # tdk: HACK: it's not clear if xarray needs a copy here
-        # ret = self.copy()
-        ret = self
+        # tdk: QUESTION: it's not clear if xarray needs a copy here
+        ret = self.copy()
 
         if original_grid_has_mask:
             ret.set_mask(ret.get_mask().copy())
@@ -684,14 +683,12 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         if optimized_bbox_subset:
             if original_mask is not None and original_mask.any():
                 # TODO: OPTIMIZE: Can we avoid the cascade? There is no reason to cascade the mask if it is going to be sliced off anyway.
-                # tdk: FIX: how to deal with masking and xarray?
-                # ret.set_mask(original_mask, cascade=True)
+                ret.set_mask(original_mask, cascade=True)
                 pass
             sliced_grid, _, the_slice = get_masking_slice(original_mask, ret, apply_slice=apply_slice)
-            # tdk: FIX: how to deal with masking and xarray
-            # sliced_grid_mask = sliced_grid.get_mask()
-            # if not original_grid_has_mask and sliced_grid_mask is not None and not sliced_grid_mask.any():
-            #     sliced_grid.set_mask(None)
+            sliced_grid_mask = sliced_grid.get_mask()
+            if not original_grid_has_mask and sliced_grid_mask is not None and not sliced_grid_mask.any():
+                sliced_grid.set_mask(None)
         else:
             fill_mask = original_mask
             geometry_fill = None

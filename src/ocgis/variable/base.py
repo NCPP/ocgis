@@ -2273,12 +2273,12 @@ class VariableCollection(AbstractCollection, AbstractContainer, Attributes):
 
         if exclude is not None:
             exclude = get_variable_names(exclude)
-        names_container = [d.name for d in variable.dimensions]
+        names_container = [d for d in get_dimension_names(variable.dims)]
         for k, v in list(self.items()):
             if exclude is not None and k in exclude:
                 continue
             if variable.name != k and v.ndim > 0:
-                names_variable = [d.name for d in v.dimensions]
+                names_variable = [d for d in get_dimension_names(v.dims)]
                 slice_map = get_mapping_for_slice(names_container, names_variable)
                 if len(slice_map) > 0:
                     set_mask_by_variable(variable, v, slice_map=slice_map, update=update)

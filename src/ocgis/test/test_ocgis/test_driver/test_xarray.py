@@ -13,6 +13,7 @@ from ocgis.constants import GridAbstraction, DriverKey, Topology
 from ocgis.test import create_gridxy_global, create_exact_field
 from ocgis.test.base import TestBase
 import xarray as xr
+import numpy as np
 
 
 class TestDriverXarray(TestBase):
@@ -143,6 +144,9 @@ class TestDriverXarray(TestBase):
 
         ds = xr.open_dataset(path, autoclose=True)
 
+        # tdk: FEATURE: need ocgis data_variables support using xarray somehow...
+        # tdk: FEATURE: grid expansion needs to use xarray
+
         # tdk: FEATURE: no crs support in xarray yet
         ds['latitude_longitude'] = Spherical()
 
@@ -150,6 +154,7 @@ class TestDriverXarray(TestBase):
         xdimmap = create_dimension_map(xmeta, DriverNetcdfCF)
 
         f1 = Field(initial_data=ds, dimension_map=xdimmap, driver='xarray')
+        f1.add_variable(f1['foo'], is_data=True, force=True)
 
         poly = Polygon([[270, 40], [230, 20], [310, 40]])
         poly = GeometryVariable(name='subset', value=poly, crs=Spherical(), dimensions='ngeom')
@@ -158,15 +163,21 @@ class TestDriverXarray(TestBase):
         self.assertIsNone(f1.grid.get_mask())
 
         # tdk: TEST: add loop with create=[False, True]
-        # tdk: TEST: test with check_value?
+        # tdk: TEST: test with check_value in get_mask?
 
         mask = f1.grid.get_mask(create=True)
         self.assertFalse(mask.any())
         mask = f1.grid.get_mask()
         self.assertFalse(mask.any())
 
-        # tdk: RESUME: further examine subsetting output; is the mask really updated? what happens with connectivity?
         sub = f1.grid.get_intersects(poly)
+
+        # Assert spatially masked values are set to NaNs in the data variable.
+        self.assertGreater(np.sum(np.isnan(sub.parent['foo'])), 0)
+
+        sub.expand()
+        mx = np.ma.array(sub.x, mask=sub.get_mask())
+        tkk
 
     def test_system_unstructured_grid(self):
         path = self.fixture_esmf_unstructured()
@@ -185,6 +196,5 @@ class TestDriverXarray(TestBase):
 
     def test_init(self):
         # tdk: ORDER
-        rd = mock.create_autospec(RequestDataset)
-        xd = DriverXarray(rd)
+        xd = DriverXarray()
         self.assertIsInstance(xd, DriverXarray)

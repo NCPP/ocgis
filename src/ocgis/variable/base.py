@@ -2559,7 +2559,7 @@ def set_mask_by_variable(source_variable, target_variable, slice_map=None, updat
     else:
         mask_source = source_variable.get_mask(eager=False)
     if is_xarray(target_variable):
-        mask_target = np.isnan(target_variable.values)
+        mask_target = target_variable.values
         target_is_xarray = True  # tdk: FIX: this indirection will slow things down...
     else:
         mask_target = target_variable.get_mask(eager=False)

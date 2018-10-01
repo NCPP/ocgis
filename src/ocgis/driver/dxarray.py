@@ -20,6 +20,18 @@ class DriverXarray(DriverNetcdfCF):
         return xr.DataArray(*args, **kwargs)
 
     @staticmethod
+    def get_bounds(varlike, container):
+        # tdk: DOC
+        ret = None
+        if hasattr(varlike, 'bounds'):
+            try:
+                ret = container[varlike.bounds]
+            except KeyError:
+                # Occurs when the attribute is present but the data array is not in the dataset.
+                assert varlike.bounds not in container
+        return ret
+
+    @staticmethod
     def get_or_create_spatial_mask(*args, **kwargs):
         # tdk: DOC
         args = list(args)

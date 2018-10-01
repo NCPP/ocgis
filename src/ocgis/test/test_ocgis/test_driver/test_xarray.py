@@ -203,3 +203,15 @@ class TestDriverXarray(TestBase):
         name = 'moon'
         vl = DriverXarray.create_varlike(None, name=name)
         self.assertIsInstance(vl, xr.DataArray)
+
+    def test_has_bounds(self):
+        # Assert we get the bounds variable from the container.
+        da = xr.DataArray([4, 5, 6], attrs={'bounds': 'the_bounds'})
+        dab = xr.DataArray([7, 8, 9])
+        ds = xr.Dataset(data_vars={'foo': da, 'the_bounds': dab})
+        self.assertTrue(DriverXarray.has_bounds(da, ds))
+
+        # Assert the object does not have bounds if the bounds data is not actually in the dataset.
+        da = xr.DataArray([4, 5, 6], attrs={'bounds': 'not_here'})
+        ds = xr.Dataset(data_vars={'foo': da})
+        self.assertFalse(DriverXarray.has_bounds(da, ds))

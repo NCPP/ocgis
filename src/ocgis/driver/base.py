@@ -377,6 +377,18 @@ class AbstractDriver(AbstractOcgisObject):
         return SourcedVariable(*args, **kwargs)
 
     @staticmethod
+    def get_bounds(varlike, container):
+        # tdk: DOC
+        """
+        ``container`` retained for xarray compatibility.
+
+        :param varlike:
+        :param container:
+        :return:
+        """
+        return varlike.bounds
+
+    @staticmethod
     def get_data_variable_names(group_metadata, group_dimension_map):
         """
         Return a tuple of data variable names using the metadata and dimension map.
@@ -600,6 +612,11 @@ class AbstractDriver(AbstractOcgisObject):
         else:
             ret = None
         return ret
+
+    @classmethod
+    def has_bounds(cls, target, container):
+        # tdk: DOC
+        return cls.get_bounds(target, container) is not None
 
     def init_variable_from_source(self, variable):
         variable_metadata = self.get_variable_metadata(variable)

@@ -3,7 +3,7 @@ from copy import deepcopy
 import numpy as np
 from mock import mock
 
-from ocgis import OcgOperations
+from ocgis import OcgOperations, SourcedVariable
 from ocgis.driver.base import AbstractDriver, driver_scope
 from ocgis.driver.nc import DriverNetcdf
 from ocgis.driver.request.core import RequestDataset
@@ -112,6 +112,11 @@ class TestAbstractDriver(TestBase, FixtureAbstractDriver):
         actual = driver.create_variables(dst_metadata)
         self.assertEqual(actual['tester'].dimensions[1].name, 'renamed')
         self.assertEqual(actual['tester'].source_name, 'tester')
+
+    def test_create_varlike(self):
+        var = AbstractDriver.create_varlike(name='foo')
+        self.assertEqual(var.name, 'foo')
+        self.assertIsInstance(var, SourcedVariable)
 
     @attr('data')
     def test_inspect(self):

@@ -23,8 +23,6 @@ from ocgis.variable.dimension import Dimension
 from ocgis.vmachine.mpi import OcgDist
 
 
-# TODO: Make the driver accept no arguments at initialization. The request dataset should be passed around as a parameter.
-
 @six.add_metaclass(abc.ABCMeta)
 class AbstractDriver(AbstractOcgisObject):
     """
@@ -372,6 +370,11 @@ class AbstractDriver(AbstractOcgisObject):
                                    parent=parent)
             vars[k] = nvar
         return vars
+
+    @staticmethod
+    def create_varlike(*args, **kwargs):
+        #tdk: DOC
+        return SourcedVariable(*args, **kwargs)
 
     @staticmethod
     def get_data_variable_names(group_metadata, group_dimension_map):

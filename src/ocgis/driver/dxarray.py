@@ -15,6 +15,11 @@ class DriverXarray(DriverNetcdfCF):
     output_formats = []
 
     @staticmethod
+    def create_varlike(*args, **kwargs):
+        # tdk: DOC
+        return xr.DataArray(*args, **kwargs)
+
+    @staticmethod
     def get_or_create_spatial_mask(*args, **kwargs):
         # tdk: DOC
         args = list(args)

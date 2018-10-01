@@ -198,3 +198,8 @@ class TestDriverXarray(TestBase):
         # tdk: ORDER
         xd = DriverXarray()
         self.assertIsInstance(xd, DriverXarray)
+
+    def test_create_varlike(self):
+        name = 'moon'
+        vl = DriverXarray.create_varlike(None, name=name)
+        self.assertIsInstance(vl, xr.DataArray)

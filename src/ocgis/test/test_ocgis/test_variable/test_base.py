@@ -247,6 +247,14 @@ class TestVariable(AbstractTestInterface):
         v = Variable(is_empty=True)
         self.assertTrue(v.is_empty)
 
+        # Test using the "dims" keyword argument instead of dimensions.
+        _ = Variable(name='foo', value=5, dims=[])
+        _ = Variable(name='x')  # Test "dims" as None is handled correctly.
+        var = Variable(name='what', value=[2, 3], dims='two')
+        self.assertEqual(var.dimension_names[0], 'two')
+        var = Variable(name='what', value=[2, 3], dims=[Dimension(name='a', size=2)])
+        self.assertEqual(var.dimensions[0].size, 2)
+
     def test_init_dimensions_named_the_same(self):
         dim = Dimension('same', 7)
         with self.assertRaises(ValueError):

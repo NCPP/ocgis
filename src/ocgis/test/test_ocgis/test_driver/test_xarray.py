@@ -165,7 +165,7 @@ class TestDriverXarray(TestBase):
         mask = f1.grid.get_mask()
         self.assertFalse(mask.any())
 
-        # tdk: RESUME: the mask setting is wonky with xarray
+        # tdk: RESUME: further examine subsetting output; is the mask really updated? what happens with connectivity?
         sub = f1.grid.get_intersects(poly)
 
     def test_system_unstructured_grid(self):

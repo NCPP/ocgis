@@ -372,9 +372,11 @@ class AbstractDriver(AbstractOcgisObject):
         return vars
 
     @staticmethod
-    def create_varlike(*args, **kwargs):
+    def create_varlike(value, **kwargs):
         #tdk: DOC
-        return SourcedVariable(*args, **kwargs)
+        kwargs = kwargs.copy()
+        kwargs[KeywordArgument.VALUE] = value
+        return SourcedVariable(**kwargs)
 
     @staticmethod
     def get_bounds(varlike, container):
@@ -553,6 +555,11 @@ class AbstractDriver(AbstractOcgisObject):
             ret = mask_variable.get_mask(*args, **kwargs)
 
         return ret
+
+    @staticmethod
+    def get_value(target, **kwargs):
+        # tdk: DOC
+        return target.get_value(**kwargs)
 
     def get_variable_collection(self, **kwargs):
         """Here for backwards compatibility."""

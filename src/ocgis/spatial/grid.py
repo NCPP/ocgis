@@ -1301,36 +1301,53 @@ def expand_grid(grid):
     y = grid.y
     x = grid.x
     grid_is_empty = grid.is_empty
+    driver = grid.driver
+    container = grid.parent
+    is_xr = is_xarray(y)
 
     if y.ndim == 1:
-        if y.has_bounds:
+        if driver.has_bounds(y, container):
+            y_bounds = driver.get_bounds(y, container)
+            x_bounds = driver.get_bounds(x, container)
             if not grid_is_empty:
-                original_y_bounds = y.bounds.get_value()
-                original_x_bounds = x.bounds.get_value()
-            original_bounds_dimension_name = y.bounds.dimensions[-1].name
-            has_bounds = True
-            name_y = y.bounds.name
-            name_x = x.bounds.name
+                original_y_bounds = driver.get_value(y_bounds)
+                original_x_bounds = driver.get_value(x_bounds)
+            original_bounds_dimension_name = get_dimension_names(y_bounds)[-1]
+            hbs = True
+            name_y = y_bounds.name
+            name_x = x_bounds.name
         else:
-            has_bounds = False
+            hbs = False
 
         if not grid_is_empty:
-            new_x_value, new_y_value = np.meshgrid(x.get_value(), y.get_value())
-        new_dimensions = [y.dimensions[0], x.dimensions[0]]
+            y_value = driver.get_value(y)
+            x_value = driver.get_value(x)
+            new_x_value, new_y_value = np.meshgrid(x_value, y_value)
 
-        x.set_bounds(None)
-        x._value = None
-        x.set_dimensions(new_dimensions)
-        if not grid_is_empty:
-            x.set_value(new_x_value)
+        new_dimensions = [y.dims[0], x.dims[0]]
 
-        y.set_bounds(None)
-        y._value = None
-        y.set_dimensions(new_dimensions)
-        if not grid_is_empty:
-            y.set_value(new_y_value)
+        if is_xr:
+            new_y = driver.create_varlike(new_y_value, name=y.name, dims=new_dimensions)
+            new_x = driver.create_varlike(new_x_value, name=x.name, dims=new_dimensions)
+            for ii in [new_y, new_x]:
+                container.add_variable(ii, force=True)
+            targets = [new_y, new_x]
+        else:
+            x.set_bounds(None)
+            x._value = None
+            x.set_dimensions(new_dimensions)
+            if not grid_is_empty:
+                x.set_value(new_x_value)
 
-        if has_bounds:
+            y.set_bounds(None)
+            y._value = None
+            y.set_dimensions(new_dimensions)
+            if not grid_is_empty:
+                y.set_value(new_y_value)
+
+            targets = [y, x]
+
+        if hbs:
             grid._original_bounds_dimension_name = original_bounds_dimension_name
 
             new_y_bounds = np.zeros((original_y_bounds.shape[0], original_x_bounds.shape[0], 4),
@@ -1347,11 +1364,20 @@ def expand_grid(grid):
                 new_x_bounds[idx_y, idx_x, 3] = original_x_bounds[idx_x, 0]
 
             new_bounds_dimensions = new_dimensions + [Dimension('corners', size=4)]
-            y.set_bounds(Variable(name=name_y, value=new_y_bounds, dimensions=new_bounds_dimensions))
-            x.set_bounds(Variable(name=name_x, value=new_x_bounds, dimensions=new_bounds_dimensions))
 
-    assert y.ndim == 2
-    assert x.ndim == 2
+            bounds_vars = [driver.create_varlike(v, name=n, dims=new_bounds_dimensions)
+                           for n, v in zip([name_y, name_x], [new_y_bounds, new_x_bounds])]
+
+            entry_keys = [DMK.Y, DMK.X]
+            for ek, target, bounds_var in zip(entry_keys, targets, bounds_vars):
+                if is_xr:
+                    # tdk: FIX: setting bounds should also be on the driver
+                    target.attrs['bounds'] = bounds_var.name
+                    container.add_variable(bounds_var, force=True)
+                    container.dimension_map.set_bounds(ek, bounds_var.name)
+                else:
+                    target.set_bounds(bounds_var.name)
+                assert target.ndim == 2
 
 
 def reorder_array(reorder_indices, arr, arr_dimensions, reorder_dimension, varying_dimension):

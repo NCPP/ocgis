@@ -15,9 +15,16 @@ class DriverXarray(DriverNetcdfCF):
     output_formats = []
 
     @staticmethod
-    def create_varlike(*args, **kwargs):
+    def create_varlike(value, **kwargs):
         # tdk: DOC
-        return xr.DataArray(*args, **kwargs)
+
+        kwargs = kwargs.copy()
+
+        # Allow for dimension objects to come in as "dims".
+        if 'dims' in kwargs:
+            kwargs['dims'] = get_dimension_names(kwargs['dims'])
+
+        return xr.DataArray(value, **kwargs)
 
     @staticmethod
     def get_bounds(varlike, container):
@@ -58,6 +65,11 @@ class DriverXarray(DriverNetcdfCF):
             ret = mask_variable.values
 
         return ret
+
+    @staticmethod
+    def get_value(target, **kwargs):
+        # tdk: DOC
+        return target.values
 
     def get_variable_value(self, *args, **kwargs):
         raise NotImplementedError

@@ -137,7 +137,7 @@ class TestDriverXarray(TestBase):
     def test_system_masking(self):
         """Test masks are created and maintained when using an xarray backend."""
 
-        grid = create_gridxy_global(resolution=2.0)
+        grid = create_gridxy_global(resolution=2.0, wrapped=True)
         field = create_exact_field(grid, 'foo', ntime=31)
         path = self.get_temporary_file_path('foo.nc')
         field.write(path)
@@ -175,9 +175,10 @@ class TestDriverXarray(TestBase):
         # Assert spatially masked values are set to NaNs in the data variable.
         self.assertGreater(np.sum(np.isnan(sub.parent['foo'])), 0)
 
+        # Ensure we can expand the grid.
         sub.expand()
-        mx = np.ma.array(sub.x, mask=sub.get_mask())
-        tkk
+
+        # tdk: RESUME: run small example with xarray-based dask regridding
 
     def test_system_unstructured_grid(self):
         path = self.fixture_esmf_unstructured()

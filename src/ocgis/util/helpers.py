@@ -51,7 +51,7 @@ def is_xarray(target):
 
 
 def wrap_get_value(target, **kwargs):
-    #tdk: DOC
+    #tdk: FIX: remove this and use the "get_value" driver staticmethod; left this in to move forward as some code may need access to the driver
     try:
         ret = target.get_value(**kwargs)
     except AttributeError:

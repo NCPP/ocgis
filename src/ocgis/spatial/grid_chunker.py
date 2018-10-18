@@ -434,7 +434,6 @@ class GridChunker(AbstractOcgisObject):
         buffer_value = self.buffer_value
 
         dst_grid_wrapped_state = self.dst_grid.wrapped_state
-        dst_grid_crs = self.dst_grid.crs
 
         # Use a destination grid iterator if provided.
         if self.iter_dst is not None:
@@ -450,91 +449,10 @@ class GridChunker(AbstractOcgisObject):
             else:
                 dst_grid_subset = yld
 
-            dst_box = None
-            with vm.scoped_by_emptyable('extent_global', dst_grid_subset):
-                if not vm.is_null:
-                    # Use the extent of the polygon for determining the bounding box. This ensures conservative
-                    # regridding will be fully mapped.
-                    if isinstance(dst_grid_subset, AbstractGeometryCoordinates):
-                        target_grid = dst_grid_subset.parent.grid
-                    else:
-                        target_grid = dst_grid_subset
-
-                    extent_global = target_grid.parent.attrs.get('extent_global')
-                    if extent_global is None:
-                        with grid_abstraction_scope(target_grid, Topology.POLYGON):
-                            extent_global = target_grid.extent_global
-
-                    if self.check_contains:
-                        dst_box = box(*target_grid.extent_global)
-
-                    sub_box = box(*extent_global)
-                    if buffer_value is not None:
-                        # Use the envelope! A buffer returns "fancy" borders. We just want to expand the bounding box.
-                        sub_box = sub_box.buffer(buffer_value).envelope
-
-                    ocgis_lh(msg=str(sub_box.bounds), level=logging.DEBUG, logger='grid_chunker')
-                else:
-                    sub_box, dst_box = [None, None]
-
-            # tdk: FIX: not sure why this isn't working
-            # live_ranks = vm.get_live_ranks_from_object(dst_grid_subset)
-            live_ranks = [0]
-            sub_box = vm.bcast(sub_box, root=live_ranks[0])
-
-            if self.check_contains:
-                dst_box = vm.bcast(dst_box, root=live_ranks[0])
-
-            sub_box = GeometryVariable.from_shapely(sub_box, is_bbox=True, wrapped_state=dst_grid_wrapped_state,
-                                                    crs=dst_grid_crs)
-            ocgis_lh(logger='grid_chunker', msg='starting "self.src_grid.get_intersects"', level=logging.DEBUG)
-            src_grid_subset, src_grid_slice = self.src_grid.get_intersects(sub_box, keep_touches=False, cascade=False,
-                                                                           optimized_bbox_subset=self.optimized_bbox_subset,
-                                                                           return_slice=True)
-            ocgis_lh(logger='grid_chunker', msg='finished "self.src_grid.get_intersects"', level=logging.DEBUG)
-
-            # Reload the data using a new source index distribution.
-            if hasattr(src_grid_subset, 'reduce_global') and src_grid_subset.cindex is not None:
-                # Only redistribute if we have one live rank.
-                if self.redistribute and len(vm.get_live_ranks_from_object(src_grid_subset)) > 0:
-                    ocgis_lh(logger='grid_chunker', msg='starting redistribute', level=logging.DEBUG)
-                    topology = src_grid_subset.abstractions_available[Topology.POLYGON]
-                    cindex = topology.cindex
-                    redist_dimname = self.src_grid.abstractions_available[Topology.POLYGON].element_dim.name
-                    if src_grid_subset.is_empty:
-                        redist_dim = None
-                    else:
-                        redist_dim = topology.element_dim
-                    redistribute_by_src_idx(cindex, redist_dimname, redist_dim)
-                    ocgis_lh(logger='grid_chunker', msg='finished redistribute', level=logging.DEBUG)
-
-            with vm.scoped_by_emptyable('src_grid_subset', src_grid_subset):
-                if not vm.is_null:
-                    if not self.allow_masked:
-                        gmask = src_grid_subset.get_mask()
-                        if gmask is not None and gmask.any():
-                            raise ValueError('Masked values in source grid subset.')
-
-                    if self.check_contains:
-                        src_box = box(*src_grid_subset.extent_global)
-                        if not does_contain(src_box, dst_box):
-                            raise ValueError('Contains check failed.')
-
-                    # Try to reduce the coordinates in the case of unstructured grid data.
-                    if hasattr(src_grid_subset, 'reduce_global') and src_grid_subset.cindex is not None:
-                        ocgis_lh(logger='grid_chunker', msg='starting reduce_global', level=logging.DEBUG)
-                        src_grid_subset = src_grid_subset.reduce_global()
-                        ocgis_lh(logger='grid_chunker', msg='finished reduce_global', level=logging.DEBUG)
-                else:
-                    pass
-                    # src_grid_subset = VariableCollection(is_empty=True)
-
-                if is_empty(src_grid_subset):
-                    src_grid_slice = None
-                else:
-                    grid_dimnames = get_dimension_names(src_grid_subset.dimensions)
-                    src_grid_slice = {grid_dimnames[ii]: src_grid_slice[ii] for ii in
-                                      range(src_grid_subset.ndim)}
+            # tdk: COMMENT
+            src_grid_slice, src_grid_subset = self.get_source_subset(dst_grid_subset,
+                                                                     dst_wrapped_state=dst_grid_wrapped_state,
+                                                                     buffer_value=buffer_value)
 
             if yield_dst:
                 yld = (src_grid_subset, src_grid_slice, dst_grid_subset, dst_slice)
@@ -542,6 +460,103 @@ class GridChunker(AbstractOcgisObject):
                 yld = src_grid_subset, src_grid_slice
 
             yield yld
+
+    def get_source_subset(self, dst_subset, dst_wrapped_state=None, buffer_value='auto'):
+        #tdk: DOC
+        #tdk: ORDER
+        #tdk: COMMENT
+
+        if buffer_value == 'auto':
+            buffer_value = self.buffer_value
+
+        dst_box = None
+        with vm.scoped_by_emptyable('extent_global', dst_subset):
+            if not vm.is_null:
+                # Use the extent of the polygon for determining the bounding box. This ensures conservative
+                # regridding will be fully mapped.
+                if isinstance(dst_subset, AbstractGeometryCoordinates):
+                    target_grid = dst_subset.parent.grid
+                else:
+                    target_grid = dst_subset
+
+                extent_global = target_grid.parent.attrs.get('extent_global')
+                if extent_global is None:
+                    with grid_abstraction_scope(target_grid, Topology.POLYGON):
+                        extent_global = target_grid.extent_global
+
+                if self.check_contains:
+                    dst_box = box(*target_grid.extent_global)
+
+                sub_box = box(*extent_global)
+                if buffer_value is not None:
+                    # Use the envelope! A buffer returns "fancy" borders. We just want to expand the bounding box.
+                    sub_box = sub_box.buffer(buffer_value).envelope
+
+                ocgis_lh(msg=str(sub_box.bounds), level=logging.DEBUG, logger='grid_chunker')
+            else:
+                sub_box, dst_box = [None, None]
+
+        # tdk: FIX: not sure why this isn't working
+        # live_ranks = vm.get_live_ranks_from_object(dst_subset)
+        live_ranks = [0]
+        sub_box = vm.bcast(sub_box, root=live_ranks[0])
+
+        if self.check_contains:
+            dst_box = vm.bcast(dst_box, root=live_ranks[0])
+
+        sub_box = GeometryVariable.from_shapely(sub_box, is_bbox=True, wrapped_state=dst_wrapped_state,
+                                                crs=dst_subset.crs)
+
+        ocgis_lh(logger='grid_chunker', msg='starting "self.src_grid.get_intersects"', level=logging.DEBUG)
+        src_grid_subset, src_grid_slice = self.src_grid.get_intersects(sub_box, keep_touches=False, cascade=False,
+                                                                       optimized_bbox_subset=self.optimized_bbox_subset,
+                                                                       return_slice=True)
+        ocgis_lh(logger='grid_chunker', msg='finished "self.src_grid.get_intersects"', level=logging.DEBUG)
+
+        # Reload the data using a new source index distribution.
+        if hasattr(src_grid_subset, 'reduce_global') and src_grid_subset.cindex is not None:
+            # Only redistribute if we have one live rank.
+            if self.redistribute and len(vm.get_live_ranks_from_object(src_grid_subset)) > 0:
+                ocgis_lh(logger='grid_chunker', msg='starting redistribute', level=logging.DEBUG)
+                topology = src_grid_subset.abstractions_available[Topology.POLYGON]
+                cindex = topology.cindex
+                redist_dimname = self.src_grid.abstractions_available[Topology.POLYGON].element_dim.name
+                if src_grid_subset.is_empty:
+                    redist_dim = None
+                else:
+                    redist_dim = topology.element_dim
+                redistribute_by_src_idx(cindex, redist_dimname, redist_dim)
+                ocgis_lh(logger='grid_chunker', msg='finished redistribute', level=logging.DEBUG)
+
+        with vm.scoped_by_emptyable('src_grid_subset', src_grid_subset):
+            if not vm.is_null:
+                if not self.allow_masked:
+                    gmask = src_grid_subset.get_mask()
+                    if gmask is not None and gmask.any():
+                        raise ValueError('Masked values in source grid subset.')
+
+                if self.check_contains:
+                    src_box = box(*src_grid_subset.extent_global)
+                    if not does_contain(src_box, dst_box):
+                        raise ValueError('Contains check failed.')
+
+                # Try to reduce the coordinates in the case of unstructured grid data.
+                if hasattr(src_grid_subset, 'reduce_global') and src_grid_subset.cindex is not None:
+                    ocgis_lh(logger='grid_chunker', msg='starting reduce_global', level=logging.DEBUG)
+                    src_grid_subset = src_grid_subset.reduce_global()
+                    ocgis_lh(logger='grid_chunker', msg='finished reduce_global', level=logging.DEBUG)
+            else:
+                pass
+                # src_grid_subset = VariableCollection(is_empty=True)
+
+            if is_empty(src_grid_subset):
+                src_grid_slice = None
+            else:
+                grid_dimnames = get_dimension_names(src_grid_subset.dimensions)
+                src_grid_slice = {grid_dimnames[ii]: src_grid_slice[ii] for ii in
+                                  range(src_grid_subset.ndim)}
+
+        return src_grid_slice, src_grid_subset
 
     def write_chunks(self):
         """

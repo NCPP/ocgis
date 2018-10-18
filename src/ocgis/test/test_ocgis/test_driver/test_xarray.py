@@ -101,11 +101,11 @@ class TestDriverXarray(TestBase):
         # path2 = self.get_temporary_file_path('foo2.nc')
         # field.write(path2)
 
-        # path1 = r'C:\Users\benko\Dropbox\dtmp\gpw-v4-population-density-rev10_2020_1_deg_tif\gpw_v4_population_density_rev10_2020_1_deg.tif'
-        path1 = '/home/benkoziol/Dropbox/dtmp/gpw-v4-population-density-rev10_2020_1_deg_tif/gpw_v4_population_density_rev10_2020_1_deg.tif'
+        path1 = r'C:\Users\benko\Dropbox\dtmp\gpw-v4-population-density-rev10_2020_1_deg_tif\gpw_v4_population_density_rev10_2020_1_deg.tif'
+        # path1 = '/home/benkoziol/Dropbox/dtmp/gpw-v4-population-density-rev10_2020_1_deg_tif/gpw_v4_population_density_rev10_2020_1_deg.tif'
         path2 = path1
 
-        ds1 = xr.open_rasterio(path1, parse_coordinates=True)
+        ds1 = xr.open_rasterio(path1, parse_coordinates=True, chunks={'y': 5, 'x': 5})
         ds1 = xr.Dataset(data_vars={'data': ds1})
 
         ds2 = xr.open_rasterio(path2, parse_coordinates=True)
@@ -121,10 +121,13 @@ class TestDriverXarray(TestBase):
         f1.grid.set_extrapolated_bounds('xbounds', 'ybounds', 'bounds')
         global_indices = f1.grid._gc_create_global_indices_(f1.grid.shape)
         f1.add_variable(xr.DataArray(global_indices, dims=f1.grid.dims, name='ESMF_Index'))
+
         f2 = Field(initial_data=ds2, dimension_map=xdimmap2, crs=WGS84())
         f2.grid.set_extrapolated_bounds('xbounds', 'ybounds', 'bounds')
         global_indices = f2.grid._gc_create_global_indices_(f1.grid.shape)
         f1.add_variable(xr.DataArray(global_indices, dims=f2.grid.dims, name='ESMF_Index'))
+
+        # tdk: RESUME: run this example but use dask chunks and "get_source_subset"
 
         gc = GridChunker(f1, f2, nchunks_dst=(5, 5))
         for res in gc.iter_src_grid_subsets(yield_dst=True):
@@ -177,8 +180,6 @@ class TestDriverXarray(TestBase):
 
         # Ensure we can expand the grid.
         sub.expand()
-
-        # tdk: RESUME: run small example with xarray-based dask regridding
 
     def test_system_unstructured_grid(self):
         path = self.fixture_esmf_unstructured()

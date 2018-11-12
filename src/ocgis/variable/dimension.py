@@ -263,6 +263,16 @@ class Dimension(AbstractNamedObject):
         self._size = 0
         self._size_current = 0
 
+    def create_metadata(self):
+        """
+        See :meth:`~ocgis.base.AbstractInterfaceObject.create_metadata`
+        """
+        root = AbstractNamedObject.create_metadata(self)
+        root['size'] = self._size
+        root['size_current'] = self._size_current
+        root['is_unlimited'] = self.is_unlimited
+        return root
+
     def eq(self, other, check_src_idx=True):
         """
         Return ``True`` if dimensions are equal.

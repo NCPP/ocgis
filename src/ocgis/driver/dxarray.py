@@ -15,6 +15,10 @@ class DriverXarray(DriverNetcdfCF):
     output_formats = []
 
     @staticmethod
+    def create_metadata(field):
+        return create_metadata_from_xarray(field._storage)
+
+    @staticmethod
     def create_varlike(value, **kwargs):
         # tdk: DOC
 

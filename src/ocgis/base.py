@@ -85,6 +85,10 @@ class AbstractNamedObject(AbstractInterfaceObject):
         """
         self._aliases.append(alias)
 
+    def create_metadata(self):
+        # tdk: DOC
+        return {'name': self.name}
+
     def is_matched_by_alias(self, alias):
         """
         Return ``True`` if the provided alias matches any of the object's aliases.

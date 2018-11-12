@@ -27,9 +27,6 @@ class TestDriverXarray(TestBase):
         return path
 
     def test(self):
-        # tdk: wish list for xarray:
-        #      (1) some concept of a bounded variable
-
         # tdk: TEST: data variables on ocgis fiel
 
         grid = create_gridxy_global(resolution=2.0)
@@ -147,7 +144,6 @@ class TestDriverXarray(TestBase):
 
         ds = xr.open_dataset(path, autoclose=True)
 
-        # tdk: FEATURE: need ocgis data_variables support using xarray somehow...
         # tdk: FEATURE: grid expansion needs to use xarray
 
         # tdk: FEATURE: no crs support in xarray yet
@@ -155,9 +151,12 @@ class TestDriverXarray(TestBase):
 
         xmeta = create_metadata_from_xarray(ds)
         xdimmap = create_dimension_map(xmeta, DriverNetcdfCF)
+        # tdk: FEATURE: need ocgis data_variables support using xarray somehow. it seems like this should happen automatically
+        # tdk: FEATURE:   during field creation since everything else springs from metadata...
+        is_data = DriverXarray.get_data_variable_names(xmeta, xdimmap)
 
-        f1 = Field(initial_data=ds, dimension_map=xdimmap, driver='xarray')
-        f1.add_variable(f1['foo'], is_data=True, force=True)
+        f1 = Field(initial_data=ds, dimension_map=xdimmap, driver='xarray', is_data=is_data)
+        self.assertEqual(f1.data_variables[0].name, 'foo')
 
         poly = Polygon([[270, 40], [230, 20], [310, 40]])
         poly = GeometryVariable(name='subset', value=poly, crs=Spherical(), dimensions='ngeom')

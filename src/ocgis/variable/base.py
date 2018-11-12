@@ -1069,6 +1069,15 @@ class Variable(AbstractContainer, Attributes):
         the_zeros = variable_get_zeros(self.dimensions, self.dtype, fill=fill)
         self.set_value(the_zeros)
 
+    def create_metadata(self):
+        """
+        See :meth:`~ocgis.base.AbstractInterfaceObject.create_metadata`
+        """
+        root = AbstractNamedObject.create_metadata(self)
+        root['dimensions'] = get_dimension_names(self.dimensions)
+        root['attrs'] = self.attrs
+        return root
+
     def create_ugid(self, name, start=1, is_current=True, **kwargs):
         """
         Create a unique identifier variable for the variable. The returned variable will have the same dimensions.
@@ -1936,6 +1945,21 @@ class VariableCollection(AbstractCollection, AbstractContainer, Attributes):
                 ret[v.name].parent = ret
             ret.children = ret.children.copy()
         return ret
+
+    def create_metadata(self):
+        """
+        See :meth:`~ocgis.base.AbstractInterfaceObject.create_metadata`
+        """
+        root = AbstractNamedObject.create_metadata(self)
+        variables = OrderedDict()
+        for k, v in self.items():
+            variables[k] = v.create_metadata()
+        dimensions = OrderedDict()
+        for k, v in self.dimensions:
+            dimensions[k] = v.create_metadata()
+        root['variables'] = variables
+        root['dimensions'] = dimensions
+        return root
 
     def create_tag(self, tag):
         """

@@ -116,16 +116,6 @@ class Field(VariableCollection):
         if grid_is_isomorphic != 'auto':
             self.dimension_map.set_property(DMK.IS_ISOMORPHIC, grid_is_isomorphic)
 
-        # Append the data variable tagged variable names.
-        is_data = list(get_iter(is_data, dtype=Variable))
-        is_data_variable_names = get_variable_names(is_data)
-        for idvn in is_data_variable_names:
-            self.append_to_tags(TagName.DATA_VARIABLES, idvn, create=True)
-        for idx, dvn in enumerate(is_data_variable_names):
-            if dvn not in self:
-                if isinstance(is_data[idx], Variable):
-                    self.add_variable(is_data[idx])
-
         # Configure the field updating the dimension map in the process.
         cvar = s[DimensionMapKey.REALIZATION]
         if cvar is not None:
@@ -141,6 +131,16 @@ class Field(VariableCollection):
             self.set_geom(cvar, crs=crs)
         if crs != 'auto':
             self.set_crs(crs)
+
+        # Append the data variable tagged variable names.
+        is_data = list(get_iter(is_data, dtype=Variable))
+        is_data_variable_names = get_variable_names(is_data)
+        for idvn in is_data_variable_names:
+            self.append_to_tags(TagName.DATA_VARIABLES, idvn, create=True)
+        for idx, dvn in enumerate(is_data_variable_names):
+            if dvn not in self:
+                if isinstance(is_data[idx], Variable):
+                    self.add_variable(is_data[idx])
 
     @property
     def _should_regrid(self):
@@ -233,7 +233,9 @@ class Field(VariableCollection):
         try:
             ret = tuple(self.get_by_tag(TagName.DATA_VARIABLES))
         except KeyError:
-            ret = tuple()
+            # meta = self.driver.create_metadata(self)
+            # data_vars = self.driver.get_data_variable_names(meta, self.dimension_map)
+            ret = tuple(data_vars)
         return ret
 
     @property
@@ -398,6 +400,9 @@ class Field(VariableCollection):
         # Changes to a field's shallow copy should be able to adjust attributes in the dimension map as needed.
         ret.dimension_map = deepcopy(ret.dimension_map)
         return ret
+
+    def create_metadata(self):
+        return self.driver.create_metadata(self)
 
     @classmethod
     def from_records(cls, records, schema=None, crs=UNINITIALIZED, uid=None, union=False, data_model=None):

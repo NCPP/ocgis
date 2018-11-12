@@ -327,6 +327,11 @@ class AbstractDriver(AbstractOcgisObject):
 
         return field
 
+    @staticmethod
+    def create_metadata(field):
+        # tdk: DOC
+        return field.create_metadata()
+
     def create_raw_field(self, group_metadata=None, group_name=None, name=None, source_name=constants.UNINITIALIZED,
                          parent=None, uid=None):
         """
@@ -393,7 +398,10 @@ class AbstractDriver(AbstractOcgisObject):
     @staticmethod
     def get_data_variable_names(group_metadata, group_dimension_map):
         """
-        Return a tuple of data variable names using the metadata and dimension map.
+        Return a tuple of data variable names using the metadata and dimension map. "Data variables" are variables
+        considered analysis targets by the convention. For example, with CF-Grid convention, data with x, y, and time
+        dimensions are considered data. In the default driver (code below), all variables are considered data with no
+        guidance.
         """
         return tuple(group_metadata['variables'].keys())
 

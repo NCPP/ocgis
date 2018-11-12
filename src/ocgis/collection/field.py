@@ -4,11 +4,12 @@ from collections import deque
 from copy import deepcopy
 
 import six
+
 from ocgis import env, DimensionMap, VariableCollection
 from ocgis.base import get_dimension_names, get_variable_names, get_variables, renamed_dimensions_on_variables, \
     revert_renamed_dimensions_on_variables, raise_if_empty
 from ocgis.constants import DimensionMapKey, WrapAction, TagName, HeaderName, DimensionName, UNINITIALIZED, \
-    KeywordArgument, DMK
+    KeywordArgument, DMK, DEFAULT_DRIVER
 from ocgis.util.helpers import get_iter, is_xarray
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import Variable, get_bounds_names_1d, create_typed_variable_from_data_model
@@ -392,8 +393,39 @@ class Field(VariableCollection):
         ret.dimension_map = deepcopy(ret.dimension_map)
         return ret
 
-    def create_metadata(self):
-        return self.driver.create_metadata(self)
+    def create_metadata(self, driver=None):
+        #tdk:DOC
+        if driver is None:
+            driver = self.driver
+        else:
+            from ocgis.driver.registry import get_driver_class
+            driver = get_driver_class(driver)
+        return driver.create_metadata(self)
+
+    def decode(self, driver=None, find_datavars=True):
+        #tdk:DOC
+        #tdk:COM
+        meta = self.create_metadata(driver=driver)
+
+        from ocgis.driver.registry import get_driver_class
+        driver = get_driver_class(driver, default=DEFAULT_DRIVER)
+        from ocgis.driver.dxarray import create_dimension_map  #tdk:FEAT: this function should not be in xarray driver code
+        dimmap = create_dimension_map(meta, driver)
+
+        if find_datavars:
+            data_vars = driver.get_data_variable_names(meta, dimmap)
+
+        crs = driver.get_crs(meta)
+
+        #tdk: make sure to assign driver when this is finished, decode will overload the driver
+        print(meta)  #tdk:p
+        print(data_vars) #tdk:p
+        print(crs) #tdk:p
+        dimmap.pprint() #tdk:p
+
+        # tdk:RESUME: need to get decode working
+
+        tkk
 
     @classmethod
     def from_records(cls, records, schema=None, crs=UNINITIALIZED, uid=None, union=False, data_model=None):

@@ -329,8 +329,11 @@ class AbstractDriver(AbstractOcgisObject):
 
     @staticmethod
     def create_metadata(field):
-        # tdk: DOC
-        return field.create_metadata()
+        #tdk:DOC
+
+        # Field objects use the driver to extract metadata to allow for convention customizations and other backends
+        # like xarray. By default, use the variable collection method to get default metadata.
+        return super(Field, field).create_metadata()
 
     def create_raw_field(self, group_metadata=None, group_name=None, name=None, source_name=constants.UNINITIALIZED,
                          parent=None, uid=None):

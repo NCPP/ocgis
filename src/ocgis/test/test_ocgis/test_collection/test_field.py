@@ -252,6 +252,11 @@ class TestField(AbstractTestInterface):
         self.assertIn('standard_name', f.grid.x.attrs)
         self.assertIn('standard_name', f.grid.y.attrs)
 
+    def test_decode(self):
+        f = Field()
+        f.decode()
+        self.assertIsNone(f['name'])
+
     def test_dimensions(self):
         crs = CoordinateReferenceSystem(epsg=2136)
         field = Field(variables=[crs])

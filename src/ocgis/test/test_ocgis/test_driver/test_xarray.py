@@ -47,11 +47,14 @@ class TestDriverXarray(TestBase):
 
         xmeta = create_metadata_from_xarray(ds)
 
-        xdimmap = create_dimension_map(xmeta, DriverNetcdfCF, path)
+        xdimmap = create_dimension_map(xmeta, DriverNetcdfCF)
 
-        f = Field(initial_data=ds, dimension_map=xdimmap, driver='xarray')
+        data_vars = DriverXarray.get_data_variable_names(xmeta, xdimmap)
+
+        f = Field(initial_data=ds, dimension_map=xdimmap, driver='xarray', is_data=data_vars)
         self.assertIsInstance(f.x, xr.DataArray)
         self.assertIsInstance(f.time, xr.DataArray)
+        self.assertEqual(f.data_variables[0].name, 'foo')
 
         # m.dimension_map.set_bounds(DMK.X, 'xbounds')
         # m.dimension_map.set_bounds(DMK.Y, 'ybounds')
@@ -74,7 +77,6 @@ class TestDriverXarray(TestBase):
 
         self.assertIsNone(f.geom)
 
-        print(grid1.shape)
         self.assertEqual(grid1.shape, (90, 180))
 
         f.set_abstraction_geom()
@@ -83,6 +85,8 @@ class TestDriverXarray(TestBase):
 
         bbox = box(*[-40, -30, 40, 40])
         res = f.grid.get_intersects(bbox)
+
+        self.assertEqual(res.extent, (-40.0, -30.0, 40.0, 40.0))
 
         # tdk: FEATURE: re-work geometry variable to not need ocgis
         # coords = m.geom.convert_to(pack=False)

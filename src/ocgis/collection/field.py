@@ -233,9 +233,7 @@ class Field(VariableCollection):
         try:
             ret = tuple(self.get_by_tag(TagName.DATA_VARIABLES))
         except KeyError:
-            # meta = self.driver.create_metadata(self)
-            # data_vars = self.driver.get_data_variable_names(meta, self.dimension_map)
-            ret = tuple(data_vars)
+            ret = tuple()
         return ret
 
     @property
@@ -342,21 +340,14 @@ class Field(VariableCollection):
         ret = get_field_property(self, 'geom')
         if ret is not None:
             if is_xarray(ret):
-                ret = ret.values.tolist()
-            crs = self.crs
-            # Overload the geometry coordinate system if set on the field. Otherwise, this will use the coordinate
-            # system on the geometry variable.
-            if crs is not None:
-                try:
+                pass
+            else:
+                # tdk:FEAT: xarray objects have no knowledge of a CRS
+                crs = self.crs
+                # Overload the geometry coordinate system if set on the field. Otherwise, this will use the coordinate
+                # system on the geometry variable.
+                if crs is not None:
                     ret.crs = crs
-                except:
-                    # tdk: FEATURE: no knowledge in xarray of a crs on spatial objects
-                    import xarray as xr
-                    if isinstance(ret, xr.DataArray):
-                        pass
-                    else:
-                        raise
-
         return ret
 
     @property

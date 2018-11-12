@@ -27,56 +27,38 @@ class TestDriverXarray(TestBase):
         return path
 
     def test(self):
-        # tdk: TEST: data variables on ocgis fiel
-
         grid = create_gridxy_global(resolution=2.0)
         field = create_exact_field(grid, 'foo', ntime=31)
         path = self.get_temporary_file_path('foo.nc')
         field.write(path)
-        # xname = field.x.name
-        # yname = field.y.name
 
         # m = Field()
         ds = xr.open_dataset(path, autoclose=True)
 
-        # tdk: FEATURE: no crs support in xarray yet
+        # tdk:FEAT: no crs support in xarray yet
         ds['latitude_longitude'] = Spherical()
-        # m._storage = ds
-        # m.set_x(xname, 'dimx')
-        # m.set_y(yname, 'dimy')
 
         xmeta = create_metadata_from_xarray(ds)
-
         xdimmap = create_dimension_map(xmeta, DriverNetcdfCF)
-
         data_vars = DriverXarray.get_data_variable_names(xmeta, xdimmap)
-
         f = Field(initial_data=ds, dimension_map=xdimmap, driver='xarray', is_data=data_vars)
+
         self.assertIsInstance(f.x, xr.DataArray)
         self.assertIsInstance(f.time, xr.DataArray)
         self.assertEqual(f.data_variables[0].name, 'foo')
-
-        # m.dimension_map.set_bounds(DMK.X, 'xbounds')
-        # m.dimension_map.set_bounds(DMK.Y, 'ybounds')
-
-        # m.dimension_map.pprint()
 
         grid1 = f.grid
         self.assertIsInstance(grid1, Grid)
         grid2 = f.grid
         self.assertIsInstance(grid2, Grid)
 
-        # tdk: TEST: test a grid with a mask
+        # tdk:TEST: test a grid with a mask
         self.assertFalse(grid1.has_mask)
 
         self.assertIsNotNone(grid1.get_value_stacked())
-
         self.assertEqual(grid1.extent, (-180.0, -90.0, 180.0, 90.0))
-
         self.assertEqual(grid.abstraction, GridAbstraction.POLYGON)
-
         self.assertIsNone(f.geom)
-
         self.assertEqual(grid1.shape, (90, 180))
 
         f.set_abstraction_geom()
@@ -88,7 +70,7 @@ class TestDriverXarray(TestBase):
 
         self.assertEqual(res.extent, (-40.0, -30.0, 40.0, 40.0))
 
-        # tdk: FEATURE: re-work geometry variable to not need ocgis
+        # tdk:FEAT: re-work geometry variable to not need ocgis
         # coords = m.geom.convert_to(pack=False)
 
     def test_system_grid_chunking(self):

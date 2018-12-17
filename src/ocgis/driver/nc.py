@@ -840,10 +840,18 @@ def update_group_metadata(rootgrp, fill):
                 except AttributeError:
                     fill_value = 'auto'
 
-        if isinstance(value.datatype, VLType):
-            the_dtype = ObjectType(value.dtype)
+        value_dtype = value.dtype
+        try:
+            value_datatype = value.datatype
+        except AttributeError:
+            # This is a fickle property for some reason. bekozi does not know if it is version related or not present
+            # on standard non-VLType variables. Maybe both. Either way, this is the best way to detect VLType variables.
+            value_datatype = None
+
+        if isinstance(value_datatype, VLType):
+            the_dtype = ObjectType(value_dtype)
         else:
-            the_dtype = value.dtype
+            the_dtype = value_dtype
 
         variables.update({key: {'dimensions': value.dimensions,
                                 'attrs': subvar,

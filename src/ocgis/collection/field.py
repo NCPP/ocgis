@@ -403,29 +403,41 @@ class Field(VariableCollection):
         return driver.create_metadata(self)
 
     def decode(self, driver=None, find_datavars=True):
-        #tdk:DOC
-        #tdk:COM
-        meta = self.create_metadata(driver=driver)
+        """
+        Decode a field using the supplied driver. Decoding overloads the field's current dimension map, coordinate
+        system, and assigns data variables (if ``find_datavars`` is ``True``). Otherwise, the field is left intact. In
+        general, ``decode`` should be  used on fields created without a dimension map and are otherwise unused as some
+        unexpected situations could arise if a field is used extensively then decoded.
 
+        :param driver: Driver used to decode the field. This may be the driver key, class, or object. If ``None``, the
+         default driver is used.
+        :type driver: str | :class:`~ocgis.driver.base.AbstractDriver`
+        :param bool find_datavars: If ``True``, identify data variables according to the driver's rules for selecting
+         data variables.
+        """
+
+        # Create metadata from the field object
+        meta = self.create_metadata(driver=driver)
+        # Get the default driver class
         from ocgis.driver.registry import get_driver_class
         driver = get_driver_class(driver, default=DEFAULT_DRIVER)
+        # Create a dimension map using the metadata created from the field object
         from ocgis.driver.dxarray import create_dimension_map  #tdk:FEAT: this function should not be in xarray driver code
         dimmap = create_dimension_map(meta, driver)
-
+        # Identify the coordinate system from the metadata
+        crs = driver.get_crs(meta)
+        # If requested, identify the data variables using the driver's rules
         if find_datavars:
             data_vars = driver.get_data_variable_names(meta, dimmap)
-
-        crs = driver.get_crs(meta)
-
-        #tdk: make sure to assign driver when this is finished, decode will overload the driver
-        print(meta)  #tdk:p
-        print(data_vars) #tdk:p
-        print(crs) #tdk:p
-        dimmap.pprint() #tdk:p
-
-        # tdk:RESUME: need to get decode working
-
-        tkk
+        # Set the field's new coordinate system
+        self.set_crs(crs)
+        # Set the field's new dimension map
+        self.dimension_map = dimmap
+        # Set the field's new data variables if requested.
+        if find_datavars:
+            self.create_tag(TagName.DATA_VARIABLES, reset=True)
+            self.append_to_tags(TagName.DATA_VARIABLES, data_vars)
+        assert self.driver == driver
 
     @classmethod
     def from_records(cls, records, schema=None, crs=UNINITIALIZED, uid=None, union=False, data_model=None):

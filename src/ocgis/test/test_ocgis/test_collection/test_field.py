@@ -255,7 +255,9 @@ class TestField(AbstractTestInterface):
     def test_decode(self):
         f = Field()
         f.decode()
-        self.assertIsNone(f['name'])
+        with self.assertRaises(KeyError):
+            _ = f['name']
+        self.assertIsNone(f.name)
 
     def test_dimensions(self):
         crs = CoordinateReferenceSystem(epsg=2136)

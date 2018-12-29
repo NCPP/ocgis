@@ -1961,15 +1961,16 @@ class VariableCollection(AbstractCollection, AbstractContainer, Attributes):
         root['dimensions'] = dimensions
         return root
 
-    def create_tag(self, tag):
+    def create_tag(self, tag, reset=False):
         """
         Create a tag.
         
         :param str tag: The tag name.
+        :param bool reset: If ``True``, clear the tag's contents if it exists.
         :raises: ValueError
         """
 
-        if tag in self._tags:
+        if tag in self._tags and not reset:
             raise ValueError('Tag "{}" already exists.'.format(tag))
         else:
             self._tags[tag] = []

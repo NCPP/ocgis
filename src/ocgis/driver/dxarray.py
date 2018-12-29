@@ -2,7 +2,6 @@ from ocgis.base import get_dimension_names
 
 from ocgis.constants import KeywordArgument, VariableName
 
-from ocgis import DimensionMap
 from ocgis.driver.nc import DriverNetcdfCF
 from ocgis.util.addict import Dict
 import xarray as xr
@@ -88,18 +87,15 @@ class DriverXarray(DriverNetcdfCF):
         raise NotImplementedError
 
 
-def create_dimension_map(meta, driver):
-    # tdk: DOC
-    # Check if this is a class or an instance. If it is a class, convert to instance for dimension map
-    # creation.
-    if isinstance(driver, type):
-        driver = driver()
-    dimmap = DimensionMap.from_metadata(driver, meta)
-    return dimmap
-
-
 def create_metadata_from_xarray(ds):
-    # tdk: DOC
+    """
+    Create a standard metadata dictionary from an ``xarray`` ``Dataset``.
+
+    :param ds: Source dataset
+    :type ds: :class:`~xarray.core.dataset.Dataset`
+    :return: Standard ``ocgis`` metadata dictionary
+    :rtype: dict
+    """
     xmeta = Dict()
     for dimname, dimsize in ds.dims.items():
         xmeta.dimensions[dimname] = {'name': dimname, 'size': dimsize}

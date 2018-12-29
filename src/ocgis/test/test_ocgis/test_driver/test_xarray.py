@@ -1,7 +1,8 @@
 from copy import deepcopy
 
 from mock import mock
-from ocgis.driver.dxarray import DriverXarray, create_dimension_map, create_metadata_from_xarray
+from ocgis.driver.dimension_map import create_dimension_map
+from ocgis.driver.dxarray import DriverXarray, create_metadata_from_xarray
 from ocgis.driver.nc import DriverNetcdfCF
 from ocgis.driver.nc_esmf_unstruct import DriverESMFUnstruct
 from ocgis.spatial.grid_chunker import GridChunker
@@ -27,6 +28,7 @@ class TestDriverXarray(TestBase):
         return path
 
     def test(self):
+        # tdk:RESUME: work on removing the tdks and don't try and get chunker working
         grid = create_gridxy_global(resolution=2.0)
         field = create_exact_field(grid, 'foo', ntime=31)
         path = self.get_temporary_file_path('foo.nc')

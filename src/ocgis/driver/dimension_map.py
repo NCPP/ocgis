@@ -603,6 +603,25 @@ class DimensionMap(AbstractOcgisObject):
             return get_or_create_dict(self._storage, key, self._storage.__class__())
 
 
+def create_dimension_map(meta, driver):
+    """
+    Create a dimension map from metadata and a driver.
+
+    :param dict meta: A standard metadata dictionary
+    :param driver: This may be the driver key, class, or object. If ``None``, the default driver is used.
+    :type driver: str | :class:`~ocgis.driver.base.AbstractDriver`
+    :return: A dimension map object
+    :rtype: :class:`~ocgis.driver.dimension_map.DimensionMap`
+    """
+
+    # Check if this is a class or an instance. If it is a class, convert to instance for dimension map
+    # creation.
+    if isinstance(driver, type):
+        driver = driver()
+    dimmap = DimensionMap.from_metadata(driver, meta)
+    return dimmap
+
+
 def get_variable_from_field(name, field, nullable):
     ret = None
     if name is None and nullable:

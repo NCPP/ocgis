@@ -10,6 +10,7 @@ from ocgis.base import get_dimension_names, get_variable_names, get_variables, r
     revert_renamed_dimensions_on_variables, raise_if_empty
 from ocgis.constants import DimensionMapKey, WrapAction, TagName, HeaderName, DimensionName, UNINITIALIZED, \
     KeywordArgument, DMK, DEFAULT_DRIVER
+from ocgis.driver.dimension_map import create_dimension_map
 from ocgis.util.helpers import get_iter, is_xarray
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import Variable, get_bounds_names_1d, create_typed_variable_from_data_model
@@ -422,7 +423,6 @@ class Field(VariableCollection):
         from ocgis.driver.registry import get_driver_class
         driver = get_driver_class(driver, default=DEFAULT_DRIVER)
         # Create a dimension map using the metadata created from the field object
-        from ocgis.driver.dxarray import create_dimension_map  #tdk:FEAT: this function should not be in xarray driver code
         dimmap = create_dimension_map(meta, driver)
         # Identify the coordinate system from the metadata
         crs = driver.get_crs(meta)

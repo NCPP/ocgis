@@ -299,7 +299,7 @@ def get_dtype(string_name, data_model=None):
 def get_netcdftime_preference():
     # netcdftime added more advanced operation in later versions. Check if __add__ is available on the class to
     # determine usage preference.
-    from netCDF4 import netcdftime
+    from ocgis import netcdftime
 
     if hasattr(netcdftime.datetime, '__add__'):
         ret = True

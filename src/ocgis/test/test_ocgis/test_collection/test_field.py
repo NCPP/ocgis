@@ -5,15 +5,11 @@ from copy import deepcopy
 
 import numpy as np
 from mock import Mock
-from netCDF4 import netcdftime
 from nose.plugins.skip import SkipTest
-from shapely.geometry import Point
-from shapely.geometry import box
-from shapely.geometry.base import BaseGeometry
-
 from ocgis import RequestDataset, vm, DimensionMap
 from ocgis import constants
-from ocgis.base import get_variable_names
+from ocgis import netcdftime
+from ocgis.base import get_variable_names, atleast_ncver
 from ocgis.collection.field import Field, get_name_mapping
 from ocgis.collection.spatial import SpatialCollection
 from ocgis.constants import HeaderName, KeywordArgument, DriverKey, DimensionMapKey, DMK, Topology
@@ -32,6 +28,9 @@ from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.variable.temporal import TemporalVariable
 from ocgis.vmachine.mpi import MPI_SIZE, MPI_RANK, MPI_COMM
+from shapely.geometry import Point
+from shapely.geometry import box
+from shapely.geometry.base import BaseGeometry
 
 
 class TestField(AbstractTestInterface):
@@ -515,9 +514,17 @@ class TestField(AbstractTestInterface):
             field.write(ds)
         self.assertTrue(field.grid.is_vectorized)
         with self.nc_scope(path) as ds:
-            self.assertNumpyAll(ds.variables[grid.x.name][:], grid.x.get_value())
+            if atleast_ncver("1.4"):
+                actual = grid.x.mv()
+            else:
+                actual = grid.x.v()
+            self.assertNumpyAll(ds.variables[grid.x.name][:], actual)
             var = ds.variables[grid.y.name]
-            self.assertNumpyAll(var[:], grid.y.get_value())
+            if atleast_ncver("1.4"):
+                actual = grid.y.mv()
+            else:
+                actual = grid.y.v()
+            self.assertNumpyAll(var[:], actual)
             self.assertEqual(var.axis, 'Y')
             self.assertIn(grid.crs.name, ds.variables)
 
@@ -531,7 +538,11 @@ class TestField(AbstractTestInterface):
         # self.ncdump(path)
         with self.nc_scope(path) as ds:
             var = ds.variables['y']
-            self.assertNumpyAll(var[:], grid.y.get_value())
+            if atleast_ncver("1.4"):
+                actual = grid.y.mv()
+            else:
+                actual = grid.y.v()
+            self.assertNumpyAll(var[:], actual)
 
         # Test writing a vectorized grid with corners.
         grid = self.get_gridxy()

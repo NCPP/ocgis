@@ -4,9 +4,8 @@ import os
 import sys
 from warnings import warn
 
-import six
-
 import ocgis
+import six
 from ocgis import env
 from ocgis.exc import OcgWarning
 from ocgis.vmachine.mpi import get_standard_comm_state
@@ -250,10 +249,20 @@ def get_versions():
         v_xarray = None
     else:
         v_xarray = xarray.__version__
+    import shapely
+    v_shapely = shapely.__version__
+    import setuptools
+    v_setuptools = setuptools.__version__
+    try:
+        import mock
+        v_mock = mock.__version__
+    except ImportError:
+        v_mock = None
 
     versions = dict(esmf=v_esmf, cfunits=v_cfunits, rtree=v_rtree, gdal=v_gdal, numpy=v_numpy, netcdf4=v_netcdf4,
                     icclim=v_icclim, fiona=v_fiona, cf_units=v_cf_units, mpi4py=v_mpi4py, six=v_six, pyproj=v_pyproj,
-                    python=sys.version_info, nose=v_nose, xarray=v_xarray)
+                    python=sys.version_info, nose=v_nose, xarray=v_xarray, shapely=v_shapely, setuptools=v_setuptools,
+                    mock=v_mock)
     return versions
 
 

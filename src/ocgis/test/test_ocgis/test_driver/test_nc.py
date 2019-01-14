@@ -177,6 +177,17 @@ class TestDriverNetcdf(TestBase):
         with driver_scope(driver) as _:
             m_MFDataset.assert_called_once_with(uri, aggdim='not_time')
 
+    def test_system_masking(self):
+        """Test how the mask is handled by the NetCDF python library."""
+
+        var = Variable(name='foo', value=[1, 2, 3], dimensions='three')
+        self.assertIsNone(var.get_mask())
+        path = self.get_temporary_file_path('foo.nc')
+        var.parent.write(path)
+
+        invar = Field.read(path)['foo']
+        self.assertIsNone(invar.get_mask())
+
     def test_system_renaming_dimensions_on_variables(self):
         var1 = Variable(name='var1', value=[1, 2], dimensions='dim')
         var2 = Variable(name='var2', value=[3, 4], dimensions='dim')

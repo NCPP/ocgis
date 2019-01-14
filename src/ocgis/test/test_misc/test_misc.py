@@ -1,7 +1,6 @@
 from copy import deepcopy
 
 import numpy as np
-
 from ocgis import OcgOperations
 from ocgis.test.base import TestBase, attr
 
@@ -22,6 +21,6 @@ class TestBlah(TestBase):
 
     def test_maintaining_global_index_with_subset(self):
         original = np.arange(1, 17).reshape(4, 4)
-        slc = [slice(0, 2), slice(0, 2)]
+        slc = tuple([slice(0, 2), slice(0, 2)])
         sliced = original[slc]
         self.assertIsNotNone(sliced)

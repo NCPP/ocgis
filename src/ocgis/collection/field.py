@@ -1031,7 +1031,9 @@ class Field(VariableCollection):
 
     @classmethod
     def read(cls, *args, **kwargs):
-        raise NotImplementedError("Use request dataset 'get' method.")
+        # tdk: doc
+        from ocgis import RequestDataset
+        return RequestDataset(*args, **kwargs).create_field()
 
     def write(self, *args, **kwargs):
         """

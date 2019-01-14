@@ -5,10 +5,10 @@ from copy import deepcopy
 from decimal import Decimal
 
 import netCDF4 as nc
-import netcdftime
 import numpy as np
 import six
 from ocgis import constants, env, Dimension
+from ocgis import netcdftime
 from ocgis.constants import HeaderName, KeywordArgument
 from ocgis.exc import EmptySubsetError, IncompleteSeasonError, CannotFormatTimeError, ResolutionError
 from ocgis.util.helpers import get_is_date_between, iter_array, get_none_or_slice
@@ -76,8 +76,7 @@ class TemporalVariable(SourcedVariable):
     @property
     def cfunits(self):
         """
-        :return: `cf_units` object with appropriate calendar
-        :rtype: :class:`cf_units.Unit`
+        :return: CF units object with appropriate calendar
         """
         ret = super(TemporalVariable, self).cfunits
         ret = ret.__class__(str(ret), calendar=self.calendar)

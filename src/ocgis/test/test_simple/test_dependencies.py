@@ -103,7 +103,7 @@ def create_mftime_nc_files(test_obj, with_all_cf=False, units_on_time_bounds=Fal
                 vbtime = f.createVariable('time_bounds', np.float32, dimensions=('time', 'bounds'))
                 vbtime[:] = tv.bounds.get_value()
                 # Note no calendar on bounds variable.
-                vbtime.units = units
+                vbtime.units = unit
 
             if with_all_cf:
                 f.createDimension('x', 4)

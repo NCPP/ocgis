@@ -525,7 +525,9 @@ class AbstractDriver(AbstractOcgisObject):
 
         :param dict kwargs: See keyword arguments to :meth:`~ocgis.Variable.get_mask`. If ``create`` and ``check_value``
          are ``True`` and no mask variable exists, then coordinate variable masks are combined using a logical OR
-         operation.
+         operation. The keyword argument ``init_value=None`` is allowed but is not part of the variable mask getting
+         interface. This argument is ``None`` or a ``bool`` :class:`numpy.ndarray`. The boolean array is used as the
+         actual mask value only when _creating_ a mask variable. This overloads ``check_value``.
         :rtype: :class:`numpy.ndarray`
         """
         from ocgis.spatial.base import create_spatial_mask_variable
@@ -536,6 +538,7 @@ class AbstractDriver(AbstractOcgisObject):
 
         create = kwargs.get(KeywordArgument.CREATE, False)
         check_value = kwargs.get(KeywordArgument.CHECK_VALUE, False)
+        init_value = kwargs.get(KeywordArgument.INIT_VALUE, None)
 
         # Check for existing mask variable
         mask_variable = sobj.mask_variable
@@ -543,17 +546,20 @@ class AbstractDriver(AbstractOcgisObject):
         ret = None
         if mask_variable is None:
             if create:
-                if check_value:
-                    # Combine coordinate variable masks using a logical OR operation
-                    for ii, cvar in enumerate(sobj.coordinate_variables):
-                        currmask = cvar.get_mask(create=True, check_value=True)
-                        if ii == 0:
-                            mask_value = currmask
-                        else:
-                            mask_value = np.logical_or(currmask, mask_value)
+                if init_value is not None:
+                    mask_value = init_value
                 else:
-                    # Let the mask creation function handling the creation of mask values
-                    mask_value = None
+                    if check_value:
+                        # Combine coordinate variable masks using a logical OR operation
+                        for ii, cvar in enumerate(sobj.coordinate_variables):
+                            currmask = cvar.get_mask(create=True, check_value=True)
+                            if ii == 0:
+                                mask_value = currmask
+                            else:
+                                mask_value = np.logical_or(currmask, mask_value)
+                    else:
+                        # Let the mask creation function handling the creation of mask values
+                        mask_value = None
 
                 # Create the spatial mask variable and set it
                 mask_variable = create_spatial_mask_variable(VariableName.SPATIAL_MASK, mask_value, sobj.dimensions)
@@ -763,11 +769,8 @@ class AbstractDriver(AbstractOcgisObject):
                 # Convert the incoming boolean array into a mask variable.
                 mask_variable = sobj.mask_variable
                 if mask_variable is None:
-                    # tdk: FIX: this is expected to fail with xarray
-                    tkk
-                    dimensions = sobj.dimensions
-                    mask_variable = create_spatial_mask_variable(VariableName.SPATIAL_MASK, value, dimensions)
-                    sobj.parent.add_variable(mask_variable)
+                    _ = sobj.driver.get_or_create_spatial_mask(sobj, create=True, init_value=value)
+                    mask_variable = sobj.mask_variable
                 else:
                     if is_xarray(mask_variable):
                         mask_variable.values = value
@@ -825,7 +828,7 @@ class AbstractDriver(AbstractOcgisObject):
         raise_if_empty(vc)
 
         if 'ranks_to_write' in kwargs:
-            raise TypeError("write_variable_collection() got an unexepcted keyword argument 'ranks_to_write'")
+            raise TypeError("write_variable_collection() got an unexpected keyword argument 'ranks_to_write'")
 
         write_mode = kwargs.pop(KeywordArgument.WRITE_MODE, None)
 

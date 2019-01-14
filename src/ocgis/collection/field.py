@@ -421,7 +421,7 @@ class Field(VariableCollection):
         meta = self.create_metadata(driver=driver)
         # Get the default driver class
         from ocgis.driver.registry import get_driver_class
-        driver = get_driver_class(driver, default=DEFAULT_DRIVER)
+        driver = get_driver_class(driver, default=self.driver)
         # Create a dimension map using the metadata created from the field object
         dimmap = create_dimension_map(meta, driver)
         # Identify the coordinate system from the metadata

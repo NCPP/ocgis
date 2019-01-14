@@ -46,14 +46,17 @@ class DriverXarray(DriverNetcdfCF):
         # tdk: DOC
         args = list(args)
         sobj = args[0]
-
         create = kwargs.get(KeywordArgument.CREATE, False)
+        initial_value = kwargs.get(KeywordArgument.INIT_VALUE, None)
 
         if sobj.has_mask:
             mask_variable = sobj.mask_variable
         else:
             if create:
-                mask_value = np.zeros(sobj.shape, dtype=bool)
+                if initial_value is None:
+                    mask_value = np.zeros(sobj.shape, dtype=bool)
+                else:
+                    mask_value = initial_value
                 mask_variable = xr.DataArray(mask_value,
                                              name=VariableName.SPATIAL_MASK,
                                              dims=get_dimension_names(sobj.dimensions),
@@ -85,6 +88,8 @@ class DriverXarray(DriverNetcdfCF):
 
     def _write_variable_collection_main_(cls, *args, **kwargs):
         raise NotImplementedError
+
+
 
 
 def create_metadata_from_xarray(ds):

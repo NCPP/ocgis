@@ -28,22 +28,14 @@ class TestDriverXarray(TestBase):
         return path
 
     def test(self):
-        # tdk:RESUME: work on removing the tdks and don't try and get chunker working
         grid = create_gridxy_global(resolution=2.0)
         field = create_exact_field(grid, 'foo', ntime=31)
         path = self.get_temporary_file_path('foo.nc')
         field.write(path)
 
-        # m = Field()
         ds = xr.open_dataset(path, autoclose=True)
-
-        # tdk:FEAT: no crs support in xarray yet
-        ds['latitude_longitude'] = Spherical()
-
-        xmeta = create_metadata_from_xarray(ds)
-        xdimmap = create_dimension_map(xmeta, DriverNetcdfCF)
-        data_vars = DriverXarray.get_data_variable_names(xmeta, xdimmap)
-        f = Field(initial_data=ds, dimension_map=xdimmap, driver='xarray', is_data=data_vars)
+        f = Field(initial_data=ds, driver='xarray')
+        f.decode()
 
         self.assertIsInstance(f.x, xr.DataArray)
         self.assertIsInstance(f.time, xr.DataArray)
@@ -54,7 +46,6 @@ class TestDriverXarray(TestBase):
         grid2 = f.grid
         self.assertIsInstance(grid2, Grid)
 
-        # tdk:TEST: test a grid with a mask
         self.assertFalse(grid1.has_mask)
 
         self.assertIsNotNone(grid1.get_value_stacked())
@@ -72,8 +63,9 @@ class TestDriverXarray(TestBase):
 
         self.assertEqual(res.extent, (-40.0, -30.0, 40.0, 40.0))
 
-        # tdk:FEAT: re-work geometry variable to not need ocgis
-        # coords = m.geom.convert_to(pack=False)
+    def test_init(self):
+        xd = DriverXarray()
+        self.assertIsInstance(xd, DriverXarray)
 
     def test_system_grid_chunking(self):
         # grid = create_gridxy_global(resolution=1.0)
@@ -130,51 +122,45 @@ class TestDriverXarray(TestBase):
         path = self.get_temporary_file_path('foo.nc')
         field.write(path)
 
-        ds = xr.open_dataset(path, autoclose=True)
-
-        # tdk: FEATURE: grid expansion needs to use xarray
-
-        # tdk: FEATURE: no crs support in xarray yet
-        ds['latitude_longitude'] = Spherical()
-
-        xmeta = create_metadata_from_xarray(ds)
-        xdimmap = create_dimension_map(xmeta, DriverNetcdfCF)
-        # tdk: FEATURE: need ocgis data_variables support using xarray somehow. it seems like this should happen automatically
-        # tdk: FEATURE:   during field creation since everything else springs from metadata...
-        is_data = DriverXarray.get_data_variable_names(xmeta, xdimmap)
-
-        f1 = Field(initial_data=ds, dimension_map=xdimmap, driver='xarray', is_data=is_data)
-        self.assertEqual(f1.data_variables[0].name, 'foo')
-
         poly = Polygon([[270, 40], [230, 20], [310, 40]])
         poly = GeometryVariable(name='subset', value=poly, crs=Spherical(), dimensions='ngeom')
         poly.wrap()
 
-        self.assertIsNone(f1.grid.get_mask())
+        for c in [True, False]:
+            ds = xr.open_dataset(path, autoclose=True)
+            f1 = Field(initial_data=ds, driver='xarray')
+            f1.decode()
+            self.assertEqual(f1.data_variables[0].name, 'foo')
+            self.assertIsNone(f1.grid.get_mask())
 
-        # tdk: TEST: add loop with create=[False, True]
-        # tdk: TEST: test with check_value in get_mask?
+            mask = f1.grid.get_mask(create=c)
+            if c:
+                self.assertFalse(mask.any())
+            else:
+                self.assertIsNone(mask)
+            mask = f1.grid.get_mask()
+            if c:
+                self.assertFalse(mask.any())
+            else:
+                self.assertIsNone(mask)
 
-        mask = f1.grid.get_mask(create=True)
-        self.assertFalse(mask.any())
-        mask = f1.grid.get_mask()
-        self.assertFalse(mask.any())
+            sub = f1.grid.get_intersects(poly)
 
-        sub = f1.grid.get_intersects(poly)
+            # Assert spatially masked values are set to NaNs in the data variable.
+            self.assertGreater(np.sum(np.isnan(sub.parent['foo'])), 0)
 
-        # Assert spatially masked values are set to NaNs in the data variable.
-        self.assertGreater(np.sum(np.isnan(sub.parent['foo'])), 0)
-
-        # Ensure we can expand the grid.
-        sub.expand()
+            # Ensure we can expand the grid.
+            sub.expand()
 
     def test_system_unstructured_grid(self):
         path = self.fixture_esmf_unstructured()
         # tdk: FIX: the load step is incredibly slow; what is it doing?
         ds = xr.open_dataset(path, autoclose=True)
-        xmeta = create_metadata_from_xarray(ds)
-        xdimmap = create_dimension_map(xmeta, DriverESMFUnstruct, path)
-        f = Field(initial_data=ds, dimension_map=xdimmap, driver=DriverESMFUnstruct)
+        f = Field(initial_data=ds)
+        f.decode(driver='netcdf-ugrid')
+        # xmeta = create_metadata_from_xarray(ds)
+        # xdimmap = create_dimension_map(xmeta, DriverESMFUnstruct, path)
+        # f = Field(initial_data=ds, dimension_map=xdimmap, driver=DriverESMFUnstruct)
         self.assertIsInstance(f.grid, GridUnstruct)
         self.assertEqual(f.grid.abstraction, Topology.POLYGON)
 
@@ -182,11 +168,6 @@ class TestDriverXarray(TestBase):
         # tdk: RESUME: continue working with unstructured grids; eventual goal is conversion to ESMF
 
         self.assertIsInstance(f.x, xr.DataArray)
-
-    def test_init(self):
-        # tdk: ORDER
-        xd = DriverXarray()
-        self.assertIsInstance(xd, DriverXarray)
 
     def test_create_varlike(self):
         name = 'moon'

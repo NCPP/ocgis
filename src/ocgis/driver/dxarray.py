@@ -1,8 +1,11 @@
 from ocgis.base import get_dimension_names
 
 from ocgis.constants import KeywordArgument, VariableName
+from ocgis.driver.base import AbstractUnstructuredDriver
 
 from ocgis.driver.nc import DriverNetcdfCF
+from ocgis.driver.nc_esmf_unstruct import DriverESMFUnstruct
+from ocgis.driver.nc_ugrid import DriverNetcdfUGRID
 from ocgis.util.addict import Dict
 import xarray as xr
 import numpy as np
@@ -90,6 +93,12 @@ class DriverXarray(DriverNetcdfCF):
         raise NotImplementedError
 
 
+class DriverXarrayUGRID(DriverXarray, DriverNetcdfUGRID):
+    key = "xarray-ugrid"
+
+
+class DriverXarrayESMFUnstruct(DriverXarray, DriverESMFUnstruct):
+    key = "xarray-esmf-unstruct"
 
 
 def create_metadata_from_xarray(ds):

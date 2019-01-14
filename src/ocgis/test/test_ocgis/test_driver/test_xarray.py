@@ -1,4 +1,5 @@
 from copy import deepcopy
+from unittest import SkipTest
 
 from mock import mock
 from ocgis.driver.dimension_map import create_dimension_map
@@ -10,9 +11,9 @@ from ocgis.variable.crs import Spherical, WGS84
 from shapely.geometry import Polygon, box
 
 from ocgis import Field, Grid, RequestDataset, GridUnstruct, GeometryVariable
-from ocgis.constants import GridAbstraction, DriverKey, Topology
+from ocgis.constants import GridAbstraction, DriverKey, Topology, DMK
 from ocgis.test import create_gridxy_global, create_exact_field
-from ocgis.test.base import TestBase
+from ocgis.test.base import TestBase, attr
 import xarray as xr
 import numpy as np
 
@@ -22,6 +23,7 @@ class TestDriverXarray(TestBase):
     def fixture_esmf_unstructured(self):
         rd = RequestDataset(self.path_state_boundaries)
         field = rd.get()
+        field = field.get_field_slice({'geom': slice(0, 10)})
         gc = field.geom.convert_to(use_geometry_iterator=True, pack=False)
         path = self.get_temporary_file_path('unstruct.nc')
         gc.parent.write(path, driver=DriverKey.NETCDF_ESMF_UNSTRUCT)
@@ -68,6 +70,7 @@ class TestDriverXarray(TestBase):
         self.assertIsInstance(xd, DriverXarray)
 
     def test_system_grid_chunking(self):
+        raise SkipTest("grid chunking through xarray in development")
         # grid = create_gridxy_global(resolution=1.0)
         # field = create_exact_field(grid, 'foo', ntime=10)
         # path1 = self.get_temporary_file_path('foo.nc')
@@ -103,8 +106,6 @@ class TestDriverXarray(TestBase):
         f2.grid.set_extrapolated_bounds('xbounds', 'ybounds', 'bounds')
         global_indices = f2.grid._gc_create_global_indices_(f1.grid.shape)
         f1.add_variable(xr.DataArray(global_indices, dims=f2.grid.dims, name='ESMF_Index'))
-
-        # tdk: RESUME: run this example but use dask chunks and "get_source_subset"
 
         gc = GridChunker(f1, f2, nchunks_dst=(5, 5))
         for res in gc.iter_src_grid_subsets(yield_dst=True):
@@ -154,20 +155,11 @@ class TestDriverXarray(TestBase):
 
     def test_system_unstructured_grid(self):
         path = self.fixture_esmf_unstructured()
-        # tdk: FIX: the load step is incredibly slow; what is it doing?
         ds = xr.open_dataset(path, autoclose=True)
         f = Field(initial_data=ds)
-        f.decode(driver='netcdf-ugrid')
-        # xmeta = create_metadata_from_xarray(ds)
-        # xdimmap = create_dimension_map(xmeta, DriverESMFUnstruct, path)
-        # f = Field(initial_data=ds, dimension_map=xdimmap, driver=DriverESMFUnstruct)
+        f.decode(driver='xarray-esmf-unstruct')
         self.assertIsInstance(f.grid, GridUnstruct)
         self.assertEqual(f.grid.abstraction, Topology.POLYGON)
-
-        # tdk: TEST: add test for field properties with unstructured grids
-        # tdk: RESUME: continue working with unstructured grids; eventual goal is conversion to ESMF
-
-        self.assertIsInstance(f.x, xr.DataArray)
 
     def test_create_varlike(self):
         name = 'moon'

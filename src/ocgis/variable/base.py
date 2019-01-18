@@ -1827,6 +1827,10 @@ class VariableCollection(AbstractCollection, AbstractContainer, Attributes):
         return OrderedDict([[k, v.shape] for k, v in list(self.items()) if not is_crs_variable(v)])
 
     @property
+    def storage(self):
+        return self._storage
+
+    @property
     def tags(self):
         raise NotImplementedError
 
@@ -2322,7 +2326,8 @@ class VariableCollection(AbstractCollection, AbstractContainer, Attributes):
 
     def to_xarray(self, **kwargs):
         """
-        Convert all the variables in the collection to an :class:`xarray.Dataset`.
+        Convert all the variables in the collection to an :class:`xarray.Dataset`. If the collection is using an
+        `xarray`-based driver then the internal storage reference is returned.
 
         :param kwargs: Optional keyword arguments to pass to the dataset creation. ``data_vars`` and ``attrs`` are
          always overloaded by this method.
@@ -2330,23 +2335,29 @@ class VariableCollection(AbstractCollection, AbstractContainer, Attributes):
         """
         #tdk: DOC: array_kwargs
         from xarray import Dataset
+        from ocgis.driver.dxarray import DriverXarray
 
-        kwargs = kwargs.copy()
-        array_kwargs = kwargs.pop('array_kwargs', {})
+        if issubclass(self.driver, DriverXarray):
+            ret = self.storage
+        else:
+            kwargs = kwargs.copy()
+            array_kwargs = kwargs.pop('array_kwargs', {})
 
-        data_vars = OrderedDict()
-        # Convert each variable to data array.
-        for v in self.values():
-            if not is_xarray(v):
-                data_vars[v.name] = v.to_xarray(**array_kwargs)
-            else:
-                data_vars[v.name] = v
+            data_vars = OrderedDict()
+            # Convert each variable to data array.
+            for v in self.values():
+                if not is_xarray(v):
+                    data_vars[v.name] = v.to_xarray(**array_kwargs)
+                else:
+                    data_vars[v.name] = v
 
-        # Create the arguments for the dataset creation.
-        kwargs['data_vars'] = data_vars
-        kwargs['attrs'] = self.attrs
+            # Create the arguments for the dataset creation.
+            kwargs['data_vars'] = data_vars
+            kwargs['attrs'] = self.attrs
 
-        return Dataset(**kwargs)
+            ret = Dataset(**kwargs)
+
+        return ret
 
     def write(self, *args, **kwargs):
         """

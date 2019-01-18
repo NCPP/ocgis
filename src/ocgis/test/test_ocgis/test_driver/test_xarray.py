@@ -153,6 +153,11 @@ class TestDriverXarray(TestBase):
             # Ensure we can expand the grid.
             sub.expand()
 
+            # Check some basic interoperability
+            self.assertIsInstance(f1.to_xarray(), xr.Dataset)
+            self.assertEqual(type(f1.storage), xr.Dataset)
+            self.assertEqual(id(f1.to_xarray()), id(f1.storage))
+
     def test_system_unstructured_grid(self):
         path = self.fixture_esmf_unstructured()
         ds = xr.open_dataset(path, autoclose=True)

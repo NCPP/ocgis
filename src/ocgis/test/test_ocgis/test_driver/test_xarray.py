@@ -154,9 +154,9 @@ class TestDriverXarray(TestBase):
             sub.expand()
 
             # Check some basic interoperability
-            self.assertIsInstance(f1.to_xarray(), xr.Dataset)
-            self.assertEqual(type(f1.storage), xr.Dataset)
-            self.assertEqual(id(f1.to_xarray()), id(f1.storage))
+            self.assertIsInstance(sub.parent.to_xarray(), xr.Dataset)
+            self.assertEqual(type(sub.parent.storage), xr.Dataset)
+            self.assertEqual(id(sub.parent.to_xarray()), id(sub.parent.storage))
 
     def test_system_unstructured_grid(self):
         path = self.fixture_esmf_unstructured()

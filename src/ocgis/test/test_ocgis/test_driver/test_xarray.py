@@ -10,7 +10,7 @@ from ocgis.spatial.grid_chunker import GridChunker
 from ocgis.variable.crs import Spherical, WGS84
 from shapely.geometry import Polygon, box
 
-from ocgis import Field, Grid, RequestDataset, GridUnstruct, GeometryVariable
+from ocgis import Field, Grid, RequestDataset, GridUnstruct, GeometryVariable, OcgOperations
 from ocgis.constants import GridAbstraction, DriverKey, Topology, DMK
 from ocgis.test import create_gridxy_global, create_exact_field
 from ocgis.test.base import TestBase, attr
@@ -124,7 +124,7 @@ class TestDriverXarray(TestBase):
         field.write(path)
 
         poly = Polygon([[270, 40], [230, 20], [310, 40]])
-        poly = GeometryVariable(name='subset', value=poly, crs=Spherical(), dimensions='ngeom')
+        poly = GeometryVariable(name='subset', value=poly, crs=Spherical(), dimensions='ngeom', ugid=1)
         poly.wrap()
 
         for c in [True, False]:
@@ -146,6 +146,11 @@ class TestDriverXarray(TestBase):
                 self.assertIsNone(mask)
 
             sub = f1.grid.get_intersects(poly)
+
+            res = OcgOperations(dataset=f1, geom=poly).execute()
+            subfield = res.get_element()
+            self.assertIsInstance(subfield.storage, xr.Dataset)
+            self.assertEqual(sub.shape, subfield.grid.shape)
 
             # Assert spatially masked values are set to NaNs in the data variable.
             self.assertGreater(np.sum(np.isnan(sub.parent['foo'])), 0)

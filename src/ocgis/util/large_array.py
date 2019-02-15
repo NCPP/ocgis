@@ -2,7 +2,6 @@ from copy import deepcopy
 
 import netCDF4 as nc
 import numpy as np
-
 import ocgis
 from ocgis import constants
 from ocgis.calc import tile
@@ -25,21 +24,20 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
     :type ops: :class:`ocgis.OcgOperations`
     :param int tile_dimension: The target tile/chunk dimension. This integer value must be greater than zero.
     :param bool verbose: If ``True``, print more verbose information to terminal.
-    :param bool use_optimizations: If ``True``, cache :class:`Field` and :class:`TemporalGroupDimension` objects for
-     reuse during tile iteration.
-    :raises: AssertionError, ValuError
+    :param bool use_optimizations: If ``True``, cache :class:`~ocgis.Field` and :class:`~ocgis.TemporalGroupVariable`
+     objects for reuse during tile iteration.
+    :raises: AssertionError, ValueError
     :returns: Path to the output NetCDF file.
     :rtype: str
 
     >>> from ocgis import RequestDataset, OcgOperations
     >>> from ocgis.util.large_array import compute
     >>> rd = RequestDataset(uri='/path/to/file', variable='tas')
-    >>> ops = OcgOperations(dataset=rd,calc=[{'func':'mean','name':'mean'}],output_format='nc')
+    >>> ops = OcgOperations(dataset=rd, calc=[{'func':'mean','name':'mean'}],output_format='nc')
     >>> ret = compute(ops, 25)
     """
 
     assert isinstance(ops, OcgOperations)
-    assert ops.calc is not None
     assert ops.output_format == constants.OutputFormatName.NETCDF
 
     # Ensure that progress is not showing 100% at first.
@@ -56,19 +54,23 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
         raise ValueError('"tile_dimension" must be greater than 0')
 
     # Determine if we are working with a multivariate function.
-    if CalculationEngine._check_calculation_members_(ops.calc, AbstractMultivariateFunction):
-        # Only one multivariate calculation allowed.
-        assert len(ops.calc) == 1
-        has_multivariate = True
+    if ops.calc is not None:
+        if CalculationEngine._check_calculation_members_(ops.calc, AbstractMultivariateFunction):
+            # Only one multivariate calculation allowed.
+            assert len(ops.calc) == 1
+            has_multivariate = True
+        else:
+            # Only one dataset allowed.
+            assert len(list(ops.dataset)) == 1
+            has_multivariate = False
     else:
-        # Only one dataset allowed.
-        assert len(list(ops.dataset)) == 1
         has_multivariate = False
 
     # work on a copy of the operations to create the template file
     ops_file_only = deepcopy(ops)
     # we need the output to be file only for the first request
-    ops_file_only.file_only = True
+    if ops.calc is not None:
+        ops_file_only.file_only = True
     # save the environment flag for calculation optimizations.
     orig_oc = ocgis.env.OPTIMIZE_FOR_CALC
 
@@ -110,7 +112,10 @@ def compute(ops, tile_dimension, verbose=False, use_optimizations=True):
         # get the shape for the tile schema
         if verbose:
             print('getting tile schema shape inputs...')
-        shp_variable = ops.calc[0]['name']
+        if ops.calc is not None:
+            shp_variable = ops.calc[0]['name']
+        else:
+            shp_variable = None
         template_rd = ocgis.RequestDataset(uri=fill_file, variable=shp_variable)
         template_field = template_rd.get()
         shp = template_field.grid.shape

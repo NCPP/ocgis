@@ -1,11 +1,11 @@
 import time
 
 import numpy as np
-
 import ocgis
 from ocgis import RequestDataset
 from ocgis import Variable
 from ocgis.calc import tile
+from ocgis.test import create_gridxy_global, create_exact_field
 from ocgis.test.base import TestBase, attr
 from ocgis.util.large_array import compute, set_variable_spatial_mask
 
@@ -134,20 +134,24 @@ class Test(TestBase):
 
     @attr('data')
     def test_compute_with_geom(self):
-        rd = self.test_data.get_rd('cancm4_tas')
-        ops = ocgis.OcgOperations(dataset=rd, calc=[{'func': 'mean', 'name': 'mean'}],
-                                  calc_grouping=['month'], output_format='nc',
-                                  geom='state_boundaries',
-                                  select_ugid=[2, 9, 12, 23, 25],
-                                  add_auxiliary_files=False,
-                                  agg_selection=True)
-        ret = compute(ops, 5, verbose=False)
+        grid = create_gridxy_global(resolution=5.0)
+        field = create_exact_field(grid, 'exact')
+        path = self.get_temporary_file_path('foo.nc')
+        field.write(path)
+        rd = RequestDataset(path)
 
-        ops.prefix = 'ocgis'
-        ret_ocgis = ops.execute()
+        calcs = [[{'func': 'mean', 'name': 'mean'}], None]
+        for ii, c in enumerate(calcs):
+            ops = ocgis.OcgOperations(dataset=rd, calc=c, calc_grouping=['month'], output_format='nc',
+                                      geom=self.path_state_boundaries, select_ugid=[2, 9, 12, 23, 25],
+                                      add_auxiliary_files=False, agg_selection=True, prefix=str(ii) + '_foo')
+            ret = compute(ops, 5, verbose=False)
 
-        self.assertNcEqual(ret, ret_ocgis, check_fill_value=False, check_types=False,
-                           ignore_attributes={'global': ['history'], 'mean': ['_FillValue']})
+            ops.prefix = str(ii)
+            ret_ocgis = ops.execute()
+
+            self.assertNcEqual(ret, ret_ocgis, check_fill_value=False, check_types=False,
+                               ignore_attributes={'global': ['history'], 'mean': ['_FillValue']})
 
     @attr('data')
     def test_compute_small(self):

@@ -4,7 +4,6 @@ from contextlib import contextmanager
 from copy import copy, deepcopy
 
 import six
-
 from ocgis import constants
 from ocgis.exc import EmptyObjectError
 from ocgis.util.helpers import get_iter
@@ -119,6 +118,12 @@ class AbstractNamedObject(AbstractInterfaceObject):
 
         aliases.append(self._name)
         self._aliases = aliases
+
+
+def atleast_ncver(ver):
+    from pkg_resources import parse_version
+    import netCDF4
+    return parse_version(netCDF4.__version__) >= parse_version(ver)
 
 
 def get_dimension_names(target):

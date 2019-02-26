@@ -340,6 +340,16 @@ By default, the output coordinate reference system (CRS) is the CRS of the input
 >>> import ocgis
 >>> output_crs = ocgis.crs.Spherical()
 
+General ``PROJ.4`` and ``EPSG`` codes are supported by coordinate systems. For example, to output data on the GCS North American 1983 coordinate system, you can configure the coordinate system like:
+
+>>> from ocgis import crs
+>>> output_crs = crs.CRS(epgs=4269)
+
+You could also use a ``PROJ.4`` string:
+
+>>> from ocgis import crs
+>>> output_crs = crs.CRS(proj4='+proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs')
+
 .. _output_format_headline:
 
 output_format

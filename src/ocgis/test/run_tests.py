@@ -37,13 +37,13 @@ class RunAll(nose.plugins.Plugin):
 
 class RunMore(RunAll):
     name = 'test_more'
-    _attrs_standard = '!slow,!remote,!data'
+    _attrs_standard = '!slow,!remote,!data,!icclim,!esmf'
 
 
 class RunNoESMF(RunAll):
     name = 'no-esmf'
     # _exclude = 'test_regrid.test_base|test_conv.test_esmpy'
-    _attrs_standard = '!esmf,!esmpy7,!remote,!slow,!data'
+    _attrs_standard = '!esmf,!esmpy7,!remote,!slow,!data,!icclim'
 
     # def wantFile(self, file):
     #     match = re.search(self._exclude, file)

@@ -3,11 +3,12 @@ import itertools
 import os
 from collections import deque, OrderedDict
 
+import netCDF4
 import numpy as np
-from netCDF4 import date2num, num2date, netcdftime
 from ocgis import Dimension
 from ocgis import RequestDataset
 from ocgis import constants
+from ocgis import netcdftime
 from ocgis.constants import HeaderName, KeywordArgument, DimensionMapKey
 from ocgis.exc import CannotFormatTimeError, IncompleteSeasonError
 from ocgis.ops.parms.definition import CalcGrouping
@@ -20,6 +21,11 @@ from ocgis.variable.temporal import get_datetime_conversion_state, get_datetime_
     get_origin_datetime_from_months_units, get_sorted_seasons, TemporalVariable, iter_boolean_groups_from_time_regions, \
     TemporalGroupVariable, get_time_regions, get_datetime_or_netcdftime
 from ocgis.variable.temporal import get_datetime_or_netcdftime as dt
+
+try:
+    date2num, num2date = netcdftime.date2num, netcdftime.num2date
+except AttributeError:
+    date2num, num2date = netCDF4.date2num, netCDF4.num2date
 
 
 class AbstractTestTemporal(AbstractTestInterface):
@@ -189,7 +195,6 @@ class TestTemporalVariable(AbstractTestTemporal):
         return td
 
     def test_init(self):
-        # td = TemporalVariable(value=[datetime.datetime(2000, 1, 1)])
         td = self.init_temporal_variable(value=[datetime.datetime(2000, 1, 1)])
         self.assertEqual(td.name, constants.DEFAULT_TEMPORAL_NAME)
         self.assertEqual(td.calendar, constants.DEFAULT_TEMPORAL_CALENDAR)
@@ -329,7 +334,7 @@ class TestTemporalVariable(AbstractTestTemporal):
 
     @attr('cfunits')
     def test_cfunits(self):
-        temporal = self.init_temporal_variable(value=[4, 5, 6], units='days since 1900-1-1')
+        temporal = self.init_temporal_variable(value=[4, 5, 6], units='days since 1900-1-1', calendar='gregorian')
         self.assertEqual(temporal.cfunits.calendar, temporal.calendar)
 
     @attr('cfunits')
@@ -385,7 +390,7 @@ class TestTemporalVariable(AbstractTestTemporal):
                     self.assertEqual(td.extent_datetime, (min(value_datetime), max(value_datetime)))
                 except CannotFormatTimeError:
                     self.assertFalse(format_time)
-                self.assertEqual(td.extent_numtime, (6000., 6002.))
+                self.assertNumpyAllClose(np.array(td.extent_numtime), np.array((6000., 6002.)))
 
     def test_get_between(self):
         keywords = dict(as_datetime=[False, True])
@@ -459,11 +464,11 @@ class TestTemporalVariable(AbstractTestTemporal):
         units = 'days since 0001-01-01 00:00:00'
         calendar = '365_day'
         ndt = netcdftime.datetime
-        ndts = np.array([ndt(0000, 2, 30), ndt(0000, 2, 31)])
+        ndts = np.array([ndt(1, 2, 27), ndt(1, 2, 28)])
         narr = date2num(ndts, units, calendar=calendar)
         td = self.init_temporal_variable(value=narr, units=units, calendar=calendar)
         res = td.get_datetime(td.get_value())
-        self.assertTrue(all([element.year == 0000 for element in res.flat]))
+        self.assertTrue(all([element.year == 1 for element in res.flat]))
 
     def test_get_datetime_with_template_units(self):
         """Template units are present in some non-CF conforming files."""
@@ -481,7 +486,7 @@ class TestTemporalVariable(AbstractTestTemporal):
         for units, value in zip(units_options, value_options):
             td = self.init_temporal_variable(value=value, units=units)
             nums = td.get_numtime(td.value_datetime)
-            self.assertNumpyAll(nums, value)
+            self.assertNumpyAllClose(nums, value)
 
         # Test passing in a list.
         value = [datetime.datetime(2000, 1, 1), datetime.datetime(2000, 1, 2)]
@@ -527,7 +532,7 @@ class TestTemporalVariable(AbstractTestTemporal):
                 desired = [[693232.0, 694327.0]]
             else:
                 desired = [[693232.5, 694326.5]]
-            self.assertEqual(actual, desired)
+            self.assertNumpyAllClose(np.array(actual), np.array(desired))
 
     def test_get_grouping_other(self):
         tdim = self.get_temporalvariable()
@@ -537,13 +542,13 @@ class TestTemporalVariable(AbstractTestTemporal):
         repr_dt = date2num(repr_dt, tdim.units, calendar=tdim.calendar).tolist()
         desired = [693247.0, 693337.0, 693428.0, 693520.0, 693612.0, 693702.0, 693793.0, 693885.0, 693977.0, 694067.0,
                    694158.0, 694250.0]
-        self.assertEqual(repr_dt, desired)
+        self.assertNumpyAllClose(np.array(repr_dt), np.array(desired))
 
         new_bounds = date2num(new_bounds, tdim.units, calendar=tdim.calendar).tolist()
         desired = [[693232.0, 693597.0], [693291.0, 693383.0], [693383.0, 693475.0], [693475.0, 693566.0],
                    [693597.0, 693962.0], [693656.0, 693748.0], [693748.0, 693840.0], [693840.0, 693931.0],
                    [693962.0, 694327.0], [694021.0, 694113.0], [694113.0, 694205.0], [694205.0, 694296.0]]
-        self.assertEqual(new_bounds, desired)
+        self.assertNumpyAllClose(np.array(new_bounds), np.array(desired))
 
         desired = [False, False, False, False, False, False, False, False, False, False, False, False, False, False,
                    False, False, False, False, False, False, False, False, False, False, False, False, False, False,
@@ -790,7 +795,7 @@ class TestTemporalVariable(AbstractTestTemporal):
 
         actual = date2num(tg.get_value(), td.units, calendar=td.calendar).tolist()
         desired = [734701.0, 735066.0]
-        self.assertEqual(actual, desired)
+        self.assertNumpyAllClose(np.array(actual), np.array(desired))
 
         actual = tg.dgroups[0].tolist()
         desired = [False, False, False, False, False, False, False, False, False, False, False, False, False, False,
@@ -857,7 +862,7 @@ class TestTemporalVariable(AbstractTestTemporal):
                    735091.0, 735092.0, 735093.0, 735094.0, 735095.0, 735096.0, 735097.0, 735098.0, 735099.0, 735100.0,
                    735101.0, 735102.0, 735103.0, 735104.0, 735105.0, 735106.0, 735107.0, 735108.0, 735109.0, 735110.0,
                    735111.0, 735112.0]
-        self.assertEqual(actual, desired)
+        self.assertNumpyAllClose(np.array(actual), np.array(desired))
 
         # Test crossing year boundary.
         for calc_grouping in [[[12, 1, 2], 'year'], ['year', [12, 1, 2]]]:
@@ -865,11 +870,11 @@ class TestTemporalVariable(AbstractTestTemporal):
 
             actual = tg.value_numtime.tolist()
             desired = [734519.0, 734885.0]
-            self.assertEqual(actual, desired)
+            self.assertNumpyAllClose(np.array(actual), np.array(desired))
 
             actual = tg.bounds.value_numtime.tolist()
             desired = [[734504.0, 734869.0], [734870.0, 735234.0]]
-            self.assertEqual(actual, desired)
+            self.assertNumpyAllClose(np.array(actual), np.array(desired))
 
             actual = td.value_numtime[tg.dgroups[1]].tolist()
             desired = [734870.0, 734871.0, 734872.0, 734873.0, 734874.0, 734875.0, 734876.0, 734877.0, 734878.0,
@@ -882,7 +887,7 @@ class TestTemporalVariable(AbstractTestTemporal):
                        735208.0, 735209.0, 735210.0, 735211.0, 735212.0, 735213.0, 735214.0, 735215.0, 735216.0,
                        735217.0, 735218.0, 735219.0, 735220.0, 735221.0, 735222.0, 735223.0, 735224.0, 735225.0,
                        735226.0, 735227.0, 735228.0, 735229.0, 735230.0, 735231.0, 735232.0, 735233.0, 735234.0]
-            self.assertEqual(actual, desired)
+            self.assertNumpyAllClose(np.array(actual), np.array(desired))
 
     def test_get_grouping_unlimited(self):
         """Test temporally grouped variable maintains unlimited dimension."""
@@ -938,7 +943,7 @@ class TestTemporalVariable(AbstractTestTemporal):
 
     def test_get_to_conform_value(self):
         td = self.init_temporal_variable(value=[datetime.datetime(2000, 1, 1)])
-        self.assertNumpyAll(td._get_to_conform_value_(), np.ma.array([730121.]))
+        self.assertNumpyAllClose(td._get_to_conform_value_(), np.ma.array([730121.]))
 
     def test_has_months_units(self):
         td = self.init_temporal_variable(value=[5, 6], units='months since 1978-12')

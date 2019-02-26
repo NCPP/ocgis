@@ -5,7 +5,7 @@ import tempfile
 from setuptools import setup, Command, find_packages
 from setuptools.command.test import test as TestCommand
 
-VERSION = '2.2.0dev0'
+VERSION = '2.2.0.dev0'
 
 
 ########################################################################################################################
@@ -102,7 +102,7 @@ setup(
     name='ocgis',
     version=VERSION,
     author='NESII/CIRES/NOAA-ESRL',
-    author_email='ocgis_support@list.woc.noaa.gov',
+    author_email='https://github.com/NCPP/ocgis/issues',
     url='http://ocgis.readthedocs.io/en/latest/install.html',
     license='NCSA License',
     platforms=['all'],

@@ -567,7 +567,13 @@ class Field(VariableCollection):
                     if k == uid.name:
                         continue
 
-                    field[k].get_value()[idx] = v
+                    if v is None:
+                        # Mask the value if it is None. NULLs are allowed in OGR Vector files, but they do not translate
+                        # well to Python. Strings are generally okay but floats/ints case problems.
+                        field[k].get_mask(create=True)[idx] = v
+                    else:
+                        # Set the associated field value.
+                        field[k].get_value()[idx] = v
 
         data_variables = [uid.name]
         if not union:
@@ -1087,7 +1093,9 @@ class Field(VariableCollection):
 
     @classmethod
     def read(cls, *args, **kwargs):
-        raise NotImplementedError("Use request dataset 'get' method.")
+        # tdk: doc
+        from ocgis import RequestDataset
+        return RequestDataset(*args, **kwargs).create_field()
 
     def write(self, *args, **kwargs):
         """

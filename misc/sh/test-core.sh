@@ -12,7 +12,10 @@ export RUN_SERIAL_TESTS="true"
 export RUN_PARALLEL_TESTS="true"
 #export RUN_PARALLEL_TESTS="false"
 
-nps=(2 3 4 5 6 7 8)
+export NOSE_ATTRS="!slow,!remote,!icclim,!esmf,!mpi"
+
+#nps=(2 3 4 5 6 7 8)
+nps=(4)
 
 tests=(../../src/ocgis/test)
 
@@ -21,7 +24,7 @@ for jj in "${tests[@]}"; do
     if [ ${RUN_SERIAL_TESTS} == "true" ]; then
         inf "Running serial tests: ${jj}"
 
-        nosetests -vsx ${jj}
+        nosetests -vsx -a ${NOSE_ATTRS} ${jj}
         if [ $? == 1 ]; then
             error "One or more serial tests failed."
             exit 1

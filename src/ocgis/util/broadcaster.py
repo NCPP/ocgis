@@ -2,7 +2,6 @@ from contextlib import contextmanager
 from copy import deepcopy
 
 import numpy as np
-
 from ocgis.util.helpers import get_swap_chain
 
 
@@ -17,7 +16,7 @@ def broadcast_array_by_dimension_names(arr, src_names, dst_names):
     if len(to_squeeze) > 0:
         to_squeeze = [src_names.index(t) for t in to_squeeze]
         src_names = [dn for dn in src_names if dn in dst_names]
-        arr = np.squeeze(arr, axis=to_squeeze)
+        arr = np.squeeze(arr, axis=tuple(to_squeeze))
     # The swapping chain for the output data array.
     swap_chain = get_swap_chain(src_names, matching_dst_names)
     for sc in swap_chain:

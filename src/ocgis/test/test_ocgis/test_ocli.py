@@ -15,7 +15,7 @@ from ocgis.variable.crs import Spherical
 
 @attr('cli')
 class TestChunkedRWG(TestBase):
-    """Tests for target ``chunked_rwg``."""
+    """Tests for target ``chunked-rwg``."""
 
     def fixture_flags_good(self):
         poss = Dict()
@@ -89,7 +89,7 @@ class TestChunkedRWG(TestBase):
 
         # Generate the source and destination chunks and a merged weight file.
         runner = CliRunner()
-        cli_args = ['chunked_rwg', '--source', source, '--destination', destination, '--nchunks_dst', '2,3', '--wd',
+        cli_args = ['chunked-rwg', '--source', source, '--destination', destination, '--nchunks_dst', '2,3', '--wd',
                     wd, '--weight', weight, '--persist']
         result = runner.invoke(ocli, args=cli_args, catch_exceptions=False)
         self.assertEqual(result.exit_code, 0)
@@ -126,7 +126,7 @@ class TestChunkedRWG(TestBase):
         weight = os.path.join(wd, 'weights.nc')
 
         runner = CliRunner()
-        cli_args = ['chunked_rwg', '--source', source, '--destination', destination, '--wd', wd, '--weight', weight]
+        cli_args = ['chunked-rwg', '--source', source, '--destination', destination, '--wd', wd, '--weight', weight]
         with self.assertRaises(ValueError):
             _ = runner.invoke(ocli, args=cli_args, catch_exceptions=False)
 
@@ -155,7 +155,7 @@ class TestChunkedRWG(TestBase):
             for k2, v2 in k.items():
                 if v2 != '__exclude__':
                     new_poss[k2] = v2
-            cli_args = ['chunked_rwg']
+            cli_args = ['chunked-rwg']
             for k2, v2 in new_poss.items():
                 cli_args.append('--{}'.format(k2))
                 if v2 != '__include__':
@@ -261,7 +261,7 @@ class TestChunkedRWG(TestBase):
         weight = os.path.join(self.current_dir_output, 'weights.nc')
 
         runner = CliRunner()
-        cli_args = ['chunked_rwg', '--source', source, '--destination', destination, '--wd', wd, '--spatial_subset',
+        cli_args = ['chunked-rwg', '--source', source, '--destination', destination, '--wd', wd, '--spatial_subset',
                     '--weight', weight, '--esmf_regrid_method', 'BILINEAR', '--persist']
         result = runner.invoke(ocli, args=cli_args, catch_exceptions=False)
         self.assertEqual(result.exit_code, 0)

@@ -42,7 +42,7 @@ def create_command(wd, key_src, key_dst, weight, nprocs=MPI_PROCS):
     if is_point:
         nprocs = 1
 
-    cmd = [MPIEXEC, '-n', str(nprocs), sys.executable, OCLI_EXE, 'chunked_rwg']
+    cmd = [MPIEXEC, '-n', str(nprocs), sys.executable, OCLI_EXE, 'chunked-rwg']
 
     cmd.extend(['--source', dsrc['path'], '--esmf_src_type', dsrc['etype']])
     cmd.extend(['--destination', ddst['path'], '--esmf_dst_type', ddst['etype']])

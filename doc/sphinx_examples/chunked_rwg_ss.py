@@ -21,12 +21,12 @@ dstgrid.parent.write(DST_CFGRID)
 # ----------------------------------------------------------------------------------------------------------------------
 
 # Construct the chunked regrid weight generation command and execute in a subprocess.
-cmd = ['ocli', 'chunked_rwg', '-s', SRC_CFGRID, '-d', DST_CFGRID, '-w', WEIGHT, '--spatial_subset']
+cmd = ['ocli', 'chunked-rwg', '-s', SRC_CFGRID, '-d', DST_CFGRID, '-w', WEIGHT, '--spatial_subset']
 print(' '.join(cmd))
 
 # Command looks like:
 
-# ocli chunked_rwg -s src.nc -d dst.nc -w esmf_weights.nc --spatial_subset
+# ocli chunked-rwg -s src.nc -d dst.nc -w esmf_weights.nc --spatial_subset
 
 subprocess.check_call(cmd)
 

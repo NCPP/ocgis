@@ -15,7 +15,7 @@ Current subcommands:
 =============== ========================== =======================================================================================================================================================================================
 Subcommand      Long Name                  Description
 =============== ========================== =======================================================================================================================================================================================
-``chunked_rwg`` :ref:`chunked_rwg_section` Chunked regrid weight generation using OCGIS spatial decompositions and ESMF weight generation. Allows weight generation for very high resolution grids in memory-limited environments.
+``chunked-rwg`` :ref:`chunked_rwg_section` Chunked regrid weight generation using OCGIS spatial decompositions and ESMF weight generation. Allows weight generation for very high resolution grids in memory-limited environments.
 =============== ========================== =======================================================================================================================================================================================
 
 .. _chunked_rwg_section:

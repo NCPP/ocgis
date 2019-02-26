@@ -2628,6 +2628,11 @@ def set_mask_by_variable(source_variable, target_variable, slice_map=None, updat
                 if mask_source[slc]:
                     for m in slice_map:
                         template[m[1]] = slc[m[0]]
+                    # TODO:OPTIMIZE: The tuple(template) call is required for future numpy versions to differentiate...
+                    #  between a fancy, index-based sliced and a multi-dimensional index-based slice. bekozi expects...
+                    #  this call is more expensive with the tuple conversion. It may be possible to speed this up.
+                    mask_target[tuple(template)] = True
+        target_variable.set_mask(mask_target, update=update)
                     if target_is_xarray:
                         mask_target[template] = np.nan
                     else:

@@ -81,7 +81,7 @@ Tests may also be ran with a setup command:
 
     python setup.py test
 
-Please report any errors to the support email address.
+Please report any errors on the software's GitHub issue tracker.
 
 Configuring the :class:`~ocgis.GeomCabinet`
 -------------------------------------------
@@ -104,14 +104,14 @@ Required
 ============== ======= ========================================
 Package Name   Version URL
 ============== ======= ========================================
-``numpy``      1.14.1  http://www.numpy.org/
-``netCDF4``    1.3.1   http://unidata.github.io/netcdf4-python/
-``gdal``       2.2.3   https://pypi.python.org/pypi/GDAL/
+``numpy``      1.15.0  http://www.numpy.org/
+``netCDF4``    1.4.2   http://unidata.github.io/netcdf4-python/
+``gdal``       2.3.2   https://pypi.python.org/pypi/GDAL/
 ``pyproj``     1.9.5.1 https://github.com/jswhit/pyproj
 ``shapely``    1.6.4   https://pypi.python.org/pypi/Shapely
-``fiona``      1.7.11  https://pypi.python.org/pypi/Fiona
+``fiona``      1.8.0   https://pypi.python.org/pypi/Fiona
 ``six``        1.11.0  https://pypi.python.org/pypi/six
-``setuptools`` 38.5.1  https://pypi.python.org/pypi/setuptools
+``setuptools`` 40.5.0  https://pypi.python.org/pypi/setuptools
 ============== ======= ========================================
 
 Optional
@@ -125,7 +125,7 @@ Package Name  Version  URL                                                    Us
 ``ESMF``      7.1.0r  https://www.earthsystemcog.org/projects/esmpy/releases Supports regridding operations.
 ``mpi4py``    3.0.0   http://mpi4py.readthedocs.io/en/stable/                Required for parallel execution.
 ``rtree``     0.8.3   https://pypi.python.org/pypi/Rtree/                    Constructs spatial indexes at runtime. Useful for complicated GIS operations (i.e. large or complex polygons for subsetting)
-``cf_units``  1.2.0   https://github.com/SciTools/cf_units                   Allows unit transformations.
+``cf_units``  2.0.2   https://github.com/SciTools/cf_units                   Allows unit transformations.
 ``icclim``    4.2.10  http://icclim.readthedocs.io/en/latest/                Calculation of the full suite of European Climate Assessment (ECA) indices with optimized code implementation.
 ``nose``      1.3.7   https://nose.readthedocs.io/en/latest/                 Run unit tests.
 ``mock``      2.0.0   https://pypi.python.org/pypi/mock/                     Run unit tests.

@@ -260,6 +260,11 @@ class DriverNetcdf(AbstractDriver):
                     if kwargs.get('parallel') and kwargs.get('comm') is None:
                         kwargs['comm'] = lvm.comm
             ret = nc.Dataset(uri, mode=mode, **kwargs)
+
+            # tdk: FIX: this should be enabled for MFDataset as well. see https://github.com/Unidata/netcdf4-python/issues/809#issuecomment-435144221
+            # netcdf4 >= 1.4.0 always returns masked arrays. This is inefficient and is turned off by default by ocgis.
+            if hasattr(ret, 'set_always_mask'):
+                ret.set_always_mask(False)
         else:
             ret = nc.MFDataset(uri, **kwargs)
 
@@ -839,10 +844,18 @@ def update_group_metadata(rootgrp, fill):
                 except AttributeError:
                     fill_value = 'auto'
 
-        if isinstance(value.datatype, VLType):
-            the_dtype = ObjectType(value.dtype)
+        value_dtype = value.dtype
+        try:
+            value_datatype = value.datatype
+        except AttributeError:
+            # This is a fickle property for some reason. bekozi does not know if it is version related or not present
+            # on standard non-VLType variables. Maybe both. Either way, this is the best way to detect VLType variables.
+            value_datatype = None
+
+        if isinstance(value_datatype, VLType):
+            the_dtype = ObjectType(value_dtype)
         else:
-            the_dtype = value.dtype
+            the_dtype = value_dtype
 
         variables.update({key: {'dimensions': value.dimensions,
                                 'attrs': subvar,

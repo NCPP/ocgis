@@ -1311,8 +1311,8 @@ class TestVariable(AbstractTestInterface):
         path = self.get_temporary_file_path('out.nc')
         with self.nc_scope(path, 'w') as ds:
             bv.write(ds)
-        # self.ncdump(path)
         with self.nc_scope(path, 'r') as ds:
+            ds.set_auto_mask(False)
             var = ds.variables[bv.name]
             self.assertEqual(var.bounds, bv.bounds.name)
             self.assertNumpyAll(ds.variables[bv.bounds.name][:], bv.bounds.get_value())
@@ -1492,6 +1492,7 @@ class TestSourcedVariable(AbstractTestInterface):
         self.assertEqual(sub.shape, (6, 3, 3))
 
         with self.nc_scope(self.get_request_dataset().uri, 'r') as ds:
+            ds.set_always_mask(False)
             var = ds.variables[sv.name]
             actual = var[5:11, 3:6, 5:8]
 

@@ -2,7 +2,6 @@ import abc
 import csv
 import datetime
 import itertools
-import os.path
 from abc import abstractproperty
 from collections import OrderedDict
 from copy import deepcopy
@@ -10,19 +9,15 @@ from copy import deepcopy
 import fiona
 import netCDF4 as nc
 import numpy as np
+import ocgis
+import os.path
 import six
 from fiona.crs import from_string
 from nose.plugins.skip import SkipTest
-from shapely import wkt
-from shapely.geometry.geo import mapping, shape
-from shapely.geometry.point import Point
-from shapely.geometry.polygon import Polygon
-
-import ocgis
 from ocgis import RequestDataset, vm
 from ocgis import exc, env, constants
 from ocgis import osr
-from ocgis.base import get_variable_names
+from ocgis.base import get_variable_names, atleast_ncver
 from ocgis.collection.field import Field
 from ocgis.collection.spatial import SpatialCollection
 from ocgis.constants import WrappedState, KeywordArgument, TagName, HeaderName, GridAbstraction, OutputFormatName
@@ -46,6 +41,10 @@ from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.variable.temporal import TemporalVariable
 from ocgis.vmachine.mpi import MPI_SIZE, MPI_RANK, MPI_COMM, get_standard_comm_state
+from shapely import wkt
+from shapely.geometry.geo import mapping, shape
+from shapely.geometry.point import Point
+from shapely.geometry.polygon import Polygon
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -606,7 +605,13 @@ class TestSimple(TestSimpleBase):
         self.assertDictEqual(field.shapes, desired)
         with nc_scope(os.path.join(self.current_dir_output, self.fn)) as ds:
             to_test = ds.variables['foo'][0, 0, :, :].reshape(1, 1, 4, 4)
-            self.assertNumpyAll(to_test, field['foo'].get_value())
+            try:
+                self.assertNumpyAll(to_test, field['foo'].get_masked_value())
+            except AssertionError:
+                if not atleast_ncver("1.4"):
+                    self.assertNumpyAll(to_test, field['foo'].get_value())
+                else:
+                    raise
 
         calc = [{'func': 'mean', 'name': 'my_mean'}]
         group = ['month', 'year']
@@ -1185,6 +1190,7 @@ class TestSimple(TestSimpleBase):
 
             if o == 'shp':
                 with fiona.open(ret) as f:
+                    f = iter(f)  # Recommended by Fiona devs to avoid buggy __next__(...)
                     row = next(f)
                     self.assertIn('divide', row['properties'])
 

@@ -12,17 +12,16 @@ import fiona
 import numpy as np
 import six
 from fiona.crs import from_epsg
-from netCDF4 import netcdftime
 from numpy.core.multiarray import ndarray
 from numpy.ma import MaskedArray
+from ocgis import netcdftime
+from ocgis.constants import MPITag
+from ocgis.exc import SingleElementError, ShapeError, AllElementsMaskedError
 from shapely.geometry import Point
 from shapely.geometry.base import BaseGeometry, BaseMultipartGeometry
 from shapely.geometry.geo import mapping
 from shapely.geometry.polygon import Polygon
 from shapely.wkb import loads as wkb_loads
-
-from ocgis.constants import MPITag
-from ocgis.exc import SingleElementError, ShapeError, AllElementsMaskedError
 
 
 class ProgressBar(object):
@@ -794,7 +793,7 @@ def get_trimmed_array_by_mask(arr, return_adjustments=False):
 
     if has_col:
         slc.append(slice(start_col, stop_col))
-    ret = arr.__getitem__(slc)
+    ret = arr.__getitem__(tuple(slc))
 
     if return_adjustments:
         ret = (ret, tuple(slc))

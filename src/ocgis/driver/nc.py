@@ -1,13 +1,13 @@
 import itertools
 import logging
-from abc import ABCMeta
-from collections import OrderedDict
-from copy import deepcopy
-
 import netCDF4 as nc
 import numpy as np
 import six
+from abc import ABCMeta
+from collections import OrderedDict
+from copy import deepcopy
 from netCDF4._netCDF4 import VLType, MFDataset, MFTime
+
 from ocgis import constants, vm
 from ocgis import env
 from ocgis.base import orphaned, raise_if_empty
@@ -122,7 +122,7 @@ class DriverNetcdf(AbstractDriver):
             if ((len(dimensions) > 0 and var.has_masked_values) and (
                     write_mode == MPIWriteMode.TEMPLATE or not file_only)) or (
                     is_nc3 and not var.has_allocated_value and len(
-                dimensions) > 0):
+                dimensions) > 0) or (env.USE_NETCDF4_MPI and var.has_mask and vm.size > 1):
                 fill_value = cls.get_variable_write_fill_value(var)
             else:
                 # Copy from original attributes.

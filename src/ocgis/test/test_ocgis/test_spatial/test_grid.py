@@ -1,12 +1,16 @@
-import itertools
-import sys
-from copy import deepcopy
-from unittest import SkipTest
-
 import fiona
+import itertools
 import mock
 import numpy as np
+import sys
+from copy import deepcopy
 from numpy.testing.utils import assert_equal
+from shapely import wkt
+from shapely.geometry import Point, box, MultiPolygon, shape
+from shapely.geometry import Polygon
+from shapely.geometry.base import BaseGeometry
+from unittest import SkipTest
+
 from ocgis import RequestDataset, vm, env
 from ocgis.base import get_variable_names
 from ocgis.collection.field import Field
@@ -27,10 +31,6 @@ from ocgis.variable.crs import WGS84, CoordinateReferenceSystem, Spherical, Cart
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.vmachine.mpi import MPI_RANK, MPI_COMM, variable_gather, MPI_SIZE, OcgDist, variable_scatter
-from shapely import wkt
-from shapely.geometry import Point, box, MultiPolygon, shape
-from shapely.geometry import Polygon
-from shapely.geometry.base import BaseGeometry
 
 
 class Test(AbstractTestInterface):
@@ -684,9 +684,7 @@ class TestGrid(AbstractTestInterface):
     @attr('mpi')
     def test_get_intersects_one_rank_with_mask(self):
         """Test mask is created if one rank has a spatial mask."""
-        # tdk:FIX: does not work in asynchronous related to mask writing. need to push upstream.
-        if env.USE_NETCDF4_MPI:
-            raise SkipTest("fails in asynchronous with mask. need to fix upstream in nc4")
+
         if MPI_SIZE != 2:
             raise SkipTest('MPI_SIZE != 2')
 

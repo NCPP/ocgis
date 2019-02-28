@@ -4,8 +4,6 @@ from datetime import datetime as dt
 
 import fiona
 import numpy as np
-from shapely.geometry.point import Point
-
 import ocgis
 from ocgis import RequestDataset
 from ocgis import constants
@@ -15,6 +13,7 @@ from ocgis.exc import ExtentError, RequestValidationError
 from ocgis.ops.core import OcgOperations
 from ocgis.test.base import TestBase, nc_scope, attr
 from ocgis.variable.crs import Spherical, CFLambertConformal
+from shapely.geometry.point import Point
 
 
 class TestCnrmCerfacs(TestBase):

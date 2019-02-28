@@ -5,7 +5,6 @@ from copy import deepcopy
 from csv import DictReader
 
 import numpy as np
-
 import ocgis
 from ocgis import SpatialCollection
 from ocgis import constants

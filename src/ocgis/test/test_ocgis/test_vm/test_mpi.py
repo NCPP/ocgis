@@ -3,7 +3,6 @@ from copy import deepcopy
 from unittest import SkipTest
 
 import numpy as np
-
 from ocgis import vm, RequestDataset
 from ocgis.constants import DataType
 from ocgis.test.base import attr, AbstractTestInterface

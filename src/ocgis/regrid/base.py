@@ -1,15 +1,15 @@
-import ESMF
 import logging
-import numpy as np
-from ESMF.api.constants import RegridMethod
+import os
 from collections import OrderedDict
 from copy import deepcopy
 
-from ocgis import constants, Dimension
+import ESMF
+import numpy as np
+from ocgis import constants, Dimension, RequestDataset, vm
 from ocgis import env
 from ocgis.base import AbstractOcgisObject, get_dimension_names, iter_dict_slices
 from ocgis.collection.field import Field
-from ocgis.constants import DMK
+from ocgis.constants import DMK, GridChunkerConstants, DecompositionType
 from ocgis.exc import RegriddingError, CornersInconsistentError
 from ocgis.spatial.grid import Grid, expand_grid
 from ocgis.spatial.spatial_subset import SpatialSubsetOperation
@@ -195,7 +195,7 @@ def get_esmf_field_from_ocgis_field(ofield, esmf_field_name=None, **kwargs):
     :type ofield: :class:`ocgis.Field`
     :param str esmf_field_name: An optional ESMF field name. If ``None``, use the name of the data variable on
      ``ofield``.
-    :param dict kwargs: Any keyword arguments to :func:`ocgis.regrid.base.get_esmf_grid`.
+    :param dict kwargs: Any keyword arguments to :func:`ocgis.regrid.base.create_esmf_grid`.
     :return: An ESMF field object.
     :rtype: :class:`ESMF.api.field.Field`
     :raises: ValueError
@@ -215,7 +215,7 @@ def get_esmf_field_from_ocgis_field(ofield, esmf_field_name=None, **kwargs):
         target_variable = None
 
     # Create the ESMF grid.
-    egrid = get_esmf_grid(ofield.grid, **kwargs)
+    egrid = create_esmf_grid(ofield.grid, **kwargs)
 
     egrid_dimnames = egrid._ocgis['dimnames']
     ndbounds = []
@@ -331,7 +331,7 @@ def get_crs_from_esmf(esmf_object):
     return ret
 
 
-def get_esmf_grid(ogrid, regrid_method='auto', value_mask=None):
+def create_esmf_grid(ogrid, regrid_method='auto', value_mask=None):
     """
     Create an ESMF :class:`~ESMF.driver.grid.Grid` object from an OCGIS :class:`ocgis.Grid` object.
 
@@ -359,11 +359,17 @@ def get_esmf_grid(ogrid, regrid_method='auto', value_mask=None):
     x_dimension = get_dimension(DMK.X, dimensions=dimensions)
 
     # ESMPy has index 0 = x-coordinate and index 1 = y-coordinate.
-    max_index = np.array([x_dimension.size, y_dimension.size], dtype=np.int32)
+    if vm.size == 1:
+        max_index = np.array([x_dimension.size, y_dimension.size], dtype=np.int32)
+    else:
+        max_index = np.array([x_dimension.size_global, y_dimension.size_global], dtype=np.int32)
     pkwds['coord_sys'] = ESMF.CoordSys.SPH_DEG
     pkwds['staggerloc'] = ESMF.StaggerLoc.CENTER
     pkwds['max_index'] = max_index
     egrid = ESMF.Grid(**pkwds)
+
+    # msg = (egrid.lower_bounds, egrid.upper_bounds)
+    # ocgis_lh(msg, level=logging.WARN, logger='ocli.chunked_rwg', force=True)
 
     egrid._ocgis['dimnames'] = (x_dimension.name, y_dimension.name)
     egrid._ocgis['dimnames_backref'] = get_dimension_names(ogrid.dimensions)
@@ -404,9 +410,9 @@ def get_esmf_grid(ogrid, regrid_method='auto', value_mask=None):
 
     # Attempt to access corners if requested.
     if regrid_method == 'auto' and ogrid.has_bounds:
-        regrid_method = RegridMethod.CONSERVE
+        regrid_method = ESMF.RegridMethod.CONSERVE
 
-    if regrid_method == RegridMethod.CONSERVE:
+    if regrid_method == ESMF.RegridMethod.CONSERVE:
         # Conversion to ESMF objects requires an expanded grid (non-vectorized).
         # TODO: Create ESMF grids from vectorized OCGIS grids.
         expand_grid(ogrid)
@@ -489,8 +495,8 @@ def iter_esmf_fields(ofield, regrid_method='auto', value_mask=None, split=True):
 
     :param ofield: The input OCGIS Field object.
     :type ofield: :class:`ocgis.Field`
-    :param regrid_method: See :func:`~ocgis.regrid.base.get_esmf_grid`.
-    :param value_mask: See :func:`~ocgis.regrid.base.get_esmf_grid`.
+    :param regrid_method: See :func:`~ocgis.regrid.base.create_esmf_grid`.
+    :param value_mask: See :func:`~ocgis.regrid.base.create_esmf_grid`.
     :param bool split: If ``True``, yield a single extra dimension slice from the source field. If ``False``, yield all
      data. When ``False``, OCGIS uses ESMF's ``ndbounds`` argument to field creation. Use ``True`` if there are memory
      limitations. Use ``False`` for faster performance.
@@ -509,7 +515,12 @@ def iter_esmf_fields(ofield, regrid_method='auto', value_mask=None, split=True):
     :raises: AssertionError
     """
 
-    archetype = ofield.data_variables[0]  # Archetype data variable
+    try:
+        archetype = ofield.data_variables[0]  # Archetype data variable
+    except IndexError:
+        # Use the grid if no data variables are available
+        archetype = ofield.grid
+
     dimension_names = archetype.dimension_names  # Archetype dimension names
     # Spatial coordinate dimensions
     spatial_coordinate_dimensions = OrderedDict([(dim.name, dim) for dim in ofield.grid.dimensions])
@@ -534,10 +545,10 @@ def iter_esmf_fields(ofield, regrid_method='auto', value_mask=None, split=True):
             sub = archetype[slc]
             value_mask = sub.get_mask()
             if len(extra_dimensions) > 0:
-                value_mask = np.squeeze(value_mask, axis=to_squeeze)
+                value_mask = np.squeeze(value_mask, axis=tuple(to_squeeze))
 
     # Create the ESMF grid
-    egrid = get_esmf_grid(ofield.grid, regrid_method=regrid_method, value_mask=value_mask)
+    egrid = create_esmf_grid(ofield.grid, regrid_method=regrid_method, value_mask=value_mask)
 
     if split:
         # Not extra dimensions
@@ -562,7 +573,7 @@ def iter_esmf_fields(ofield, regrid_method='auto', value_mask=None, split=True):
                     efield_data = sub.v()
                     # Squeeze out the extra dimensions in the outgoing ESMF field data
                     if len(esmf_to_squeeze) > 0:
-                        efield_data = np.squeeze(efield_data, axis=esmf_to_squeeze)
+                        efield_data = np.squeeze(efield_data, axis=tuple(esmf_to_squeeze))
                     # Create the ESMF source field and insert the data into it
                     efield = ESMF.Field(egrid, name=variable_name)
                     efield.data[:] = efield_data
@@ -602,7 +613,7 @@ def check_fields_for_regridding(source, destination, regrid_method='auto'):
     # Check coordinate systems #########################################################################################
 
     for element in [source, destination]:
-        if not isinstance(element.crs, Spherical):
+        if element.crs != Spherical():
             msg_a = 'Only spherical coordinate systems allowed for regridding.'
             raise RegriddingError(msg_a)
 
@@ -620,7 +631,8 @@ def check_fields_for_regridding(source, destination, regrid_method='auto'):
             raise CornersInconsistentError(msg)
 
 
-def regrid_field(source, destination, regrid_method='auto', value_mask=None, split=True, fill_value=None):
+def regrid_field(source, destination, regrid_method='auto', value_mask=None, split=True, fill_value=None,
+                 weights_in=None, weights_out=None):
     """
     Regrid ``source`` data to match the grid of ``destination``.
 
@@ -628,7 +640,7 @@ def regrid_field(source, destination, regrid_method='auto', value_mask=None, spl
     :type source: :class:`ocgis.Field`
     :param destination: The destination field.
     :type destination: :class:`ocgis.Field`
-    :param regrid_method: See :func:`~ocgis.regrid.base.get_esmf_grid`.
+    :param regrid_method: See :func:`~ocgis.regrid.base.create_esmf_grid`.
     :param value_mask: See :func:`~ocgis.regrid.base.iter_esmf_fields`.
     :type value_mask: :class:`numpy.ndarray`
     :param bool split: See :func:`~ocgis.regrid.base.iter_esmf_fields`.
@@ -636,6 +648,11 @@ def regrid_field(source, destination, regrid_method='auto', value_mask=None, spl
      the default fill value for the destination field data type will be used.
     :type fill_value: int | float
     :rtype: :class:`ocgis.Field`
+    :param weights_in: Optional path to an input weights file. The route handle will be created from weights in this
+     file. Assumes a SCRIP-like structure for the input weight file.
+    :type weights_in: str
+    :param weights_out: Optional path to an output weight file. Does NOT do any regridding - just writes the weights.
+    :type weights_out: str
     """
 
     # This function runs a series of asserts to make sure the sources and destination are compatible.
@@ -646,7 +663,13 @@ def regrid_field(source, destination, regrid_method='auto', value_mask=None, spl
     dst_spatial_coordinate_dimensions = OrderedDict([(dim.name, dim) for dim in dst_grid.dimensions])
     # Spatial coordinate dimensions for the source grid
     src_spatial_coordinate_dimensions = OrderedDict([(dim.name, dim) for dim in source.grid.dimensions])
-    archetype = source.data_variables[0]  # Reference an archetype data variable.
+
+    try:
+        archetype = source.data_variables[0]  # Reference an archetype data variable.
+    except IndexError:
+        # There may be no data variables. Use the grid as reference instead.
+        archetype = source.grid
+
     # Extra dimensions (like time or level) to iterate over or use for ndbounds depending on the split protocol
     extra_dimensions = OrderedDict([(dim.name, dim) for dim in archetype.dimensions
                                     if dim.name not in dst_spatial_coordinate_dimensions and
@@ -696,8 +719,9 @@ def regrid_field(source, destination, regrid_method='auto', value_mask=None, spl
         # Only build the ESMF/OCGIS destination grids and fields once.
         if build:
             # Build the destination grid once.
-            ocgis_lh(logger='iter_regridded_fields', msg='before get_esmf_grid', level=logging.DEBUG)
-            esmf_destination_grid = get_esmf_grid(destination.grid, regrid_method=regrid_method, value_mask=value_mask)
+            ocgis_lh(logger='iter_regridded_fields', msg='before create_esmf_grid', level=logging.DEBUG)
+            esmf_destination_grid = create_esmf_grid(destination.grid, regrid_method=regrid_method,
+                                                     value_mask=value_mask)
 
             # Check for corners on the destination grid. If they exist, conservative regridding is possible.
             if regrid_method == 'auto':
@@ -724,11 +748,27 @@ def regrid_field(source, destination, regrid_method='auto', value_mask=None, spl
 
         # Construct the regrid object. Weight generation actually occurs in this call.
         ocgis_lh(logger='iter_regridded_fields', msg='before ESMF.Regrid', level=logging.DEBUG)
+
         if build:  # Only create the regrid object once. It may be reused if split=True.
-            regrid = ESMF.Regrid(src_efield, dst_efield, unmapped_action=ESMF.UnmappedAction.IGNORE,
-                                 regrid_method=regrid_method, src_mask_values=[0], dst_mask_values=[0])
+            if weights_in is None:
+                if weights_out is None:
+                    create_rh = False
+                else:
+                    create_rh = True
+                # Create the weights and ESMF route handle from the grids
+                regrid = ESMF.Regrid(src_efield, dst_efield, unmapped_action=ESMF.UnmappedAction.IGNORE,
+                                     regrid_method=regrid_method, src_mask_values=[0], dst_mask_values=[0],
+                                     filename=weights_out, create_rh=create_rh)
+            else:
+                # Create ESMF route handle with weights read from file
+                regrid = ESMF.RegridFromFile(src_efield, dst_efield, weights_in)
             build = False
         ocgis_lh(logger='iter_regridded_fields', msg='after ESMF.Regrid', level=logging.DEBUG)
+
+        # If we are just writing the weights file, bail out after it is written.
+        if weights_out is not None:
+            destroy_esmf_objects([regrid, src_efield, dst_efield, esmf_destination_grid])
+            return
 
         # Perform the regrid operation. "zero_region" only fills values involved with regridding.
         ocgis_lh(logger='iter_regridded_fields', msg='before regrid', level=logging.DEBUG)
@@ -773,7 +813,10 @@ def regrid_field(source, destination, regrid_method='auto', value_mask=None, spl
             regridded_source.add_variable(v, is_data=True, force=True)
 
     # Destroy ESMF objects.
-    destroy_esmf_objects([regrid, dst_efield, src_efield, esmf_destination_grid])
+    if weights_out is None:
+        destroy_esmf_objects([regrid, dst_efield, src_efield, esmf_destination_grid])
+    else:
+        destroy_esmf_objects([dst_efield, src_efield, esmf_destination_grid])
 
     # Broadcast ESMF (Fortran) ordering to Python (C) ordering.
     dst_names = [dim.name for dim in new_dimensions]
@@ -787,3 +830,145 @@ def regrid_field(source, destination, regrid_method='auto', value_mask=None, spl
 def destroy_esmf_objects(objs):
     for obj in objs:
         obj.destroy()
+
+
+def update_esmf_kwargs(target):
+    if 'regrid_method' not in target:
+        target['regrid_method'] = ESMF.RegridMethod.CONSERVE
+    else:
+        rmap = {'CONSERVE': ESMF.RegridMethod.CONSERVE,
+                'BILINEAR': ESMF.RegridMethod.BILINEAR,
+                'NEAREST_STOD': ESMF.RegridMethod.NEAREST_STOD,
+                'PATCH': ESMF.RegridMethod.PATCH}
+        regrid_method = target['regrid_method']
+        try:
+            target['regrid_method'] = rmap[regrid_method]
+        except KeyError:
+            raise ValueError('Chunked regridding does not support "{}".'.format(regrid_method))
+
+    if 'unmapped_action' not in target:
+        target['unmapped_action'] = ESMF.UnmappedAction.IGNORE
+    else:
+        rmap = {'IGNORE': ESMF.UnmappedAction.IGNORE,
+                'ERROR': ESMF.UnmappedAction.ERROR}
+        unmapped_action = target['unmapped_action']
+        try:
+            target['unmapped_action'] = rmap[unmapped_action]
+        except KeyError:
+            raise ValueError('Chunked regridding does not support "{}".'.format(unmapped_action))
+
+    # Never create a route handle for weight generation only.
+    target['create_rh'] = False
+
+
+def create_esmf_field(*args):
+    grid = create_esmf_grid_fromfile(*args)
+
+    # TODO: Method to specify "meshloc" at API level
+    if isinstance(grid, ESMF.Mesh):
+        meshloc = ESMF.MeshLoc.ELEMENT
+    else:
+        meshloc = None
+    return ESMF.Field(grid=grid, meshloc=meshloc), grid
+
+
+def create_esmf_grid_fromfile(filename, grid, esmf_kwargs):
+    """
+    This call is collective across the VM and must be called by each rank. The underlying call to ESMF must be using
+    the global VM.
+    """
+    from ocgis import vm
+
+    filetype = grid.driver.get_esmf_fileformat()
+    klass = grid.driver.get_esmf_grid_class()
+
+    if klass == ESMF.Grid:
+        # Corners are only needed for conservative regridding.
+        if esmf_kwargs.get('regrid_method') == ESMF.RegridMethod.BILINEAR:
+            add_corner_stagger = False
+        else:
+            add_corner_stagger = True
+
+        # If there is a spatial mask, pass this information to grid creation.
+        root = vm.get_live_ranks_from_object(grid)[0]
+        with vm.scoped_by_emptyable('masked values', grid):
+            if not vm.is_null:
+                if grid.has_masked_values_global:
+                    add_mask = True
+                    varname = grid.mask_variable.name
+                else:
+                    add_mask = False
+                    varname = None
+            else:
+                varname, add_mask = [None] * 2
+        varname = vm.bcast(varname, root=root)
+        add_mask = vm.bcast(add_mask, root=root)
+
+        ret = klass(filename=filename, filetype=filetype, add_corner_stagger=add_corner_stagger, is_sphere=False,
+                    add_mask=add_mask, varname=varname)
+    else:
+        meshname = str(grid.dimension_map.get_variable(DMK.ATTRIBUTE_HOST))
+        ret = klass(filename=filename, filetype=filetype, meshname=meshname)
+    return ret
+
+
+def create_esmf_regrid(**kwargs):
+    return ESMF.Regrid(**kwargs)
+
+
+def smm(index_path, wd=None, data_variables='auto'):
+    """
+    Run a chunked sparse matrix multiplication.
+
+    :param str index_path: Path to chunked operation's index file.
+    :param str wd: Path to the directory containing the chunk files.
+    :param list data_variables: Optional list of data variables. Otherwise, auto-discovery is used.
+    """
+    # Assume the current working directory
+    if wd is None:
+        wd = ''
+    # Turn on auto-discovery
+    if data_variables == 'auto':
+        v = None
+    else:
+        v = data_variables
+
+    # Get the attribute host
+    index_field = RequestDataset(index_path).get()
+    gs_index_v = index_field[GridChunkerConstants.IndexFile.NAME_INDEX_VARIABLE]
+
+    # Collect the source filenames
+    src_filenames = gs_index_v.attrs[GridChunkerConstants.IndexFile.NAME_SOURCE_VARIABLE]
+    src_filenames = index_field[src_filenames]
+    src_filenames = src_filenames.join_string_value()
+
+    # Collect the destination file names
+    dst_filenames = gs_index_v.attrs[GridChunkerConstants.IndexFile.NAME_DESTINATION_VARIABLE]
+    dst_filenames = index_field[dst_filenames]
+    dst_filenames = dst_filenames.join_string_value()
+
+    # Collect the weight filenames
+    wgt_filenames = gs_index_v.attrs[GridChunkerConstants.IndexFile.NAME_WEIGHTS_VARIABLE]
+    wgt_filenames = index_field[wgt_filenames]
+    wgt_filenames = wgt_filenames.join_string_value()
+
+    # Main loop for executing the SMM
+    for ii in range(src_filenames.size):
+        ocgis_lh(msg="Running SMM {} of {}".format(ii + 1, src_filenames.size), level=10, logger='regrid.base')
+        src_path = os.path.join(wd, src_filenames[ii])
+        src_field = RequestDataset(src_path, variable=v, decomp_type=DecompositionType.ESMF).create_field()
+        src_field.load()
+
+        dst_path = os.path.join(wd, dst_filenames[ii])
+        dst_field = RequestDataset(dst_path, decomp_type=DecompositionType.ESMF).create_field()
+        dst_field.load()
+
+        from ocgis.regrid.base import RegridOperation
+        from ESMF.api.constants import RegridMethod
+        # HACK: Note that weight filenames are stored with their full path.
+        # HACK: Always use a bilinear regridding method to allows for the identity sparse matrix in the case of
+        #       equal grids.
+        regrid_options = {'split': False, 'weights_in': wgt_filenames[ii], 'regrid_method': RegridMethod.BILINEAR}
+        ro = RegridOperation(src_field, dst_field, regrid_options=regrid_options)
+        regridded = ro.execute()
+        regridded.write(dst_path)

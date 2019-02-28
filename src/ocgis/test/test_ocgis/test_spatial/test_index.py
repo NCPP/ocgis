@@ -1,12 +1,11 @@
 import itertools
 
 import numpy as np
+from ocgis import env
+from ocgis.test.base import TestBase, attr
 from shapely import wkt
 from shapely.geometry.geo import mapping
 from shapely.geometry.point import Point
-
-from ocgis import env
-from ocgis.test.base import TestBase, attr
 
 if env.USE_SPATIAL_INDEX:
     from ocgis.spatial.index import SpatialIndex

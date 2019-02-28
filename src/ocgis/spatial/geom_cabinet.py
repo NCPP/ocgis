@@ -3,12 +3,11 @@ from collections import OrderedDict
 
 import fiona
 import ogr
-from shapely import wkb
-
 from ocgis import env
 from ocgis.collection.field import Field
 from ocgis.util.helpers import get_formatted_slice
 from ocgis.util.logging_ocgis import ocgis_lh
+from shapely import wkb
 
 
 class GeomCabinet(object):
@@ -144,7 +143,7 @@ class GeomCabinet(object):
                                     continue
                                 # ... stop if we have reached the stop.
                                 elif ctr2 == slice_stop:
-                                    raise StopIteration
+                                    return
                                 yield fb
 
                         itr = _o_itr_(features, slc.start, slc.stop)

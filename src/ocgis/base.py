@@ -238,7 +238,12 @@ def orphaned(target, keep_dimensions=False):
 def raise_if_empty(target):
     if target.is_empty:
         msg = 'No empty {} objects allowed.'.format(target.__class__)
-        raise EmptyObjectError(msg)
+        exc = EmptyObjectError(msg)
+        try:
+            raise exc
+        finally:
+            from ocgis import vm
+            vm.abort(exc=exc)
 
 
 @contextmanager

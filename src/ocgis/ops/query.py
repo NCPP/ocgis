@@ -1,9 +1,8 @@
-from six.moves.urllib_parse import parse_qs
-
 from ocgis import OcgOperations
 from ocgis.ops.parms.base import AbstractParameter
 from ocgis.ops.parms.definition import Dataset
 from ocgis.util.helpers import itersubclasses
+from six.moves.urllib_parse import parse_qs
 
 
 class QueryInterface(object):

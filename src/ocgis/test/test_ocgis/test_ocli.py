@@ -3,10 +3,12 @@ import sys
 from unittest import SkipTest
 
 import mock
+import numpy as np
 import ocgis
 from click.testing import CliRunner
 from ocgis import RequestDataset, Variable, Grid, vm
 from ocgis import env
+from ocgis.constants import DecompositionType
 from ocgis.ocli import ocli
 from ocgis.test.base import TestBase, attr, create_gridxy_global, create_exact_field
 from ocgis.util.addict import Dict
@@ -52,7 +54,7 @@ class TestChunkedRWG(TestBase):
 
     @attr('mpi', 'esmf')
     def test_system_chunked_versus_global(self):
-        """Test weight files are equivalent using the chunked versus global weight generation approach."""
+        """Test weight files are equivalent using the chunked versus global weight generation and SMM approach."""
         if ocgis.vm.size not in [1, 4]:
             raise SkipTest('ocgis.vm.size not in [1, 4]')
 
@@ -62,11 +64,11 @@ class TestChunkedRWG(TestBase):
         env.CLOBBER_UNITS_ON_BOUNDS = False
 
         # Create source and destination files. -------------------------------------------------------------------------
-        src_grid = create_gridxy_global(resolution=15)
-        dst_grid = create_gridxy_global(resolution=12)
+        src_grid = create_gridxy_global(resolution=15, dist_dimname='x')
+        dst_grid = create_gridxy_global(resolution=12, dist_dimname='x')
 
-        src_field = create_exact_field(src_grid, 'foo', crs=Spherical())
-        dst_field = create_exact_field(dst_grid, 'foo', crs=Spherical())
+        src_field = create_exact_field(src_grid, 'foo', crs=Spherical(), dtype=np.float64)
+        dst_field = create_exact_field(dst_grid, 'foo', crs=Spherical(), dtype=np.float64)
 
         if ocgis.vm.rank == 0:
             source = self.get_temporary_file_path('source.nc')
@@ -79,6 +81,7 @@ class TestChunkedRWG(TestBase):
         else:
             destination = None
         destination = ocgis.vm.bcast(destination)
+        dst_field['foo'].v()[:] = -9999
         dst_field.write(destination)
         # --------------------------------------------------------------------------------------------------------------
 
@@ -95,6 +98,12 @@ class TestChunkedRWG(TestBase):
         self.assertEqual(result.exit_code, 0)
         self.assertTrue(len(os.listdir(wd)) > 3)
 
+        # Also apply the sparse matrix
+        runner2 = CliRunner()
+        cli_args = ['chunked-smm', '--wd', wd, '--insert_weighted', '--destination', destination]
+        result = runner2.invoke(ocli, args=cli_args, catch_exceptions=False)
+        self.assertEqual(result.exit_code, 0)
+
         # Create a standard ESMF weights file from the original grid files.
         esmf_weights_path = self.get_temporary_file_path('esmf_desired_weights.nc')
 
@@ -106,14 +115,20 @@ class TestChunkedRWG(TestBase):
         # Create a weights file using the ESMF Python interface.
         srcgrid = ESMF.Grid(filename=source, filetype=ESMF.FileFormat.GRIDSPEC, add_corner_stagger=True)
         dstgrid = ESMF.Grid(filename=destination, filetype=ESMF.FileFormat.GRIDSPEC, add_corner_stagger=True)
-        srcfield = ESMF.Field(grid=srcgrid)
-        dstfield = ESMF.Field(grid=dstgrid)
+        srcfield = ESMF.Field(grid=srcgrid, typekind=ESMF.TypeKind.R8)
+        srcfield.data[:] = np.swapaxes(np.squeeze(src_field['foo'].v()), 0, 1)
+        dstfield = ESMF.Field(grid=dstgrid, typekind=ESMF.TypeKind.R8)
         _ = ESMF.Regrid(srcfield=srcfield, dstfield=dstfield, filename=esmf_weights_path,
                         regrid_method=ESMF.RegridMethod.CONSERVE)
 
         if ocgis.vm.rank == 0:
             # Assert the weight files are equivalent using chunked versus global creation.
             self.assertWeightFilesEquivalent(esmf_weights_path, weight)
+
+        actual_dst = RequestDataset(uri=destination, decomp_type=DecompositionType.ESMF).create_field()['foo'].v()
+        actual_dst = np.swapaxes(np.squeeze(actual_dst), 0, 1)
+        desired_dst = dstfield.data
+        self.assertNumpyAllClose(actual_dst, desired_dst)
 
     def test_system_merged_weight_file_in_working_directory(self):
         """Test merged weight file may not be created inside the chunking working directory."""

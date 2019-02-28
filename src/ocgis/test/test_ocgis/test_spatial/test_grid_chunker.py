@@ -1,5 +1,6 @@
 import os
 import sys
+from copy import deepcopy
 
 import numpy as np
 from mock import mock, PropertyMock
@@ -9,6 +10,7 @@ from ocgis.constants import MPIWriteMode, GridChunkerConstants, VariableName
 from ocgis.driver.nc_ugrid import DriverNetcdfUGRID
 from ocgis.spatial.grid import GridUnstruct, Grid, AbstractGrid
 from ocgis.spatial.grid_chunker import GridChunker, does_contain, get_grid_object
+from ocgis.test import create_exact_field
 from ocgis.test.base import attr, AbstractTestInterface, create_gridxy_global, TestBase
 from ocgis.test.test_ocgis.test_driver.test_nc_scrip import FixtureDriverNetcdfSCRIP
 from ocgis.variable.base import Variable
@@ -369,3 +371,67 @@ class TestGridChunker(AbstractTestInterface, FixtureDriverNetcdfSCRIP):
         gc = self.fixture_grid_chunker(nchunks_dst=None)
         self.assertIsNotNone(gc.nchunks_dst)
         self.assertEqual(gc.nchunks_dst, (10, 10))
+
+    @attr('esmf', 'mpi')
+    def test_write_esmf_weights(self):
+        # Create source and destination fields. This is the identity test, so the source and destination fields are
+        # equivalent.
+        src_grid = create_gridxy_global(resolution=3.0, crs=Spherical())
+
+        # Only test masking in serial to make indexing easier...just being lazy
+        if vm.size == 1:
+            mask = src_grid.get_mask(create=True)
+            mask[4, 5] = True
+            mask[25, 27] = True
+            src_grid.set_mask(mask)
+            self.assertEqual(src_grid.get_mask().sum(), 2)
+
+        src_field = create_exact_field(src_grid, 'foo', ntime=3)
+        dst_field = deepcopy(src_field)
+
+        # Write the fields to disk for use in global file reconstruction and testing.
+        if vm.rank == 0:
+            master_path = self.get_temporary_file_path('foo.nc')
+            src_field_path = self.get_temporary_file_path('src_field.nc')
+        else:
+            master_path = None
+            src_field_path = None
+        master_path = vm.bcast(master_path)
+        src_field_path = vm.bcast(src_field_path)
+        assert not os.path.exists(master_path)
+        dst_field.write(master_path)
+        src_field.write(src_field_path)
+
+        # Remove the destination data variable to test its creation and filling
+        dst_field.remove_variable('foo')
+
+        # Chunk the fields and generate weights
+        paths = {'wd': self.current_dir_output}
+        gc = GridChunker(src_field, dst_field, nchunks_dst=(2, 2), genweights=True, paths=paths,
+                         esmf_kwargs={'regrid_method': 'BILINEAR'})
+        gc.write_chunks()
+
+        # This is the path to the index file describing how to reconstruct the grid file
+        index_path = os.path.join(self.current_dir_output, gc.paths['index_file'])
+
+        # Execute the sparse matrix multiplication using weights read from file
+        gc.smm(index_path, paths['wd'])
+
+        with vm.scoped('index and reconstruct', [0]):
+            if not vm.is_null:
+                # Reconstruct the global destination file
+                gc.insert_weighted(index_path, self.current_dir_output, master_path)
+
+                # Load the actual values from file (destination)
+                actual_field = RequestDataset(master_path).create_field()
+                actual = actual_field.data_variables[0].mv()
+
+                # Load the desired data from file (original values in the source field)
+                desired = RequestDataset(src_field_path).create_field().data_variables[0].mv()
+
+                if vm.size_global == 1:  # Masking is only tested in serial
+                    self.assertEqual(actual_field.grid.get_mask().sum(), 2)
+                else:
+                    self.assertIsNone(actual_field.grid.get_mask())
+
+                self.assertNumpyAll(actual, desired)

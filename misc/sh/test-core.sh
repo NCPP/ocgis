@@ -6,16 +6,18 @@ function run_tests_core(){
 
 source ./logging.sh || exit 1
 
+#export OCGIS_USE_NETCDF4_MPI="false"
+
 export RUN_SERIAL_TESTS="true"
 #export RUN_SERIAL_TESTS="false"
 
 export RUN_PARALLEL_TESTS="true"
 #export RUN_PARALLEL_TESTS="false"
 
-export NOSE_ATTRS="!slow,!remote,!icclim,!esmf,!mpi"
+export NOSE_ATTRS="!slow,!remote,!icclim,!mpi"
 
-#nps=(2 3 4 5 6 7 8)
-nps=(4)
+nps=(2 3 4 5 6 7 8)
+#nps=(4)
 
 tests=(../../src/ocgis/test)
 
@@ -35,7 +37,7 @@ for jj in "${tests[@]}"; do
         for ii in "${nps[@]}"; do
             inf "Current MPI Test Suite: nproc=${ii}, path=${jj}"
 
-            mpirun -n ${ii} nosetests -vsx -a 'mpi' ${jj}
+            mpirun -n ${ii} nosetests -vsx -a 'mpi,!data,!slow' ${jj}
         done
     fi
 done

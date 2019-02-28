@@ -9,8 +9,8 @@ class ESMPyConverter(AbstractCollectionConverter):
 
     .. note:: Accepts all parameters to :class:`~ocgis.conv.base.AbstractCollectionConverter`.
 
-    :param regrid_method: (``='auto'``) See :func:`~ocgis.regrid.base.get_esmf_grid`.
-    :param value_mask: (``=None``) See :func:`~ocgis.regrid.base.get_esmf_grid`.
+    :param regrid_method: (``='auto'``) See :func:`~ocgis.regrid.base.create_esmf_grid`.
+    :param value_mask: (``=None``) See :func:`~ocgis.regrid.base.create_esmf_grid`.
     :param esmf_field_name: (``=None``) Optional name for the returned ESMF field.
     :type esmf_field_name: str
     """

@@ -11,7 +11,7 @@ from ocgis.base import get_dimension_names, raise_if_empty, AbstractOcgisObject,
 from ocgis.constants import WrappedState, VariableName, KeywordArgument, GridAbstraction, DriverKey, \
     GridChunkerConstants, RegriddingRole, Topology, DMK, CFName
 from ocgis.environment import ogr, env
-from ocgis.exc import GridDeficientError, EmptySubsetError, AllElementsMaskedError
+from ocgis.exc import GridDeficientError, EmptySubsetError, AllElementsMaskedError, RequestableFeature
 from ocgis.spatial.base import AbstractXYZSpatialContainer
 from ocgis.spatial.geomc import AbstractGeometryCoordinates, PolygonGC, PointGC, LineGC
 from ocgis.util.helpers import get_formatted_slice, get_iter
@@ -852,34 +852,26 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         if self.is_empty:
             return None
 
-        if not self.is_vectorized:
+        if self.is_vectorized:
             if self.has_bounds:
-                x_bounds = self.x.bounds.get_value()
-                y_bounds = self.y.bounds.get_value()
-                minx = x_bounds.min()
-                miny = y_bounds.min()
-                maxx = x_bounds.max()
-                maxy = y_bounds.max()
+                row = self.y.bounds.v()
+                col = self.x.bounds.v()
             else:
-                x_value = self.x.get_value()
-                y_value = self.y.get_value()
-                minx = x_value.min()
-                miny = y_value.min()
-                maxx = x_value.max()
-                maxy = y_value.max()
+                row = self.y.v()
+                col = self.x.v()
         else:
-            row = self.y
-            col = self.x
-            if not self.has_bounds:
-                minx = col.get_value().min()
-                miny = row.get_value().min()
-                maxx = col.get_value().max()
-                maxy = row.get_value().max()
+            if self.has_bounds:
+                row = self.y.bounds.mv()
+                col = self.x.bounds.mv()
             else:
-                minx = col.bounds.get_value().min()
-                miny = row.bounds.get_value().min()
-                maxx = col.bounds.get_value().max()
-                maxy = row.bounds.get_value().max()
+                row = self.y.mv()
+                col = self.x.mv()
+
+        minx = col.min()
+        miny = row.min()
+        maxx = col.max()
+        maxy = row.max()
+
         return minx, miny, maxx, maxy
 
     def _get_is_empty_(self):
@@ -917,8 +909,11 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         yb = Variable(name=name_y_bounds, dimensions=[split_dimension, bounds_dimension],
                       attrs={'esmf_role': erole_y},
                       dtype=env.NP_INT)
-        x_name = self.x.dimensions[0].name
-        y_name = self.y.dimensions[0].name
+
+        # x_name = self.x.dimensions[0].name
+        # y_name = self.y.dimensions[0].name
+        x_name = self.dimension_map.get_dimension(DMK.X)[0]
+        y_name = self.dimension_map.get_dimension(DMK.Y)[0]
         for idx, slc in enumerate(slices):
             xb.get_value()[idx, :] = slc[x_name].start, slc[x_name].stop
             yb.get_value()[idx, :] = slc[y_name].start, slc[y_name].stop
@@ -1270,6 +1265,13 @@ def expand_grid(grid):
     y = grid.y
     x = grid.x
     grid_is_empty = grid.is_empty
+
+    for target in [y, x]:
+        if target.has_mask:
+            if target.has_masked_values:
+                raise RequestableFeature("Grid expansion with coordinate variable masks not supported")
+            else:
+                target.set_mask(None)
 
     if y.ndim == 1:
         if y.has_bounds:

@@ -2,7 +2,6 @@ import datetime
 
 import fiona
 import numpy as np
-
 import ocgis
 from ocgis.test.base import TestBase
 from ocgis.test.base import attr

@@ -1,12 +1,11 @@
 from copy import deepcopy
 
-from shapely.geometry import Point
-
 from ocgis import RequestDataset, OcgOperations
 from ocgis.test.base import attr
 from ocgis.test.test_simple.make_test_data import SimpleNcNoLevel
 from ocgis.test.test_simple.test_simple import TestSimpleBase
 from ocgis.util.units import get_units_object
+from shapely.geometry import Point
 
 
 @attr('optional')

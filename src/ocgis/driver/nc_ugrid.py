@@ -1,5 +1,5 @@
 from ocgis import Variable, constants
-from ocgis.constants import DriverKey, DMK, VariableName, Topology, KeywordArgument
+from ocgis.constants import DriverKey, DMK, VariableName, Topology, KeywordArgument, DecompositionType
 from ocgis.driver.base import AbstractUnstructuredDriver
 from ocgis.driver.nc import DriverNetcdfCF
 
@@ -91,7 +91,7 @@ class DriverNetcdfUGRID(AbstractUnstructuredDriver, DriverNetcdfCF):
                                dimension=variables[face_node_connectivity]['dimensions'][0])
         return dmap
 
-    def get_distributed_dimension_name(self, dimension_map, dimensions_metadata):
+    def get_distributed_dimension_name(self, dimension_map, dimensions_metadata, decomp_type=DecompositionType.OCGIS):
         ret = None
         poly = dimension_map.get_topology(Topology.POLYGON, create=False)
         if poly is not None:

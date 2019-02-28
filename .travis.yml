@@ -51,8 +51,8 @@ script:
       python -c "from ocgis.test import run_more; run_more(verbose=False)"
     fi
 
-  # tdk: FIX: run MPI tests in Travis
-#  - source activate test-full
-#  - mpirun -n 2 python -c "from ocgis.test import run_mpi_nodata; run_mpi_nodata(verbose=True)"
+  - source activate test-full
+  - mpirun -n 2 python -c "from ocgis.test import run_mpi_nodata; run_mpi_nodata(verbose=True)"
 
   - ocli chunked-rwg --help
+  - ocli chunked-smm --help

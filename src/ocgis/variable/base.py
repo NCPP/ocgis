@@ -69,10 +69,15 @@ class AbstractContainer(AbstractNamedObject):
     @property
     def dimensions(self):
         """
-        :return: A dimension dictionary containing all dimensions on associated with variables in the collection.
-        :rtype: :class:`~collections.OrderedDict`
+        :return: A dimension container for the object. If a variable, this will be a tuple. If a collection, this is an
+         ordered dictionary.
+        :rtype: tuple || :class:`~collections.OrderedDict`
         """
         return self._get_dimensions_()
+
+    @property
+    def dimension_names(self):
+        return tuple([d.name for d in self.dimensions])
 
     @property
     def driver(self):
@@ -2055,7 +2060,7 @@ class VariableCollection(AbstractCollection, AbstractContainer, Attributes):
         # TODO: Move implementation to function to clean up class code. Do this for Field.iter as well.
 
         if self.is_empty:
-            raise StopIteration
+            return
 
         from ocgis.driver.registry import get_driver_class
 

@@ -1,7 +1,7 @@
 import numpy as np
 
 from ocgis import vm
-from ocgis.constants import DriverKey, CFName, OcgisConvention, Topology, DMK, MPITag
+from ocgis.constants import DriverKey, CFName, OcgisConvention, Topology, DMK, MPITag, DecompositionType
 from ocgis.driver.base import AbstractUnstructuredDriver
 from ocgis.driver.nc import AbstractDriverNetcdfCF
 from ocgis.variable.base import Variable, VariableCollection
@@ -35,7 +35,7 @@ class DriverESMFUnstruct(AbstractUnstructuredDriver, AbstractDriverNetcdfCF):
 
         return dmap
 
-    def get_distributed_dimension_name(self, dimension_map, dimensions_metadata):
+    def get_distributed_dimension_name(self, dimension_map, dimensions_metadata, decomp_type=DecompositionType.OCGIS):
         # TODO: Consider options for distributing ESMF Unstructured Format.
         return None
 

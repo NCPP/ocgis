@@ -2,7 +2,6 @@ from collections import OrderedDict
 from itertools import product
 
 import numpy as np
-
 from ocgis.base import AbstractOcgisObject
 from ocgis.base import get_dimension_names, get_variable_names
 from ocgis.constants import HeaderName

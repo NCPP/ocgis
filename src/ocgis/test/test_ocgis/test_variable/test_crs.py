@@ -5,9 +5,6 @@ from unittest import SkipTest
 
 import netCDF4 as nc
 import numpy as np
-from shapely.geometry import Point, MultiPoint
-from shapely.geometry.multipolygon import MultiPolygon
-
 import ocgis
 from ocgis import constants, vm
 from ocgis.collection.field import Field
@@ -24,6 +21,8 @@ from ocgis.variable.crs import CoordinateReferenceSystem, CFAlbersEqualArea, CFL
     CFRotatedPole, WGS84, Spherical, CFSpherical, Tripole, Cartesian, AbstractProj4CRS, create_crs
 from ocgis.variable.geom import GeometryVariable
 from ocgis.vmachine.mpi import OcgDist, MPI_RANK, variable_scatter
+from shapely.geometry import Point, MultiPoint
+from shapely.geometry.multipolygon import MultiPolygon
 
 
 class Test(TestBase):

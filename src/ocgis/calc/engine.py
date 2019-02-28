@@ -1,7 +1,6 @@
 import logging
 
 import numpy as np
-
 from ocgis.base import get_variable_names
 from ocgis.calc.base import AbstractMultivariateFunction
 from ocgis.calc.eval_function import EvalFunction, MultivariateEvalFunction

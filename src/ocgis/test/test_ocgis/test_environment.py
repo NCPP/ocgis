@@ -3,7 +3,6 @@ import tempfile
 from importlib import import_module
 
 import numpy as np
-
 from ocgis import constants
 from ocgis import env, OcgOperations
 from ocgis.environment import EnvParmImport

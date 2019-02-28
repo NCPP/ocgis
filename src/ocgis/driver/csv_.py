@@ -2,7 +2,6 @@ import csv
 from collections import OrderedDict
 
 import six
-
 from ocgis import vm
 from ocgis.base import raise_if_empty
 from ocgis.constants import MPIWriteMode, KeywordArgument, DriverKey

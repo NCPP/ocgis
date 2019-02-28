@@ -3,7 +3,6 @@ from abc import abstractproperty, abstractmethod
 from copy import deepcopy
 
 import six
-
 from ocgis.base import AbstractOcgisObject
 from ocgis.exc import DefinitionValidationError
 

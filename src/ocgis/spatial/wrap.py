@@ -3,14 +3,13 @@ from abc import abstractmethod
 
 import numpy as np
 import six
+from ocgis.base import AbstractOcgisObject
+from ocgis.util.helpers import make_poly, iter_exploded_geometries
 from shapely.geometry.linestring import LineString
 from shapely.geometry.multipoint import MultiPoint
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.point import Point
 from shapely.geometry.polygon import Polygon
-
-from ocgis.base import AbstractOcgisObject
-from ocgis.util.helpers import make_poly, iter_exploded_geometries
 
 
 @six.add_metaclass(abc.ABCMeta)

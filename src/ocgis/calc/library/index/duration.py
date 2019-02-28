@@ -1,7 +1,6 @@
 from collections import OrderedDict
 
 import numpy as np
-
 from ocgis import env
 from ocgis.calc import base
 from ocgis.exc import DefinitionValidationError

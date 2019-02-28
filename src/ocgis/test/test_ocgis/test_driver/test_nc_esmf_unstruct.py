@@ -1,9 +1,6 @@
 import itertools
 
 import numpy as np
-from shapely import wkt
-from shapely.geometry import MultiPolygon
-
 import ocgis
 from ocgis import GeometryVariable, vm, Field
 from ocgis.base import get_variable_names
@@ -14,6 +11,8 @@ from ocgis.spatial.geomc import PolygonGC
 from ocgis.spatial.grid import GridUnstruct
 from ocgis.test.base import TestBase, attr
 from ocgis.variable.crs import WGS84, Spherical, create_crs
+from shapely import wkt
+from shapely.geometry import MultiPolygon
 
 
 class TestDriverESMFUnstruct(TestBase):

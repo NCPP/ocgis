@@ -1,16 +1,15 @@
 import abc
 import datetime
-import os.path
 from abc import abstractproperty, abstractmethod
 
 import netCDF4 as nc
 import numpy as np
+import os.path
 import six
-from shapely.geometry.point import Point
-
 from ocgis import env
 from ocgis.util.helpers import iter_array, project_shapely_geometry
 from ocgis.variable.crs import CoordinateReferenceSystem
+from shapely.geometry.point import Point
 
 
 @six.add_metaclass(abc.ABCMeta)

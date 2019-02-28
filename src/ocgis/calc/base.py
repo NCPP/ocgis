@@ -6,8 +6,6 @@ from copy import deepcopy
 
 import numpy as np
 import six
-from six.moves import zip_longest
-
 from ocgis import constants
 from ocgis import env
 from ocgis.base import get_variables, get_dimension_names, AbstractOcgisObject
@@ -18,6 +16,7 @@ from ocgis.util.helpers import get_default_or_apply, get_iter
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.util.units import get_are_units_equal_by_string_or_cfunits
 from ocgis.variable.base import Variable, VariableCollection, get_default_fill_value_from_dtype
+from six.moves import zip_longest
 
 # Standard dimension order for data arrays.
 STANDARD_DIMENSIONS = (DimensionMapKey.REALIZATION, DimensionMapKey.TIME, DimensionMapKey.LEVEL,

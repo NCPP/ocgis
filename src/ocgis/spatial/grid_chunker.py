@@ -3,10 +3,12 @@ import os
 
 import netCDF4 as nc
 import numpy as np
+from ocgis import constants
 from ocgis.base import AbstractOcgisObject, grid_abstraction_scope
 from ocgis.collection.field import Field
-from ocgis.constants import GridChunkerConstants, RegriddingRole, Topology, DMK
+from ocgis.constants import GridChunkerConstants, RegriddingRole, Topology
 from ocgis.driver.request.core import RequestDataset
+from ocgis.regrid.base import update_esmf_kwargs, create_esmf_field, create_esmf_regrid, smm
 from ocgis.spatial.base import iter_spatial_decomposition
 from ocgis.spatial.geomc import AbstractGeometryCoordinates
 from ocgis.spatial.grid import GridUnstruct, AbstractGrid, Grid
@@ -133,10 +135,7 @@ class GridChunker(AbstractOcgisObject):
         self.dst_grid._gc_initialize_(RegriddingRole.DESTINATION)
 
         # Construct default paths if None are provided.
-        defaults = {'dst_template': 'split_dst_{}.nc',
-                    'src_template': 'split_src_{}.nc',
-                    'wgt_template': 'esmf_weights_{}.nc',
-                    'index_file': '01-split_index.nc'}
+        defaults = constants.GridChunkerConstants.DEFAULT_PATHS
         if paths is None:
             paths = defaults
         else:
@@ -337,14 +336,17 @@ class GridChunker(AbstractOcgisObject):
         out_wds.close()
 
     @staticmethod
-    def insert_weighted(index_path, dst_wd, dst_master_path):
+    def insert_weighted(index_path, dst_wd, dst_master_path, data_variables='auto'):
         """
         Inserted weighted, destination variable data into the master destination file.
 
         :param str index_path: Path to the split index netCDF file.
         :param str dst_wd: Working directory containing the destination files holding the weighted data.
         :param str dst_master_path: Path to the destination master weight file.
+        :param list data_variables: Optional list of data variables. Otherwise, auto-discovery is used.
         """
+        if vm.size > 1:
+            raise NotImplementedError('serial only')
 
         index_field = RequestDataset(index_path).get()
         gs_index_v = index_field[GridChunkerConstants.IndexFile.NAME_INDEX_VARIABLE]
@@ -360,21 +362,45 @@ class GridChunker(AbstractOcgisObject):
         x_bounds = index_field[x_bounds].get_value()
 
         joined = dst_filenames.join_string_value()
-        dst_master_field = RequestDataset(dst_master_path).get()
+        if data_variables == 'auto':
+            v = None
+        else:
+            v = data_variables
+
+        dst_master_field = RequestDataset(dst_master_path, variable=v).get()
         for data_variable in dst_master_field.data_variables:
-            assert data_variable.ndim == 3
             assert not data_variable.has_allocated_value
-            for time_index in range(dst_master_field.time.shape[0]):
+            if data_variable.ndim == 3:
+                for time_index in range(dst_master_field.time.shape[0]):
+                    for vidx, source_path in enumerate(joined):
+                        source_path = os.path.join(dst_wd, source_path)
+                        slc = {dst_master_field.time.dimensions[0].name: time_index,
+                               dst_master_field.y.dimensions[0].name: slice(None),
+                               dst_master_field.x.dimensions[0].name: slice(None)}
+                        source_field = RequestDataset(source_path).create_field()
+                        try:
+                            source_data = source_field[data_variable.name][slc]
+                        except KeyError:
+                            if data_variable.name not in source_field.keys():
+                                msg = "The destination variable '{}' is not in the destination file '{}'. Was SMM applied?".format(
+                                    data_variable.name, source_path)
+                                raise KeyError(msg)
+                            else:
+                                raise
+                        assert not source_data.has_allocated_value
+                        with nc.Dataset(dst_master_path, 'a') as ds:
+                            ds.variables[data_variable.name][time_index, y_bounds[vidx][0]:y_bounds[vidx][1],
+                            x_bounds[vidx][0]:x_bounds[vidx][1]] = source_data.get_value()
+            elif data_variable.ndim == 2:
                 for vidx, source_path in enumerate(joined):
                     source_path = os.path.join(dst_wd, source_path)
-                    slc = {dst_master_field.time.dimensions[0].name: time_index,
-                           dst_master_field.y.dimensions[0].name: slice(None),
-                           dst_master_field.x.dimensions[0].name: slice(None)}
-                    source_data = RequestDataset(source_path).get()[data_variable.name][slc]
+                    source_data = RequestDataset(source_path).get()[data_variable.name]
                     assert not source_data.has_allocated_value
                     with nc.Dataset(dst_master_path, 'a') as ds:
-                        ds.variables[data_variable.name][time_index, y_bounds[vidx][0]:y_bounds[vidx][1],
+                        ds.variables[data_variable.name][y_bounds[vidx][0]:y_bounds[vidx][1],
                         x_bounds[vidx][0]:x_bounds[vidx][1]] = source_data.get_value()
+            else:
+                raise NotImplementedError(data_variable.ndim)
 
     def iter_dst_grid_slices(self, yield_idx=None):
         """
@@ -398,7 +424,8 @@ class GridChunker(AbstractOcgisObject):
         :rtype: :class:`ocgis.spatial.grid.AbstractGrid`
         """
         if self.use_spatial_decomp:
-            for sub, slc in iter_spatial_decomposition(self.dst_grid, self.nchunks_dst, optimized_bbox_subset=True, yield_idx=yield_idx):
+            for sub, slc in iter_spatial_decomposition(self.dst_grid, self.nchunks_dst, optimized_bbox_subset=True,
+                                                       yield_idx=yield_idx):
                 if yield_slice:
                     # Spatial subset may be empty on a rank...
                     if sub.is_empty:
@@ -443,11 +470,29 @@ class GridChunker(AbstractOcgisObject):
 
         # Loop over each destination grid subset.
         ocgis_lh(logger='grid_chunker', msg='starting "for yld in iter_dst"', level=logging.DEBUG)
-        for yld in iter_dst:
+        for iter_dst_ctr, yld in enumerate(iter_dst, start=1):
+            ocgis_lh(msg=["iter_dst_ctr", iter_dst_ctr], level=logging.DEBUG)
             if yield_slice:
                 dst_grid_subset, dst_slice = yld
             else:
                 dst_grid_subset = yld
+
+            # All masked destinations are very problematic for ESMF
+            with vm.scoped_by_emptyable('global mask', dst_grid_subset):
+                if not vm.is_null:
+                    if dst_grid_subset.has_mask_global:
+                        if dst_grid_subset.has_mask:
+                            all_masked = dst_grid_subset.get_mask().all()
+                        else:
+                            all_masked = False
+                        all_masked_gather = vm.gather(all_masked)
+                        if vm.rank == 0:
+                            if all(all_masked_gather):
+                                exc = ValueError("Destination subset all masked")
+                                try:
+                                    raise exc
+                                finally:
+                                    vm.abort(exc=exc)
 
             dst_box = None
             with vm.scoped_by_emptyable('extent_global', dst_grid_subset):
@@ -539,6 +584,11 @@ class GridChunker(AbstractOcgisObject):
 
             yield yld
 
+    @staticmethod
+    def smm(*args, **kwargs):
+        """See :method:`ocgis.regrid.base.smm`"""
+        smm(*args, **kwargs)
+
     def write_chunks(self):
         """
         Write grid subsets to netCDF files using the provided filename templates. This will also generate ESMF
@@ -575,13 +625,17 @@ class GridChunker(AbstractOcgisObject):
             else:
                 zip_args = [[sub_src], [src_path]]
 
+            cc = 1
             for target, path in zip(*zip_args):
-                with vm.scoped_by_emptyable('field.write', target):
+                with vm.scoped_by_emptyable('field.write' + str(cc), target):
                     if not vm.is_null:
-                        ocgis_lh(logger='grid_chunker', msg='writing: {}'.format(path), level=logging.DEBUG)
+                        ocgis_lh(logger='grid_chunker', msg='write_chunks:writing: {}'.format(path),
+                                 level=logging.DEBUG)
                         field = Field(grid=target)
                         field.write(path)
-                        ocgis_lh(logger='grid_chunker', msg='finished writing: {}'.format(path), level=logging.DEBUG)
+                        ocgis_lh(logger='grid_chunker', msg='write_chunks:finished writing: {}'.format(path),
+                                 level=logging.DEBUG)
+                cc += 1
 
             # Increment the counter outside of the loop to avoid counting empty subsets.
             ctr += 1
@@ -661,17 +715,15 @@ class GridChunker(AbstractOcgisObject):
         :param dst_grid: If provided, use this destination grid for identifying ESMF parameters
         :type dst_grid: :class:`ocgis.spatial.grid.AbstractGrid`
         """
-
-        ocgis_lh(logger='grid_chunker', msg='entering write_esmf_weights', level=logging.DEBUG)
-        assert wgt_path is not None
         if src_grid is None:
             src_grid = self.src_grid
         if dst_grid is None:
             dst_grid = self.dst_grid
+
+        assert wgt_path is not None
+
         srcfield, srcgrid = create_esmf_field(src_path, src_grid, self.esmf_kwargs)
-        ocgis_lh(logger='grid_chunker', msg='finished creating source ESMPy field', level=logging.DEBUG)
         dstfield, dstgrid = create_esmf_field(dst_path, dst_grid, self.esmf_kwargs)
-        ocgis_lh(logger='grid_chunker', msg='finished creating destination ESMPy field', level=logging.DEBUG)
         regrid = None
 
         try:
@@ -719,94 +771,14 @@ class GridChunker(AbstractOcgisObject):
                 raise NotImplementedError
 
             if not is_unstruct:
-                islice = [slice(y_bounds[ii][0], y_bounds[ii][1]),
-                          slice(x_bounds[ii][0], x_bounds[ii][1])]
+                islice = tuple([slice(y_bounds[ii][0], y_bounds[ii][1]),
+                                slice(x_bounds[ii][0], x_bounds[ii][1])])
                 oindices = indices[islice]
                 oindices = oindices.flatten()
 
             odata = oindices[odata - 1]
 
         return odata
-
-
-def update_esmf_kwargs(target):
-    import ESMF
-
-    if 'regrid_method' not in target:
-        target['regrid_method'] = ESMF.RegridMethod.CONSERVE
-    else:
-        rmap = {'CONSERVE': ESMF.RegridMethod.CONSERVE,
-                'BILINEAR': ESMF.RegridMethod.BILINEAR,
-                'NEAREST_STOD': ESMF.RegridMethod.NEAREST_STOD,
-                'PATCH': ESMF.RegridMethod.PATCH}
-        regrid_method = target['regrid_method']
-        try:
-            target['regrid_method'] = rmap[regrid_method]
-        except KeyError:
-            raise ValueError('Chunked regridding does not support "{}".'.format(regrid_method))
-
-    if 'unmapped_action' not in target:
-        target['unmapped_action'] = ESMF.UnmappedAction.IGNORE
-    else:
-        rmap = {'IGNORE': ESMF.UnmappedAction.IGNORE,
-                'ERROR': ESMF.UnmappedAction.ERROR}
-        unmapped_action = target['unmapped_action']
-        try:
-            target['unmapped_action'] = rmap[unmapped_action]
-        except KeyError:
-            raise ValueError('Chunked regridding does not support "{}".'.format(unmapped_action))
-
-    # Never create a route handle for weight generation only.
-    target['create_rh'] = False
-
-
-def create_esmf_field(*args):
-    import ESMF
-
-    grid = create_esmf_grid(*args)
-
-    # TODO: Method to specify "meshloc" at API level
-    if isinstance(grid, ESMF.Mesh):
-        meshloc = ESMF.MeshLoc.ELEMENT
-    else:
-        meshloc = None
-    return ESMF.Field(grid=grid, meshloc=meshloc), grid
-
-
-def create_esmf_grid(filename, grid, esmf_kwargs):
-    import ESMF
-
-    filetype = grid.driver.get_esmf_fileformat()
-    klass = grid.driver.get_esmf_grid_class()
-
-    if klass == ESMF.Grid:
-        # Corners are only needed for conservative regridding.
-        if esmf_kwargs.get('regrid_method') == ESMF.RegridMethod.BILINEAR:
-            add_corner_stagger = False
-        else:
-            add_corner_stagger = True
-
-        # If there is a spatial mask, pass this information to grid creation.
-        grid_mask = grid.get_mask()
-        if grid_mask is not None and grid_mask.any():
-            add_mask = True
-            varname = grid.mask_variable.name
-        else:
-            add_mask = False
-            varname = None
-
-        ret = klass(filename=filename, filetype=filetype, add_corner_stagger=add_corner_stagger, is_sphere=False,
-                    add_mask=add_mask, varname=varname)
-    else:
-        meshname = str(grid.dimension_map.get_variable(DMK.ATTRIBUTE_HOST))
-        ret = klass(filename=filename, filetype=filetype, meshname=meshname)
-    return ret
-
-
-def create_esmf_regrid(**kwargs):
-    import ESMF
-
-    return ESMF.Regrid(**kwargs)
 
 
 def does_contain(container, containee):

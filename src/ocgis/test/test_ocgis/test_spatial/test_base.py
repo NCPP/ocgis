@@ -1,11 +1,10 @@
 from unittest import SkipTest
 
-from shapely.geometry import box
-
 from ocgis.spatial.base import iter_spatial_decomposition, create_split_polygons
 from ocgis.test.base import TestBase, create_gridxy_global, attr
 from ocgis.variable.crs import Spherical
 from ocgis.vmachine.core import vm
+from shapely.geometry import box
 
 
 class Test(TestBase):

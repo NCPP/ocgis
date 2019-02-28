@@ -2,7 +2,7 @@ import numpy as np
 
 from ocgis import DimensionMap, env, constants, vm
 from ocgis.base import raise_if_empty
-from ocgis.constants import DriverKey, DMK, Topology
+from ocgis.constants import DriverKey, DMK, Topology, DecompositionType
 from ocgis.driver.base import AbstractUnstructuredDriver
 from ocgis.driver.nc import DriverNetcdf
 from ocgis.util.helpers import create_unique_global_array
@@ -55,7 +55,7 @@ class DriverNetcdfSCRIP(AbstractUnstructuredDriver, DriverNetcdf):
 
         return ret
 
-    def get_distributed_dimension_name(self, dimension_map, dimensions_metadata):
+    def get_distributed_dimension_name(self, dimension_map, dimensions_metadata, decomp_type=DecompositionType.OCGIS):
         return 'grid_size'
 
     @staticmethod

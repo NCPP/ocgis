@@ -1,1 +1,1 @@
-__author__ = 'ben.koziol'
+from .base import RegridOperation

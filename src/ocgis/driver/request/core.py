@@ -4,10 +4,9 @@ import re
 from copy import deepcopy
 
 import six
-
 from ocgis import constants
 from ocgis import env
-from ocgis.constants import DMK, DriverKey
+from ocgis.constants import DMK, DriverKey, DecompositionType
 from ocgis.driver.dimension_map import DimensionMap
 from ocgis.driver.registry import get_driver_class, driver_registry
 from ocgis.driver.request.base import AbstractRequestObject
@@ -134,7 +133,10 @@ class RequestDataset(AbstractRequestObject):
 
     :param dict driver_kwargs: Any keyword arguments to driver creation. See the driver documentation for a description
      of accepted parameters. These are often format-specific and not easily generalized.
-    :param grid_is_isomorphic: See documentation for :class:`ocgis.Field`
+    :param grid_is_isomorphic: See documentation for :class:`Field`
+    :param decomp_type: The parallel decomposition type to use. This may be left alone in many cases unless a specific
+     parallel use case such as interfacing with ``ESMF`` is required.
+    :type decomp_type: :class:`ocgis.constants.DecompositionType`
     """
 
     def __init__(self, uri=None, variable=None, units=None, time_range=None, time_region=None,
@@ -142,7 +144,7 @@ class RequestDataset(AbstractRequestObject):
                  t_calendar=None, t_conform_units_to=None, grid_abstraction='auto', grid_is_isomorphic='auto',
                  dimension_map=None, field_name=None, driver=None, regrid_source=True, regrid_destination=False,
                  metadata=None, format_time=True, opened=None, uid=None, rename_variable=None, predicate=None,
-                 rotated_pole_priority=False, driver_kwargs=None):
+                 rotated_pole_priority=False, driver_kwargs=None, decomp_type=DecompositionType.OCGIS):
         self._is_init = True
 
         self._field_name = field_name
@@ -151,6 +153,7 @@ class RequestDataset(AbstractRequestObject):
         self._time_region = None
         self._time_subset_func = None
         self._driver_kwargs = driver_kwargs
+        self._decomp_type = decomp_type
 
         if rename_variable is not None:
             rename_variable = get_tuple(rename_variable)
@@ -285,6 +288,15 @@ class RequestDataset(AbstractRequestObject):
         else:
             ret = self._crs
         return ret
+
+    @property
+    def decomp_type(self):
+        """
+        Get the parallel decomposition type used by the request dataset.
+
+        :rtype: :class:`ocgis.constants.DecompositionType`
+        """
+        return self._decomp_type
 
     @property
     def driver(self):

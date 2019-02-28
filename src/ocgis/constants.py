@@ -50,7 +50,7 @@ class ESMFGridClass(Enum):
 
     @classmethod
     def get_esmf_class(cls, target):
-        import ESMF
+        from ocgis.regrid.base import ESMF
         if target == cls.GRID:
             ret = ESMF.Grid
         elif target == cls.MESH:
@@ -422,6 +422,11 @@ class MPITag(IntEnum):
     SELECT_SEND_SIZE = 12
 
 
+class DecompositionType(IntEnum):
+    OCGIS = 0
+    ESMF = 1
+
+
 class CFName(object):
     LONG_NAME = 'long_name'
     TIME = ('time',)
@@ -499,6 +504,10 @@ class ConversionTarget(Enum):
 
 class GridChunkerConstants(object):
     BUFFER_RESOLUTION_MODIFIER = 2.
+    DEFAULT_PATHS = {'dst_template': 'split_dst_{}.nc',
+                     'src_template': 'split_src_{}.nc',
+                     'wgt_template': 'esmf_weights_{}.nc',
+                     'index_file': '01-split_index.nc'}
 
     class IndexFile(object):
         NAME_DESTINATION_VARIABLE = 'grid_chunker_destination'

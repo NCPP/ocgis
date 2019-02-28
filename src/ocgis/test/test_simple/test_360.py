@@ -4,14 +4,13 @@ from tempfile import mkstemp
 
 import netCDF4 as nc
 import numpy as np
-from shapely.geometry.polygon import Polygon
-
 import ocgis
 from ocgis import env
 from ocgis.ops.core import OcgOperations
 from ocgis.ops.interpreter import OcgInterpreter
 from ocgis.spatial.geom_cabinet import GeomCabinetIterator
 from ocgis.test.base import TestBase, attr
+from shapely.geometry.polygon import Polygon
 
 
 class NcSpatial(object):

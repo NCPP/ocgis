@@ -1,8 +1,6 @@
 from copy import deepcopy
 
 import numpy as np
-from shapely import wkt
-
 from ocgis import CoordinateReferenceSystem, vm
 from ocgis import env
 from ocgis.collection.field import Field
@@ -16,6 +14,7 @@ from ocgis.util.itester import itr_products_keywords
 from ocgis.variable.crs import CFRotatedPole, WGS84, CFSpherical
 from ocgis.variable.geom import GeometryVariable
 from ocgis.vmachine.mpi import MPI_COMM, MPI_RANK
+from shapely import wkt
 
 
 class TestSpatialSubsetOperation(TestBase):

@@ -1,7 +1,6 @@
 from copy import deepcopy
 
 import six
-
 from ocgis.base import AbstractOcgisObject
 from ocgis.base import get_dimension_names
 from ocgis.base import get_variable_names

@@ -5,7 +5,6 @@ from functools import reduce, partial
 
 import numpy as np
 import six
-
 from ocgis import constants
 from ocgis.base import AbstractOcgisObject, raise_if_empty
 from ocgis.constants import DataType, SourceIndexType
@@ -32,6 +31,9 @@ class DummyMPIComm(object):
 
     def __init__(self):
         self._send_recv = Dict()
+
+    def Abort(self, int_errorcode=1):
+        raise RuntimeError('Abort on DummyMPIComm Called. Error code = {}'.format(int_errorcode))
 
     def Barrier(self):
         pass
@@ -626,7 +628,10 @@ def rank_print(*args):
     if len(args) == 1:
         args = args[0]
     msg = '(rank={}) {}'.format(MPI_RANK, args)
-    print(msg)
+    try:
+        print(msg, flush=True)
+    except TypeError:
+        print(msg)
 
 
 def redistribute_by_src_idx(variable, dimname, dimension):

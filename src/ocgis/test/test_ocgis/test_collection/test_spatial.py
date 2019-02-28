@@ -1,5 +1,3 @@
-from shapely.geometry import Point
-
 from ocgis.collection.field import Field
 from ocgis.collection.spatial import SpatialCollection
 from ocgis.constants import TagName, DimensionMapKey
@@ -8,6 +6,7 @@ from ocgis.test.base import AbstractTestInterface
 from ocgis.variable.base import Variable
 from ocgis.variable.crs import CoordinateReferenceSystem
 from ocgis.variable.geom import GeometryVariable
+from shapely.geometry import Point
 
 
 class TestSpatialCollection(AbstractTestInterface):

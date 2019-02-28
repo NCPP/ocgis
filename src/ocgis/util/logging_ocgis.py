@@ -202,7 +202,7 @@ def get_versions():
     else:
         v_cf_units = cf_units.__version__
     try:
-        import ESMF
+        from ocgis.regrid.base import ESMF
     except ImportError:
         v_esmf = None
     else:

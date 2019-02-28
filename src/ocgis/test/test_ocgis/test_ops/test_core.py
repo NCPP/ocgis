@@ -7,8 +7,6 @@ from datetime import datetime as dt
 from unittest import SkipTest
 
 import numpy as np
-from shapely.geometry import Point, LineString
-
 import ocgis
 from ocgis import RequestDataset, vm, Dimension
 from ocgis import constants
@@ -19,7 +17,7 @@ from ocgis.exc import DefinitionValidationError
 from ocgis.ops.core import OcgOperations
 from ocgis.ops.parms import definition
 from ocgis.ops.parms.definition import RegridOptions, OutputFormat, SpatialWrapping
-from ocgis.spatial.geom_cabinet import GeomCabinetIterator, GeomCabinet
+from ocgis.spatial.geom_cabinet import GeomCabinetIterator
 from ocgis.spatial.grid import Grid
 from ocgis.test.base import TestBase, attr, create_gridxy_global, create_exact_field
 from ocgis.test.test_simple.test_dependencies import create_mftime_nc_files
@@ -28,6 +26,7 @@ from ocgis.variable.base import Variable
 from ocgis.variable.crs import Spherical, CoordinateReferenceSystem, WGS84, CRS
 from ocgis.variable.temporal import TemporalVariable
 from ocgis.vmachine.mpi import OcgDist, MPI_RANK, variable_collection_scatter, MPI_COMM
+from shapely.geometry import Point, LineString
 
 
 class TestOcgOperations(TestBase):
@@ -75,7 +74,7 @@ class TestOcgOperations(TestBase):
         self.assertEqual(geom.geom_uid, 'ID')
 
         s = "STATE_NAME in ('Wisconsin', 'Vermont')"
-        ops = OcgOperations(dataset=self.datasets, geom_select_sql_where=s, geom='state_boundaries')
+        ops = OcgOperations(dataset=self.datasets, geom_select_sql_where=s, geom=self.path_state_boundaries)
         self.assertEqual(ops.geom_select_sql_where, s)
         self.assertEqual(len(ops.geom), 2)
 
@@ -149,7 +148,7 @@ class TestOcgOperations(TestBase):
         formats = [{0: 'NETCDF3_CLASSIC',
                     1: 'NETCDF3_CLASSIC'},
                    {0: 'NETCDF3_CLASSIC',
-                    1: 'NETCDF3_64BIT_OFFSET'}
+                    1: 'NETCDF3_64BIT'}
                    ]
 
         grid = create_gridxy_global()
@@ -249,7 +248,7 @@ class TestOcgOperations(TestBase):
         rd2 = self.test_data.get_rd('narccap_pr_wrfg_ncep', kwds={'dimension_map': bdm})
 
         rds = [rd1, rd2]
-        ops = OcgOperations(dataset=rds, geom='state_boundaries', select_ugid=[23])
+        ops = OcgOperations(dataset=rds, geom=self.path_state_boundaries, select_ugid=[23])
         size = ops.get_base_request_size()
         actual = size['total']
         desired = 22243.46484375
@@ -384,8 +383,8 @@ class TestOcgOperations(TestBase):
         calc_grouping = [[12, 1, 2], 'unique']
         calc = [{'func': 'mean', 'name': 'mean'}]
         rd = self.test_data.get_rd('cancm4_tas')
-        ops = ocgis.OcgOperations(dataset=rd, calc_grouping=calc_grouping, geom='state_boundaries', select_ugid=[27],
-                                  output_format='nc', calc=calc)
+        ops = ocgis.OcgOperations(dataset=rd, calc_grouping=calc_grouping, geom=self.path_state_boundaries,
+                                  select_ugid=[27], output_format='nc', calc=calc)
         ret = ops.execute()
         rd2 = ocgis.RequestDataset(uri=ret, variable='mean')
         field = rd2.get()
@@ -408,7 +407,7 @@ class TestOcgOperations(TestBase):
         calc = [{'func': 'mean', 'name': 'mean'}]
         rd = self.test_data.get_rd('cancm4_tas')
         ops = OcgOperations(dataset=rd, calc=calc, calc_grouping=calc_grouping,
-                            geom='state_boundaries', select_ugid=[25])
+                            geom=self.path_state_boundaries, select_ugid=[25])
         ret = ops.execute()
         self.assertEqual(ret.get_element(variable_name='mean').shape, (10, 4, 4))
 
@@ -437,7 +436,7 @@ class TestOcgOperations(TestBase):
         dataset = [rd, rd2]
         for ds in dataset:
             ds.time_region = {'month': [6]}
-        ops = ocgis.OcgOperations(dataset=dataset, geom='state_boundaries', select_ugid=[16, 17],
+        ops = ocgis.OcgOperations(dataset=dataset, geom=self.path_state_boundaries, select_ugid=[16, 17],
                                   calc_grouping=['month'],
                                   calc=[{'func': 'mean', 'name': 'mean'}, {'func': 'median', 'name': 'median'}],
                                   callback=callback)
@@ -513,14 +512,14 @@ class TestOcgOperations(TestBase):
     @attr('data')
     def test_keyword_geom_having_changed_select_ugid(self):
         ops = OcgOperations(dataset=self.test_data.get_rd('cancm4_tas'),
-                            geom='state_boundaries')
+                            geom=self.path_state_boundaries)
         self.assertEqual(len(list(ops.geom)), 51)
         ops.geom_select_uid = [16, 17]
         self.assertEqual(len(list(ops.geom)), 2)
 
     @attr('data')
     def test_keyword_geom_string(self):
-        ops = OcgOperations(dataset=self.datasets, geom='state_boundaries')
+        ops = OcgOperations(dataset=self.datasets, geom=self.path_state_boundaries)
         self.assertEqual(len(list(ops.geom)), 51)
         ops.geom = None
         self.assertEqual(ops.geom, None)
@@ -629,7 +628,7 @@ class TestOcgOperations(TestBase):
         rd2 = self.test_data.get_rd('cancm4_tas')
 
         ops = OcgOperations(dataset=rd1, regrid_destination=rd2, output_format='nc', snippet=True,
-                            geom='state_boundaries', select_ugid=[25])
+                            geom=self.path_state_boundaries, select_ugid=[25])
         ret = ops.execute()
 
         field = ocgis.RequestDataset(ret).get()
@@ -645,7 +644,7 @@ class TestOcgOperations(TestBase):
 
         for vector_wrap in [True, False]:
             ops = OcgOperations(dataset=rd1, regrid_destination=rd2, output_format='shp', snippet=True,
-                                geom='state_boundaries', select_ugid=[25], vector_wrap=vector_wrap,
+                                geom=self.path_state_boundaries, select_ugid=[25], vector_wrap=vector_wrap,
                                 prefix=str(vector_wrap), melted=True)
             ret = ops.execute()
             sci = GeomCabinetIterator(path=ret)
@@ -750,14 +749,14 @@ class TestOcgOperations(TestBase):
             return indices
 
         rd = self.test_data.get_rd('cancm4_tas')
-        ops = OcgOperations(dataset=rd, time_subset_func=_func_, geom='state_boundaries', geom_select_uid=[20])
+        ops = OcgOperations(dataset=rd, time_subset_func=_func_, geom=self.path_state_boundaries, geom_select_uid=[20])
         ret = ops.execute()
         ret = ret.get_element()
         for v in ret.temporal.value_datetime:
             self.assertEqual(v.month, 6)
 
         rd = self.test_data.get_rd('cancm4_tas')
-        ops = OcgOperations(dataset=rd, time_subset_func=_func_, geom='state_boundaries', geom_select_uid=[20],
+        ops = OcgOperations(dataset=rd, time_subset_func=_func_, geom=self.path_state_boundaries, geom_select_uid=[20],
                             output_format=constants.OutputFormatName.NETCDF)
         ret = ops.execute()
         rd_out = RequestDataset(ret)
@@ -772,8 +771,7 @@ class TestOcgOperations(TestBase):
         self.assertTrue(ops.snippet)
 
         # test driver validation is called appropriately
-        path = GeomCabinet().get_shp_path('state_boundaries')
-        rd = RequestDataset(path)
+        rd = RequestDataset(self.path_state_boundaries)
         with self.assertRaises(DefinitionValidationError):
             OcgOperations(dataset=rd, output_format='csv')
 

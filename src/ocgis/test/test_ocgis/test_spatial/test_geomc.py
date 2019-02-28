@@ -2,10 +2,6 @@ from unittest.case import SkipTest
 
 import numpy as np
 from mock import mock
-from shapely import wkt
-from shapely.geometry import Point, MultiPolygon, box
-from shapely.geometry.polygon import Polygon
-
 from ocgis import Variable, Dimension, vm, Field, GeometryVariable, DimensionMap
 from ocgis.base import AbstractOcgisObject, raise_if_empty
 from ocgis.constants import WrappedState, DMK, GridAbstraction, Topology, DriverKey
@@ -18,6 +14,9 @@ from ocgis.test.base import TestBase, attr
 from ocgis.test.test_ocgis.test_driver.test_nc_ugrid import get_ugrid_data_structure
 from ocgis.variable.crs import Spherical, WGS84
 from ocgis.vmachine.mpi import OcgDist, variable_collection_scatter, variable_gather, variable_scatter, hgather
+from shapely import wkt
+from shapely.geometry import Point, MultiPolygon, box
+from shapely.geometry.polygon import Polygon
 
 
 class Test(TestBase):

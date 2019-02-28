@@ -4,7 +4,6 @@ from collections import OrderedDict, defaultdict
 from datetime import datetime
 
 import numpy as np
-
 from ocgis.calc import base
 from ocgis.calc.base import AbstractUnivariateFunction, AbstractParameterizedFunction
 from ocgis.exc import DefinitionValidationError
@@ -117,7 +116,7 @@ class MovingWindow(AbstractUnivariateFunction, AbstractParameterizedFunction):
                 stop = origin + shift + 1
                 # if the end index is greater than the length of the value array end iteration
                 if stop > shape_values:
-                    raise StopIteration
+                    return
                 yield origin, values[start:stop, :, :]
                 origin += 1
         elif mode == 'same':
@@ -131,7 +130,7 @@ class MovingWindow(AbstractUnivariateFunction, AbstractParameterizedFunction):
                 origin += 1
                 # stop when we've used the last array value
                 if origin == shape_values:
-                    raise StopIteration
+                    return
         else:
             raise NotImplementedError(mode)
 

@@ -2,13 +2,12 @@ import os
 from csv import DictReader
 
 import fiona
-from shapely.geometry import Point
-from shapely.geometry.multipoint import MultiPoint
-
 from ocgis import RequestDataset, OcgOperations, env
 from ocgis import constants
 from ocgis.constants import HeaderName
 from ocgis.test.base import TestBase, attr
+from shapely.geometry import Point
+from shapely.geometry.multipoint import MultiPoint
 
 """
 These tests written to guide bug fixing or issue development. Theses tests are typically high-level and block-specific

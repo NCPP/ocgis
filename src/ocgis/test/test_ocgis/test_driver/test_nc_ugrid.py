@@ -1,7 +1,6 @@
 import itertools
 
 import numpy as np
-
 from ocgis.constants import GridAbstraction, DMK, OcgisConvention
 from ocgis.driver.nc_ugrid import DriverNetcdfUGRID
 from ocgis.driver.request.core import RequestDataset

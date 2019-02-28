@@ -632,7 +632,7 @@ class Field(VariableCollection):
         """
 
         if self.is_empty:
-            raise StopIteration
+            return
 
         from ocgis.driver.registry import get_driver_class
 
@@ -1031,7 +1031,11 @@ class Field(VariableCollection):
 
     @classmethod
     def read(cls, *args, **kwargs):
-        # tdk: doc
+        """
+        Read data from disk. `args` and `kwargs` are passed to a request dataset object and `create_field` is called.
+
+        See :class:`~ocgis.RequestDataset` documentation.
+        """
         from ocgis import RequestDataset
         return RequestDataset(*args, **kwargs).create_field()
 

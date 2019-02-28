@@ -1,5 +1,4 @@
 import os
-from unittest import SkipTest
 
 import fiona
 import numpy as np
@@ -79,9 +78,6 @@ class TestDriverVector(TestBase):
 
     def test_system_convert_to_geojson(self):
         """GeoJSON conversion does not support update/append write mode."""
-
-        # tdk: TEST: this should be re-enabled after investigating GeoJSON's geometry issues
-        raise (SkipTest)
         driver = self.get_driver()
         field = driver.create_field()
         path = self.get_temporary_file_path('foo.geojson')

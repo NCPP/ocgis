@@ -198,8 +198,7 @@ def is_field(target):
 
 
 def is_unstructured_driver(klass):
-    from ocgis.driver.base import AbstractUnstructuredDriver
-    return issubclass(klass, AbstractUnstructuredDriver)
+    return klass._is_unstructured
 
 
 def iter_dict_slices(names, sizes, extra=None):

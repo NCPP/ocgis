@@ -39,6 +39,7 @@ class AbstractDriver(AbstractOcgisObject):
     _default_crs = None
     _esmf_fileformat = None  # The associated ESMF file type. This may be None.
     _esmf_grid_class = constants.ESMFGridClass.GRID  # The ESMF grid class type.
+    _is_unstructured = False  # Flag to indicate if the driver is for unstructured grids
     _priority = False
 
     def __init__(self, rd):
@@ -911,6 +912,7 @@ class AbstractTabularDriver(AbstractDriver):
 class AbstractUnstructuredDriver(AbstractOcgisObject):
     default_axes_positions = (0, 0)  # Standard axes index for Y and X respectively.
     _esmf_grid_class = constants.ESMFGridClass.MESH
+    _is_unstructured = True
 
     @staticmethod
     def get_element_dimension(gc):

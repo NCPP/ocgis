@@ -1484,7 +1484,8 @@ class TestSourcedVariable(AbstractTestInterface):
         self.assertEqual(sub.shape, (6, 3, 3))
 
         with self.nc_scope(self.get_request_dataset().uri, 'r') as ds:
-            ds.set_always_mask(False)
+            if hasattr(ds, 'set_always_mask'):  # Compatibility with netcdf4 > 1.4
+                ds.set_always_mask(False)
             var = ds.variables[sv.name]
             actual = var[5:11, 3:6, 5:8]
 

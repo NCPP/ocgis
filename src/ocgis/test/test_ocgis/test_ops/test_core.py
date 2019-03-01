@@ -168,7 +168,7 @@ class TestOcgOperations(TestBase):
 
             for ii, path in enumerate(paths):
                 rd = RequestDataset(path)
-                self.assertEqual(rd.metadata['file_format'], f[ii])
+                self.assertTrue(rd.metadata['file_format'].startswith(f[ii]))
 
             for ii, path in enumerate(paths):
                 rd = RequestDataset(path)

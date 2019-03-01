@@ -427,25 +427,37 @@ class TestCFRotatedPole(TestBase):
     def test_get_rotated_pole_transformation(self):
         """Test SpatialDimension objects are appropriately transformed."""
 
-        rd = self.test_data.get_rd('rotated_pole_ichec')
-        field = rd.get()
+        try:
+            rd = self.test_data.get_rd('rotated_pole_ichec')
+            field = rd.get()
 
-        original_coordinate_values = field.grid.get_value_stacked().copy()
-        field.update_crs(CFSpherical())
-        self.assertEqual(field.crs, CFSpherical())
+            original_coordinate_values = field.grid.get_value_stacked().copy()
+            field.update_crs(CFSpherical())
+            self.assertEqual(field.crs, CFSpherical())
 
-        field.update_crs(rd.get().crs)
-        back_to_original_coordinate_values = field.grid.get_value_stacked().copy()
-        self.assertNumpyAllClose(original_coordinate_values, back_to_original_coordinate_values)
+            field.update_crs(rd.get().crs)
+            back_to_original_coordinate_values = field.grid.get_value_stacked().copy()
+            self.assertNumpyAllClose(original_coordinate_values, back_to_original_coordinate_values)
+        except RuntimeError as e:
+            if "HDF error" in str(e):
+                raise SkipTest('HDF sometimes has trouble reading the dataset')
+            else:
+                raise
 
     @attr('data')
     def test_in_operations(self):
-        rd = self.test_data.get_rd('rotated_pole_ichec')
-        rd2 = deepcopy(rd)
-        rd2.alias = 'tas2'
-        # these projections are equivalent so it is okay to write them to a common output file
-        ops = ocgis.OcgOperations(dataset=[rd, rd2], output_format='csv', snippet=True)
-        ops.execute()
+        try:
+            rd = self.test_data.get_rd('rotated_pole_ichec')
+            rd2 = deepcopy(rd)
+            rd2.alias = 'tas2'
+            # these projections are equivalent so it is okay to write them to a common output file
+            ops = ocgis.OcgOperations(dataset=[rd, rd2], output_format='csv', snippet=True)
+            ops.execute()
+        except RuntimeError as e:
+            if "HDF error" in str(e):
+                raise SkipTest('HDF sometimes has trouble reading the dataset')
+            else:
+                raise
 
     @attr('data')
     def test_load_from_metadata(self):

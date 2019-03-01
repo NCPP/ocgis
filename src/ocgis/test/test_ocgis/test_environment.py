@@ -1,6 +1,7 @@
 import os
 import tempfile
 from importlib import import_module
+from unittest import SkipTest
 
 import numpy as np
 from ocgis import constants
@@ -146,6 +147,8 @@ class TestEnvironment(TestBase):
 
     def test_reset(self):
         # Test netCDF MPI is reset appropriately.
+        if env.USE_NETCDF4_MPI:
+            raise SkipTest("requires a non-netcdf4 parallel environment")
         env.USE_NETCDF4_MPI = True
         self.assertTrue(env.USE_NETCDF4_MPI)
         env.reset()

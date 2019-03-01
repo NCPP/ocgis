@@ -37,7 +37,7 @@ for jj in "${tests[@]}"; do
         for ii in "${nps[@]}"; do
             inf "Current MPI Test Suite: nproc=${ii}, path=${jj}"
 
-            mpirun -n ${ii} nosetests -vsx -a 'mpi,!data,!slow' ${jj}
+            mpirun -n ${ii} nosetests -vsx -a 'mpi,!slow' ${jj}
         done
     fi
 done
@@ -47,6 +47,9 @@ inf `grep FAIL ${OCGIS_TEST_OUT_FILE}`
 
 # This error is printed by a GDAL library.
 inf `grep -v -E "ERROR 1:.*not recognised as an available field" ${OCGIS_TEST_OUT_FILE} | grep ERROR`
+
+inf "tests skipped because of HDF error:"
+inf `grep "HDF sometimes has trouble reading the dataset" ${OCGIS_TEST_OUT_FILE}`
 
 debug "finished run_tests_core()"
 

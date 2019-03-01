@@ -586,7 +586,7 @@ class GridChunker(AbstractOcgisObject):
 
     @staticmethod
     def smm(*args, **kwargs):
-        """See :method:`ocgis.regrid.base.smm`"""
+        """See :meth:`ocgis.regrid.base.smm`"""
         smm(*args, **kwargs)
 
     def write_chunks(self):

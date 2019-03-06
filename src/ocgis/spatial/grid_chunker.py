@@ -8,7 +8,6 @@ from ocgis.base import AbstractOcgisObject, grid_abstraction_scope
 from ocgis.collection.field import Field
 from ocgis.constants import GridChunkerConstants, RegriddingRole, Topology
 from ocgis.driver.request.core import RequestDataset
-from ocgis.regrid.base import update_esmf_kwargs, create_esmf_field, create_esmf_regrid, smm
 from ocgis.spatial.base import iter_spatial_decomposition
 from ocgis.spatial.geomc import AbstractGeometryCoordinates
 from ocgis.spatial.grid import GridUnstruct, AbstractGrid, Grid
@@ -117,6 +116,7 @@ class GridChunker(AbstractOcgisObject):
             esmf_kwargs = {}
         if self.genweights:
             esmf_kwargs = esmf_kwargs.copy()
+            from ocgis.regrid.base import update_esmf_kwargs
             update_esmf_kwargs(esmf_kwargs)
         self.esmf_kwargs = esmf_kwargs
 
@@ -596,6 +596,7 @@ class GridChunker(AbstractOcgisObject):
     @staticmethod
     def smm(*args, **kwargs):
         """See :meth:`ocgis.regrid.base.smm`"""
+        from ocgis.regrid.base import smm
         smm(*args, **kwargs)
 
     def write_chunks(self):
@@ -724,6 +725,7 @@ class GridChunker(AbstractOcgisObject):
         :param dst_grid: If provided, use this destination grid for identifying ESMF parameters
         :type dst_grid: :class:`ocgis.spatial.grid.AbstractGrid`
         """
+        from ocgis.regrid.base import create_esmf_field, create_esmf_regrid
         if src_grid is None:
             src_grid = self.src_grid
         if dst_grid is None:

@@ -630,7 +630,7 @@ def rank_print(*args):
     msg = '(rank={}) {}'.format(MPI_RANK, args)
     try:
         print(msg, flush=True)
-    except TypeError:
+    except:
         print(msg)
 
 

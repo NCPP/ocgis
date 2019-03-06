@@ -222,8 +222,9 @@ class GridChunker(AbstractOcgisObject):
         :rtype: bool
         """
         if self._optimized_bbox_subset == 'auto':
-            if (self.src_grid.resolution_max is not None or self.src_grid_resolution is not None) and \
-                    (self.dst_grid.resolution_max is not None or self.dst_grid_resolution is not None):
+            if (self.src_grid_resolution is not None and self.dst_grid_resolution is not None) or (
+                    self.src_grid.resolution_max is not None or self.src_grid_resolution is not None) and (
+                    self.dst_grid.resolution_max is not None or self.dst_grid_resolution is not None):
                 ret = True
             else:
                 ret = False
@@ -481,7 +482,7 @@ class GridChunker(AbstractOcgisObject):
             with vm.scoped_by_emptyable('global mask', dst_grid_subset):
                 if not vm.is_null:
                     if dst_grid_subset.has_mask_global:
-                        if dst_grid_subset.has_mask:
+                        if dst_grid_subset.has_mask and dst_grid_subset.has_masked_values:
                             all_masked = dst_grid_subset.get_mask().all()
                         else:
                             all_masked = False
@@ -503,6 +504,14 @@ class GridChunker(AbstractOcgisObject):
                         target_grid = dst_grid_subset.parent.grid
                     else:
                         target_grid = dst_grid_subset
+
+                    # Try to reduce the coordinates in the case of unstructured grid data.
+                    if hasattr(target_grid, 'reduce_global') and Topology.POLYGON in target_grid.abstractions_available:
+                        ocgis_lh(logger='grid_chunker', msg='starting reduce_global for dst_grid_subset',
+                                 level=logging.DEBUG)
+                        target_grid = target_grid.reduce_global()
+                        ocgis_lh(logger='grid_chunker', msg='finished reduce_global for dst_grid_subset',
+                                 level=logging.DEBUG)
 
                     extent_global = target_grid.parent.attrs.get('extent_global')
                     if extent_global is None:

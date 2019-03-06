@@ -913,6 +913,7 @@ class AbstractUnstructuredDriver(AbstractOcgisObject):
     default_axes_positions = (0, 0)  # Standard axes index for Y and X respectively.
     _esmf_grid_class = constants.ESMFGridClass.MESH
     _is_unstructured = True
+    _start_index = 0
 
     @staticmethod
     def get_element_dimension(gc):

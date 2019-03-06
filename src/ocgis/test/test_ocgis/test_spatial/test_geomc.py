@@ -4,7 +4,7 @@ import numpy as np
 from mock import mock
 from ocgis import Variable, Dimension, vm, Field, GeometryVariable, DimensionMap
 from ocgis.base import AbstractOcgisObject, raise_if_empty
-from ocgis.constants import WrappedState, DMK, GridAbstraction, Topology, DriverKey
+from ocgis.constants import WrappedState, DMK, GridAbstraction, Topology, DriverKey, AttributeName
 from ocgis.driver.nc_ugrid import DriverNetcdfUGRID
 from ocgis.spatial.base import create_spatial_mask_variable
 from ocgis.spatial.geomc import PointGC, get_default_geometry_variable_name, PolygonGC, reduce_reindex_coordinate_index, \
@@ -99,10 +99,14 @@ class FixturePointGC(AbstractOcgisObject):
         p = PointGC(x, y, z=z, **kwargs)
         return p
 
-    @property
-    def fixture_cindex(self):
-        value = np.arange(6).reshape(-1, 1)
-        return Variable(name='cindex', value=value, dimensions=['elements', 'misc'])
+    @staticmethod
+    def fixture_cindex(start_index):
+        assert start_index == 0 or start_index == 1
+        value = np.arange(0 + start_index, 6 + start_index).reshape(-1, 1)
+        return Variable(name='cindex',
+                        value=value,
+                        dimensions=['elements', 'misc'],
+                        attrs={AttributeName.START_INDEX: start_index})
 
     @property
     def fixture_element_dimension(self):
@@ -131,7 +135,7 @@ class TestPointGC(TestBase, FixturePointGC):
 
     def test_init(self):
         element_dim = self.fixture_element_dimension
-        cindex = self.fixture_cindex
+        cindex = self.fixture_cindex(0)
         mask = self.fixture_mask
         keywords = dict(cindex=[None, cindex],
                         mask=[None, mask])
@@ -194,7 +198,7 @@ class TestPointGC(TestBase, FixturePointGC):
         self.assertTrue(actual.is_empty)
 
     def test_get_intersects(self):
-        p = self.fixture(cindex=self.fixture_cindex)
+        p = self.fixture(cindex=self.fixture_cindex(0))
         poly = self.fixture_intersects_polygon
 
         sub = p.get_intersects(poly)
@@ -257,7 +261,7 @@ class TestPointGC(TestBase, FixturePointGC):
 
     def test_iter_geometries(self):
         keywords = dict(umo=[None, False, True],
-                        cindex=[None, self.fixture_cindex])
+                        cindex=[None, self.fixture_cindex(0)])
         for k in self.iter_product_keywords(keywords):
             p = self.fixture(mask=self.fixture_mask, cindex=k.cindex)
             actual = list(p.iter_geometries(use_memory_optimizations=k.umo))
@@ -281,24 +285,25 @@ class TestPointGC(TestBase, FixturePointGC):
 
     @attr('mpi')
     def test_reduce_global(self):
-        p = self.fixture(cindex=self.fixture_cindex, start_index=1)
+        pt = self.fixture(cindex=self.fixture_cindex(1), start_index=1)
+        self.assertEqual(pt.start_index, 1)
 
         dist = OcgDist()
-        for d in p.parent.dimensions.values():
+        for d in pt.parent.dimensions.values():
             d = d.copy()
             if d.name == self.fixture_element_dimension.name:
                 d.dist = True
             dist.add_dimension(d)
         dist.update_dimension_bounds()
 
-        new_parent = variable_collection_scatter(p.parent, dist)
+        new_parent = variable_collection_scatter(pt.parent, dist)
 
         vm.create_subcomm_by_emptyable('coordinate reduction', new_parent, is_current=True)
         if vm.is_null:
             return
 
-        p.parent = new_parent
-        sub = p.get_distributed_slice(slice(2, 5))
+        pt.parent = new_parent
+        sub = pt.get_distributed_slice(slice(2, 5))
 
         vm.create_subcomm_by_emptyable('distributed slice', sub, is_current=True)
         if vm.is_null:
@@ -323,8 +328,10 @@ class TestPointGC(TestBase, FixturePointGC):
         path = self.get_temporary_file_path('foo.nc')
         actual.parent.write(path)
 
-        # if vm.rank == 0:
-        #     self.ncdump(path, header_only=False)
+        actual = Field.read(path)
+        self.assertEqual(actual['cindex'].attrs['start_index'], 1)
+
+        # if vm.rank == 0: self.ncdump(path, header_only=False)
 
     def test_update_crs(self):
         f = self.fixture(crs=Spherical())
@@ -372,9 +379,10 @@ class TestPolygonGC(FixturePolygonGC, TestBase):
 
     @attr('mpi')
     def test_get_intersects(self):
-        self.add_barrier = False
         subset_geom = self.fixture_subset_geom()
         poly = self.fixture()
+
+        # Scatter the polygon geometry coordinates for the parallel case ===============================================
 
         dist = OcgDist()
         for d in poly.parent.dimensions.values():
@@ -395,6 +403,15 @@ class TestPolygonGC(FixturePolygonGC, TestBase):
         for v in poly.parent.values():
             self.assertEqual(id(v.parent), id(poly.parent))
             self.assertEqual(len(v.parent), len(poly.parent))
+
+        # ==============================================================================================================
+
+        # p = os.path.join('/tmp/subset_geom.shp')
+        # s = GeometryVariable.from_shapely(subset_geom)
+        # s.write_vector(p)
+        # p = os.path.join('/tmp/poly.shp')
+        # s = poly.convert_to()
+        # s.write_vector(p)
 
         sub = poly.get_intersects(subset_geom)
         vm.create_subcomm_by_emptyable('after intersects', sub, is_current=True)
@@ -419,6 +436,13 @@ class TestPolygonGC(FixturePolygonGC, TestBase):
         sub.parent._validate_()
         sub2 = sub.reduce_global()
         sub2.parent._validate_()
+
+        # p = os.path.join('/tmp/sub.shp')
+        # s = sub.convert_to()
+        # s.write_vector(p)
+        # p = os.path.join('/tmp/sub2.shp')
+        # s = sub2.convert_to()
+        # s.write_vector(p)
 
         # Gather then broadcast coordinates so all coordinates are available on each process.
         to_add = []

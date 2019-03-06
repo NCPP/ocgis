@@ -6,7 +6,7 @@ from ocgis.test.base import TestBase, attr
 
 
 class TestBlah(TestBase):
-    @attr('slow')
+    @attr('slow', 'data')
     def test_system_many_request_datasets(self):
         """Test numerous request datasets."""
 

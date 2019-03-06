@@ -393,7 +393,11 @@ class AbstractXYZSpatialContainer(AbstractSpatialContainer):
         :rtype: bool
         """
         if self.has_mask:
-            ret = self.get_mask().any()
+            mask = self.get_mask()
+            if mask is None:
+                ret = False
+            else:
+                ret = mask.any()
         else:
             ret = False
         return ret

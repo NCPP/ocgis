@@ -4,29 +4,22 @@
 
 function run_tests_core(){
 
+[ -z "${TESTS}" ] && echo 'ERROR: TESTS not set' && exit 1
+[ -z "${RUN_SERIAL_TESTS}" ] && echo 'ERROR: RUN_SERIAL_TESTS not set' && exit 1
+[ -z "${RUN_PARALLEL_TESTS}" ] && echo 'ERROR: RUN_PARALLEL_TESTS not set' && exit 1
+[ -z "${NOSE_ATTRS}" ] && echo 'ERROR: NOSE_ATTRS not set' && exit 1
+[ -z "${MPI_NOSE_ATTRS}" ] && echo 'ERROR: MPI_NOSE_ATTRS not set' && exit 1
+
 source ./logging.sh || exit 1
-
-#export OCGIS_USE_NETCDF4_MPI="false"
-
-export RUN_SERIAL_TESTS="true"
-#export RUN_SERIAL_TESTS="false"
-
-export RUN_PARALLEL_TESTS="true"
-#export RUN_PARALLEL_TESTS="false"
-
-export NOSE_ATTRS="!slow,!remote,!icclim,!mpi"
 
 nps=(2 3 4 5 6 7 8)
 #nps=(4)
 
-tests=(../../src/ocgis/test)
-
-for jj in "${tests[@]}"; do
-
+for jj in "${TESTS[@]}"; do
     if [ ${RUN_SERIAL_TESTS} == "true" ]; then
         inf "Running serial tests: ${jj}"
 
-        nosetests -vsx -a ${NOSE_ATTRS} ${jj}
+        nosetests -vs -a ${NOSE_ATTRS} ${jj}
         if [ $? == 1 ]; then
             error "One or more serial tests failed."
             exit 1
@@ -37,7 +30,7 @@ for jj in "${tests[@]}"; do
         for ii in "${nps[@]}"; do
             inf "Current MPI Test Suite: nproc=${ii}, path=${jj}"
 
-            mpirun -n ${ii} nosetests -vsx -a 'mpi,!slow' ${jj}
+            mpirun -n ${ii} nosetests -vsx -a ${MPI_NOSE_ATTRS} ${jj}
         done
     fi
 done

@@ -11,7 +11,6 @@
 *.orig
 *~
 *.log
-*.nc
 *.out
 *.ESMF_LogFile
 *.Log

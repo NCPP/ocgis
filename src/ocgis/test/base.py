@@ -613,14 +613,23 @@ class TestBase(unittest.TestCase):
                         break
         return new
 
-    def get_temporary_file_path(self, name):
+    def get_temporary_file_path(self, name, collective=False):
         """
         :param str name: The name to append to the current temporary output directory.
+        :param bool collective: If ``True``, broadcast the path to all ranks in the current VM.
         :returns: Temporary path in the current output directory.
         :rtype: str
         """
-
-        return os.path.join(self.current_dir_output, name)
+        if collective:
+            from ocgis import vm
+            if vm.rank == 0:
+                path = self.get_temporary_file_path(name)
+            else:
+                path = None
+            ret = vm.bcast(path)
+        else:
+            ret = os.path.join(self.current_dir_output, name)
+        return ret
 
     def get_temporary_output_directory(self):
         """

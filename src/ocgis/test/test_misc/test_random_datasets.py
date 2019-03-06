@@ -240,7 +240,7 @@ class Test(TestBase):
                             output_format=constants.OutputFormatName.CSV_SHAPEFILE)
         ops.execute()
 
-    @attr('data')
+    @attr('data', 'slow')
     def test_narccap_point_subset_small(self):
         dmap = {DimensionMapKey.X: {DimensionMapKey.VARIABLE: 'xc'},
                 DimensionMapKey.Y: {DimensionMapKey.VARIABLE: 'yc'},

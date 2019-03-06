@@ -36,9 +36,9 @@ def ocli():
 @click.option('-w', '--weight', required=False, type=click.Path(exists=False, dir_okay=False),
               help='Path to the output global weight file. Required if --merge.')
 @click.option('--esmf_src_type', type=str, nargs=1, default='GRIDSPEC',
-              help='(default=GRIDSPEC) ESMF source grid type. Supports GRIDSPEC, UGRID, and SCRIP.')
+              help='(default=GRIDSPEC) ESMF source grid type. Supports GRIDSPEC, UGRID, ESMFMESH, and SCRIP.')
 @click.option('--esmf_dst_type', type=str, nargs=1, default='GRIDSPEC',
-              help='(default=GRIDSPEC) ESMF destination grid type. Supports GRIDSPEC, UGRID, and SCRIP.')
+              help='(default=GRIDSPEC) ESMF destination grid type. Supports GRIDSPEC, UGRID, ESMFMESH, and SCRIP.')
 @click.option('--genweights/--no_genweights', default=True,
               help='(default=True) Generate weights using ESMF for each source and destination subset.')
 @click.option('--esmf_regrid_method', type=str, nargs=1, default='CONSERVE',
@@ -130,10 +130,9 @@ def chunked_rwg(source, destination, weight, nchunks_dst, merge, esmf_src_type, 
     # Execute a spatial subset if requested.
     paths = None
     if spatial_subset:
-        # TODO: This path should be customizable.
         if spatial_subset_path is None:
             spatial_subset_path = os.path.join(wd, 'spatial_subset.nc')
-        _write_spatial_subset_(rd_src, rd_dst, spatial_subset_path)
+        _write_spatial_subset_(rd_src, rd_dst, spatial_subset_path, src_resmax=src_resolution)
     # Only split grids if a spatial subset is not requested.
     else:
         # Update the paths to use for the grid.
@@ -183,7 +182,7 @@ def chunked_rwg(source, destination, weight, nchunks_dst, merge, esmf_src_type, 
     return 0
 
 
-@ocli.command(help='Apply weights in chunked files with an option to insert the global data.')
+@ocli.command(help='Apply weights in chunked files with an option to insert the global data.', name='chunked-smm')
 @click.option('--wd', type=click.Path(exists=True, dir_okay=True), required=False,
               help="Optional working directory containing destination chunk files. If empty, the current working "
                    "directory is used.")
@@ -225,7 +224,8 @@ def chunked_smm(wd, index_path, insert_weighted, destination, data_variables):
 def _create_request_dataset_(path, esmf_type, data_variables='auto'):
     edmap = {'GRIDSPEC': DriverKey.NETCDF_CF,
              'UGRID': DriverKey.NETCDF_UGRID,
-             'SCRIP': DriverKey.NETCDF_SCRIP}
+             'SCRIP': DriverKey.NETCDF_SCRIP,
+             'ESMFMESH': DriverKey.NETCDF_ESMF_UNSTRUCT}
     odriver = edmap[esmf_type]
     if data_variables == 'auto':
         v = None
@@ -243,7 +243,7 @@ def _is_subdir_(path, potential_subpath):
     return not relative.startswith(os.pardir + os.sep)
 
 
-def _write_spatial_subset_(rd_src, rd_dst, spatial_subset_path):
+def _write_spatial_subset_(rd_src, rd_dst, spatial_subset_path, src_resmax=None):
     src_field = rd_src.create_field()
     dst_field = rd_dst.create_field()
     sso = SpatialSubsetOperation(src_field)
@@ -252,20 +252,23 @@ def _write_spatial_subset_(rd_src, rd_dst, spatial_subset_path):
         dst_field_extent = dst_field.grid.extent_global
 
     subset_geom = GeometryVariable.from_shapely(box(*dst_field_extent), crs=dst_field.crs, is_bbox=True)
-    buffer_value = GridChunkerConstants.BUFFER_RESOLUTION_MODIFIER * src_field.grid.resolution_max
+    if src_resmax is None:
+        src_resmax = src_field.grid.resolution_max
+    buffer_value = GridChunkerConstants.BUFFER_RESOLUTION_MODIFIER * src_resmax
     sub_src = sso.get_spatial_subset('intersects', subset_geom, buffer_value=buffer_value, optimized_bbox_subset=True)
 
     # Try to reduce the coordinate indexing for unstructured grids.
-    try:
-        reduced = sub_src.grid.reduce_global()
-    except AttributeError:
-        pass
-    else:
-        sub_src = reduced.parent
-
-    # Write the subset to file.
-    with ocgis.vm.scoped_by_emptyable("spatial subset write", sub_src):
+    with ocgis.vm.scoped_by_emptyable('subset reduce/write', sub_src):
         if not ocgis.vm.is_null:
+            # Attempt to reindex the subset.
+            try:
+                reduced = sub_src.grid.reduce_global()
+            except AttributeError:
+                pass
+            else:
+                sub_src = reduced.parent
+
+            # Write the subset to file.
             sub_src.write(spatial_subset_path)
 
 

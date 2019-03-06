@@ -10,7 +10,7 @@ from ocgis import env
 from ocgis.base import AbstractOcgisObject
 from ocgis.base import get_dimension_names, get_variable_names, raise_if_empty
 from ocgis.constants import KeywordArgument, HeaderName, VariableName, DimensionName, ConversionTarget, DriverKey, \
-    WrappedState
+    WrappedState, AttributeName
 from ocgis.environment import ogr
 from ocgis.exc import EmptySubsetError, RequestableFeature, NoInteriorsError
 from ocgis.spatial.base import AbstractSpatialVariable, create_split_polygons
@@ -522,7 +522,7 @@ class GeometryVariable(AbstractSpatialVariable):
                                           Dimension(name=DimensionName.UGRID_MAX_ELEMENT_COORDS,
                                                     size=max_element_coords)]
                 element_index = Variable(name=element_index_name, value=element_index, dimensions=element_index_dims,
-                                         dtype=ocgis_dtype)
+                                         dtype=ocgis_dtype, attrs={AttributeName.START_INDEX: start_index})
 
                 # Indicate there are multi-geometries in the coordinates objects.
                 if is_multi:

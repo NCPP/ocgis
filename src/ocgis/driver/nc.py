@@ -1,13 +1,13 @@
 import itertools
 import logging
-import netCDF4 as nc
-import numpy as np
-import six
 from abc import ABCMeta
 from collections import OrderedDict
 from copy import deepcopy
-from netCDF4._netCDF4 import VLType, MFDataset, MFTime
 
+import netCDF4 as nc
+import numpy as np
+import six
+from netCDF4._netCDF4 import VLType, MFDataset, MFTime
 from ocgis import constants, vm
 from ocgis import env
 from ocgis.base import orphaned, raise_if_empty
@@ -141,7 +141,7 @@ class DriverNetcdf(AbstractDriver):
 
         # Do not fill values on file_only calls. Also, only fill values for variables with dimension greater than zero.
         if not file_only and not var.is_empty and not isinstance(var, CoordinateReferenceSystem):
-            if isinstance(var.dtype, ObjectType) and not isinstance(var, TemporalVariable):
+            if not var.is_string_object and isinstance(var.dtype, ObjectType) and not isinstance(var, TemporalVariable):
                 bounds_local = var.dimensions[0].bounds_local
                 for idx in range(bounds_local[0], bounds_local[1]):
                     ncvar[idx] = np.array(var.get_value()[idx - bounds_local[0]])
@@ -195,8 +195,6 @@ class DriverNetcdf(AbstractDriver):
             possible_ranks = vm.ranks
 
         # Write the data on each rank.
-        ocgis_lh(logger='driver.nc',
-                 msg='starting main write loop for variable collection, write_mode={}'.format(write_mode), level=10)
         for idx, rank_to_write in enumerate(possible_ranks):
             # The template write only occurs on the first rank.
             if write_mode == MPIWriteMode.TEMPLATE and rank_to_write != 0:
@@ -207,7 +205,6 @@ class DriverNetcdf(AbstractDriver):
                     # Write global attributes if we are not filling data.
                     if write_mode != MPIWriteMode.FILL:
                         vc.write_attributes_to_netcdf_object(dataset)
-                        ocgis_lh(logger='driver.nc', msg='wrote attributes', level=10)
                     # This is the main variable write loop.
                     variables_to_write = get_variables_to_write(vc)
                     for variable in variables_to_write:

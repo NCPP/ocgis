@@ -87,7 +87,7 @@ class OcgVM(AbstractOcgisObject):
 
     def abort(self, msg=None, exc=None, int_errorcode=1):
         try:
-            prefix = "OCGIS MPI Abort() Message: "
+            prefix = "OCGIS MPI Abort (Current Comm Name={}) Message: ".format(self._current_comm_name)
             if msg is not None:
                 self.rank_print(prefix + msg)
             if exc is not None:

@@ -12,11 +12,11 @@ An `Anaconda <https://store.continuum.io/cshop/anaconda/>`_ package is available
 Using the Package Manager
 +++++++++++++++++++++++++
 
-Installation with all optional dependencies:
+Installation with optional dependencies:
 
 .. code-block:: sh
 
-   conda install -c conda-forge -c nesii ocgis esmpy mpi4py cf_units rtree icclim nose
+   conda install -c conda-forge ocgis esmpy mpi4py cf_units rtree nose mock
 
 Installation without optional dependencies:
 
@@ -91,7 +91,7 @@ Set the path to the directory containing the shapefiles or shapefile folders usi
 Supported Python Versions
 -------------------------
 
-Python versions 2.7, 3.5, and 3.6 are tested and supported. Versions 2.7 or 3.6 are recommended. Python 3.5 demonstrates undefined behavior with parallel operations using ``mpi4py``.
+Python versions 2.7, 3.6, and 3.7 are tested and supported. Versions 2.7 or 3.7 are recommended. Python 3.5 demonstrates undefined behavior with parallel operations using ``mpi4py``.
 
 Dependencies
 ------------

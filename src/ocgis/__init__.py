@@ -35,5 +35,5 @@ from .driver.request.multi_request import MultiRequestDataset
 from .ops.core import OcgOperations
 
 
-__version__ = '2.2.0.dev0'
-__release__ = '2.2.0.dev0'
+__version__ = '2.1.1'
+__release__ = '2.1.1'

@@ -5,7 +5,7 @@ import tempfile
 from setuptools import setup, Command, find_packages
 from setuptools.command.test import test as TestCommand
 
-VERSION = '2.2.0.dev0'
+VERSION = '2.1.1'
 
 
 ########################################################################################################################

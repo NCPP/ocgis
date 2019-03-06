@@ -628,10 +628,7 @@ def rank_print(*args):
     if len(args) == 1:
         args = args[0]
     msg = '(rank={}) {}'.format(MPI_RANK, args)
-    try:
-        print(msg, flush=True)
-    except:
-        print(msg)
+    print(msg)
 
 
 def redistribute_by_src_idx(variable, dimname, dimension):

@@ -13,6 +13,7 @@ from ocgis.test.test_simple.make_test_data import SimpleNc
 from ocgis.test.test_simple.test_simple import TestSimpleBase
 from ocgis.util.helpers import make_poly
 from ocgis.util.itester import itr_products_keywords
+from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.crs import CoordinateReferenceSystem, Spherical, WGS84
 
 
@@ -315,20 +316,13 @@ class TestRegrid(TestSimpleBase):
         for idx in [0, 1]:
             self.assertIsNone(corner[idx])
 
-    @attr('esmf')
+    @attr('esmf', 'mpi')
     def test_get_esmf_grid_periodicity(self):
         """Test periodicity parameters generate reasonable output."""
         from ocgis.regrid.base import create_esmf_grid
 
-        lon_in = np.arange(-180, 180, 10)
-        lat_in = np.arange(-90, 90.1, 4)
-
-        lon = Variable('lon', lon_in, 'dlon')
-        lat = Variable('lat', lat_in, 'dlat')
-
-        ogrid = Grid(x=lon, y=lat, crs=Spherical())
+        ogrid = create_gridxy_global(resolution=10.0, crs=Spherical(), with_bounds=False, dist_dimname='x')
         egrid = create_esmf_grid(ogrid)
-
         self.assertEqual(egrid.periodic_dim, 0)
         self.assertEqual(egrid.num_peri_dims, 1)
         self.assertEqual(egrid.pole_dim, 1)
@@ -443,10 +437,9 @@ class TestRegridOperation(AbstractTestInterface):
     @attr('slow', 'esmf', 'mpi')
     def test_system_masking_with_smm(self):
         """Test masking with sparse matrix multiplication."""
-        if vm.size != 8: raise SkipTest('vm.size != 8')  # tdk:FIX: fails when -n=3 with an ESMF error
 
         from ocgis.regrid import RegridOperation
-        grid = create_gridxy_global(with_bounds=False, crs=Spherical(), dist_dimname='x')
+        grid = create_gridxy_global(with_bounds=False, crs=Spherical(), dist_dimname='x', resolution=5.0)
         src_field = create_exact_field(grid, 'exact', ntime=3)
 
         mask = src_field.grid.get_mask(create=True)
@@ -460,10 +453,7 @@ class TestRegridOperation(AbstractTestInterface):
         dst_field = deepcopy(src_field)
         dst_field.remove_variable('exact')
 
-        if vm.rank == 0:
-            weights = self.get_temporary_file_path('weights.nc')
-        else:
-            weights = None
+        weights = self.get_temporary_file_path('weights.nc', collective=True)
         weights = vm.bcast(weights)
 
         ro = RegridOperation(src_field, dst_field, regrid_options={'weights_out': weights, 'split': False})

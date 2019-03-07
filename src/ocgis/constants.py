@@ -397,13 +397,17 @@ class DriverKey(object):
 
 class MPIOps(IntEnum):
     SUM = 0
+    MIN = 1
+    MAX = 2
 
     @staticmethod
     def get_op(op):
         from ocgis import env
         if env.USE_MPI4PY:
             from mpi4py import MPI
-            op_map = {MPIOps.SUM: MPI.SUM}
+            op_map = {MPIOps.SUM: MPI.SUM,
+                      MPIOps.MIN: MPI.MIN,
+                      MPIOps.MAX: MPI.MAX}
             ret = op_map[op]
         else:
             ret = None

@@ -9,7 +9,7 @@ from ocgis import constants, Dimension, RequestDataset, vm
 from ocgis import env
 from ocgis.base import AbstractOcgisObject, get_dimension_names, iter_dict_slices
 from ocgis.collection.field import Field
-from ocgis.constants import DMK, GridChunkerConstants, DecompositionType
+from ocgis.constants import DMK, GridChunkerConstants, DecompositionType, MPIOps
 from ocgis.exc import RegriddingError, CornersInconsistentError
 from ocgis.spatial.grid import Grid, expand_grid
 from ocgis.spatial.spatial_subset import SpatialSubsetOperation
@@ -445,6 +445,8 @@ def get_periodicity_parameters(grid):
      1. A grid is periodic (i.e. it has global coverage). Periodicity is determined only with the x/longitude dimension.
      2. A grid is non-periodic (i.e. it has regional coverage).
 
+    Call is collective across the current VM.
+
     :param grid: :class:`~ocgis.Grid`
     :return: A dictionary containing periodicity parameters.
     :rtype: dict
@@ -472,8 +474,18 @@ def get_periodicity_parameters(grid):
         max_periodic = True
     else:
         max_periodic = False
-    if min_periodic and max_periodic:
-        is_periodic = True
+
+    # Determin global periodicity.
+    min_periodic = vm.gather(min_periodic)
+    max_periodic = vm.gather(max_periodic)
+    if vm.rank == 0:
+        min_periodic = any(min_periodic)
+        max_periodic = any(max_periodic)
+        if min_periodic and max_periodic:
+            is_periodic = True
+        else:
+            is_periodic = False
+    is_periodic = vm.bcast(is_periodic)
 
     # If the grid is periodic, set the appropriate parameters.
     if is_periodic:
@@ -484,7 +496,6 @@ def get_periodicity_parameters(grid):
         num_peri_dims, pole_dim, periodic_dim = [None] * 3
 
     ret = {'num_peri_dims': num_peri_dims, 'pole_dim': pole_dim, 'periodic_dim': periodic_dim}
-
     return ret
 
 

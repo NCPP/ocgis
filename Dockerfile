@@ -8,7 +8,7 @@ RUN apt-get clean
 
 RUN conda update -y --all
 
-RUN conda create -y -n ocgis -c conda-forge ocgis esmpy nose mock
+RUN conda create -y -n ocgis -c conda-forge ocgis esmpy nose mock xarray
 RUN bash -c "source activate ocgis && python -c 'import ocgis'"
 RUN bash -c "source activate ocgis && conda remove ocgis"
 

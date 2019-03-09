@@ -1,11 +1,11 @@
 import abc
 import csv
-import fiona
 import logging
-import os.path
-import six
 from pprint import pformat
 
+import fiona
+import os.path
+import six
 from ocgis import constants, vm
 from ocgis import env
 from ocgis import messages

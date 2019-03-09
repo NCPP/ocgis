@@ -1,9 +1,8 @@
 import abc
 import datetime
 
-import six
-
 import ocgis
+import six
 from ocgis import constants
 from ocgis.collection.field import Field
 from ocgis.conv.base import AbstractConverter

@@ -2,7 +2,6 @@ from collections import OrderedDict
 from warnings import warn
 
 import six
-
 from ocgis.base import AbstractOcgisObject
 from ocgis.exc import OcgWarning
 

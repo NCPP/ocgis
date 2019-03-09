@@ -3,7 +3,6 @@ from datetime import datetime
 
 import netCDF4 as nc
 import numpy as np
-
 import ocgis
 from ocgis.test.base import TestBase
 from ocgis.test.base import attr

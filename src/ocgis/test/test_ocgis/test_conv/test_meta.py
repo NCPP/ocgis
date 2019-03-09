@@ -2,7 +2,6 @@ import os
 from copy import deepcopy
 
 import six
-
 from ocgis import OcgOperations
 from ocgis import constants
 from ocgis.conv.meta import MetaOCGISConverter, MetaJSONConverter, AbstractMetaConverter

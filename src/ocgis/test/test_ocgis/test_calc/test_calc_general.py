@@ -3,7 +3,6 @@ import itertools
 from datetime import datetime as dt
 
 import numpy as np
-
 import ocgis
 from ocgis import constants
 from ocgis.constants import OutputFormatName

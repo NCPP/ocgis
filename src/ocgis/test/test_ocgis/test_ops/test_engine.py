@@ -2,8 +2,6 @@ import itertools
 from copy import deepcopy
 
 import numpy as np
-from shapely import wkt
-
 import ocgis
 from ocgis import SpatialCollection, Variable
 from ocgis import env
@@ -17,6 +15,7 @@ from ocgis.test.base import attr, AbstractTestInterface, get_geometry_dictionari
 from ocgis.util.itester import itr_products_keywords
 from ocgis.util.logging_ocgis import ProgressOcgOperations
 from ocgis.variable.crs import Spherical, WGS84, CoordinateReferenceSystem
+from shapely import wkt
 
 
 class TestOperationsEngine(AbstractTestInterface):
@@ -195,11 +194,10 @@ class TestOperationsEngine(AbstractTestInterface):
         rd1 = self.test_data.get_rd('cancm4_tas')
         rd2 = self.test_data.get_rd('maurer_2010_tas')
 
-        geom = 'state_boundaries'
         select_ugid = [25]
 
-        ops = ocgis.OcgOperations(dataset=rd2, regrid_destination=rd1, geom=geom, select_ugid=select_ugid,
-                                  time_region={'month': [2], 'year': [1990]})
+        ops = ocgis.OcgOperations(dataset=rd2, regrid_destination=rd1, geom=self.path_state_boundaries,
+                                  select_ugid=select_ugid, time_region={'month': [2], 'year': [1990]})
         subset = OperationsEngine(ops)
         colls = list(subset)
         self.assertEqual(len(colls), 1)

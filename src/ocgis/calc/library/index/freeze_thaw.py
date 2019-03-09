@@ -1,7 +1,6 @@
 import datetime as dt
 
 import numpy as np
-
 from ocgis import env
 from ocgis.calc import base
 from ocgis.util.units import get_are_units_equal_by_string_or_cfunits

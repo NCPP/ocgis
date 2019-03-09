@@ -50,7 +50,7 @@ class ESMFGridClass(Enum):
 
     @classmethod
     def get_esmf_class(cls, target):
-        import ESMF
+        from ocgis.regrid.base import ESMF
         if target == cls.GRID:
             ret = ESMF.Grid
         elif target == cls.MESH:
@@ -398,13 +398,17 @@ class DriverKey(object):
 
 class MPIOps(IntEnum):
     SUM = 0
+    MIN = 1
+    MAX = 2
 
     @staticmethod
     def get_op(op):
         from ocgis import env
         if env.USE_MPI4PY:
             from mpi4py import MPI
-            op_map = {MPIOps.SUM: MPI.SUM}
+            op_map = {MPIOps.SUM: MPI.SUM,
+                      MPIOps.MIN: MPI.MIN,
+                      MPIOps.MAX: MPI.MAX}
             ret = op_map[op]
         else:
             ret = None
@@ -421,6 +425,11 @@ class MPITag(IntEnum):
     ARANGE_FROM_DIMENSION = 10
     START_INDEX = 11
     SELECT_SEND_SIZE = 12
+
+
+class DecompositionType(IntEnum):
+    OCGIS = 0
+    ESMF = 1
 
 
 class CFName(object):
@@ -500,6 +509,10 @@ class ConversionTarget(Enum):
 
 class GridChunkerConstants(object):
     BUFFER_RESOLUTION_MODIFIER = 2.
+    DEFAULT_PATHS = {'dst_template': 'split_dst_{}.nc',
+                     'src_template': 'split_src_{}.nc',
+                     'wgt_template': 'esmf_weights_{}.nc',
+                     'index_file': '01-split_index.nc'}
 
     class IndexFile(object):
         NAME_DESTINATION_VARIABLE = 'grid_chunker_destination'

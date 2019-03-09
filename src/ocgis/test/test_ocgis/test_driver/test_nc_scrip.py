@@ -2,7 +2,6 @@ import itertools
 
 import numpy as np
 from mock import mock
-
 from ocgis import RequestDataset, DimensionMap, GridUnstruct, PointGC, Field, Variable, Dimension
 from ocgis.constants import DriverKey, DMK, Topology
 from ocgis.driver.nc_scrip import DriverNetcdfSCRIP

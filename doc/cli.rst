@@ -71,3 +71,11 @@ _____________________________________
 This example creates a global, spherical, latitude/longitude grid. It also creates a grid with a single cell. The spatial extent of the single cell grid is much smaller than the global grid. Spatially subsetting the source grid prior to weight generation decreases the amount of source grid information required in the weight calculation.
 
 .. literalinclude:: sphinx_examples/chunked_rwg_ss.py
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Chunked Sparse Matrix Multiplication (Weight Application)
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+Using output from the chunked regrid weight generation, a chunked sparse matrix multiplication applies the sparse matrix (the weights) using a sequential approach. The individual multiplication operations are performed in parallel if using MPI.
+
+.. literalinclude:: sphinx_examples/chunked_smm_help.sh

@@ -10,7 +10,6 @@ from icclim import set_globattr
 from icclim import set_longname_units as slu
 from icclim.calc_percentiles import get_percentile_dict, get_percentile_arr
 from numpy.core.multiarray import ndarray
-
 from ocgis.calc.base import AbstractUnivariateSetFunction, AbstractMultivariateFunction, AbstractParameterizedFunction
 from ocgis.calc.temporal_groups import SeasonalTemporalGroup
 

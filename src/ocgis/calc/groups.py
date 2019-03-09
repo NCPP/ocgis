@@ -1,7 +1,6 @@
 import abc
 
 import six
-
 from ocgis.base import AbstractOcgisObject
 from ocgis.util.helpers import itersubclasses
 

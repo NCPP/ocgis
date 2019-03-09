@@ -202,8 +202,7 @@ def is_field(target):
 
 
 def is_unstructured_driver(klass):
-    from ocgis.driver.base import AbstractUnstructuredDriver
-    return issubclass(klass, AbstractUnstructuredDriver)
+    return klass._is_unstructured
 
 
 def iter_dict_slices(names, sizes, extra=None):
@@ -242,7 +241,12 @@ def orphaned(target, keep_dimensions=False):
 def raise_if_empty(target):
     if target.is_empty:
         msg = 'No empty {} objects allowed.'.format(target.__class__)
-        raise EmptyObjectError(msg)
+        exc = EmptyObjectError(msg)
+        try:
+            raise exc
+        finally:
+            from ocgis import vm
+            vm.abort(exc=exc)
 
 
 @contextmanager

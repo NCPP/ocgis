@@ -17,10 +17,6 @@ import fiona
 import netCDF4 as nc
 import numpy as np
 import six
-from shapely import wkt
-from shapely.geometry import Point
-from shapely.geometry.base import BaseMultipartGeometry
-
 from ocgis import RequestDataset
 from ocgis import SourcedVariable
 from ocgis import Variable, Dimension
@@ -36,6 +32,9 @@ from ocgis.variable.crs import CoordinateReferenceSystem
 from ocgis.variable.geom import GeometryVariable
 from ocgis.variable.temporal import TemporalVariable
 from ocgis.vmachine.mpi import get_standard_comm_state, OcgDist, MPI_RANK, variable_scatter, variable_collection_scatter
+from shapely import wkt
+from shapely.geometry import Point
+from shapely.geometry.base import BaseMultipartGeometry
 
 """
 Definitions for various "attrs":
@@ -434,7 +433,7 @@ class TestBase(unittest.TestCase):
         self.assertAsSetEqual(nwf_col, gwf_col)
         nwf_S = nwf['S'].get_value()
         gwf_S = gwf['S'].get_value()
-        self.assertEqual(nwf_S.sum(), gwf_S.sum())
+        self.assertAlmostEqual(nwf_S.sum(), gwf_S.sum(), places=12)
         unique_src = np.unique(nwf_row)
         diffs = []
         for us in unique_src.flat:
@@ -614,14 +613,23 @@ class TestBase(unittest.TestCase):
                         break
         return new
 
-    def get_temporary_file_path(self, name):
+    def get_temporary_file_path(self, name, collective=False):
         """
         :param str name: The name to append to the current temporary output directory.
+        :param bool collective: If ``True``, broadcast the path to all ranks in the current VM.
         :returns: Temporary path in the current output directory.
         :rtype: str
         """
-
-        return os.path.join(self.current_dir_output, name)
+        if collective:
+            from ocgis import vm
+            if vm.rank == 0:
+                path = self.get_temporary_file_path(name)
+            else:
+                path = None
+            ret = vm.bcast(path)
+        else:
+            ret = os.path.join(self.current_dir_output, name)
+        return ret
 
     def get_temporary_output_directory(self):
         """
@@ -1291,12 +1299,12 @@ class AbstractTestField(TestBase):
         return field
 
 
-def create_exact_field(grid, data_varname, ntime=1, fill_data_var=True, crs='auto'):
+def create_exact_field(grid, data_varname, ntime=1, fill_data_var=True, crs='auto', dtype=np.float32):
     tdim = Dimension(name='time', size=None, size_current=ntime)
     tvar = TemporalVariable(name='time', value=range(100, ntime + 100), dimensions=tdim, dtype=np.float32,
                             attrs={'axis': 'T'})
     dvar_dims = [tdim] + list(grid.dimensions)
-    dvar = Variable(name=data_varname, dimensions=dvar_dims, dtype=np.float32)
+    dvar = Variable(name=data_varname, dimensions=dvar_dims, dtype=dtype)
     if fill_data_var:
         if grid.is_vectorized:
             longitude, latitude = np.meshgrid(grid.x.get_value(), grid.y.get_value())
@@ -1313,18 +1321,36 @@ def create_exact_field(grid, data_varname, ntime=1, fill_data_var=True, crs='aut
     return field
 
 
-def create_gridxy_global(resolution=1.0, with_bounds=True, wrapped=True, crs=None, dtype=None, dist=True):
+def create_gridxy_global(resolution=1.0, with_bounds=True, wrapped=True, crs=None, dtype=None, dist=True,
+                         dist_dimname='y', y_domain=None, x_domain=None):
+    if y_domain is None:
+        y_domain = [-90.0, 90.0]
+    if x_domain is None:
+        if wrapped:
+            x_domain = [-180.0, 180.0]
+        else:
+            x_domain = [0.0, 360.0]
     half_resolution = 0.5 * resolution
-    y = np.arange(-90.0 + half_resolution, 90.0, resolution)
+    y = np.arange(y_domain[0] + half_resolution, y_domain[1], resolution)
     if wrapped:
-        x = np.arange(-180.0 + half_resolution, 180.0, resolution)
+        x = np.arange(x_domain[0] + half_resolution, x_domain[1], resolution)
     else:
-        x = np.arange(0.0 + half_resolution, 360.0, resolution)
+        x = np.arange(x_domain[0] + half_resolution, x_domain[1], resolution)
 
     if dist:
         ompi = OcgDist()
-        ompi.create_dimension('x', x.shape[0], dist=False)
-        ompi.create_dimension('y', y.shape[0], dist=True)
+
+        if dist_dimname == 'x':
+            ldist = True
+        else:
+            ldist = False
+        ompi.create_dimension('x', x.shape[0], dist=ldist)
+
+        if dist_dimname == 'y':
+            ldist = True
+        else:
+            ldist = False
+        ompi.create_dimension('y', y.shape[0], dist=ldist)
         ompi.update_dimension_bounds()
 
     if MPI_RANK == 0:

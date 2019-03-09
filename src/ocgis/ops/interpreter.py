@@ -4,7 +4,6 @@ import shutil
 from abc import ABCMeta
 
 import six
-
 from ocgis import constants, vm
 from ocgis import exc, env
 from ocgis.base import AbstractOcgisObject

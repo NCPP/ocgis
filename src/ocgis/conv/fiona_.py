@@ -3,7 +3,6 @@ import logging
 from abc import abstractproperty
 
 import six
-
 from ocgis.constants import KeywordArgument, HeaderName
 from ocgis.conv.base import AbstractTabularConverter
 from ocgis.driver.vector import DriverVector

@@ -57,7 +57,7 @@ class Test(TestBase):
         hundreds = hundreds >= 100.0
         self.assertEqual(hundreds.sum(), 1)
 
-    @attr('slow')
+    @attr('slow', 'data')
     def test_timing_use_optimizations(self):
         n = list(range(10))
         t = {True: [], False: []}

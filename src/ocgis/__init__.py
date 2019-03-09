@@ -3,10 +3,15 @@
 ########################################################################################################################
 
 try:
+    # HACK!! For unknown reasons on some systems, linking is such that ESMF must be imported first. Probably something
+    # in ctypes but really hard to tell...
+    import ESMF
+except ImportError:
+    pass
+try:
     from netCDF4 import netcdftime
 except ImportError:
     import cftime as netcdftime
-
 import osgeo
 from osgeo import osr, ogr
 from .vmachine.core import vm, OcgVM
@@ -30,5 +35,5 @@ from .driver.request.multi_request import MultiRequestDataset
 from .ops.core import OcgOperations
 
 
-__version__ = '2.2.0.dev0'
-__release__ = '2.2.0.dev0'
+__version__ = '2.1.1'
+__release__ = '2.1.1'

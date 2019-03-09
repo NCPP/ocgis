@@ -3,7 +3,6 @@ from collections import OrderedDict
 from copy import copy
 
 import six
-
 from ocgis.base import AbstractOcgisObject
 from ocgis.util.helpers import pprint_dict
 

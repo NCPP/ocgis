@@ -3,7 +3,6 @@ import shutil
 import tempfile
 
 import fiona
-
 from ocgis.spatial.geom_cabinet import GeomCabinet
 from ocgis.test.base import TestBase, attr
 from ocgis.util.shp_process import ShpProcess

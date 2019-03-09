@@ -1,7 +1,6 @@
 from copy import deepcopy
 
 import six
-
 from ocgis.base import AbstractOcgisObject
 from ocgis.base import get_dimension_names
 from ocgis.base import get_variable_names
@@ -288,7 +287,7 @@ class DimensionMap(AbstractOcgisObject):
         Get the coordinate variable name for the dimension map entry ``entry_key``.
 
         :param str entry_key: See :class:`ocgis.constants.DimensionMapKey` for valid entry keys.
-        :param parent: If present, use the returned variable name to return the variable object form ``parent``.
+        :param parent: If present, use the returned variable name to return the variable object from ``parent``.
         :type parent: :class:`~ocgis.VariableCollection`
         :param bool nullable: If ``True`` and ``parent`` is not ``None``, return ``None`` if the variable is not found
          in ``parent``.
@@ -327,6 +326,9 @@ class DimensionMap(AbstractOcgisObject):
                         ew_variable = new_variable.extract()
                         new_variable.set_name(ii)
 
+                    new_dimensions = [d for d in new_variable.dimensions if d.size > 1]
+                    new_variable.reshape(new_dimensions)
+                    new_variable.set_name(base_variable.name + '_' + ii)
                     entry[DMK.VARIABLE] = new_variable.name
                     entry.pop(DMK.SECTION)
 
@@ -334,6 +336,7 @@ class DimensionMap(AbstractOcgisObject):
                     if base_variable.name not in to_remove:
                         to_remove.append(base_variable.name)
 
+                    self.set_variable(ii, new_variable)
             if has_sections:
                 for tt in to_remove:
                     parent.remove_variable(tt)
@@ -379,6 +382,20 @@ class DimensionMap(AbstractOcgisObject):
                 poss.update({x: DMK.X, y: DMK.Y, z: DMK.LEVEL})
             ret = poss.get(name)
         return ret
+
+    def iter_topologies(self):
+        """
+        Yield topologies as key (topology name) / value (dimension map object) pairs.
+
+        :raises: ValueError
+        :rtype: tuple
+        """
+        if not self.has_topology:
+            raise ValueError("dimension map has no topologies")
+        topos = self._get_entry_(DMK.TOPOLOGY)
+        for k, v in topos.items():
+            yield k, v
+
 
     def pprint(self, as_dict=False):
         """
@@ -552,6 +569,17 @@ class DimensionMap(AbstractOcgisObject):
             except KeyError:
                 # Default attributes are empty.
                 attrs = self._storage.__class__()
+
+        # Allow for any variable attributes.
+        if hasattr(variable, 'attrs'):
+            attrs.update(variable.attrs)
+
+        # Dimension map attributes always take precedence. Dimension map attrs > Variable Attributes > Default Attributes
+        current_attrs = self.get_attrs(entry_key)
+        if current_attrs is None:
+            current_attrs = self._storage.__class__()
+        attrs.update(current_attrs)
+
         entry[DMK.VARIABLE] = value
         entry[DMK.BOUNDS] = bounds
         entry[DMK.DIMENSION] = dimension

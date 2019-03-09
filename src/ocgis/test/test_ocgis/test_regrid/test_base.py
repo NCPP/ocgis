@@ -1,7 +1,8 @@
-import numpy as np
 from copy import deepcopy
+from unittest import SkipTest
 
-from ocgis import OcgOperations
+import numpy as np
+from ocgis import OcgOperations, vm
 from ocgis import RequestDataset
 from ocgis import Variable
 from ocgis.collection.field import Field
@@ -12,6 +13,7 @@ from ocgis.test.test_simple.make_test_data import SimpleNc
 from ocgis.test.test_simple.test_simple import TestSimpleBase
 from ocgis.util.helpers import make_poly
 from ocgis.util.itester import itr_products_keywords
+from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.crs import CoordinateReferenceSystem, Spherical, WGS84
 
 
@@ -35,7 +37,7 @@ class TestRegrid(TestSimpleBase):
 
     @attr('esmf')
     def test_system(self):
-        from ocgis.regrid.base import get_esmf_grid, iter_esmf_fields, RegridOperation, destroy_esmf_objects
+        from ocgis.regrid.base import create_esmf_grid, iter_esmf_fields, RegridOperation, destroy_esmf_objects
         import ESMF
 
         yc = Variable(name='yc', value=np.arange(-90 + (45 / 2.), 90, 45), dimensions='ydim', dtype=float)
@@ -49,7 +51,7 @@ class TestRegrid(TestSimpleBase):
         self.assertTrue(mask.sum() > 3)
         ogrid.set_mask(mask)
 
-        egrid = get_esmf_grid(ogrid)
+        egrid = create_esmf_grid(ogrid)
         actual_shape = egrid.size[0].tolist()
         desired_shape = np.flipud(ogrid.shape).tolist()
         self.assertEqual(actual_shape, desired_shape)
@@ -302,32 +304,25 @@ class TestRegrid(TestSimpleBase):
     def test_get_esmf_grid_bilinear_regrid_method(self):
         """Test with a regrid method that does not require corners."""
 
-        from ocgis.regrid.base import get_esmf_grid
+        from ocgis.regrid.base import create_esmf_grid
         from ESMF import RegridMethod
         import ESMF
 
         rd = RequestDataset(**self.get_dataset())
         field = rd.get()
         self.assertTrue(field.grid.has_bounds)
-        egrid = get_esmf_grid(field.grid, regrid_method=RegridMethod.BILINEAR)
+        egrid = create_esmf_grid(field.grid, regrid_method=RegridMethod.BILINEAR)
         corner = egrid.coords[ESMF.StaggerLoc.CORNER]
         for idx in [0, 1]:
             self.assertIsNone(corner[idx])
 
-    @attr('esmf')
+    @attr('esmf', 'mpi')
     def test_get_esmf_grid_periodicity(self):
         """Test periodicity parameters generate reasonable output."""
-        from ocgis.regrid.base import get_esmf_grid
+        from ocgis.regrid.base import create_esmf_grid
 
-        lon_in = np.arange(-180, 180, 10)
-        lat_in = np.arange(-90, 90.1, 4)
-
-        lon = Variable('lon', lon_in, 'dlon')
-        lat = Variable('lat', lat_in, 'dlat')
-
-        ogrid = Grid(x=lon, y=lat, crs=Spherical())
-        egrid = get_esmf_grid(ogrid)
-
+        ogrid = create_gridxy_global(resolution=10.0, crs=Spherical(), with_bounds=False, dist_dimname='x')
+        egrid = create_esmf_grid(ogrid)
         self.assertEqual(egrid.periodic_dim, 0)
         self.assertEqual(egrid.num_peri_dims, 1)
         self.assertEqual(egrid.pole_dim, 1)
@@ -336,7 +331,7 @@ class TestRegrid(TestSimpleBase):
     def test_get_esmf_grid_with_mask(self):
         """Test with masked data."""
 
-        from ocgis.regrid.base import get_esmf_grid
+        from ocgis.regrid.base import create_esmf_grid
 
         x = Variable(name='x', value=[1, 2, 3], dimensions='x')
         y = Variable(name='y', value=[4, 5, 6], dimensions='y')
@@ -347,14 +342,14 @@ class TestRegrid(TestSimpleBase):
         grid.set_mask(gmask)
         self.assertEqual(grid.get_mask().sum(), 1)
 
-        egrid = get_esmf_grid(grid)
+        egrid = create_esmf_grid(grid)
         egrid_mask_inverted = np.invert(np.array(egrid.mask[0], dtype=bool))
         self.assertNumpyAll(grid.get_mask(), egrid_mask_inverted)
 
         # Test with a value mask.
         value_mask = np.zeros(grid.shape, dtype=bool)
         value_mask[-1, -1] = True
-        egrid = get_esmf_grid(grid, value_mask=value_mask)
+        egrid = create_esmf_grid(grid, value_mask=value_mask)
         egrid_mask_inverted = np.invert(np.array(egrid.mask[0], dtype=bool))
         self.assertNumpyAll(egrid_mask_inverted, np.logical_or(grid.get_mask(), value_mask))
 
@@ -439,44 +434,34 @@ class TestRegridOperation(AbstractTestInterface):
             for t in targets:
                 self.assertAlmostEqual(t, 15.0, places=5)
 
-                # @attr('esmf')
-                # def test_system_periodic(self):
-                #     """Test a periodic grid is regridded as expected."""
-                #
-                #     from ocgis.regrid.base import RegridOperation
-                #
-                #     lon_in = np.arange(-180, 180, 10)
-                #     lat_in = np.arange(-90, 90.1, 4)
-                #
-                #     lon = Variable('lon', lon_in, 'dlon')
-                #     lat = Variable('lat', lat_in, 'dlat')
-                #     print 'lon.shape', lon.shape, 'lat.shape', lat.shape
-                #
-                #     grid = Grid(x=lon, y=lat, crs=Spherical())
-                #
-                #     wave = lambda x, k: np.sin(x * k * np.pi / 180.0)
-                #     desired = np.outer(wave(lat_in, 3), wave(lon_in, 3)) + 1
-                #
-                #     print 'desired.min()', desired.min()
-                #     print 'desired.mean()', desired.mean()
-                #
-                #     dstdata = Variable('data', dimensions=('dlat', 'dlon'), parent=grid.parent)
-                #     srcdata = deepcopy(dstdata)
-                #     srcdata.get_value()[:] = desired
-                #
-                #     dstfield = dstdata.parent
-                #     dstfield.append_to_tags(TagName.DATA_VARIABLES, 'data')
-                #     srcfield = srcdata.parent
-                #     srcfield.append_to_tags(TagName.DATA_VARIABLES, 'data')
-                #
-                #     self.assertEqual(dstfield.data_variables[0].get_value().max(), 0.)
-                #
-                #     ro = RegridOperation(srcfield, dstfield)
-                #     ret = ro.execute()
-                #
-                #     actual = ret.data_variables[0].get_value()
-                #
-                #     print 'actual.min()', actual.min()
-                #     print 'actual.mean()', actual.mean()
-                #
-                #     print np.max(np.abs(actual - desired))
+    @attr('slow', 'esmf', 'mpi')
+    def test_system_masking_with_smm(self):
+        """Test masking with sparse matrix multiplication."""
+
+        from ocgis.regrid import RegridOperation
+        grid = create_gridxy_global(with_bounds=False, crs=Spherical(), dist_dimname='x', resolution=5.0)
+        src_field = create_exact_field(grid, 'exact', ntime=3)
+
+        mask = src_field.grid.get_mask(create=True)
+        mask[0:2, :] = True
+        mask[:, -2:] = True
+        mask[-2:, :] = True
+        mask[:, 0:2] = True
+        src_field.grid.set_mask(mask, cascade=True)
+        src_field['exact'].set_value(src_field['exact'].mv().filled())
+
+        dst_field = deepcopy(src_field)
+        dst_field.remove_variable('exact')
+
+        weights = self.get_temporary_file_path('weights.nc', collective=True)
+        weights = vm.bcast(weights)
+
+        ro = RegridOperation(src_field, dst_field, regrid_options={'weights_out': weights, 'split': False})
+        _ = ro.execute()
+
+        ro2 = RegridOperation(src_field, dst_field, regrid_options={'weights_in': weights, 'split': True})
+        result = ro2.execute()
+
+        actual = result['exact'].mv()
+        desired = src_field['exact'].mv()
+        self.assertNumpyAllClose(actual, desired)

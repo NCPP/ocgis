@@ -2,7 +2,6 @@ import re
 from copy import deepcopy
 
 import numpy as np
-
 from ocgis import constants
 from ocgis.calc.base import AbstractUnivariateFunction
 

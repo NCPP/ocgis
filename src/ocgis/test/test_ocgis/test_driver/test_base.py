@@ -4,6 +4,7 @@ import numpy as np
 from mock import mock
 
 from ocgis import OcgOperations, SourcedVariable
+from ocgis import OcgOperations
 from ocgis.driver.base import AbstractDriver, driver_scope
 from ocgis.driver.nc import DriverNetcdf
 from ocgis.driver.request.core import RequestDataset

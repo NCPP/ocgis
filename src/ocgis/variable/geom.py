@@ -4,20 +4,13 @@ from itertools import product
 
 import numpy as np
 from numpy.core.multiarray import ndarray
-from shapely import wkb
-from shapely.geometry import Point, Polygon, MultiPolygon, mapping, MultiPoint, box
-from shapely.geometry.base import BaseGeometry
-from shapely.geometry.polygon import orient
-from shapely.ops import cascaded_union
-from shapely.prepared import prep
-
 from ocgis import Variable, vm
 from ocgis import constants
 from ocgis import env
 from ocgis.base import AbstractOcgisObject
 from ocgis.base import get_dimension_names, get_variable_names, raise_if_empty
 from ocgis.constants import KeywordArgument, HeaderName, VariableName, DimensionName, ConversionTarget, DriverKey, \
-    WrappedState
+    WrappedState, AttributeName
 from ocgis.environment import ogr
 from ocgis.exc import EmptySubsetError, RequestableFeature, NoInteriorsError
 from ocgis.spatial.base import AbstractSpatialVariable, create_split_polygons
@@ -28,6 +21,12 @@ from ocgis.variable.base import get_dimension_lengths, ObjectType
 from ocgis.variable.crs import Cartesian
 from ocgis.variable.dimension import create_distributed_dimension, Dimension
 from ocgis.variable.iterator import Iterator
+from shapely import wkb
+from shapely.geometry import Point, Polygon, MultiPolygon, mapping, MultiPoint, box
+from shapely.geometry.base import BaseGeometry
+from shapely.geometry.polygon import orient
+from shapely.ops import cascaded_union
+from shapely.prepared import prep
 
 CreateGeometryFromWkb, Geometry, wkbGeometryCollection, wkbPoint = ogr.CreateGeometryFromWkb, ogr.Geometry, \
                                                                    ogr.wkbGeometryCollection, ogr.wkbPoint
@@ -523,7 +522,7 @@ class GeometryVariable(AbstractSpatialVariable):
                                           Dimension(name=DimensionName.UGRID_MAX_ELEMENT_COORDS,
                                                     size=max_element_coords)]
                 element_index = Variable(name=element_index_name, value=element_index, dimensions=element_index_dims,
-                                         dtype=ocgis_dtype)
+                                         dtype=ocgis_dtype, attrs={AttributeName.START_INDEX: start_index})
 
                 # Indicate there are multi-geometries in the coordinates objects.
                 if is_multi:

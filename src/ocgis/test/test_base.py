@@ -3,7 +3,6 @@ import os
 
 import numpy as np
 from netCDF4 import Dataset
-
 from ocgis.collection.field import Field
 from ocgis.test.base import TestBase
 from ocgis.test.base import attr

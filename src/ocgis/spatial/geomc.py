@@ -4,11 +4,6 @@ from collections import deque
 
 import numpy as np
 import six
-from shapely.geometry import Point, Polygon
-from shapely.geometry.base import BaseGeometry, BaseMultipartGeometry
-from shapely.geometry.linestring import LineString
-from shapely.geometry.multipolygon import MultiPolygon
-
 from ocgis import env, vm
 from ocgis.base import raise_if_empty, is_unstructured_driver, get_dimension_names
 from ocgis.constants import KeywordArgument, GridAbstraction, VariableName, AttributeName, GridChunkerConstants, \
@@ -21,6 +16,10 @@ from ocgis.variable.base import get_dslice, Variable
 from ocgis.variable.dimension import create_distributed_dimension
 from ocgis.variable.geom import GeometryProcessor, GeometryVariable
 from ocgis.vmachine.mpi import cancel_free_requests
+from shapely.geometry import Point, Polygon
+from shapely.geometry.base import BaseGeometry, BaseMultipartGeometry
+from shapely.geometry.linestring import LineString
+from shapely.geometry.multipolygon import MultiPolygon
 
 
 def format_gridunstruct_return(func):
@@ -143,7 +142,7 @@ class AbstractGeometryCoordinates(AbstractXYZSpatialContainer):
     def cindex(self, value):
         """
         :param value: The coordinate index variable of integer type.
-        :type value: `~ocgis.Variable`
+        :type value: `~ocgis.Variable` || NoneType
         """
 
         dmap = self._get_canonical_dimension_map_(self.parent, create=False)
@@ -151,7 +150,11 @@ class AbstractGeometryCoordinates(AbstractXYZSpatialContainer):
         if value is not None:
             self.parent.add_variable(value, force=True)
             if AttributeName.START_INDEX not in value.attrs:
-                value.attrs[AttributeName.START_INDEX] = self.start_index
+                if self._start_index == 'auto':
+                    sindex = self.driver._start_index
+                else:
+                    sindex = self._start_index
+                value.attrs[AttributeName.START_INDEX] = sindex
 
     @property
     def element_dim(self):
@@ -241,7 +244,7 @@ class AbstractGeometryCoordinates(AbstractXYZSpatialContainer):
         if self._start_index == 'auto':
             cindex = self.cindex
             if cindex is not None:
-                ret = cindex.attrs.get(AttributeName.START_INDEX, 0)
+                ret = cindex.attrs[AttributeName.START_INDEX]
             else:
                 ret = 0
         else:
@@ -653,6 +656,8 @@ class AbstractGeometryCoordinates(AbstractXYZSpatialContainer):
         new_cindex = Variable(name=self.cindex.name, value=new_cindex, dimensions=self.cindex.dimensions)
 
         ret = self.copy()
+        if self.start_index == 1:
+            uidx -= 1
         new_parent = self.x[uidx].parent
 
         cdim = new_parent[self.x.name].dimensions[0]
@@ -660,7 +665,6 @@ class AbstractGeometryCoordinates(AbstractXYZSpatialContainer):
         new_parent.dimensions[cdim.name] = new_node_dimension
 
         new_parent[self.cindex.name].extract(clean_break=True)
-        ret._cindex_name = None
         ret.parent = new_parent
         ret.cindex = new_cindex
         ocgis_lh(msg='exiting reduce_global', logger='geomc', level=logging.DEBUG)
@@ -672,33 +676,6 @@ class AbstractGeometryCoordinates(AbstractXYZSpatialContainer):
     def _get_extent_(self):
         # Get the x and y coordinate values.
         x, y = self.x.v(), self.y.v()
-
-        # # Treat coordinates differently if there is a grid mask.
-        # if self.has_mask:
-        #     # Name of the mask variable dimension.
-        #     maskdim = self.mask_variable.dimensions[0].name
-        #     # Location of the mask dimension in the coordinate variable dimensions.
-        #     maskidx = self.x.dimension_names.index(maskdim)
-        #     # Only works if the mask dimension is the first dimension.
-        #     assert maskidx == 0
-        #     # Get the actual boolean mask values.
-        #     mask = self.get_mask()
-        #     # If everything is masked, there is nothing to do.
-        #     if mask.all():
-        #         raise AllElementsMaskedError
-        #
-        #     # If there are multiple dimensions in the coordinate variable. Adjust the mask accordingly.
-        #     if mask.shape != x.shape:
-        #         nmask = np.zeros(x.shape, dtype=bool)
-        #         for ii in mask.flat:
-        #             if ii:
-        #                 nmask[ii, :] = True
-        #         mask = nmask
-        #
-        #     # Convert coordinate arrays to masked arrays.
-        #     x = np.ma.array(x, mask=mask)
-        #     y = np.ma.array(y, mask=mask)
-
         return x.min(), y.min(), x.max(), y.max()
 
     def _get_is_empty_(self):

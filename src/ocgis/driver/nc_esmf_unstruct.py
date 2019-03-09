@@ -1,7 +1,7 @@
 import numpy as np
 
 from ocgis import vm
-from ocgis.constants import DriverKey, CFName, OcgisConvention, Topology, DMK, MPITag
+from ocgis.constants import DriverKey, CFName, OcgisConvention, Topology, DMK, MPITag, DecompositionType, AttributeName
 from ocgis.driver.base import AbstractUnstructuredDriver
 from ocgis.driver.nc import AbstractDriverNetcdfCF
 from ocgis.variable.base import Variable, VariableCollection
@@ -14,6 +14,8 @@ class DriverESMFUnstruct(AbstractUnstructuredDriver, AbstractDriverNetcdfCF):
     """
     _priority = False
     key = DriverKey.NETCDF_ESMF_UNSTRUCT
+    _esmf_fileformat = 'ESMFMESH'
+    _start_index = 1
 
     def create_dimension_map(self, group_metadata, strict=False):
         dmap = super(AbstractDriverNetcdfCF, self).create_dimension_map(group_metadata, strict=strict)
@@ -21,8 +23,10 @@ class DriverESMFUnstruct(AbstractUnstructuredDriver, AbstractDriverNetcdfCF):
 
         name_element_conn = 'elementConn'
         varmeta = group_metadata['variables']
+        sindex = varmeta['elementConn'][DMK.ATTRS].get(AttributeName.START_INDEX, self._start_index)
         topo.set_variable(DMK.ELEMENT_NODE_CONNECTIVITY, name_element_conn,
-                          dimension=varmeta[name_element_conn]['dimensions'][0])
+                          dimension=varmeta[name_element_conn]['dimensions'][0],
+                          attrs={AttributeName.START_INDEX: sindex})
         vattrs = topo.get_attrs(DMK.ELEMENT_NODE_CONNECTIVITY)
         vattrs.pop(CFName.STANDARD_NAME, None)
         vattrs[OcgisConvention.Name.ELEMENT_NODE_COUNT] = 'numElementConn'
@@ -33,11 +37,21 @@ class DriverESMFUnstruct(AbstractUnstructuredDriver, AbstractDriverNetcdfCF):
         topo.set_variable(DMK.X, node_coords_name, dimension=[node_coords_dimension], section=(None, 0))
         topo.set_variable(DMK.Y, node_coords_name, dimension=[node_coords_dimension], section=(None, 1))
 
+        name_centers = 'centerCoords'
+        if name_centers in varmeta:
+            element_centers_dim = varmeta[name_centers]['dimensions'][0]
+            pttopo = dmap.get_topology(Topology.POINT, create=True)
+            pttopo.set_variable(DMK.X, name_centers, dimension=[element_centers_dim], section=(None, 0))
+            pttopo.set_variable(DMK.Y, name_centers, dimension=[element_centers_dim], section=(None, 1))
+
+        name_mask = 'elementMask'
+        if name_mask in varmeta:
+            dmap.set_spatial_mask(name_mask)
+
         return dmap
 
-    def get_distributed_dimension_name(self, dimension_map, dimensions_metadata):
-        # TODO: Consider options for distributing ESMF Unstructured Format.
-        return None
+    def get_distributed_dimension_name(self, dimension_map, dimensions_metadata, decomp_type=DecompositionType.OCGIS):
+        return 'elementCount'
 
     @staticmethod
     def get_element_dimension(gc):
@@ -53,8 +67,40 @@ class DriverESMFUnstruct(AbstractUnstructuredDriver, AbstractDriverNetcdfCF):
         """See :meth:`ocgis.spatial.geomc.AbstractGeometryCoordinates.multi_break_value`"""
         return cindex.attrs.get('polygon_break_value')
 
+    @staticmethod
+    def validate_spatial_mask(mask_variable):
+        pass
+
     @classmethod
     def _get_field_write_target_(cls, field):
+
+        dmap = field.dimension_map
+        driver = dmap.get_driver()
+        if driver == DriverKey.NETCDF_UGRID:
+            ret = cls._convert_to_ugrid_(field)
+        elif driver == DriverKey.NETCDF_ESMF_UNSTRUCT:
+            ret = field.copy()
+            # Coordinate variables were "sectioned" when loaded in. They need to be put back together before writing to
+            # disk. Only do this if they have been sectioned which only occurs when the coordinate variable is retrieved
+            # from the field.
+            for toponame, topo in dmap.iter_topologies():
+                yname = topo.get_variable(DMK.Y)
+                xname = topo.get_variable(DMK.X)
+                if xname != yname:
+                    yvar = topo.get_variable(DMK.Y, parent=field)
+                    new_coords = np.hstack((topo.get_variable(DMK.X, parent=field).v().reshape(-1, 1),
+                                            yvar.v().reshape(-1, 1)))
+                    assert new_coords.shape[1] == 2
+                    new_dimensions = (field[yname].dimensions[0], Dimension(name='coordDim', size=2))
+                    new_name = yname[0:-2]
+                    ret.add_variable(Variable(name=new_name, dimensions=new_dimensions, value=new_coords,
+                                              attrs=yvar.attrs))
+                    ret.remove_variable(yname)
+                    ret.remove_variable(xname)
+        return ret
+
+    @staticmethod
+    def _convert_to_ugrid_(field):
         """
         Takes field data out of the OCGIS unstructured format (similar to UGRID) converting to the format expected
         by ESMF Unstructured metadata.

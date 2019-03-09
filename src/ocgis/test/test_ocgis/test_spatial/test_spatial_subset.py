@@ -1,8 +1,7 @@
 from copy import deepcopy
+from unittest import SkipTest
 
 import numpy as np
-from shapely import wkt
-
 from ocgis import CoordinateReferenceSystem, vm
 from ocgis import env
 from ocgis.collection.field import Field
@@ -16,6 +15,7 @@ from ocgis.util.itester import itr_products_keywords
 from ocgis.variable.crs import CFRotatedPole, WGS84, CFSpherical
 from ocgis.variable.geom import GeometryVariable
 from ocgis.vmachine.mpi import MPI_COMM, MPI_RANK
+from shapely import wkt
 
 
 class TestSpatialSubsetOperation(TestBase):
@@ -227,21 +227,33 @@ class TestSpatialSubsetOperation(TestBase):
         self.assertEqual(ret.crs, output_crs)
         self.assertAlmostEqual(ret.grid.get_value_stacked().mean(), -23341.955070198124)
 
-        # test with an input rotated pole coordinate system
-        rd = self.fixture_rd_rotated_pole()
-        ss = SpatialSubsetOperation(rd.get(), output_crs=env.DEFAULT_COORDSYS)
-        ret = ss.get_spatial_subset('intersects', self.germany['geom'], geom_crs=WGS84())
-        self.assertEqual(ret.crs, env.DEFAULT_COORDSYS)
+        # Test with an input rotated pole coordinate system
+        try:
+            rd = self.fixture_rd_rotated_pole()
+            ss = SpatialSubsetOperation(rd.get(), output_crs=env.DEFAULT_COORDSYS)
+            ret = ss.get_spatial_subset('intersects', self.germany['geom'], geom_crs=WGS84())
+            self.assertEqual(ret.crs, env.DEFAULT_COORDSYS)
+        except RuntimeError as e:
+            if "HDF error" in str(e):
+                raise SkipTest('HDF sometimes has trouble reading the dataset')
+            else:
+                raise
 
     @attr('data')
     def test_get_spatial_subset_rotated_pole(self):
         """Test a spatial subset with rotated pole data."""
 
-        rd = self.fixture_rd_rotated_pole(**{KeywordArgument.ROTATED_POLE_PRIORITY: True})
-        ss = SpatialSubsetOperation(rd.get())
-        ret = ss.get_spatial_subset('intersects', self.germany['geom'], geom_crs=WGS84())
-        self.assertEqual(ret.crs, rd.get().crs)
-        self.assertAlmostEqual(ret.grid.get_value_stacked().mean(), -2.1699999954751132)
+        try:
+            rd = self.fixture_rd_rotated_pole(**{KeywordArgument.ROTATED_POLE_PRIORITY: True})
+            ss = SpatialSubsetOperation(rd.get())
+            ret = ss.get_spatial_subset('intersects', self.germany['geom'], geom_crs=WGS84())
+            self.assertEqual(ret.crs, rd.get().crs)
+            self.assertAlmostEqual(ret.grid.get_value_stacked().mean(), -2.1699999954751132)
+        except RuntimeError as e:
+            if "HDF error" in str(e):
+                raise SkipTest('HDF sometimes has trouble reading the dataset')
+            else:
+                raise
 
     @attr('data')
     def test_get_spatial_subset_wrap(self):
@@ -274,26 +286,32 @@ class TestSpatialSubsetOperation(TestBase):
 
     @attr('data')
     def test_prepare_geometry(self):
-        for geometry_record in self.get_subset_geometries():
-            for ss, k in self:
-                gvar = GeometryVariable(value=geometry_record['geom'], dimensions='dim', crs=WGS84())
-                self.assertIsNotNone(gvar.crs)
-                prepared = ss._prepare_geometry_(gvar)
-                self.assertNotEqual(gvar.get_value()[0].bounds, prepared.get_value()[0].bounds)
-                self.assertFalse(np.may_share_memory(gvar.get_value(), prepared.get_value()))
-                try:
-                    self.assertEqual(prepared.crs, ss.field.crs)
-                except AssertionError:
-                    # Rotated pole on the fields become spherical.
-                    self.assertEqual(prepared.crs, CFSpherical())
-                    self.assertIsInstance(ss.field.crs, CFRotatedPole)
+        try:
+            for geometry_record in self.get_subset_geometries():
+                for ss, k in self:
+                    gvar = GeometryVariable(value=geometry_record['geom'], dimensions='dim', crs=WGS84())
+                    self.assertIsNotNone(gvar.crs)
+                    prepared = ss._prepare_geometry_(gvar)
+                    self.assertNotEqual(gvar.get_value()[0].bounds, prepared.get_value()[0].bounds)
+                    self.assertFalse(np.may_share_memory(gvar.get_value(), prepared.get_value()))
+                    try:
+                        self.assertEqual(prepared.crs, ss.field.crs)
+                    except AssertionError:
+                        # Rotated pole on the fields become spherical.
+                        self.assertEqual(prepared.crs, CFSpherical())
+                        self.assertIsInstance(ss.field.crs, CFRotatedPole)
 
-        # Test nebraska against an unwrapped dataset.
-        nebraska = GeometryVariable(value=self.nebraska['geom'], dimensions='d', crs=WGS84())
-        field = self.test_data.get_rd('cancm4_tas').get()
-        ss = SpatialSubsetOperation(field)
-        prepared = ss._prepare_geometry_(nebraska)
-        self.assertEqual(prepared.wrapped_state, WrappedState.UNWRAPPED)
+            # Test nebraska against an unwrapped dataset.
+            nebraska = GeometryVariable(value=self.nebraska['geom'], dimensions='d', crs=WGS84())
+            field = self.test_data.get_rd('cancm4_tas').get()
+            ss = SpatialSubsetOperation(field)
+            prepared = ss._prepare_geometry_(nebraska)
+            self.assertEqual(prepared.wrapped_state, WrappedState.UNWRAPPED)
+        except RuntimeError as e:
+            if "HDF error" in str(e):
+                raise SkipTest('HDF sometimes has trouble reading the dataset')
+            else:
+                raise
 
     @attr('data')
     def test_should_update_crs(self):

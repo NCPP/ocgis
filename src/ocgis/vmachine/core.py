@@ -85,6 +85,17 @@ class OcgVM(AbstractOcgisObject):
     def size_global(self):
         return MPI_SIZE
 
+    def abort(self, msg=None, exc=None, int_errorcode=1):
+        try:
+            prefix = "OCGIS MPI Abort (Current Comm Name={}) Message: ".format(self._current_comm_name)
+            if msg is not None:
+                self.rank_print(prefix + msg)
+            if exc is not None:
+                self.rank_print('{}{}: {}'.format(prefix, exc.__class__.__name__, str(exc)))
+
+        finally:
+            self.comm_world.Abort(int_errorcode)
+
     def barrier(self):
         self.comm.Barrier()
 
@@ -190,12 +201,26 @@ class OcgVM(AbstractOcgisObject):
     def scoped(self, *args, **kwargs):
         return vm_scope(self, *args, **kwargs)
 
+    def scoped_barrier(self, **kwargs):
+        return vm_scoped_barrier(self, **kwargs)
+
     def scoped_by_emptyable(self, name, emptyable):
         live_ranks = self.get_live_ranks_from_object(emptyable)
         return self.scoped(name, live_ranks)
 
     def scoped_by_name(self, name):
         return vm_scoped_by_name(self, name)
+
+
+@contextmanager
+def vm_scoped_barrier(vm_obj, first=True, last=True):
+    if first:
+        vm_obj.barrier()
+    try:
+        yield vm_obj
+    finally:
+        if last:
+            vm_obj.barrier()
 
 
 @contextmanager

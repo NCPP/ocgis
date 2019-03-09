@@ -1,7 +1,6 @@
 from copy import deepcopy
 
 import numpy as np
-
 import ocgis
 from ocgis.base import orphaned
 from ocgis.calc.engine import CalculationEngine

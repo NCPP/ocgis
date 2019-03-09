@@ -11,6 +11,7 @@ from shapely.geometry.base import BaseMultipartGeometry
 from shapely.geometry.multipolygon import MultiPolygon
 
 from ocgis import constants, VariableCollection
+from ocgis import constants
 from ocgis.base import AbstractInterfaceObject, raise_if_empty, AbstractOcgisObject
 from ocgis.constants import MPIWriteMode, WrappedState, WrapAction, KeywordArgument, CFName, OcgisUnits, \
     ConversionFactor, DimensionMapKey, DMK, OcgisConvention
@@ -19,6 +20,10 @@ from ocgis.exc import ProjectionCoordinateNotFound, ProjectionDoesNotMatch, CRSN
     WrappedStateEvalTargetMissing, CRSDepthNotImplemented, VariableNotInCollection
 from ocgis.spatial.wrap import GeometryWrapper, CoordinateArrayWrapper
 from ocgis.util.helpers import iter_array, get_iter, wrap_get_value
+from ocgis.util.helpers import iter_array, get_iter
+from shapely.geometry import Point, Polygon, box
+from shapely.geometry.base import BaseMultipartGeometry
+from shapely.geometry.multipolygon import MultiPolygon
 
 SpatialReference = osr.SpatialReference
 

@@ -109,6 +109,17 @@ class TestOcgVM(TestBase):
                     raise e
 
     @attr('mpi')
+    def test_abort(self):
+        if MPI_SIZE > 1:
+            raise SkipTest('dev only for parallel')
+            if vm.rank == 0:
+                exc = ValueError("test test_abort")
+                vm.abort(exc=exc, msg="A TEST MESSAGE")
+        else:
+            with self.assertRaises(RuntimeError):
+                vm.abort()
+
+    @attr('mpi')
     def test_barrier(self):
         if MPI_SIZE != 4:
             raise SkipTest('MPI_SIZE != 4')
@@ -149,6 +160,17 @@ class TestOcgVM(TestBase):
             self.assertIsNone(root_value)
 
         vm.finalize()
+
+    @attr('mpi')
+    def test_comm_world(self):
+        if MPI_SIZE != 2:
+            raise SkipTest('MPI_SIZE != 2')
+        self.assertEqual(vm.size, 2)
+        self.assertEqual(vm.comm_world.Get_size(), 2)
+        with vm.scoped('comm world test', [1]):
+            if not vm.is_null:
+                self.assertEqual(vm.size, 1)
+            self.assertEqual(vm.comm_world.Get_size(), 2)
 
     @attr('mpi')
     def test_create_subcomm(self):

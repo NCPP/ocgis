@@ -1,7 +1,6 @@
 import datetime
 
 import numpy as np
-
 from ocgis import RequestDataset, Variable
 from ocgis.collection.field import Field
 from ocgis.constants import TagName, MiscName, DimensionMapKey, DriverKey

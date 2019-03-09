@@ -2,7 +2,6 @@ from unittest import SkipTest
 
 import numpy as np
 import six
-
 from ocgis import vm
 from ocgis.constants import DataType
 from ocgis.exc import EmptyObjectError

@@ -5,7 +5,7 @@ import tempfile
 from setuptools import setup, Command, find_packages
 from setuptools.command.test import test as TestCommand
 
-VERSION = '2.2.0.dev0'
+VERSION = '2.1.1'
 
 
 ########################################################################################################################
@@ -89,7 +89,7 @@ class UninstallCommand(Command):
 shp_parts = ['state_boundaries.cfg', 'state_boundaries.dbf', 'state_boundaries.prj', 'state_boundaries.shp',
              'state_boundaries.shx']
 shp_parts = ['bin/shp/state_boundaries/{0}'.format(element) for element in shp_parts]
-bin_files = ['bin/test_csv_calc_conversion_two_calculations.csv']
+bin_files = ['bin/test_csv_calc_conversion_two_calculations.csv', 'bin/nc/ll1280x1280_grid.esmf.subset.nc']
 bin_files += shp_parts
 package_data = {'ocgis.test': bin_files}
 

@@ -4,16 +4,11 @@ import logging
 import os
 from collections import OrderedDict
 from copy import deepcopy, copy
-from os.path import exists
 from types import FunctionType
 
 import numpy as np
-import six
-from shapely.geometry.base import BaseGeometry
-from shapely.geometry.point import Point
-from shapely.geometry.polygon import Polygon
-
 import ocgis
+import six
 from ocgis import RequestDataset
 from ocgis import constants
 from ocgis import env
@@ -32,6 +27,10 @@ from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.util.units import get_units_class, get_units_object
 from ocgis.variable.crs import CoordinateReferenceSystem
 from ocgis.variable.geom import GeometryVariable
+from os.path import exists
+from shapely.geometry.base import BaseGeometry
+from shapely.geometry.point import Point
+from shapely.geometry.polygon import Polygon
 
 
 class Abstraction(base.StringOptionParameter):
@@ -465,7 +464,7 @@ class Dataset(base.AbstractParameter):
     def __iter__(self):
         non_iterables = [AbstractRequestObject, dict, Field]
         if env.USE_ESMF:
-            import ESMF
+            from ocgis.regrid.base import ESMF
             non_iterables.append(ESMF.Field)
 
         if isinstance(self._value, tuple(non_iterables)):

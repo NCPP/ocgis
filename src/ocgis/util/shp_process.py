@@ -4,9 +4,8 @@ from collections import OrderedDict
 from warnings import warn
 
 import fiona
-from shapely.geometry.geo import shape, mapping
-
 from ocgis.constants import OCGIS_UNIQUE_GEOMETRY_IDENTIFIER
+from shapely.geometry.geo import shape, mapping
 
 
 class ShpProcess(object):

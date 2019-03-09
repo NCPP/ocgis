@@ -2,11 +2,10 @@ import itertools
 from copy import deepcopy
 
 import numpy as np
-from six.moves import zip_longest
-
 from ocgis import Variable
 from ocgis.test.base import AbstractTestInterface
 from ocgis.util.broadcaster import broadcast_array_by_dimension_names, broadcast_variable
+from six.moves import zip_longest
 
 
 class Test(AbstractTestInterface):

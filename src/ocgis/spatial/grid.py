@@ -13,7 +13,7 @@ from ocgis.base import get_dimension_names, raise_if_empty, AbstractOcgisObject,
 from ocgis.constants import WrappedState, VariableName, KeywordArgument, GridAbstraction, DriverKey, \
     GridChunkerConstants, RegriddingRole, Topology, DMK, CFName
 from ocgis.environment import ogr, env
-from ocgis.exc import GridDeficientError, EmptySubsetError, AllElementsMaskedError
+from ocgis.exc import GridDeficientError, EmptySubsetError, AllElementsMaskedError, RequestableFeature
 from ocgis.spatial.base import AbstractXYZSpatialContainer
 from ocgis.spatial.geomc import AbstractGeometryCoordinates, PolygonGC, PointGC, LineGC
 from ocgis.util.helpers import get_formatted_slice, get_iter, wrap_get_value, is_xarray, get_bounds_from_1d, \
@@ -898,6 +898,13 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         if has_bounds:
             x = wrap_get_value(self.parent[self.x.bounds])
             y = wrap_get_value(self.parent[self.y.bounds])
+        if self.is_vectorized:
+            if self.has_bounds:
+                row = self.y.bounds.v()
+                col = self.x.bounds.v()
+            else:
+                row = self.y.v()
+                col = self.x.v()
         else:
             x = wrap_get_value(self.x)
             y = wrap_get_value(self.y)
@@ -906,6 +913,18 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         miny = y.min()
         maxx = x.max()
         maxy = y.max()
+
+            if self.has_bounds:
+                row = self.y.bounds.mv()
+                col = self.x.bounds.mv()
+            else:
+                row = self.y.mv()
+                col = self.x.mv()
+
+        minx = col.min()
+        miny = row.min()
+        maxx = col.max()
+        maxy = row.max()
 
         return minx, miny, maxx, maxy
 
@@ -944,8 +963,11 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         yb = Variable(name=name_y_bounds, dimensions=[split_dimension, bounds_dimension],
                       attrs={'esmf_role': erole_y},
                       dtype=env.NP_INT)
-        x_name = self.x.dimensions[0].name
-        y_name = self.y.dimensions[0].name
+
+        # x_name = self.x.dimensions[0].name
+        # y_name = self.y.dimensions[0].name
+        x_name = self.dimension_map.get_dimension(DMK.X)[0]
+        y_name = self.dimension_map.get_dimension(DMK.Y)[0]
         for idx, slc in enumerate(slices):
             xb.get_value()[idx, :] = slc[x_name].start, slc[x_name].stop
             yb.get_value()[idx, :] = slc[y_name].start, slc[y_name].stop
@@ -1304,6 +1326,13 @@ def expand_grid(grid):
     driver = grid.driver
     container = grid.parent
     is_xr = is_xarray(y)
+
+    for target in [y, x]:
+        if target.has_mask:
+            if target.has_masked_values:
+                raise RequestableFeature("Grid expansion with coordinate variable masks not supported")
+            else:
+                target.set_mask(None)
 
     if y.ndim == 1:
         if driver.has_bounds(y, container):

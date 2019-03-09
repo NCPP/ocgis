@@ -2,11 +2,8 @@ import os
 import shutil
 
 import fiona
-from mock import mock
-from shapely.geometry.multipolygon import MultiPolygon
-from shapely.geometry.polygon import Polygon
-
 import ocgis
+from mock import mock
 from ocgis import env
 from ocgis.base import get_variable_names
 from ocgis.collection.field import Field
@@ -15,6 +12,8 @@ from ocgis.spatial.geom_cabinet import GeomCabinet, GeomCabinetIterator, get_uid
 from ocgis.test.base import TestBase
 from ocgis.test.base import attr
 from ocgis.variable.crs import WGS84
+from shapely.geometry.multipolygon import MultiPolygon
+from shapely.geometry.polygon import Polygon
 
 Layer = ogr.Layer
 

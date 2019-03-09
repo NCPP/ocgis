@@ -2,7 +2,6 @@ from copy import deepcopy
 from datetime import datetime
 
 import numpy as np
-
 from ocgis import OcgOperations, FunctionRegistry
 from ocgis import RequestDataset
 from ocgis import env

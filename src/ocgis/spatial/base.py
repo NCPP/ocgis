@@ -16,6 +16,8 @@ from ocgis.constants import KeywordArgument, VariableName, WrapAction, DMK
 from ocgis.exc import GridDeficientError
 from ocgis.variable import crs
 from ocgis.variable.base import AbstractContainer
+from pyproj import Proj, transform
+from shapely.geometry import box
 
 
 class AbstractSpatialObject(AbstractInterfaceObject):
@@ -376,6 +378,57 @@ class AbstractXYZSpatialContainer(AbstractSpatialContainer):
         :rtype: bool
         """
         return self.mask_variable is not None
+
+    @property
+    def has_mask_global(self):
+        """
+        Returns ``True`` if the global spatial object has a mask. Collective across the current VM.
+
+        :rtype: bool
+        """
+        raise_if_empty(self)
+        has_masks = vm.gather(self.has_mask)
+        if vm.rank == 0:
+            has_mask = np.any(has_masks)
+        else:
+            has_mask = None
+        has_mask = vm.bcast(has_mask)
+        return has_mask
+
+    @property
+    def has_masked_values(self):
+        """
+        Returns ``True`` if the spatial object's mask contains any masked values. Will return ``False`` if the object
+        has no mask.
+
+        :rtype: bool
+        """
+        if self.has_mask:
+            mask = self.get_mask()
+            if mask is None:
+                ret = False
+            else:
+                ret = mask.any()
+        else:
+            ret = False
+        return ret
+
+    @property
+    def has_masked_values_global(self):
+        """
+        Returns ``True`` if the global spatial object's mask contains any masked values. Will return ``False`` if the
+        global object has no mask. Collective across the current VM.
+
+        :rtype: bool
+        """
+        raise_if_empty(self)
+        has_masks = vm.gather(self.has_masked_values)
+        if vm.rank == 0:
+            ret = np.any(has_masks)
+        else:
+            ret = None
+        ret = vm.bcast(ret)
+        return ret
 
     @property
     def has_z(self):

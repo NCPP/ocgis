@@ -1,9 +1,8 @@
 import datetime
 
 import numpy as np
-import six
-
 import ocgis
+import six
 from ocgis import RequestDataset
 from ocgis import env
 from ocgis.calc.base import AbstractMultivariateFunction, AbstractKeyedOutputFunction

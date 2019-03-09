@@ -12,7 +12,8 @@ from ocgis import constants, vm
 from ocgis import env
 from ocgis.base import orphaned, raise_if_empty, get_dimension_names
 from ocgis.collection.field import Field
-from ocgis.constants import MPIWriteMode, DimensionMapKey, KeywordArgument, DriverKey, CFName, SourceIndexType
+from ocgis.constants import MPIWriteMode, DimensionMapKey, KeywordArgument, DriverKey, CFName, SourceIndexType, \
+    DecompositionType
 from ocgis.driver.base import AbstractDriver, driver_scope
 from ocgis.exc import ProjectionDoesNotMatch, PayloadProtectedError, NoDataVariablesFound, \
     GridDeficientError
@@ -87,7 +88,6 @@ class DriverNetcdf(AbstractDriver):
         if var.name is None:
             msg = 'A variable "name" is required.'
             raise ValueError(msg)
-
         # Dimension creation should not occur during a fill operation. The dimensions and variables have already been
         # created.
         if write_mode != MPIWriteMode.FILL:
@@ -122,7 +122,7 @@ class DriverNetcdf(AbstractDriver):
             if ((len(dimensions) > 0 and var.has_masked_values) and (
                     write_mode == MPIWriteMode.TEMPLATE or not file_only)) or (
                     is_nc3 and not var.has_allocated_value and len(
-                dimensions) > 0):
+                dimensions) > 0) or (env.USE_NETCDF4_MPI and var.has_mask and vm.size > 1):
                 fill_value = cls.get_variable_write_fill_value(var)
             else:
                 # Copy from original attributes.
@@ -135,10 +135,13 @@ class DriverNetcdf(AbstractDriver):
             ncvar = dataset.variables[var.name]
         else:
             ncvar = dataset.createVariable(var.name, dtype, dimensions=dimensions, fill_value=fill_value, **kwargs)
+            if write_mode == MPIWriteMode.ASYNCHRONOUS:
+                # Tell NC4 we are writing the variable in parallel
+                ncvar.set_collective(True)
 
         # Do not fill values on file_only calls. Also, only fill values for variables with dimension greater than zero.
         if not file_only and not var.is_empty and not isinstance(var, CoordinateReferenceSystem):
-            if isinstance(var.dtype, ObjectType) and not isinstance(var, TemporalVariable):
+            if not var.is_string_object and isinstance(var.dtype, ObjectType) and not isinstance(var, TemporalVariable):
                 bounds_local = var.dimensions[0].bounds_local
                 for idx in range(bounds_local[0], bounds_local[1]):
                     ncvar[idx] = np.array(var.get_value()[idx - bounds_local[0]])
@@ -164,7 +167,6 @@ class DriverNetcdf(AbstractDriver):
                         except Exception as e:
                             msg = "Variable name is '{}'. Original message: ".format(var.name) + str(e)
                             raise e.__class__(msg)
-
         # Only set variable attributes if this is not a fill operation.
         if write_mode != MPIWriteMode.FILL:
             var.write_attributes_to_netcdf_object(ncvar)
@@ -260,8 +262,7 @@ class DriverNetcdf(AbstractDriver):
                     if kwargs.get('parallel') and kwargs.get('comm') is None:
                         kwargs['comm'] = lvm.comm
             ret = nc.Dataset(uri, mode=mode, **kwargs)
-
-            # tdk: FIX: this should be enabled for MFDataset as well. see https://github.com/Unidata/netcdf4-python/issues/809#issuecomment-435144221
+            # tdk:FIX: this should be enabled for MFDataset as well. see https://github.com/Unidata/netcdf4-python/issues/809#issuecomment-435144221
             # netcdf4 >= 1.4.0 always returns masked arrays. This is inefficient and is turned off by default by ocgis.
             if hasattr(ret, 'set_always_mask'):
                 ret.set_always_mask(False)
@@ -427,19 +428,23 @@ class DriverNetcdfCF(AbstractDriverNetcdfCF):
 
         return tuple(dvars)
 
-    def get_distributed_dimension_name(self, dimension_map, dimensions_metadata):
+    def get_distributed_dimension_name(self, dimension_map, dimensions_metadata, decomp_type=DecompositionType.OCGIS):
         x_variable = dimension_map.get_variable(DimensionMapKey.X)
         y_variable = dimension_map.get_variable(DimensionMapKey.Y)
         if x_variable and y_variable:
-            sizes = np.zeros(2, dtype={'names': ['dim', 'size'], 'formats': [object, int]})
-
             dimension_name_x = dimension_map.get_dimension(DimensionMapKey.X)[0]
-            dimension_name_y = dimension_map.get_dimension(DimensionMapKey.Y)[0]
+            if decomp_type == DecompositionType.OCGIS:
+                dimension_name_y = dimension_map.get_dimension(DimensionMapKey.Y)[0]
+                sizes = np.zeros(2, dtype={'names': ['dim', 'size'], 'formats': [object, int]})
 
-            sizes[0] = (dimension_name_x, dimensions_metadata[dimension_name_x]['size'])
-            sizes[1] = (dimension_name_y, dimensions_metadata[dimension_name_y]['size'])
-            max_index = np.argmax(sizes['size'])
-            ret = sizes['dim'][max_index]
+                sizes[0] = (dimension_name_x, dimensions_metadata[dimension_name_x]['size'])
+                sizes[1] = (dimension_name_y, dimensions_metadata[dimension_name_y]['size'])
+                max_index = np.argmax(sizes['size'])
+                ret = sizes['dim'][max_index]
+            elif decomp_type == DecompositionType.ESMF:
+                ret = dimension_name_x
+            else:
+                raise NotImplementedError(decomp_type)
         else:
             ret = None
         return ret
@@ -468,6 +473,7 @@ class DriverNetcdfCF(AbstractDriverNetcdfCF):
     @classmethod
     def _get_field_write_target_(cls, field):
         """Collective!"""
+        ocgis_lh(level=10, logger="driver.nc", msg="entering _get_field_write_target_")
 
         if field.crs is not None:
             field.crs.format_spatial_object(field)

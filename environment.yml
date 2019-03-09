@@ -1,7 +1,6 @@
 name: ocgis
 
 channels:
-  - nesii
   - conda-forge
 
 dependencies:
@@ -10,6 +9,5 @@ dependencies:
   - mpi4py
   - rtree
   - cf_units
-  - icclim
   - nose
   - mock

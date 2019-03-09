@@ -1,7 +1,6 @@
 import csv
 
 import numpy as np
-
 from ocgis import RequestDataset, vm
 from ocgis.collection.field import Field
 from ocgis.constants import HeaderName

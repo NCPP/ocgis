@@ -2,7 +2,6 @@ from collections import OrderedDict
 from unittest import SkipTest
 
 import numpy as np
-
 from ocgis.test.base import TestBase, attr
 from ocgis.variable.base import Variable
 from ocgis.variable.iterator import Iterator

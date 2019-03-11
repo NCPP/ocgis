@@ -1,7 +1,6 @@
 name: rtd
 
 channels:
-- nesii
 - conda-forge
 
 dependencies:

@@ -2643,7 +2643,7 @@ def set_mask_by_variable(source_variable, target_variable, slice_map=None, updat
                         mask_target[tuple(template)] = np.nan
                     else:
                         mask_target[tuple(template)] = True
-                    target_variable.set_mask(mask_target, update=update)
+                        target_variable.set_mask(mask_target, update=update)
 
         # tdk: FIX: this probably needs to be on a driver
         if not is_xarray(target_variable):

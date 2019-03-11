@@ -899,17 +899,19 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
             return None
 
         hb = has_bounds(self.y)
+        driver = self.driver
+        parent = self.parent
         if self.is_vectorized:
             if hb:
-                row = wrap_get_value(self.y.bounds)
-                col = wrap_get_value(self.x.bounds)
+                row = wrap_get_value(driver.get_bounds(self.y, parent))
+                col = wrap_get_value(driver.get_bounds(self.x, parent))
             else:
                 row = wrap_get_value(self.y)
                 col = wrap_get_value(self.x)
         else:
             if hb:
-                row = wrap_get_masked_value(self.y.bounds)
-                col = wrap_get_masked_value(self.x.bounds)
+                row = wrap_get_masked_value(driver.get_bounds(self.y, parent))
+                col = wrap_get_masked_value(driver.get_bounds(self.x, parent))
             else:
                 row = wrap_get_masked_value(self.y)
                 col = wrap_get_masked_value(self.x)
@@ -1322,7 +1324,7 @@ def expand_grid(grid):
     is_xr = is_xarray(y)
 
     for target in [y, x]:
-        if target.has_mask:
+        if not is_xarray(target) and target.has_mask:
             if target.has_masked_values:
                 raise RequestableFeature("Grid expansion with coordinate variable masks not supported")
             else:

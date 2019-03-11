@@ -101,6 +101,26 @@ class DriverXarrayESMFUnstruct(DriverXarray, DriverESMFUnstruct):
     key = "xarray-esmf-unstruct"
 
 
+def create_dask_chunk_defn(group_metadata, chunked_dims, size):
+    # tdk:doc
+    from ocgis.vmachine.mpi import OcgDist
+    from ocgis import Dimension
+    assert len(chunked_dims) > 0
+    dimmeta = group_metadata['dimensions']
+    dist = OcgDist(size=size)
+    for k, v in dimmeta.items():
+        if k in chunked_dims:
+            dim = Dimension(name=k, size=v['size'], dist=True)
+            dist.add_dimension(dim)
+    dist.update_dimension_bounds()
+    ret = {}
+    for d in chunked_dims:
+        bl = dist.get_dimension(d, rank=0).bounds_local
+        assert (len(bl) > 0)
+        ret[d] = bl[1] - bl[0]
+    return ret
+
+
 def create_metadata_from_xarray(ds):
     """
     Create a standard metadata dictionary from an ``xarray`` ``Dataset``.
@@ -115,5 +135,5 @@ def create_metadata_from_xarray(ds):
         xmeta.dimensions[dimname] = {'name': dimname, 'size': dimsize}
     for varname, var in ds.variables.items():
         xmeta.variables[varname] = {'name': varname, 'dimensions': var.dims, 'attrs': var.attrs}
-    xmeta = dict(xmeta)
+    xmeta = xmeta.to_dict()
     return xmeta

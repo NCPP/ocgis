@@ -3,14 +3,15 @@ from unittest import SkipTest
 
 from mock import mock
 from ocgis.driver.dimension_map import create_dimension_map
-from ocgis.driver.dxarray import DriverXarray, create_metadata_from_xarray
+from ocgis.driver.dxarray import DriverXarray, create_metadata_from_xarray, create_dask_chunk_defn
 from ocgis.driver.nc import DriverNetcdfCF
 from ocgis.driver.nc_esmf_unstruct import DriverESMFUnstruct
 from ocgis.spatial.grid_chunker import GridChunker
 from ocgis.variable.crs import Spherical, WGS84
+from ocgis.vmachine.mpi import OcgDist
 from shapely.geometry import Polygon, box
 
-from ocgis import Field, Grid, RequestDataset, GridUnstruct, GeometryVariable, OcgOperations
+from ocgis import Field, Grid, RequestDataset, GridUnstruct, GeometryVariable, OcgOperations, Dimension
 from ocgis.constants import GridAbstraction, DriverKey, Topology, DMK
 from ocgis.test import create_gridxy_global, create_exact_field
 from ocgis.test.base import TestBase, attr
@@ -68,6 +69,18 @@ class TestDriverXarray(TestBase):
     def test_init(self):
         xd = DriverXarray()
         self.assertIsInstance(xd, DriverXarray)
+
+    def test_system_chunk_calc(self):
+        """Test Dask chunking calculation."""
+
+        path = self.get_temporary_file_path("foo.nc")
+        grid = create_gridxy_global()
+        grid.parent.write(path)
+
+        ds = xr.open_dataset(path, autoclose=True)
+        meta = create_metadata_from_xarray(ds)
+        chunks = create_dask_chunk_defn(meta, ['dimy'], size=10)
+        self.assertEqual(chunks['dimy'], 18)
 
     def test_system_grid_chunking(self):
         raise SkipTest("grid chunking through xarray in development")

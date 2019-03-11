@@ -1324,6 +1324,7 @@ def expand_grid(grid):
     is_xr = is_xarray(y)
 
     for target in [y, x]:
+        #tdk:todo: consider a "has_mask" function to avoid using the variable-level feature
         if not is_xarray(target) and target.has_mask:
             if target.has_masked_values:
                 raise RequestableFeature("Grid expansion with coordinate variable masks not supported")
@@ -1396,7 +1397,7 @@ def expand_grid(grid):
             entry_keys = [DMK.Y, DMK.X]
             for ek, target, bounds_var in zip(entry_keys, targets, bounds_vars):
                 if is_xr:
-                    # tdk: FIX: setting bounds should also be on the driver
+                    # tdk:todo: setting bounds should also be on the driver
                     target.attrs['bounds'] = bounds_var.name
                     container.add_variable(bounds_var, force=True)
                     container.dimension_map.set_bounds(ek, bounds_var.name)

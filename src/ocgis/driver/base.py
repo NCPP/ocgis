@@ -390,7 +390,6 @@ class AbstractDriver(AbstractOcgisObject):
 
     @staticmethod
     def get_bounds(varlike, container):
-        # tdk: DOC
         """
         ``container`` retained for xarray compatibility.
 
@@ -398,7 +397,14 @@ class AbstractDriver(AbstractOcgisObject):
         :param container:
         :return:
         """
+        #tdk:doc
         return varlike.bounds
+
+    @classmethod
+    def get_bounds_name(cls, varlike, container):
+        #tdk:doc
+        bounds = cls.get_bounds(varlike, container)
+        return bounds.name
 
     @staticmethod
     def get_data_variable_names(group_metadata, group_dimension_map):

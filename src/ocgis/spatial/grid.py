@@ -17,7 +17,7 @@ from ocgis.exc import GridDeficientError, EmptySubsetError, AllElementsMaskedErr
 from ocgis.spatial.base import AbstractXYZSpatialContainer
 from ocgis.spatial.geomc import AbstractGeometryCoordinates, PolygonGC, PointGC, LineGC
 from ocgis.util.helpers import get_formatted_slice, get_iter, wrap_get_value, is_xarray, get_bounds_from_1d, \
-    get_extrapolated_corners_esmf, create_ocgis_corners_from_esmf_corners
+    get_extrapolated_corners_esmf, create_ocgis_corners_from_esmf_corners, wrap_get_masked_value
 from ocgis.variable.base import get_dslice, get_dimension_lengths, is_empty
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable, get_masking_slice, GeometryProcessor
@@ -70,8 +70,12 @@ class GridGeometryProcessor(GeometryProcessor):
         elif abstraction == GridAbstraction.POLYGON:
             if grid.has_bounds:
                 # We want geometries for everything even if masked.
-                xv = wrap_get_value(grid.parent[grid.x.bounds])
-                yv = wrap_get_value(grid.parent[grid.y.bounds])
+                driver = grid.driver
+                gp = grid.parent
+                xbn = driver.get_bounds_name(grid.x, gp)
+                ybn = driver.get_bounds_name(grid.y, gp)
+                xv = wrap_get_value(grid.parent[xbn])
+                yv = wrap_get_value(grid.parent[ybn])
 
                 range_row = list(range(grid.shape[0]))
                 range_col = list(range(grid.shape[1]))
@@ -891,35 +895,24 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         return ret
 
     def _get_extent_(self):
-        if is_empty(self):
+        if self.is_empty:
             return None
 
-        has_bounds = is_bounded(self.parent.dimension_map, DMK.X)
-        if has_bounds:
-            x = wrap_get_value(self.parent[self.x.bounds])
-            y = wrap_get_value(self.parent[self.y.bounds])
+        hb = has_bounds(self.y)
         if self.is_vectorized:
-            if self.has_bounds:
-                row = self.y.bounds.v()
-                col = self.x.bounds.v()
+            if hb:
+                row = wrap_get_value(self.y.bounds)
+                col = wrap_get_value(self.x.bounds)
             else:
-                row = self.y.v()
-                col = self.x.v()
+                row = wrap_get_value(self.y)
+                col = wrap_get_value(self.x)
         else:
-            x = wrap_get_value(self.x)
-            y = wrap_get_value(self.y)
-
-        minx = x.min()
-        miny = y.min()
-        maxx = x.max()
-        maxy = y.max()
-
-            if self.has_bounds:
-                row = self.y.bounds.mv()
-                col = self.x.bounds.mv()
+            if hb:
+                row = wrap_get_masked_value(self.y.bounds)
+                col = wrap_get_masked_value(self.x.bounds)
             else:
-                row = self.y.mv()
-                col = self.x.mv()
+                row = wrap_get_masked_value(self.y)
+                col = wrap_get_masked_value(self.x)
 
         minx = col.min()
         miny = row.min()
@@ -1247,8 +1240,9 @@ def get_geometry_variable(grid, value=None, mask=None, use_bounds=True):
     ret = GeometryVariable(name=name, value=value, mask=mask, attrs={'axis': 'ocgis_geom'}, dimensions=grid.dimensions,
                            crs=grid.crs)
 
-    # tdk: FEATURE: this needs to be done with the xarray driver i think
-    ret = ret.to_xarray()
+    # tdk:todo: this needs to be done with the xarray driver i think
+    if is_xarray(grid.archetype):
+        ret = ret.to_xarray()
 
     return ret
 

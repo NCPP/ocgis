@@ -273,7 +273,7 @@ class Variable(AbstractContainer, Attributes):
     def __init__(self, name=None, value=None, dimensions=None, dtype='auto', mask=None, attrs=None, fill_value='auto',
                  units='auto', parent=None, bounds=None, is_empty=None, source_name=constants.UNINITIALIZED, uid=None,
                  repeat_record=None, dims=constants.UNINITIALIZED):
-        #tdk: DOC: dims
+        #tdk:doc: dims
 
         # For xarray compatibility, adjust the standard dimensions argument if "dims" is used in its place.
         if dims != constants.UNINITIALIZED:
@@ -2477,7 +2477,10 @@ def get_dslice(dimensions, slc):
     ret = {}
     for d, s in zip(get_dimension_names(dimensions), slc):
         if not isinstance(s, slice):
-            s = slice(*s)
+            try:
+                s = slice(*s)
+            except TypeError:
+                s = slice(s, s+1)
         ret[d] = s
     return ret
 

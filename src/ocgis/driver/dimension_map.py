@@ -312,7 +312,7 @@ class DimensionMap(AbstractOcgisObject):
                     has_sections = True
                     section = get_formatted_slice(section, base_variable_ndim)
                     new_variable = base_variable[section]
-
+                    #tdk:test: i expect this to fail with or without xarray due to merge conflicts
                     if is_xarray(new_variable):
                         new_dimensions = [d for ii, d in enumerate(new_variable.dims) if new_variable.shape[ii] > 1]
                     else:

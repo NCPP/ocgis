@@ -49,6 +49,15 @@ def is_xarray(target):
     return isinstance(target, (xr.Dataset, xr.DataArray))
 
 
+def wrap_get_masked_value(target, **kwargs):
+    #tdk: FIX: remove this and use the "get_value" driver staticmethod; left this in to move forward as some code may need access to the driver
+    try:
+        ret = target.get_masked_value(**kwargs)
+    except AttributeError:
+        ret = target.values
+    return ret
+
+
 def wrap_get_value(target, **kwargs):
     #tdk: FIX: remove this and use the "get_value" driver staticmethod; left this in to move forward as some code may need access to the driver
     try:

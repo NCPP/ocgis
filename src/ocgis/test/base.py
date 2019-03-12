@@ -48,6 +48,7 @@ Definitions for various "attrs":
  * benchmark: test used for benchmarking/performance
  * cli: test related to the command line interface. requires click as a dependency.
  * xarray: test related to xarray optional dependency
+ * xclim: xclim index calculation tests
 
 nosetests -vs --with-id -a '!slow,!remote' ocgis
 """

@@ -1,8 +1,9 @@
 from ocgis.calc.gen_xclim_api import create_xclim_defn, get_xclim_signature
-from ocgis.test.base import TestBase
+from ocgis.test.base import TestBase, attr
 from ocgis.util.addict import Dict
 
 
+@attr('xclim')
 class Test(TestBase): #tdk:rename
 
     def test_create_xclim_defn(self):

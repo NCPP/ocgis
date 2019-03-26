@@ -15,7 +15,7 @@ from ocgis.collection.field import Field
 from ocgis.constants import MPIWriteMode, TagName, KeywordArgument, OcgisConvention, VariableName, DecompositionType
 from ocgis.driver.dimension_map import DimensionMap
 from ocgis.exc import DefinitionValidationError, NoDataVariablesFound, DimensionMapError, VariableMissingMetadataError, \
-    GridDeficientError
+    GridDeficientError, OcgWarning
 from ocgis.util.helpers import get_group
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import SourcedVariable
@@ -987,7 +987,13 @@ def find_variable_by_attribute(variables_metadata, attribute_name, attribute_val
 
 def format_attribute_for_dump_report(attr_value):
     if isinstance(attr_value, six.string_types):
-        ret = '"{}"'.format(attr_value)
+        try:
+            ret = '"{}"'.format(attr_value)
+        except UnicodeEncodeError:
+            msg = "UnicodeEncodeError encountered. Skipping attribute value formatting by changing value to the empty " \
+                  "string."
+            warn(OcgWarning(msg))
+            ret = '""'
     else:
         ret = attr_value
     return ret

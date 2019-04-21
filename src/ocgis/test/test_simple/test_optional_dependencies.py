@@ -35,14 +35,6 @@ class TestOptionalDependencies(TestSimpleBase):
         desired_value = rd1.get().data_variables[0].get_value()
         self.assertNumpyAllClose(actual_value, desired_value)
 
-    @attr('icclim')
-    def test_icclim(self):
-        rd = RequestDataset(**self.get_dataset())
-        calc = [{'func': 'icclim_TG', 'name': 'TG'}]
-        calc_grouping = ['month', 'year']
-        ret = OcgOperations(dataset=rd, calc=calc, calc_grouping=calc_grouping).execute()
-        self.assertEqual(ret.get_element(variable_name='TG').get_value().mean(), 2.5)
-
     @attr('rtree')
     def test_rtree(self):
         from ocgis.spatial.index import SpatialIndex

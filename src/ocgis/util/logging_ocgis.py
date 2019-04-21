@@ -6,9 +6,8 @@ from warnings import warn
 
 import ocgis
 import six
-from ocgis import env
+from ocgis import env, vm
 from ocgis.exc import OcgWarning
-from ocgis.vmachine.mpi import get_standard_comm_state
 
 fiona_logger = logging.getLogger('Fiona')
 fiona_logger.setLevel(logging.ERROR)
@@ -53,16 +52,14 @@ class ProgressOcgOperations(object):
 
 
 class OcgisLogging(object):
-    def __init__(self, comm=None):
-        _, rank, _ = get_standard_comm_state(comm=comm)
-
+    def __init__(self):
         self.level = None
         self.null = True  # pass through if not configured
         self.parent = None
         self.callback = None
         self.callback_level = None
         self.loggers = None
-        self.rank = rank
+        self.rank = vm.rank
 
         logging.captureWarnings(None)
 

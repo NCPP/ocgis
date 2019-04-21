@@ -3,7 +3,7 @@ import logging
 import os
 
 import ocgis
-from ocgis import env
+from ocgis import env, vm
 from ocgis.exc import OcgWarning
 from ocgis.test.base import TestBase
 from ocgis.test.base import attr
@@ -126,6 +126,12 @@ class TestOcgisLogging(TestBase):
         except Exception as e:
             with self.assertRaises(ValueError):
                 ocgis_lh('something happened', exc=e)
+
+    def test_system_parallel(self):
+        to_file = os.path.join(self.current_dir_output, 'rank-{}-test_ocgis_log.log'.format(vm.rank))
+        ocgis_lh.configure(to_file=to_file)
+        ocgis_lh("something happened")
+        self.assertEqual(len(os.listdir(self.current_dir_output)), vm.size)
 
     def test_system_simple(self):
         to_file = os.path.join(env.DIR_OUTPUT, 'test_ocgis_log.log')

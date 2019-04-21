@@ -16,6 +16,9 @@ from ocgis.util.logging_ocgis import ocgis_lh
 from shapely.geometry import box
 
 
+CRWG_LOG = "ocgis.chunked-rwg"
+
+
 @click.group()
 def ocli():
     pass
@@ -75,13 +78,20 @@ def ocli():
               help='List of comma-separated data variable names to overload auto-discovery.')
 @click.option('--spatial_subset_path', default=None, type=click.Path(dir_okay=False),
               help='Optional path to the output spatial subset file. Only applicable when using --spatial_subset.')
+@click.option('--verbose/--not_verbose', default=False, help='If True, log to standard out using verbosity level.')
+@click.option('--loglvl', default="INFO", help='Verbosity level for standard out logging. Default is '
+              '"INFO". See Python logging level docs for additional values: https://docs.python.org/3/howto/logging.html')
 def chunked_rwg(source, destination, weight, nchunks_dst, merge, esmf_src_type, esmf_dst_type, genweights,
                 esmf_regrid_method, spatial_subset, src_resolution, dst_resolution, buffer_distance, wd, persist,
-                eager, ignore_degenerate, data_variables, spatial_subset_path):
+                eager, ignore_degenerate, data_variables, spatial_subset_path, verbose, loglvl):
+    if verbose:
+        ocgis_lh.configure(to_stream=True, level=getattr(logging, loglvl))
+    ocgis_lh(msg="Starting Chunked Regrid Weight Generation", level=logging.INFO, logger=CRWG_LOG)
+
     if not ocgis.env.USE_NETCDF4_MPI:
         msg = ('env.USE_NETCDF4_MPI is False. Considerable performance gains are possible if this is True. Is '
                'netCDF4-python built with parallel support?')
-        ocgis_lh(msg, level=logging.WARN, logger='ocli.chunked-rwg', force=True)
+        ocgis_lh(msg, level=logging.WARN, logger=CRWG_LOG, force=True)
 
     if data_variables is not None:
         data_variables = data_variables.split(',')
@@ -132,6 +142,8 @@ def chunked_rwg(source, destination, weight, nchunks_dst, merge, esmf_src_type, 
     if spatial_subset:
         if spatial_subset_path is None:
             spatial_subset_path = os.path.join(wd, 'spatial_subset.nc')
+        msg = "Executing spatial subset. Output path is: {}".format(spatial_subset_path)
+        ocgis_lh(msg=msg, level=logging.INFO, logger=CRWG_LOG)
         _write_spatial_subset_(rd_src, rd_dst, spatial_subset_path, src_resmax=src_resolution)
     # Only split grids if a spatial subset is not requested.
     else:
@@ -150,11 +162,15 @@ def chunked_rwg(source, destination, weight, nchunks_dst, merge, esmf_src_type, 
     # Write subsets and generate weights if requested in the grid splitter.
     # TODO: Need a weight only option. If chunks are written, then weights are written...
     if not spatial_subset and nchunks_dst is not None:
+        msg = "Starting main chunking loop..."
+        ocgis_lh(msg=msg, level=logging.INFO, logger=CRWG_LOG)
         gs.write_chunks()
     else:
         if spatial_subset:
             source = spatial_subset_path
         if genweights:
+            msg = "Writing ESMF weights..."
+            ocgis_lh(msg=msg, level=logging.INFO, logger=CRWG_LOG)
             gs.write_esmf_weights(source, destination, weight)
 
     # Create the global weight file. This does not apply to spatial subsets because there will always be one weight
@@ -164,6 +180,8 @@ def chunked_rwg(source, destination, weight, nchunks_dst, merge, esmf_src_type, 
         exc = None
         with ocgis.vm.scoped('weight file merge', [0]):
             if not ocgis.vm.is_null:
+                msg = "Merging chunked weight files to global file. Output global weight file is: {}".format(weight)
+                ocgis_lh(msg=msg, level=logging.INFO, logger=CRWG_LOG)
                 gs.create_merged_weight_file(weight)
         excs = ocgis.vm.gather(exc)
         excs = ocgis.vm.bcast(excs)
@@ -176,9 +194,12 @@ def chunked_rwg(source, destination, weight, nchunks_dst, merge, esmf_src_type, 
     # Remove the working directory unless the persist flag is provided.
     if not persist:
         if ocgis.vm.rank == 0:
+            msg = "Removing working directory since persist is False."
+            ocgis_lh(msg=msg, level=logging.INFO, logger=CRWG_LOG)
             shutil.rmtree(wd)
         ocgis.vm.barrier()
 
+    ocgis_lh(msg="Success!", level=logging.INFO, logger=CRWG_LOG)
     return 0
 
 

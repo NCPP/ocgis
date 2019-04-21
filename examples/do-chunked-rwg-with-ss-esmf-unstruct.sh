@@ -32,7 +32,7 @@ SS_PATH=${WD}/spatial_subset.nc
 # The ocli python file or executable target with the subcommand for chunked
 # regrid weight generation.
 CRWG="ocli chunked-rwg "
-#CRWG="python ~/Dropbox/NESII/project/ocg/git/ocgis/src/ocgis/ocli.py chunked-rwg "
+#CRWG="python /home/ubuntu/Dropbox/NESII/project/ocg/git/ocgis/src/ocgis/ocli.py chunked-rwg "
 
 # An optional execution prefix.
 EXEC_PREFIX=""
@@ -56,7 +56,7 @@ fi
 
 ${EXEC_PREFIX} ${CRWG} --source ${SRC} --destination ${DST} --spatial_subset \
  --no_genweights --spatial_subset_path ${SS_PATH} --esmf_src_type ${SRCTYPE} \
- --esmf_dst_type ${DSTTYPE} --src_resolution ${SRC_MAXSPATIALRES}
+ --esmf_dst_type ${DSTTYPE} --src_resolution ${SRC_MAXSPATIALRES} --verbose
 
 ###############################################################################
 
@@ -66,4 +66,4 @@ ${EXEC_PREFIX} ${CRWG} --source ${SRC} --destination ${DST} --spatial_subset \
 ${EXEC_PREFIX} ${CRWG} --source ${SS_PATH} --destination ${DST} \
  --esmf_regrid_method CONSERVE --nchunks_dst ${NCHUNKS_DST} --wd ${CHUNKDIR} \
  --weight ${WEIGHTS} --persist --esmf_src_type ${SRCTYPE} --esmf_dst_type ${DSTTYPE} \
- --src_resolution ${SRC_MAXSPATIALRES} --dst_resolution ${DST_MAXSPATIALRES}
+ --src_resolution ${SRC_MAXSPATIALRES} --dst_resolution ${DST_MAXSPATIALRES} --verbose

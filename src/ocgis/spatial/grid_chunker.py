@@ -505,8 +505,9 @@ class GridChunker(AbstractOcgisObject):
                     else:
                         target_grid = dst_grid_subset
 
-                    # Try to reduce the coordinates in the case of unstructured grid data.
-                    if hasattr(target_grid, 'reduce_global') and Topology.POLYGON in target_grid.abstractions_available:
+                    # Try to reduce the coordinates in the case of unstructured grid data. Ensure the data also has a
+                    # coordinate index. SCRIP grid files, for example, do not have a coordinate index like UGRID.
+                    if hasattr(target_grid, 'reduce_global') and Topology.POLYGON in target_grid.abstractions_available and target_grid.cindex is not None:
                         ocgis_lh(logger='grid_chunker', msg='starting reduce_global for dst_grid_subset',
                                  level=logging.DEBUG)
                         target_grid = target_grid.reduce_global()

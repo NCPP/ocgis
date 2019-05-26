@@ -16,7 +16,7 @@ from ocgis.util.logging_ocgis import ocgis_lh
 from shapely.geometry import box
 
 
-CRWG_LOG = "ocgis.chunked-rwg"
+CRWG_LOG = "chunked-rwg"
 
 
 @click.group()

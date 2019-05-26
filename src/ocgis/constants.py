@@ -43,6 +43,8 @@ GITHUB_ISSUES = 'https://github.com/NCPP/ocgis/issues'
 
 MPI_EMPTY_VALUE = -999
 
+SPATIALDECOMP_BUFFER = 1e-6
+
 
 class ESMFGridClass(Enum):
     GRID = 'grid'

@@ -3,8 +3,11 @@ from ocgis import messages
 
 class OcgException(Exception):
     """Base class for all OCGIS exceptions."""
+    omessage = None
 
     def __init__(self, message=None):
+        if self.omessage is not None and message is None:
+            message = self.omessage
         self.message = message
 
     def __str__(self):
@@ -467,3 +470,11 @@ class WrappedStateEvalTargetMissing(OcgException):
 
     def __init__(self):
         super(WrappedStateEvalTargetMissing, self).__init__(message='Target has no spatial information to evaluate.')
+
+
+class NoTouching(OcgException):
+    """
+    Raised when a subset geometry only touches an element. Used to prevent duplicate cells when creating a spatial
+    decomposition.
+    """
+    omessage = "No touching allowed by spatial operation."

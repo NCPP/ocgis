@@ -8,7 +8,7 @@ from ocgis import env, vm
 from ocgis.base import raise_if_empty, is_unstructured_driver
 from ocgis.constants import KeywordArgument, GridAbstraction, VariableName, AttributeName, GridChunkerConstants, \
     RegriddingRole, DMK, MPITag, DriverKey, ConversionTarget, MPI_EMPTY_VALUE
-from ocgis.exc import RequestableFeature
+from ocgis.exc import RequestableFeature, NoTouching
 from ocgis.spatial.base import AbstractXYZSpatialContainer
 from ocgis.util.helpers import get_formatted_slice, arange_from_dimension, create_unique_global_array
 from ocgis.util.logging_ocgis import ocgis_lh
@@ -469,7 +469,7 @@ class AbstractGeometryCoordinates(AbstractXYZSpatialContainer):
     @format_gridunstruct_return
     def get_spatial_subset_operation(self, spatial_op, subset_geom, return_slice=False, original_mask=None,
                                      keep_touches=True, cascade=True, optimized_bbox_subset=False, apply_slice=True,
-                                     geom_name=None):
+                                     geom_name=None, no_touching=False):
         """
         Perform intersects or intersection operations on the object.
 
@@ -490,6 +490,8 @@ class AbstractGeometryCoordinates(AbstractXYZSpatialContainer):
          its mask.
         :param str geom_name: If provided, use this name for the output geometry variable if this is an intersection
          operation.
+        :param bool no_touching :: If ``True``, raise :class:`ocgis.exc.NoTouching` if the selection geometry touches a
+         geometry on the subset target. Useful when avoiding duplicate geometries when using a spatial decomposition.
         :return: If ``return_slice`` is ``False`` (the default), return a shallow copy of the sliced grid. If
          ``return_slice`` is ``True``, this will be a tuple with the subsetted object as the first element and the slice
          used as the second. If ``spatial_op`` is ``'intersection'``, the returned object is a geometry variable.
@@ -543,7 +545,8 @@ class AbstractGeometryCoordinates(AbstractXYZSpatialContainer):
                     z_bounds = z_coords.min(), z_coords.max()
                 else:
                     z_bounds = None
-                single_hint_mask = get_xyz_select(x, y, geom.bounds, z=z, z_bounds=z_bounds, keep_touches=keep_touches)
+                single_hint_mask = get_xyz_select(x, y, geom.bounds, z=z, z_bounds=z_bounds, keep_touches=keep_touches,
+                                                  no_touching=no_touching)
 
                 if ctr == 0:
                     hint_mask = single_hint_mask
@@ -810,17 +813,31 @@ def get_default_geometry_variable_name(gc):
     return possible[gc.abstraction]
 
 
-def get_xyz_select(x, y, bounds, z=None, z_bounds=None, invert=False, keep_touches=True):
+def get_xyz_select(x, y, bounds, z=None, z_bounds=None, invert=False, keep_touches=True, no_touching=False):
     from ocgis.spatial.grid import arr_intersects_bounds
-
     minx, miny, maxx, maxy = bounds
-    select_x = arr_intersects_bounds(x, minx, maxx, keep_touches=keep_touches)
-    select_y = arr_intersects_bounds(y, miny, maxy, keep_touches=keep_touches)
+    if no_touching:
+        touches_x = np.zeros([2]+list(x.shape), dtype=bool)
+        touches_y = np.zeros([2]+list(y.shape), dtype=bool)
+    else:
+        touches_x, touches_y = 2*[None]
+    select_x = arr_intersects_bounds(x, minx, maxx, keep_touches=keep_touches, touches=touches_x)
+    select_y = arr_intersects_bounds(y, miny, maxy, keep_touches=keep_touches, touches=touches_y)
+    if no_touching and z_bounds is None:
+        if np.any(np.logical_and(touches_x, touches_y)):
+            vm.abort(exc=NoTouching)
     select = np.logical_and(select_x, select_y)
     if z_bounds is not None:
+        if no_touching:
+            touches_z = np.zeros([2]+list(z.shape), dtype=bool)
+        else:
+            touches_z = None
         minz, maxz = z_bounds
-        select_z = arr_intersects_bounds(z, minz, maxz, keep_touches=keep_touches)
+        select_z = arr_intersects_bounds(z, minz, maxz, keep_touches=keep_touches, touches=touches_z)
         select = np.logical_and(select, select_z)
+        if no_touching:
+            if np.any(np.logical_and(np.logical_and(touches_x, touches_y), touches_z)):
+                vm.abort(exc=NoTouching)
     if invert:
         select = np.invert(select)
     return select

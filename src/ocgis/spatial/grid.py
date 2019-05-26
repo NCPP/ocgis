@@ -11,7 +11,7 @@ from ocgis.base import get_dimension_names, raise_if_empty, AbstractOcgisObject,
 from ocgis.constants import WrappedState, VariableName, KeywordArgument, GridAbstraction, DriverKey, \
     GridChunkerConstants, RegriddingRole, Topology, DMK, CFName
 from ocgis.environment import ogr, env
-from ocgis.exc import GridDeficientError, EmptySubsetError, AllElementsMaskedError, RequestableFeature
+from ocgis.exc import GridDeficientError, EmptySubsetError, AllElementsMaskedError, RequestableFeature, NoTouching
 from ocgis.spatial.base import AbstractXYZSpatialContainer
 from ocgis.spatial.geomc import AbstractGeometryCoordinates, PolygonGC, PointGC, LineGC
 from ocgis.util.helpers import get_formatted_slice, get_iter
@@ -553,8 +553,8 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
         return lines
 
     def get_spatial_subset_operation(self, spatial_op, subset_geom, return_slice=False, use_bounds='auto',
-                                     original_mask=None,
-                                     keep_touches='auto', cascade=True, optimized_bbox_subset=False, apply_slice=True):
+                                     original_mask=None, keep_touches='auto', cascade=True, optimized_bbox_subset=False,
+                                     apply_slice=True, no_touching=False):
         """
         Perform intersects or intersection operations on the grid object.
 
@@ -576,6 +576,8 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
          use the grid's representative coordinates ignoring bounds, geometries, etc.
         :param apply_slice: If ``True`` (the default), apply the slice to the grid object in addition to updating its
          mask.
+        :param bool no_touching :: If ``True``, raise :class:`ocgis.exc.NoTouching` if the selection geometry touches a
+         geometry on the subset target. Useful when avoiding duplicate geometries when using a spatial decomposition.
         :return: If ``return_slice`` is ``False`` (the default), return a shallow copy of the sliced grid. If
          ``return_slice`` is ``True``, this will be a tuple with the subsetted object as the first element and the slice
          used as the second. If ``spatial_op`` is ``'intersection'``, the returned object is a geometry variable.
@@ -642,7 +644,8 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
             for ctr, geom in enumerate(geom_itr):
                 if not optimized_bbox_subset:
                     geom = geom.buffer(buffer_value).envelope
-                single_hint_mask = get_hint_mask_from_geometry_bounds(self, geom.bounds, invert=False)
+                single_hint_mask = get_hint_mask_from_geometry_bounds(self, geom.bounds, invert=False,
+                                                                      no_touching=no_touching)
 
                 if ctr == 0:
                     hint_mask = single_hint_mask
@@ -1072,12 +1075,16 @@ class GridUnstruct(AbstractGrid):
         pass
 
 
-def arr_intersects_bounds(arr, lower, upper, keep_touches=True, section_slice=None):
+def arr_intersects_bounds(arr, lower, upper, keep_touches=True, section_slice=None, touches=None):
     assert lower <= upper
 
     if section_slice is not None:
         ret = np.zeros(arr.shape, dtype=bool)
         arr = arr[section_slice]
+
+    if touches is not None:
+        touches[0, :] = arr == lower
+        touches[1, :] = arr == upper
 
     if keep_touches:
         arr_lower = arr >= lower
@@ -1224,11 +1231,27 @@ def get_coordinate_boolean_array(grid_target, keep_touches, max_target, min_targ
     return res_target
 
 
-def get_hint_mask_from_geometry_bounds(grid, bbox, invert=True):
+def get_hint_mask_from_geometry_bounds(grid, bbox, invert=True, no_touching=False):
     grid_x = grid.x.get_value()
     grid_y = grid.y.get_value()
 
     minx, miny, maxx, maxy = bbox
+
+    if no_touching:
+        tx = np.logical_or(grid_x==minx, grid_x==maxx)
+        ty = np.logical_or(grid_y==miny, grid_y==maxy)
+        if grid.is_vectorized:
+            etx = np.zeros(grid.shape, dtype=bool)
+            ety = np.zeros(grid.shape, dtype=bool)
+            for ii in range(grid.shape[0]):
+                ety[ii, :] = ty[ii]
+            for jj in range(grid.shape[1]):
+                etx[:, jj] = tx[ii]
+            tx = etx
+            ty = ety
+        if np.any(np.logical_and(tx, ty)):
+            vm.abort(exc=NoTouching)
+
     select_x = np.logical_and(grid_x >= minx, grid_x <= maxx)
     select_y = np.logical_and(grid_y >= miny, grid_y <= maxy)
 

@@ -6,7 +6,7 @@ import numpy as np
 import six
 from ocgis import Variable, SourcedVariable, vm
 from ocgis.base import raise_if_empty, is_field, AbstractInterfaceObject
-from ocgis.constants import KeywordArgument, VariableName, WrapAction, DMK
+from ocgis.constants import KeywordArgument, VariableName, WrapAction, DMK, SPATIALDECOMP_BUFFER
 from ocgis.exc import GridDeficientError
 from ocgis.variable import crs
 from ocgis.variable.base import AbstractContainer
@@ -774,7 +774,9 @@ def iter_spatial_decomposition(sobj, splits, **kwargs):
 
     # For each split polygon, subset the target spatial object and yield it. -------------------------------------------
     extent_global = sobj.extent_global
-    bbox = box(*extent_global)
+    # Add a slight buffer to the overall global extent. This will avoid touches on center coordinates if the center
+    # coordinates are used to calculate the spatial extent.
+    bbox = box(*extent_global).buffer(SPATIALDECOMP_BUFFER).envelope
     split_polygons = create_split_polygons(bbox, split_shape)
     for ctr, sp in enumerate(split_polygons):
         if yield_idx is not None:

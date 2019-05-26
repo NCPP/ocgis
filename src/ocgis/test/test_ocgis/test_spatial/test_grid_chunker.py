@@ -4,6 +4,8 @@ from copy import deepcopy
 
 import numpy as np
 from mock import mock, PropertyMock
+from ocgis.exc import NoTouching
+
 from ocgis import RequestDataset, Field, vm, env
 from ocgis.base import get_variable_names
 from ocgis.constants import MPIWriteMode, GridChunkerConstants, VariableName
@@ -244,8 +246,8 @@ class TestGridChunker(AbstractTestInterface, FixtureDriverNetcdfSCRIP):
 
         src_grid = create_gridxy_global()
         dst_grid = self.fixture_driver_scrip_netcdf_field().grid
-        gs = GridChunker(src_grid, dst_grid, (3,), paths={'wd': self.current_dir_output})
-        gs.write_chunks()
+        gc = GridChunker(src_grid, dst_grid, (3,), paths={'wd': self.current_dir_output})
+        gc.write_chunks()
         self.assertEqual(len(os.listdir(self.current_dir_output)), 7)
 
     def test_system_splitting_unstructured_no_weights(self):

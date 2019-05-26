@@ -426,7 +426,7 @@ class GridChunker(AbstractOcgisObject):
         """
         if self.use_spatial_decomp:
             for sub, slc in iter_spatial_decomposition(self.dst_grid, self.nchunks_dst, optimized_bbox_subset=True,
-                                                       yield_idx=yield_idx):
+                                                       yield_idx=yield_idx, no_touching=True):
                 if yield_slice:
                     # Spatial subset may be empty on a rank...
                     if sub.is_empty:

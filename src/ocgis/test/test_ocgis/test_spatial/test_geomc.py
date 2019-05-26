@@ -8,7 +8,7 @@ from ocgis.constants import WrappedState, DMK, GridAbstraction, Topology, Driver
 from ocgis.driver.nc_ugrid import DriverNetcdfUGRID
 from ocgis.spatial.base import create_spatial_mask_variable
 from ocgis.spatial.geomc import PointGC, get_default_geometry_variable_name, PolygonGC, reduce_reindex_coordinate_index, \
-    iter_multipart_coordinates
+    iter_multipart_coordinates, get_xyz_select
 from ocgis.spatial.grid_chunker import GridChunker
 from ocgis.test.base import TestBase, attr
 from ocgis.test.test_ocgis.test_driver.test_nc_ugrid import get_ugrid_data_structure
@@ -30,6 +30,17 @@ class Test(TestBase):
         actual = list(iter_multipart_coordinates(arr, -100))
         self.assertEqual(len(actual), 1)
         self.assertNumpyAll(actual[0], arr)
+
+    def test_get_xyz_select(self):
+        # Test the touching barrier.
+        x = np.array([1., 2.])
+        y = np.array([3., 4.])
+        z = np.array([5., 5.])
+        bounds = [1., 3., 2., 4.]
+        with self.assertRaises(RuntimeError):
+            get_xyz_select(x, y, bounds, z=z, z_bounds=[5., 5.], no_touching=True)
+        with self.assertRaises(RuntimeError):
+            get_xyz_select(x, y, bounds, no_touching=True)
 
     @attr('mpi')
     def test_reduce_reindex_coordinate_index(self):

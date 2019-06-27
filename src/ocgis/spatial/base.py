@@ -728,8 +728,6 @@ def get_extent_global(container):
     extent = container.extent
     extents = vm.gather(extent)
 
-    # ocgis_lh(msg='extents={}'.format(extents), logger='spatial.base', level=logging.DEBUG)
-
     if vm.rank == 0:
         extents = [e for e in extents if e is not None]
         extents = np.array(extents)

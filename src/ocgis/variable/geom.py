@@ -1025,6 +1025,7 @@ class GeometryVariable(AbstractSpatialVariable):
 
         crs = self.crs
         dced = False
+        ret = self.copy()
         if crs is not None or archetype is not None:
             if crs is not None:
                 ret = self.deepcopy()
@@ -1034,7 +1035,7 @@ class GeometryVariable(AbstractSpatialVariable):
             # Update the coordinate system if it differs from the archetype.
             if archetype is not None:
                 acrs = archetype.crs
-                if acrs != crs:
+                if acrs is not None and acrs != crs:
                     if not dced:
                         ret = self.deepcopy()
                         dced = True
@@ -1048,8 +1049,6 @@ class GeometryVariable(AbstractSpatialVariable):
                             ret = self.deepcopy()
                             dced = True
                         acrs.wrap_or_unwrap(archetype_wrapped_state, ret)
-        else:
-            ret = self.copy()
 
         return ret
 

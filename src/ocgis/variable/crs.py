@@ -363,10 +363,10 @@ class AbstractCRS(AbstractInterfaceObject):
         gt_m180 = arr > constants.MERIDIAN_180TH
         lt_pm = arr < 0
 
-        if np.any(lt_pm):
-            ret = WrappedState.WRAPPED
-        elif np.any(gt_m180):
+        if np.any(gt_m180):
             ret = WrappedState.UNWRAPPED
+        elif np.any(lt_pm):
+            ret = WrappedState.WRAPPED
         else:
             ret = WrappedState.UNKNOWN
 

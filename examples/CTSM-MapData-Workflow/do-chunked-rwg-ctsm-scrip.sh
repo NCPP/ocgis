@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # The base or working directory.
-WD=~/scratch
+WD=~/scratch/current
 
 # Directory to write all the chunked files to.
 CHUNKDIR=${WD}/chunking
@@ -28,8 +28,9 @@ CRWG="ocli chunked-rwg "
 #CRWG="python /home/ubuntu/Dropbox/NESII/project/ocg/git/ocgis/src/ocgis/ocli.py chunked-rwg "
 
 # An optional execution prefix.
-#EXEC_PREFIX=""
-EXEC_PREFIX="mpirun -n `nproc`"
+EXEC_PREFIX=""
+#EXEC_PREFIX="mpirun -n `nproc`"
+#EXEC_PREFIX="mpirun -n 3"
 
 ###############################################################################
 

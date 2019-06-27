@@ -15,7 +15,6 @@ from ocgis.spatial.spatial_subset import SpatialSubsetOperation
 from ocgis.util.logging_ocgis import ocgis_lh
 from shapely.geometry import box
 
-
 CRWG_LOG = "chunked-rwg"
 
 
@@ -111,27 +110,29 @@ def chunked_rwg(source, destination, weight, nchunks_dst, merge, esmf_src_type, 
 
     # Make a temporary working directory is one is not provided by the client. Only do this if we are writing subsets
     # and it is not a merge only operation.
-    if wd is None:
-        if ocgis.vm.rank == 0:
-            wd = tempfile.mkdtemp(prefix='ocgis_chunked_rwg_')
-        wd = ocgis.vm.bcast(wd)
-    else:
-        exc = None
-        if ocgis.vm.rank == 0:
-            # The working directory must not exist to proceed.
-            if os.path.exists(wd):
-                exc = ValueError("Working directory {} must not exist.".format(wd))
-            else:
-                # Make the working directory nesting as needed.
-                os.makedirs(wd)
-        exc = ocgis.vm.bcast(exc)
-        if exc is not None:
-            raise exc
+    should_create_wd = (nchunks_dst is None or not all([ii == 1 for ii in nchunks_dst])) or spatial_subset
+    if should_create_wd:
+        if wd is None:
+            if ocgis.vm.rank == 0:
+                wd = tempfile.mkdtemp(prefix='ocgis_chunked_rwg_')
+            wd = ocgis.vm.bcast(wd)
+        else:
+            exc = None
+            if ocgis.vm.rank == 0:
+                # The working directory must not exist to proceed.
+                if os.path.exists(wd):
+                    exc = ValueError("Working directory {} must not exist.".format(wd))
+                else:
+                    # Make the working directory nesting as needed.
+                    os.makedirs(wd)
+            exc = ocgis.vm.bcast(exc)
+            if exc is not None:
+                raise exc
 
-    if merge and not spatial_subset or (spatial_subset and genweights):
-        if _is_subdir_(wd, weight):
-            raise ValueError(
-                'Merge weight file path must not in the working directory. It may get unintentionally deleted with the --no_persist flag.')
+        if merge and not spatial_subset or (spatial_subset and genweights):
+            if _is_subdir_(wd, weight):
+                raise ValueError(
+                    'Merge weight file path must not in the working directory. It may get unintentionally deleted with the --no_persist flag.')
 
     # Create the source and destination request datasets.
     rd_src = _create_request_dataset_(source, esmf_src_type, data_variables=data_variables)
@@ -161,7 +162,7 @@ def chunked_rwg(source, destination, weight, nchunks_dst, merge, esmf_src_type, 
 
     # Write subsets and generate weights if requested in the grid splitter.
     # TODO: Need a weight only option. If chunks are written, then weights are written...
-    if not spatial_subset and nchunks_dst is not None:
+    if not spatial_subset and nchunks_dst is not None and not gs.is_one_chunk:
         msg = "Starting main chunking loop..."
         ocgis_lh(msg=msg, level=logging.INFO, logger=CRWG_LOG)
         gs.write_chunks()
@@ -175,7 +176,7 @@ def chunked_rwg(source, destination, weight, nchunks_dst, merge, esmf_src_type, 
 
     # Create the global weight file. This does not apply to spatial subsets because there will always be one weight
     # file.
-    if merge and not spatial_subset:
+    if merge and not spatial_subset and not gs.is_one_chunk:
         # Weight file merge only works in serial.
         exc = None
         with ocgis.vm.scoped('weight file merge', [0]):

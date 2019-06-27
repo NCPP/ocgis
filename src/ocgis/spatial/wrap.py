@@ -205,7 +205,7 @@ class GeometryWrapper(AbstractWrapper):
                 new_geom = _shift_(geom)
             # If a polygon crosses the 180 axis, then the polygon will need to be split with intersection and
             # recombined.
-            elif bounds[1] <= self.wrap_axis < bounds[2]:
+            elif bounds[0] <= self.wrap_axis < bounds[2]:
                 left = [poly for poly in iter_exploded_geometries(geom.intersection(self.left_clip))]
                 right = [poly for poly in iter_exploded_geometries(_shift_(geom.intersection(self.right_clip)))]
                 try:

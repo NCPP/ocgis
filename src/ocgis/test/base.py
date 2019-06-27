@@ -433,6 +433,7 @@ class TestBase(unittest.TestCase):
         self.assertAsSetEqual(nwf_col, gwf_col)
         nwf_S = nwf['S'].get_value()
         gwf_S = gwf['S'].get_value()
+        self.assertEqual(nwf_S.shape, gwf_S.shape)
         self.assertAlmostEqual(nwf_S.sum(), gwf_S.sum(), places=12)
         unique_src = np.unique(nwf_row)
         diffs = []

@@ -6,13 +6,14 @@ import numpy as np
 from ocgis import constants
 from ocgis.base import AbstractOcgisObject, grid_abstraction_scope
 from ocgis.collection.field import Field
-from ocgis.constants import GridChunkerConstants, RegriddingRole, Topology
+from ocgis.constants import GridChunkerConstants, RegriddingRole, Topology, WrappedState
 from ocgis.driver.request.core import RequestDataset
 from ocgis.spatial.base import iter_spatial_decomposition
 from ocgis.spatial.geomc import AbstractGeometryCoordinates
 from ocgis.spatial.grid import GridUnstruct, AbstractGrid, Grid
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import VariableCollection, Variable
+from ocgis.variable.crs import Spherical
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.vmachine.core import vm
@@ -119,6 +120,10 @@ class GridChunker(AbstractOcgisObject):
             from ocgis.regrid.base import update_esmf_kwargs
             update_esmf_kwargs(esmf_kwargs)
         self.esmf_kwargs = esmf_kwargs
+        # Perhaps a hack, but ensure the mask values are always configured at the base level. This will make sure SCRIP
+        # masks are handled for instance.
+        self.esmf_kwargs["src_mask_values"] = [0]
+        self.esmf_kwargs["dst_mask_values"] = [0]
 
         self.nchunks_dst = nchunks_dst
         self.check_contains = check_contains
@@ -185,6 +190,10 @@ class GridChunker(AbstractOcgisObject):
     @buffer_value.setter
     def buffer_value(self, value):
         self._buffer_value = value
+
+    @property
+    def is_one_chunk(self):
+        return all([ii == 1 for ii in self.nchunks_dst])
 
     @property
     def nchunks_dst(self):
@@ -518,6 +527,15 @@ class GridChunker(AbstractOcgisObject):
                     if extent_global is None:
                         with grid_abstraction_scope(target_grid, Topology.POLYGON):
                             extent_global = target_grid.extent_global
+                            # HACK: Bad corner coordinates can lead to bad extents. In this case, the lower bound on the
+                            #  x-coordinate is unreasonable and breaks wrapping code. Set to 0.0 which is a reasonable
+                            #  lower x-coordate for unwrapped datasets.
+                            if (isinstance(target_grid.crs, Spherical)) and \
+                                    dst_grid_wrapped_state == WrappedState.UNWRAPPED and \
+                                    extent_global[0] < 0.0:
+                                e = list(extent_global)
+                                e[0] = 0.0
+                                extent_global = tuple(e)
 
                     if self.check_contains:
                         dst_box = box(*target_grid.extent_global)
@@ -536,9 +554,13 @@ class GridChunker(AbstractOcgisObject):
 
             if self.check_contains:
                 dst_box = vm.bcast(dst_box, root=live_ranks[0])
-
             sub_box = GeometryVariable.from_shapely(sub_box, is_bbox=True, wrapped_state=dst_grid_wrapped_state,
                                                     crs=dst_grid_crs)
+
+            # Prepare geometry to match coordinate system and wrapping of the subset target
+            sub_box = sub_box.prepare(archetype=self.src_grid)
+            ocgis_lh(logger='grid_chunker', msg='prepared geometry', level=logging.DEBUG)
+
             ocgis_lh(logger='grid_chunker', msg='starting "self.src_grid.get_intersects"', level=logging.DEBUG)
             src_grid_subset, src_grid_slice = self.src_grid.get_intersects(sub_box, keep_touches=False, cascade=False,
                                                                            optimized_bbox_subset=self.optimized_bbox_subset,
@@ -654,6 +676,8 @@ class GridChunker(AbstractOcgisObject):
             # Generate an ESMF weights file if requested and at least one rank has data on it.
             if self.genweights and len(vm.get_live_ranks_from_object(sub_src)) > 0:
                 vm.barrier()
+                ocgis_lh(logger='grid_chunker', msg='write_chunks:writing esmf weights: {}'.format(wgt_path),
+                         level=logging.DEBUG)
                 self.write_esmf_weights(src_path, dst_path, wgt_path, src_grid=sub_src, dst_grid=sub_dst)
                 vm.barrier()
 

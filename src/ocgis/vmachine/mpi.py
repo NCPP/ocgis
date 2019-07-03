@@ -1,6 +1,7 @@
 import itertools
 from collections import OrderedDict
 from contextlib import contextmanager
+from copy import deepcopy
 from functools import reduce, partial
 
 import numpy as np
@@ -247,7 +248,13 @@ class OcgDist(AbstractOcgisObject):
         try:
             ret = d[name]
         except KeyError:
-            raise DimensionNotFound(name)
+            if group is None or len(group) == 0:
+                raise DimensionNotFound(name)
+            else:
+                # Dimensions can be one level up in a hierarchy...
+                local_group = deepcopy(group)
+                local_group.pop(-1)
+                ret = self.get_dimension(name, group=local_group, rank=rank)
         return ret
 
     def get_dimensions(self, names, **kwargs):

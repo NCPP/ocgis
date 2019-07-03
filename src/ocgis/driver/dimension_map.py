@@ -107,9 +107,9 @@ class DimensionMap(AbstractOcgisObject):
             curr.set_group(group_name, dimension_map)
         if DMK.GROUPS in group_metadata:
             for group_name, sub_group_metadata in group_metadata[DMK.GROUPS].items():
-                cls.from_metadata(driver, sub_group_metadata, curr=curr, group_name=group_name)
+                cls.from_metadata(driver, sub_group_metadata, curr=dimension_map, group_name=group_name)
 
-        return curr
+        return dimension_map
 
     @classmethod
     def from_old_style_dimension_map(cls, odmap):

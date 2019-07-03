@@ -311,7 +311,6 @@ class AbstractXYZSpatialContainer(AbstractSpatialContainer):
             raise ValueError('Coordinate variables must have dimensions.')
 
         # --------------------------------------------------------------------------------------------------------------
-
         new_variables = [x, y]
         if z is not None:
             new_variables.append(z)
@@ -645,8 +644,10 @@ class AbstractXYZSpatialContainer(AbstractSpatialContainer):
         if parent is None:
             parent = self.parent
         dimension_map = self._get_canonical_dimension_map_(field=parent, create=True)
-        dimension_map.set_variable(DMK.X, x, pos=x_pos)
-        dimension_map.set_variable(DMK.Y, y, pos=y_pos)
+        if dimension_map.get_variable(DMK.X) is None:
+            dimension_map.set_variable(DMK.X, x, pos=x_pos)
+        if dimension_map.get_variable(DMK.Y) is None:
+            dimension_map.set_variable(DMK.Y, y, pos=y_pos)
         if z is not None:
             dimension_map.set_variable(DMK.LEVEL, z, dimensionless=dimensionless)
 

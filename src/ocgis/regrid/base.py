@@ -9,7 +9,7 @@ from ocgis import constants, Dimension, RequestDataset, vm
 from ocgis import env
 from ocgis.base import AbstractOcgisObject, get_dimension_names, iter_dict_slices
 from ocgis.collection.field import Field
-from ocgis.constants import DMK, GridChunkerConstants, DecompositionType, MPIOps
+from ocgis.constants import DMK, GridChunkerConstants, DecompositionType
 from ocgis.exc import RegriddingError, CornersInconsistentError
 from ocgis.spatial.grid import Grid, expand_grid
 from ocgis.spatial.spatial_subset import SpatialSubsetOperation
@@ -924,6 +924,7 @@ def create_esmf_grid_fromfile(filename, grid, esmf_kwargs):
 
 
 def create_esmf_regrid(**kwargs):
+    print(kwargs)
     return ESMF.Regrid(**kwargs)
 
 

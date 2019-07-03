@@ -255,7 +255,11 @@ class AbstractDriver(AbstractOcgisObject):
         # Get the appropriate metadata for the collection.
         group_metadata = self.get_group_metadata(raw_field.group, self.metadata_source)
         # Always pull the dimension map from the request dataset. This allows it to be overloaded.
-        dimension_map = self.get_group_metadata(raw_field.group, self.rd.dimension_map)
+        dgroup = raw_field.group
+        if dgroup is not None:
+            dgroup = deepcopy(dgroup)
+            dgroup.append(raw_field.name)
+        dimension_map = self.rd.dimension_map.get_group(dgroup)
 
         # Modify the coordinate system variable. If it is overloaded on the request dataset, then the variable
         # collection needs to be updated to hold the variable and any alternative coordinate systems needs to be
@@ -296,6 +300,8 @@ class AbstractDriver(AbstractOcgisObject):
         if grid_is_isomorphic != 'auto':
             kwargs['grid_is_isomorphic'] = grid_is_isomorphic
         field = Field.from_variable_collection(raw_field, *args, **kwargs)
+        field.set_name(raw_field.name) # HACK: There is an issue with internal names where it is not getting set
+        assert(field.name == raw_field.name)
 
         # If this is a source grid for regridding, ensure the flag is updated.
         field.regrid_source = self.rd.regrid_source
@@ -346,14 +352,13 @@ class AbstractDriver(AbstractOcgisObject):
         """
         if group_metadata is None:
             group_metadata = self.rd.metadata
-
         field = Field(name=name, source_name=source_name, uid=uid, attrs=group_metadata.get('global_attributes'))
-        for var in self.create_variables(group_metadata, parent=field).values():
-            field.add_variable(var, force=True)
         if parent is not None:
             parent.add_child(field)
+        for var in self.create_variables(group_metadata, parent=field).values():
+            field.add_variable(var, force=True)
         for k, v in group_metadata.get('groups', {}).items():
-            _ = self.create_raw_field(v, name=k, parent=field, group_name=k)
+            _ = self.create_raw_field(group_metadata=v, name=k, parent=field, group_name=k)
         return field
 
     def create_variables(self, group_metadata, parent=None):

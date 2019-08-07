@@ -3,6 +3,8 @@ import os
 
 import netCDF4 as nc
 import numpy as np
+from shapely.geometry import box
+
 from ocgis import constants
 from ocgis.base import AbstractOcgisObject, grid_abstraction_scope
 from ocgis.collection.field import Field
@@ -18,8 +20,8 @@ from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.vmachine.core import vm
 from ocgis.vmachine.mpi import redistribute_by_src_idx
-from shapely.geometry import box
 
+_LOCAL_LOGGER = "grid_chunker"
 
 class GridChunker(AbstractOcgisObject):
     """
@@ -301,12 +303,16 @@ class GridChunker(AbstractOcgisObject):
         wv = weight_filename.join_string_value()
         split_weight_file_directory = self.paths['wd']
         for wfn in map(lambda x: os.path.join(split_weight_file_directory, os.path.split(x)[1]), wv):
+            ocgis_lh(msg="current merge weight file target: {}".format(wfn), level=logging.DEBUG, logger=_LOCAL_LOGGER)
             if not os.path.exists(wfn):
                 if strict:
                     raise IOError(wfn)
                 else:
                     continue
-            n_s_size += RequestDataset(wfn).get().dimensions['n_s'].size
+            curr_dimsize = RequestDataset(wfn).get().dimensions['n_s'].size
+            # ESMF writes the weight file, but it may be empty if there are no generated weights.
+            if curr_dimsize is not None:
+                n_s_size += curr_dimsize
 
         # Create output weight file.
         wf_varnames = ['row', 'col', 'S']
@@ -479,7 +485,7 @@ class GridChunker(AbstractOcgisObject):
             iter_dst = self.iter_dst_grid_subsets(yield_slice=yield_slice, yield_idx=yield_idx)
 
         # Loop over each destination grid subset.
-        ocgis_lh(logger='grid_chunker', msg='starting "for yld in iter_dst"', level=logging.DEBUG)
+        ocgis_lh(logger=_LOCAL_LOGGER, msg='starting "for yld in iter_dst"', level=logging.DEBUG)
         for iter_dst_ctr, yld in enumerate(iter_dst, start=1):
             ocgis_lh(msg=["iter_dst_ctr", iter_dst_ctr], level=logging.DEBUG)
             if yield_slice:
@@ -517,10 +523,10 @@ class GridChunker(AbstractOcgisObject):
                     # Try to reduce the coordinates in the case of unstructured grid data. Ensure the data also has a
                     # coordinate index. SCRIP grid files, for example, do not have a coordinate index like UGRID.
                     if hasattr(target_grid, 'reduce_global') and Topology.POLYGON in target_grid.abstractions_available and target_grid.cindex is not None:
-                        ocgis_lh(logger='grid_chunker', msg='starting reduce_global for dst_grid_subset',
+                        ocgis_lh(logger=_LOCAL_LOGGER, msg='starting reduce_global for dst_grid_subset',
                                  level=logging.DEBUG)
                         target_grid = target_grid.reduce_global()
-                        ocgis_lh(logger='grid_chunker', msg='finished reduce_global for dst_grid_subset',
+                        ocgis_lh(logger=_LOCAL_LOGGER, msg='finished reduce_global for dst_grid_subset',
                                  level=logging.DEBUG)
 
                     extent_global = target_grid.parent.attrs.get('extent_global')
@@ -545,7 +551,7 @@ class GridChunker(AbstractOcgisObject):
                         # Use the envelope! A buffer returns "fancy" borders. We just want to expand the bounding box.
                         sub_box = sub_box.buffer(buffer_value).envelope
 
-                    ocgis_lh(msg=str(sub_box.bounds), level=logging.DEBUG, logger='grid_chunker')
+                    ocgis_lh(msg=str(sub_box.bounds), level=logging.DEBUG, logger=_LOCAL_LOGGER)
                 else:
                     sub_box, dst_box = [None, None]
 
@@ -559,19 +565,19 @@ class GridChunker(AbstractOcgisObject):
 
             # Prepare geometry to match coordinate system and wrapping of the subset target
             sub_box = sub_box.prepare(archetype=self.src_grid)
-            ocgis_lh(logger='grid_chunker', msg='prepared geometry', level=logging.DEBUG)
+            ocgis_lh(logger=_LOCAL_LOGGER, msg='prepared geometry', level=logging.DEBUG)
 
-            ocgis_lh(logger='grid_chunker', msg='starting "self.src_grid.get_intersects"', level=logging.DEBUG)
+            ocgis_lh(logger=_LOCAL_LOGGER, msg='starting "self.src_grid.get_intersects"', level=logging.DEBUG)
             src_grid_subset, src_grid_slice = self.src_grid.get_intersects(sub_box, keep_touches=False, cascade=False,
                                                                            optimized_bbox_subset=self.optimized_bbox_subset,
                                                                            return_slice=True)
-            ocgis_lh(logger='grid_chunker', msg='finished "self.src_grid.get_intersects"', level=logging.DEBUG)
+            ocgis_lh(logger=_LOCAL_LOGGER, msg='finished "self.src_grid.get_intersects"', level=logging.DEBUG)
 
             # Reload the data using a new source index distribution.
             if hasattr(src_grid_subset, 'reduce_global') and src_grid_subset.cindex is not None:
                 # Only redistribute if we have one live rank.
                 if self.redistribute and len(vm.get_live_ranks_from_object(src_grid_subset)) > 0:
-                    ocgis_lh(logger='grid_chunker', msg='starting redistribute', level=logging.DEBUG)
+                    ocgis_lh(logger=_LOCAL_LOGGER, msg='starting redistribute', level=logging.DEBUG)
                     topology = src_grid_subset.abstractions_available[Topology.POLYGON]
                     cindex = topology.cindex
                     redist_dimname = self.src_grid.abstractions_available[Topology.POLYGON].element_dim.name
@@ -580,7 +586,7 @@ class GridChunker(AbstractOcgisObject):
                     else:
                         redist_dim = topology.element_dim
                     redistribute_by_src_idx(cindex, redist_dimname, redist_dim)
-                    ocgis_lh(logger='grid_chunker', msg='finished redistribute', level=logging.DEBUG)
+                    ocgis_lh(logger=_LOCAL_LOGGER, msg='finished redistribute', level=logging.DEBUG)
 
             with vm.scoped_by_emptyable('src_grid_subset', src_grid_subset):
                 if not vm.is_null:
@@ -596,9 +602,9 @@ class GridChunker(AbstractOcgisObject):
 
                     # Try to reduce the coordinates in the case of unstructured grid data.
                     if hasattr(src_grid_subset, 'reduce_global') and src_grid_subset.cindex is not None:
-                        ocgis_lh(logger='grid_chunker', msg='starting reduce_global', level=logging.DEBUG)
+                        ocgis_lh(logger=_LOCAL_LOGGER, msg='starting reduce_global', level=logging.DEBUG)
                         src_grid_subset = src_grid_subset.reduce_global()
-                        ocgis_lh(logger='grid_chunker', msg='finished reduce_global', level=logging.DEBUG)
+                        ocgis_lh(logger=_LOCAL_LOGGER, msg='finished reduce_global', level=logging.DEBUG)
                 else:
                     pass
                     # src_grid_subset = VariableCollection(is_empty=True)
@@ -637,9 +643,9 @@ class GridChunker(AbstractOcgisObject):
         # nzeros = len(str(reduce(lambda x, y: x * y, self.nchunks_dst)))
 
         ctr = 1
-        ocgis_lh(logger='grid_chunker', msg='starting self.iter_src_grid_subsets', level=logging.DEBUG)
+        ocgis_lh(logger=_LOCAL_LOGGER, msg='starting self.iter_src_grid_subsets', level=logging.DEBUG)
         for sub_src, src_slc, sub_dst, dst_slc in self.iter_src_grid_subsets(yield_dst=True):
-            ocgis_lh(logger='grid_chunker', msg='finished iteration {} for self.iter_src_grid_subsets'.format(ctr),
+            ocgis_lh(logger=_LOCAL_LOGGER, msg='finished iteration {} for self.iter_src_grid_subsets'.format(ctr),
                      level=logging.DEBUG)
 
             src_path = self.create_full_path_from_template('src_template', index=ctr)
@@ -662,11 +668,11 @@ class GridChunker(AbstractOcgisObject):
             for target, path in zip(*zip_args):
                 with vm.scoped_by_emptyable('field.write' + str(cc), target):
                     if not vm.is_null:
-                        ocgis_lh(logger='grid_chunker', msg='write_chunks:writing: {}'.format(path),
+                        ocgis_lh(logger=_LOCAL_LOGGER, msg='write_chunks:writing: {}'.format(path),
                                  level=logging.DEBUG)
                         field = Field(grid=target)
                         field.write(path)
-                        ocgis_lh(logger='grid_chunker', msg='write_chunks:finished writing: {}'.format(path),
+                        ocgis_lh(logger=_LOCAL_LOGGER, msg='write_chunks:finished writing: {}'.format(path),
                                  level=logging.DEBUG)
                 cc += 1
 
@@ -676,7 +682,7 @@ class GridChunker(AbstractOcgisObject):
             # Generate an ESMF weights file if requested and at least one rank has data on it.
             if self.genweights and len(vm.get_live_ranks_from_object(sub_src)) > 0:
                 vm.barrier()
-                ocgis_lh(logger='grid_chunker', msg='write_chunks:writing esmf weights: {}'.format(wgt_path),
+                ocgis_lh(logger=_LOCAL_LOGGER, msg='write_chunks:writing esmf weights: {}'.format(wgt_path),
                          level=logging.DEBUG)
                 self.write_esmf_weights(src_path, dst_path, wgt_path, src_grid=sub_src, dst_grid=sub_dst)
                 vm.barrier()

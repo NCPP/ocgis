@@ -6,6 +6,8 @@ import shutil
 import tempfile
 
 import click
+from shapely.geometry import box
+
 import ocgis
 from ocgis import RequestDataset, GeometryVariable, constants
 from ocgis.base import grid_abstraction_scope
@@ -13,7 +15,6 @@ from ocgis.constants import DriverKey, Topology, GridChunkerConstants, Decomposi
 from ocgis.spatial.grid_chunker import GridChunker
 from ocgis.spatial.spatial_subset import SpatialSubsetOperation
 from ocgis.util.logging_ocgis import ocgis_lh
-from shapely.geometry import box
 
 CRWG_LOG = "chunked-rwg"
 
@@ -120,11 +121,12 @@ def chunked_rwg(source, destination, weight, nchunks_dst, merge, esmf_src_type, 
             exc = None
             if ocgis.vm.rank == 0:
                 # The working directory must not exist to proceed.
-                if os.path.exists(wd):
-                    exc = ValueError("Working directory {} must not exist.".format(wd))
-                else:
-                    # Make the working directory nesting as needed.
-                    os.makedirs(wd)
+                if nchunks_dst is not None:
+                    if os.path.exists(wd):
+                        exc = ValueError("Working directory {} must not exist.".format(wd))
+                    else:
+                        # Make the working directory nesting as needed.
+                        os.makedirs(wd)
             exc = ocgis.vm.bcast(exc)
             if exc is not None:
                 raise exc

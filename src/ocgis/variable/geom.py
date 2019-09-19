@@ -4,13 +4,20 @@ from itertools import product
 
 import numpy as np
 from numpy.core.multiarray import ndarray
+from shapely import wkb
+from shapely.geometry import Point, Polygon, MultiPolygon, mapping, MultiPoint, box
+from shapely.geometry.base import BaseGeometry
+from shapely.geometry.polygon import orient
+from shapely.ops import cascaded_union
+from shapely.prepared import prep
+
 from ocgis import Variable, vm
 from ocgis import constants
 from ocgis import env
 from ocgis.base import AbstractOcgisObject
 from ocgis.base import get_dimension_names, get_variable_names, raise_if_empty
 from ocgis.constants import KeywordArgument, HeaderName, VariableName, DimensionName, ConversionTarget, DriverKey, \
-    WrappedState, AttributeName
+    WrappedState, AttributeName, WrapAction
 from ocgis.environment import ogr
 from ocgis.exc import EmptySubsetError, RequestableFeature, NoInteriorsError
 from ocgis.spatial.base import AbstractSpatialVariable, create_split_polygons
@@ -21,12 +28,6 @@ from ocgis.variable.base import get_dimension_lengths, ObjectType
 from ocgis.variable.crs import Cartesian
 from ocgis.variable.dimension import create_distributed_dimension, Dimension
 from ocgis.variable.iterator import Iterator
-from shapely import wkb
-from shapely.geometry import Point, Polygon, MultiPolygon, mapping, MultiPoint, box
-from shapely.geometry.base import BaseGeometry
-from shapely.geometry.polygon import orient
-from shapely.ops import cascaded_union
-from shapely.prepared import prep
 
 CreateGeometryFromWkb, Geometry, wkbGeometryCollection, wkbPoint = ogr.CreateGeometryFromWkb, ogr.Geometry, \
                                                                    ogr.wkbGeometryCollection, ogr.wkbPoint
@@ -1019,19 +1020,14 @@ class GeometryVariable(AbstractSpatialVariable):
         :type archetype: :class:`ocgis.spatial.base.AbstractSpatialObject`
         :return: :class:`~ocgis.GeometryVariable`
         """
-
         if self.size > 1:
             raise RequestableFeature('Preparations only work on a single geometry.')
 
         crs = self.crs
         dced = False
         ret = self.copy()
+        self_wrapped_state = self.wrapped_state
         if crs is not None or archetype is not None:
-            if crs is not None:
-                ret = self.deepcopy()
-                dced = True
-                ret = crs.prepare_geometry_variable(ret)
-
             # Update the coordinate system if it differs from the archetype.
             if archetype is not None:
                 acrs = archetype.crs
@@ -1045,10 +1041,28 @@ class GeometryVariable(AbstractSpatialVariable):
                 if acrs is not None:
                     archetype_wrapped_state = archetype.wrapped_state
                     if archetype_wrapped_state not in (WrappedState.UNKNOWN, None):
-                        if not dced:
-                            ret = self.deepcopy()
-                            dced = True
-                        acrs.wrap_or_unwrap(archetype_wrapped_state, ret)
+                        if archetype_wrapped_state != self_wrapped_state:
+                            if archetype_wrapped_state == WrappedState.WRAPPED and ret.wrapped_state == WrappedState.UNWRAPPED:
+                                action = WrapAction.WRAP
+                            elif archetype_wrapped_state == WrappedState.UNWRAPPED and self_wrapped_state == WrappedState.WRAPPED:
+                                action = WrapAction.UNWRAP
+                            else:
+                                exc = ValueError("wrap action combination not supported")
+                                try:
+                                    raise exc
+                                finally:
+                                    vm.abort(exc=exc)
+                            if not dced:
+                                ret = self.deepcopy()
+                                dced = True
+                            acrs.wrap_or_unwrap(action, ret)
+
+                # Update the geometry variable for subsetting
+                if crs is not None:
+                    if not dced:
+                        ret = self.deepcopy()
+                        dced = True
+                    ret = crs.prepare_geometry_variable(ret)
 
         return ret
 

@@ -3,13 +3,14 @@ from abc import abstractmethod
 
 import numpy as np
 import six
-from ocgis.base import AbstractOcgisObject
-from ocgis.util.helpers import make_poly, iter_exploded_geometries
 from shapely.geometry.linestring import LineString
 from shapely.geometry.multipoint import MultiPoint
 from shapely.geometry.multipolygon import MultiPolygon
 from shapely.geometry.point import Point
 from shapely.geometry.polygon import Polygon
+
+from ocgis.base import AbstractOcgisObject
+from ocgis.util.helpers import make_poly, iter_exploded_geometries
 
 
 @six.add_metaclass(abc.ABCMeta)
@@ -89,10 +90,12 @@ class GeometryWrapper(AbstractWrapper):
     def __init__(self, *args, **kwargs):
         super(GeometryWrapper, self).__init__(*args, **kwargs)
 
-        self.right_clip = make_poly((-90, 90), (self.wrap_axis, 360))
-        self.left_clip = make_poly((-90, 90), (-self.wrap_axis, self.wrap_axis))
-        self.clip1 = make_poly((-90, 90), (-self.wrap_axis, self.center_axis))
-        self.clip2 = make_poly((-90, 90), (self.center_axis, self.wrap_axis))
+        miny = -90
+        maxy = 90
+        self.right_clip = make_poly((miny, maxy), (self.wrap_axis, 360))
+        self.left_clip = make_poly((miny, maxy), (-self.wrap_axis, self.wrap_axis))
+        self.clip1 = make_poly((miny, maxy), (-self.wrap_axis, self.center_axis))
+        self.clip2 = make_poly((miny, maxy), (self.center_axis, self.wrap_axis))
 
     def unwrap(self, geom):
         """

@@ -5,11 +5,12 @@ from copy import deepcopy
 
 import ESMF
 import numpy as np
+
 from ocgis import constants, Dimension, RequestDataset, vm
 from ocgis import env
 from ocgis.base import AbstractOcgisObject, get_dimension_names, iter_dict_slices
 from ocgis.collection.field import Field
-from ocgis.constants import DMK, GridChunkerConstants, DecompositionType, MPIOps
+from ocgis.constants import DMK, GridChunkerConstants, DecompositionType
 from ocgis.exc import RegriddingError, CornersInconsistentError
 from ocgis.spatial.grid import Grid, expand_grid
 from ocgis.spatial.spatial_subset import SpatialSubsetOperation
@@ -900,20 +901,25 @@ def create_esmf_grid_fromfile(filename, grid, esmf_kwargs):
         else:
             add_corner_stagger = True
 
-        # If there is a spatial mask, pass this information to grid creation.
-        root = vm.get_live_ranks_from_object(grid)[0]
-        with vm.scoped_by_emptyable('masked values', grid):
-            if not vm.is_null:
-                if grid.has_masked_values_global:
-                    add_mask = True
-                    varname = grid.mask_variable.name
+        # Mask and variable name only supported with GRIDSPEC
+        if filetype == ESMF.api.constants.FileFormat.GRIDSPEC:
+            # If there is a spatial mask, pass this information to grid creation.
+            root = vm.get_live_ranks_from_object(grid)[0]
+            with vm.scoped_by_emptyable('masked values', grid):
+                if not vm.is_null:
+                    if grid.has_masked_values_global:
+                        add_mask = True
+                        varname = grid.mask_variable.name
+                    else:
+                        add_mask = False
+                        varname = None
                 else:
-                    add_mask = False
-                    varname = None
-            else:
-                varname, add_mask = [None] * 2
-        varname = vm.bcast(varname, root=root)
-        add_mask = vm.bcast(add_mask, root=root)
+                    varname, add_mask = [None] * 2
+            varname = vm.bcast(varname, root=root)
+            add_mask = vm.bcast(add_mask, root=root)
+        else:
+            # With ESMF IO, only GRIDSPEC (CF-Grid) files have mask variable control at the API level
+            add_mask, varname = None, None
 
         ret = klass(filename=filename, filetype=filetype, add_corner_stagger=add_corner_stagger, is_sphere=False,
                     add_mask=add_mask, varname=varname)
@@ -924,6 +930,7 @@ def create_esmf_grid_fromfile(filename, grid, esmf_kwargs):
 
 
 def create_esmf_regrid(**kwargs):
+    ocgis_lh(msg="initializing ESMF.Regrid in create_esmf_regrid", logger="regrid", level=logging.DEBUG)
     return ESMF.Regrid(**kwargs)
 
 

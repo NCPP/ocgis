@@ -764,11 +764,14 @@ class GridChunker(AbstractOcgisObject):
 
         assert wgt_path is not None
 
+        ocgis_lh(msg="creating esmf source field...", logger=_LOCAL_LOGGER, level=logging.DEBUG)
         srcfield, srcgrid = create_esmf_field(src_path, src_grid, self.esmf_kwargs)
+        ocgis_lh(msg="creating esmf destination field...", logger=_LOCAL_LOGGER, level=logging.DEBUG)
         dstfield, dstgrid = create_esmf_field(dst_path, dst_grid, self.esmf_kwargs)
         regrid = None
 
         try:
+            ocgis_lh(msg="creating esmf regrid...", logger=_LOCAL_LOGGER, level=logging.DEBUG)
             regrid = create_esmf_regrid(srcfield=srcfield, dstfield=dstfield, filename=wgt_path, **self.esmf_kwargs)
         finally:
             to_destroy = [regrid, srcgrid, srcfield, dstgrid, dstfield]

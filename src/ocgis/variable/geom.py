@@ -358,8 +358,10 @@ class GeometryVariable(AbstractSpatialVariable):
         :keyword bool use_geometry_iterator: ``(=False)`` If ``True``, use a geometry iterator instead of loading all
          the geometries from source.
         :keyword int start_index: ``(=0)`` The start index to use for coordinate indexing.
+        :keyword bool allow_splitting_excs: ``(=False)`` If ``True``, log and emit a warning when geometry processing
+         errors are encountered during splitting operations. These exceptions may occur when holes/interiors are
+         encountered or a node threshold is exceeded.
         """
-        #tdk:doc: allow_splitting_excs
 
         # TODO: IMPLEMENT: Line conversion.
         # TODO: IMPLEMENT: Storage method for holes/interiors. Interiors are currently only split not stored.

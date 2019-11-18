@@ -1,6 +1,6 @@
 import numpy as np
 
-from ocgis import vm
+from ocgis import vm, env
 from ocgis.constants import DriverKey, CFName, OcgisConvention, Topology, DMK, MPITag, DecompositionType, AttributeName
 from ocgis.driver.base import AbstractUnstructuredDriver
 from ocgis.driver.nc import AbstractDriverNetcdfCF
@@ -16,6 +16,7 @@ class DriverESMFUnstruct(AbstractUnstructuredDriver, AbstractDriverNetcdfCF):
     key = DriverKey.NETCDF_ESMF_UNSTRUCT
     _esmf_fileformat = 'ESMFMESH'
     _start_index = 1
+    _default_crs = env.DEFAULT_COORDSYS
 
     def create_dimension_map(self, group_metadata, strict=False):
         dmap = super(AbstractDriverNetcdfCF, self).create_dimension_map(group_metadata, strict=strict)

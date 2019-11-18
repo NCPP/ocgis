@@ -68,7 +68,6 @@ class DriverESMFUnstruct(AbstractUnstructuredDriver, AbstractDriverNetcdfCF):
 
     @classmethod
     def _get_field_write_target_(cls, field):
-
         dmap = field.dimension_map
         driver = dmap.get_driver()
         if driver == DriverKey.NETCDF_UGRID:

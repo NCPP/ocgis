@@ -4,8 +4,11 @@ from copy import deepcopy
 from unittest import SkipTest
 
 import numpy as np
-import ocgis
 import shapely
+from shapely import wkt
+from shapely.geometry import MultiPolygon
+
+import ocgis
 from ocgis import GeometryVariable, vm, Field, Dimension
 from ocgis.base import get_variable_names
 from ocgis.constants import DriverKey, VariableName, Topology, DMK, AttributeName
@@ -16,8 +19,6 @@ from ocgis.spatial.grid import GridUnstruct
 from ocgis.test.base import TestBase, attr
 from ocgis.variable.crs import WGS84, Spherical, create_crs
 from ocgis.vmachine.mpi import OcgDist
-from shapely import wkt
-from shapely.geometry import MultiPolygon
 
 
 class TestDriverESMFUnstruct(TestBase):
@@ -88,9 +89,10 @@ class TestDriverESMFUnstruct(TestBase):
             else:
                 desired_crs = k.transform_to_crs()
 
-            rd = RequestDataset(uri=self.path_state_boundaries)
+            rd = RequestDataset(uri=self.path_state_boundaries, variable=['UGID', 'ID'])
             rd.metadata['schema']['geometry'] = 'MultiPolygon'
             field = rd.get()
+            self.assertEqual(len(field.data_variables), 2)
 
             # Test there is no mask present.
             field.geom.load()
@@ -101,6 +103,8 @@ class TestDriverESMFUnstruct(TestBase):
             self.assertEqual(field.crs, WGS84())
             if k.transform_to_crs is not None:
                 field.update_crs(desired_crs)
+            self.assertEqual(len(field.data_variables), 2)
+            self.assertEqual(len(field.geom.parent.data_variables), 2)
             try:
                 gc = field.geom.convert_to(pack=False, use_geometry_iterator=k.use_geometry_iterator, to_crs=to_crs)
             except ValueError as e:
@@ -120,10 +124,6 @@ class TestDriverESMFUnstruct(TestBase):
             self.assertFalse(gc.has_mask)
             self.assertNotIn(VariableName.SPATIAL_MASK, gc.parent)
             self.assertIsNone(gc.dimension_map.get_spatial_mask())
-
-            for v in list(field.values()):
-                if v.name != field.geom.name:
-                    gc.parent.add_variable(v.extract(), force=True)
 
             path = self.get_temporary_file_path('esmf_state_boundaries.nc')
             self.assertEqual(gc.parent.crs, desired_crs)

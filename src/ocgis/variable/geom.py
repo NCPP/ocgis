@@ -1,3 +1,4 @@
+import logging
 from collections import deque
 from copy import deepcopy
 from itertools import product
@@ -24,6 +25,7 @@ from ocgis.spatial.base import AbstractSpatialVariable, create_split_polygons
 from ocgis.util.addict import Dict
 from ocgis.util.helpers import iter_array, get_trimmed_array_by_mask, get_swap_chain, find_index, \
     iter_exploded_geometries, get_iter
+from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import get_dimension_lengths, ObjectType
 from ocgis.variable.crs import Cartesian
 from ocgis.variable.dimension import create_distributed_dimension, Dimension
@@ -31,8 +33,8 @@ from ocgis.variable.iterator import Iterator
 
 CreateGeometryFromWkb, Geometry, wkbGeometryCollection, wkbPoint = ogr.CreateGeometryFromWkb, ogr.Geometry, \
                                                                    ogr.wkbGeometryCollection, ogr.wkbPoint
-
 GEOM_TYPE_MAPPING = {'Polygon': Polygon, 'Point': Point, 'MultiPoint': MultiPoint, 'MultiPolygon': MultiPolygon}
+_LOCAL_LOG = "spatial.base"
 
 
 class GeometrySplitter(AbstractOcgisObject):
@@ -357,6 +359,7 @@ class GeometryVariable(AbstractSpatialVariable):
          the geometries from source.
         :keyword int start_index: ``(=0)`` The start index to use for coordinate indexing.
         """
+        #tdk:doc: allow_splitting_excs
 
         # TODO: IMPLEMENT: Line conversion.
         # TODO: IMPLEMENT: Storage method for holes/interiors. Interiors are currently only split not stored.
@@ -388,6 +391,7 @@ class GeometryVariable(AbstractSpatialVariable):
         use_geometry_iterator = kwargs.pop('use_geometry_iterator', False)
         to_crs = kwargs.pop('to_crs', None)
         start_index = kwargs.pop('start_index', 0)
+        allow_splitting_excs = kwargs.pop('allow_splitting_excs', False)
         assert len(kwargs) == 0
         if to_crs is not None and not use_geometry_iterator:
             raise ValueError("'to_crs' only applies when using a geometry iterator")
@@ -428,11 +432,12 @@ class GeometryVariable(AbstractSpatialVariable):
             elif geom_type in polygon_types:
                 # This array holds indices pointing to coordinate arrays. Supplying "max_element_coords" sets the size
                 # of each element's coordinate count.
+                size = self.size
                 if max_element_coords is not None:
-                    element_index = np.zeros((self.size, max_element_coords), dtype=env.NP_INT)
+                    element_index = np.zeros((size, max_element_coords), dtype=env.NP_INT)
                     ocgis_dtype = env.NP_INT
                 else:
-                    element_index = np.zeros(self.size, dtype=object)
+                    element_index = np.zeros(size, dtype=object)
                     ocgis_dtype = ObjectType(env.NP_INT)
 
                 # The start index for the element node connectivity array.
@@ -448,6 +453,7 @@ class GeometryVariable(AbstractSpatialVariable):
                 if to_crs is not None:
                     from_crs = self._request_dataset.crs
 
+                removed_indices = []
                 for idx, geom in enumerate(geom_itr):
                     if to_crs is not None:
                         to_transform = GeometryVariable.from_shapely(geom, crs=from_crs)
@@ -461,13 +467,29 @@ class GeometryVariable(AbstractSpatialVariable):
                             pass
                         else:
                             if split_interiors:
-                                geom = gsplitter.split()
+                                try:
+                                    geom = gsplitter.split()
+                                except ValueError as e:
+                                    if allow_splitting_excs:
+                                        removed_indices.append(idx)
+                                        continue
+                                    else:
+                                        extra = ". Current ocgis geometry iterator index={}".format(idx)
+                                        raise e.__class__(str(e) + extra)
                                 is_multi = True
                             else:
                                 raise ValueError('Interiors are not handled unless they are split.')
 
                         if node_threshold is not None and get_node_count(geom) > node_threshold:
-                            geom = get_split_polygon_by_node_threshold(geom, node_threshold)
+                            try:
+                                geom = get_split_polygon_by_node_threshold(geom, node_threshold)
+                            except TypeError as e:
+                                if allow_splitting_excs:
+                                    removed_indices.append(idx)
+                                    continue
+                                else:
+                                    extra = ". Current ocgis geometry iterator index={}".format(idx)
+                                    raise e.__class__(str(e) + extra)
                             is_multi = True
 
                     fill_cidx = np.array([], dtype=env.NP_INT)
@@ -516,10 +538,16 @@ class GeometryVariable(AbstractSpatialVariable):
                     else:
                         element_index[idx, :] = fill_cidx
 
+                if allow_splitting_excs and len(removed_indices) > 0:
+                    msg = "Splitting exceptions allowed and the following geometry _indices_ were removed due to " \
+                          "errors: {}".format(removed_indices)
+                    ocgis_lh(msg, level=logging.WARN, logger=_LOCAL_LOG, force=True)
+
+                element_dim = self.dimensions[0]
                 if max_element_coords is None:
-                    element_index_dims = self.dimensions[0]
+                    element_index_dims = element_dim
                 else:
-                    element_index_dims = [self.dimensions[0],
+                    element_index_dims = [element_dim,
                                           Dimension(name=DimensionName.UGRID_MAX_ELEMENT_COORDS,
                                                     size=max_element_coords)]
                 element_index = Variable(name=element_index_name, value=element_index, dimensions=element_index_dims,
@@ -567,6 +595,21 @@ class GeometryVariable(AbstractSpatialVariable):
             ret = klass(variables[0], variables[1], **kwds)
         else:
             raise RequestableFeature('This conversion target is not supported: {}'.format(target))
+
+        # Copy over the data variables.
+        for dv in self.parent.data_variables:
+            dvc = dv.extract()
+            dvc.load()
+            ret.parent.add_variable(dvc, is_data=True)
+
+        # Slice out any geometries removed due to splitting errors. This will always have length 0 unless splitting
+        # exceptions are allowed _and_ an error was encountered during splitting (removing interiors and/or node
+        # thresholding).
+        if len(removed_indices) > 0:
+            select = np.ones(self.size, dtype=bool)
+            for r in removed_indices:
+                select[r] = False
+            ret = ret[select]
 
         return ret
 

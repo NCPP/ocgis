@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from copy import copy, deepcopy
 
 import six
+
 from ocgis import constants
 from ocgis.exc import EmptyObjectError
 from ocgis.util.helpers import get_iter
@@ -234,8 +235,20 @@ def orphaned(target, keep_dimensions=False):
             target._dimensions_cache = constants.UNINITIALIZED
 
 
-def raise_if_empty(target):
-    if target.is_empty:
+def raise_if_empty(target, check_current=False):
+    if check_current:
+        from ocgis import vm
+        gathered = vm.gather(target.is_empty)
+        if vm.rank == 0:
+            if any(gathered):
+                msg = 'No empty {} objects allowed across the current VM.'.format(target.__class__)
+                exc = EmptyObjectError(msg)
+                try:
+                    raise exc
+                finally:
+                    from ocgis import vm
+                    vm.abort(exc=exc)
+    elif target.is_empty:
         msg = 'No empty {} objects allowed.'.format(target.__class__)
         exc = EmptyObjectError(msg)
         try:

@@ -1071,6 +1071,9 @@ class GeometryVariable(AbstractSpatialVariable):
         crs = self.crs
         dced = False
         ret = self.copy()
+        # Reset the wrapped state on the geometry as coordinates may be modified during preparation. This could be
+        # optimized to maintain the wrapped state after preparation.
+        self._wrapped_state = "auto"
         self_wrapped_state = self.wrapped_state
         if crs is not None or archetype is not None:
             # Update the coordinate system if it differs from the archetype.

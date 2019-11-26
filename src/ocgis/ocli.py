@@ -10,7 +10,7 @@ from shapely.geometry import box
 
 import ocgis
 from ocgis import RequestDataset, GeometryVariable, constants
-from ocgis.base import grid_abstraction_scope
+from ocgis.base import grid_abstraction_scope, raise_if_empty
 from ocgis.constants import DriverKey, Topology, GridChunkerConstants, DecompositionType
 from ocgis.spatial.grid_chunker import GridChunker
 from ocgis.spatial.spatial_subset import SpatialSubsetOperation
@@ -280,6 +280,7 @@ def _write_spatial_subset_(rd_src, rd_dst, spatial_subset_path, src_resmax=None)
         src_resmax = src_field.grid.resolution_max
     buffer_value = GridChunkerConstants.BUFFER_RESOLUTION_MODIFIER * src_resmax
     sub_src = sso.get_spatial_subset('intersects', subset_geom, buffer_value=buffer_value, optimized_bbox_subset=True)
+    raise_if_empty(sub_src, check_current=True)
 
     # Try to reduce the coordinate indexing for unstructured grids.
     with ocgis.vm.scoped_by_emptyable('subset reduce/write', sub_src):

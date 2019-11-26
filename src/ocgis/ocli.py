@@ -280,6 +280,7 @@ def _write_spatial_subset_(rd_src, rd_dst, spatial_subset_path, src_resmax=None)
         src_resmax = src_field.grid.resolution_max
     buffer_value = GridChunkerConstants.BUFFER_RESOLUTION_MODIFIER * src_resmax
     sub_src = sso.get_spatial_subset('intersects', subset_geom, buffer_value=buffer_value, optimized_bbox_subset=True)
+    # No empty spatial subsets allowed through CLI. There will be nothing for ESMF to do.
     raise_if_empty(sub_src, check_current=True)
 
     # Try to reduce the coordinate indexing for unstructured grids.

@@ -129,6 +129,7 @@ Package Name  Version  URL                                                    Us
 ``icclim``    4.2.10  http://icclim.readthedocs.io/en/latest/                Calculation of the full suite of European Climate Assessment (ECA) indices with optimized code implementation.
 ``nose``      1.3.7   https://nose.readthedocs.io/en/latest/                 Run unit tests.
 ``mock``      2.0.0   https://pypi.python.org/pypi/mock/                     Run unit tests.
+``click``     ...     https://click.palletsprojects.com/en/7.x/              Use the ``ocli`` CLI tools.
 ============= ======= ====================================================== =================================================================================================================================
 
 Building from Source

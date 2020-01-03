@@ -19,6 +19,15 @@ from ocgis.util.logging_ocgis import ocgis_lh
 CRWG_LOG = "chunked-rwg"
 
 
+def handle_weight_file_check(path):
+    if os.path.exists(path):
+        exc = IOError("Weight file must be removed before writing a new new one: {}".format(path))
+        try:
+            raise exc
+        finally:
+            ocgis.vm.abort(exc=exc)
+
+
 @click.group()
 def ocli():
     pass
@@ -174,6 +183,7 @@ def chunked_rwg(source, destination, weight, nchunks_dst, merge, esmf_src_type, 
         if genweights:
             msg = "Writing ESMF weights..."
             ocgis_lh(msg=msg, level=logging.INFO, logger=CRWG_LOG)
+            handle_weight_file_check(weight)
             gs.write_esmf_weights(source, destination, weight)
 
     # Create the global weight file. This does not apply to spatial subsets because there will always be one weight
@@ -185,6 +195,7 @@ def chunked_rwg(source, destination, weight, nchunks_dst, merge, esmf_src_type, 
             if not ocgis.vm.is_null:
                 msg = "Merging chunked weight files to global file. Output global weight file is: {}".format(weight)
                 ocgis_lh(msg=msg, level=logging.INFO, logger=CRWG_LOG)
+                handle_weight_file_check(weight)
                 gs.create_merged_weight_file(weight)
         excs = ocgis.vm.gather(exc)
         excs = ocgis.vm.bcast(excs)

@@ -12,6 +12,7 @@ import ocgis
 from ocgis import RequestDataset, GeometryVariable, constants
 from ocgis.base import grid_abstraction_scope, raise_if_empty
 from ocgis.constants import DriverKey, Topology, GridChunkerConstants, DecompositionType
+from ocgis.driver.nc_ugrid import DriverNetcdfUGRID
 from ocgis.spatial.grid_chunker import GridChunker
 from ocgis.spatial.spatial_subset import SpatialSubsetOperation
 from ocgis.util.logging_ocgis import ocgis_lh
@@ -302,6 +303,9 @@ def _write_spatial_subset_(rd_src, rd_dst, spatial_subset_path, src_resmax=None)
                 reduced = sub_src.grid.reduce_global()
             except AttributeError:
                 pass
+            except ValueError:
+                if sub_src.driver.__class__ == DriverNetcdfUGRID:
+                    raise
             else:
                 sub_src = reduced.parent
 

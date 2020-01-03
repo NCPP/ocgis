@@ -1090,7 +1090,7 @@ class GeometryVariable(AbstractSpatialVariable):
                     archetype_wrapped_state = archetype.wrapped_state
                     if archetype_wrapped_state not in (WrappedState.UNKNOWN, None):
                         if archetype_wrapped_state != self_wrapped_state:
-                            if archetype_wrapped_state == WrappedState.WRAPPED and ret.wrapped_state == WrappedState.UNWRAPPED:
+                            if archetype_wrapped_state == WrappedState.WRAPPED and self_wrapped_state == WrappedState.UNWRAPPED:
                                 action = WrapAction.WRAP
                             elif archetype_wrapped_state == WrappedState.UNWRAPPED and self_wrapped_state == WrappedState.WRAPPED:
                                 action = WrapAction.UNWRAP

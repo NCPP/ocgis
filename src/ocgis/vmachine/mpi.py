@@ -5,6 +5,7 @@ from functools import reduce, partial
 
 import numpy as np
 import six
+
 from ocgis import constants
 from ocgis.base import AbstractOcgisObject, raise_if_empty
 from ocgis.constants import DataType, SourceIndexType
@@ -385,9 +386,9 @@ def barrier_print(*args, **kwargs):
     comm.Barrier()
     for r in ranks:
         if r == rank:
-            print('')
-            print('(rank={}, barrier=True) {}'.format(rank, args))
-            print('')
+            print('', flush=True)
+            print('(rank={}, barrier=True) {}'.format(rank, args), flush=True)
+            print('', flush=True)
         comm.Barrier()
 
 

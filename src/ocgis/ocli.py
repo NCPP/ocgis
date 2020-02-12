@@ -21,7 +21,7 @@ CRWG_LOG = "chunked-rwg"
 
 
 def handle_weight_file_check(path):
-    if os.path.exists(path):
+    if path is not None and os.path.exists(path):
         exc = IOError("Weight file must be removed before writing a new new one: {}".format(path))
         try:
             raise exc

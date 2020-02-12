@@ -4,6 +4,8 @@ For documentation please visit: https://ocgis.readthedocs.io/en/latest/
 
 For additional project information please visit: http://www.earthsystemcog.org/projects/openclimategis/
 
+For questions or to file a bug report, please create a GitHub issue.
+
 # Overview
 
 OpenClimateGIS (OCGIS) is a Python package designed for geospatial manipulation, subsetting, computation, and translation of spatiotemporal datasets stored in local NetCDF files or files served through THREDDS data servers. OpenClimateGIS has a straightforward, request-based API that is simple to use yet complex enough to perform a variety of computational tasks. The software is built entirely from open source packages.

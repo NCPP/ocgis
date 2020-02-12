@@ -4,7 +4,7 @@ from ocgis import env, vm
 from ocgis.base import raise_if_empty, AbstractOcgisObject
 from ocgis.collection.field import Field
 from ocgis.constants import WrappedState
-from ocgis.variable.crs import CFRotatedPole, CFSpherical
+from ocgis.variable.crs import CFRotatedPole, CFSpherical, Spherical
 from ocgis.variable.geom import GeometryVariable
 
 
@@ -36,6 +36,7 @@ class SpatialSubsetOperation(AbstractOcgisObject):
         self.wrap = wrap
 
         self._original_rotated_pole_state = None
+        self._transformed_unwrapped_select = None
 
     @property
     def should_update_crs(self):
@@ -50,7 +51,8 @@ class SpatialSubsetOperation(AbstractOcgisObject):
         return ret
 
     def get_spatial_subset(self, operation, geom, use_spatial_index=env.USE_SPATIAL_INDEX, buffer_value=None,
-                           buffer_crs=None, geom_crs=None, select_nearest=False, optimized_bbox_subset=False):
+                           buffer_crs=None, geom_crs=None, select_nearest=False, optimized_bbox_subset=False,
+                           keep_touches='auto', return_slice=False, cascade=True):
         """
         Perform a spatial subset operation on ``target``.
 
@@ -72,8 +74,18 @@ class SpatialSubsetOperation(AbstractOcgisObject):
         :type buffer_crs: :class:`ocgis.interface.base.crs.CoordinateReferenceSystem`
         :param bool optimized_bbox_subset: If ``True``, only do a bounding box subset and do not perform more complext
          GIS subset operations such as constructing a spatial index.
+        :param keep_touches: If ``'auto'`` (the default), keep geometries that touch only if the grid's spatial
+         abstraction is point.
+        :type keep_touches: :class:`bool` | :class:`str`
+        :param bool return_slice: If ``True``, also return the slices used to limit the target's extent.
+        :param cascade: If ``True`` (the default), set the mask across all variables in the target's parent collection.
+        :return: If ``return_slice`` is ``False`` (the default), return the subsetted field. If ``return_slice`` is
+         ``True``, this will be a tuple with the subsetted object as the first element and the slice used as the second.
+        :rtype: :class:`~ocgis.Field` | :class:`tuple` of ``(<:class:`~ocgis.Field`>, <slice used>)``
         :raises: ValueError
         """
+
+        # Parameter prep and validation --------------------------------------------------------------------------------
 
         if not isinstance(geom, GeometryVariable):
             geom = GeometryVariable(value=geom, name='geom', dimensions='one', crs=geom_crs)
@@ -88,6 +100,8 @@ class SpatialSubsetOperation(AbstractOcgisObject):
                 msg = 'Only "intersects" spatial operations when "optimized_bbox_subset=True".'
                 raise ValueError(msg)
 
+        # --------------------------------------------------------------------------------------------------------------
+
         # Buffer the subset if a buffer value is provided.
         if buffer_value is not None:
             geom = self._get_buffered_geometry_(geom, buffer_value, buffer_crs=buffer_crs)
@@ -98,19 +112,34 @@ class SpatialSubsetOperation(AbstractOcgisObject):
         self._prepare_target_()
 
         # execute the spatial operation
+        slc = None
         if operation == 'intersects':
             if self.field.grid is None:
+                if keep_touches == 'auto':
+                    keep_touches = False
                 ret = self.field.geom.get_intersects(base_geometry, use_spatial_index=use_spatial_index,
-                                                     cascade=True).parent
+                                                     cascade=cascade, return_slice=return_slice, keep_touches=keep_touches)
+                if return_slice:
+                    ret, slc = ret
+                ret = ret.parent
             else:
-                ret = self.field.grid.get_intersects(base_geometry, cascade=True,
-                                                     optimized_bbox_subset=optimized_bbox_subset).parent
+                ret = self.field.grid.get_intersects(base_geometry, cascade=cascade,
+                                                     optimized_bbox_subset=optimized_bbox_subset,
+                                                     return_slice=return_slice, keep_touches=keep_touches)
+                if return_slice:
+                    ret, slc = ret
+                ret = ret.parent
         elif operation in ('clip', 'intersection'):
             if self.field.grid is None:
                 ret = self.field.geom.get_intersection(base_geometry, use_spatial_index=use_spatial_index,
-                                                       cascade=True).parent
+                                                       cascade=cascade, return_slice=return_slice, keep_touches=keep_touches)
+                if return_slice:
+                    ret, slc = ret
+                ret = ret.parent
             else:
-                ret = self.field.grid.get_intersection(base_geometry, cascade=True)
+                ret = self.field.grid.get_intersection(base_geometry, cascade=cascade, return_slice=return_slice, keep_touches=keep_touches)
+                if return_slice:
+                    ret, slc = ret
                 # An intersection with a grid returns a geometry variable. Set this on the field.
                 ret.parent.set_geom(ret)
                 ret = ret.parent
@@ -136,6 +165,12 @@ class SpatialSubsetOperation(AbstractOcgisObject):
                 # convert the coordinate system if requested...
                 if self.should_update_crs:
                     ret.update_crs(self.output_crs)
+
+        # Return the target field to its original state.
+        self._finalize_target()
+
+        if return_slice:
+            ret = (ret, slc)
 
         return ret
 
@@ -205,7 +240,7 @@ class SpatialSubsetOperation(AbstractOcgisObject):
                 msg = "The subset geometry has no assigned CRS and the target field does. Set the subset geometry's " \
                       "CRS to continue."
                 raise ValueError(msg)
-            if prepared.crs is not None and self.field.crs is not None:
+            if prepared.crs is not None and self.field.crs is not None and prepared.crs != self.field.crs:
                 prepared.update_crs(self.field.crs)
 
         # Update the subset geometry's spatial wrapping to match the target field.
@@ -220,11 +255,23 @@ class SpatialSubsetOperation(AbstractOcgisObject):
 
         return prepared
 
-    def _prepare_target_(self):
-        """
-        Perform any transformations on ``target`` in preparation for spatial subsetting.
-        """
+    def _finalize_target(self):
+        """Perform any transformations on the target field following spatial subsetting."""
+        if self._transformed_unwrapped_select is not None:
+            self.field.grid.x.v()[self._transformed_unwrapped_select] -= 360
+            self._transformed_unwrapped_select = None
 
-        if isinstance(self.field.crs, CFRotatedPole):
-            self._original_rotated_pole_state = copy(self.field.crs)
-            self.field.update_crs(self._rotated_pole_destination_crs)
+    def _prepare_target_(self):
+        """Perform any transformations on the target field in preparation for spatial subsetting."""
+
+        field = self.field
+        crs = field.crs
+        if isinstance(crs, CFRotatedPole):
+            self._original_rotated_pole_state = copy(crs)
+            field.update_crs(self._rotated_pole_destination_crs)
+        elif field.grid is not None and isinstance(crs, Spherical) and field.wrapped_state == WrappedState.UNWRAPPED:
+            xval = field.grid.x.v()
+            select = xval < 0
+            if select.any():
+                xval[select] += 360
+                self._transformed_unwrapped_select = select

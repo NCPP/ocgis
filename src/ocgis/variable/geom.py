@@ -407,6 +407,8 @@ class GeometryVariable(AbstractSpatialVariable):
         else:
             is_multi = False
 
+        # Problematic indices in the conversion. These may be removed if allow_splitting_excs is true.
+        removed_indices = []
         if target == ConversionTarget.GEOMETRY_COORDS:
             if use_geometry_iterator:
                 has_z_itr = self._request_dataset.driver.get_variable_value(self, as_geometry_iterator=True)
@@ -455,7 +457,6 @@ class GeometryVariable(AbstractSpatialVariable):
                 if to_crs is not None:
                     from_crs = self._request_dataset.crs
 
-                removed_indices = []
                 for idx, geom in enumerate(geom_itr):
                     if to_crs is not None:
                         to_transform = GeometryVariable.from_shapely(geom, crs=from_crs)
@@ -1071,46 +1072,40 @@ class GeometryVariable(AbstractSpatialVariable):
         crs = self.crs
         dced = False
         ret = self.copy()
-        # Reset the wrapped state on the geometry as coordinates may be modified during preparation. This could be
-        # optimized to maintain the wrapped state after preparation.
-        self._wrapped_state = "auto"
-        self_wrapped_state = self.wrapped_state
-        if crs is not None or archetype is not None:
-            # Update the coordinate system if it differs from the archetype.
-            if archetype is not None:
-                acrs = archetype.crs
-                if acrs is not None and acrs != crs:
-                    if not dced:
-                        ret = self.deepcopy()
-                        dced = True
-                    ret.update_crs(acrs)
+        if archetype is not None:
+            crs_dst = archetype.crs
+            wrapped_state_archetype = archetype.wrapped_state
+        else:
+            crs_dst, wrapped_state_archetype = None, None
 
-                # Update spatial wrapping if it is still applicable.
-                if acrs is not None:
-                    archetype_wrapped_state = archetype.wrapped_state
-                    if archetype_wrapped_state not in (WrappedState.UNKNOWN, None):
-                        if archetype_wrapped_state != self_wrapped_state:
-                            if archetype_wrapped_state == WrappedState.WRAPPED and self_wrapped_state == WrappedState.UNWRAPPED:
-                                action = WrapAction.WRAP
-                            elif archetype_wrapped_state == WrappedState.UNWRAPPED and self_wrapped_state == WrappedState.WRAPPED:
-                                action = WrapAction.UNWRAP
-                            else:
-                                exc = ValueError("wrap action combination not supported")
-                                try:
-                                    raise exc
-                                finally:
-                                    vm.abort(exc=exc)
-                            if not dced:
-                                ret = self.deepcopy()
-                                dced = True
-                            acrs.wrap_or_unwrap(action, ret)
+        if crs is not None and crs_dst is not None and crs_dst != crs:
+            if not dced:
+                ret = self.deepcopy()
+                dced = True
+            ret.update_crs(crs_dst)
 
-                # Update the geometry variable for subsetting
-                if crs is not None:
+        if crs_dst is not None and wrapped_state_archetype not in (WrappedState.UNKNOWN, None):
+            ret_wrapped_state = ret.wrapped_state
+            if ret_wrapped_state not in (WrappedState.UNKNOWN, None):
+                if wrapped_state_archetype != ret_wrapped_state:
+                    if wrapped_state_archetype == WrappedState.WRAPPED and ret_wrapped_state == WrappedState.UNWRAPPED:
+                        action = WrapAction.WRAP
+                    elif wrapped_state_archetype == WrappedState.UNWRAPPED and ret_wrapped_state == WrappedState.WRAPPED:
+                        action = WrapAction.UNWRAP
+                    else:
+                        exc = ValueError("wrap action combination not supported")
+                        vm.abort(exc=exc)
                     if not dced:
-                        ret = self.deepcopy()
+                        ret = ret.deepcopy()
                         dced = True
-                    ret = crs.prepare_geometry_variable(ret)
+                    crs_dst.wrap_or_unwrap(action, ret)
+
+        # Update the geometry variable for subsetting
+        if ret.crs is not None:
+            if not dced:
+                ret = ret.deepcopy()
+                dced = True
+            ret = ret.crs.prepare_geometry_variable(ret)
 
         return ret
 

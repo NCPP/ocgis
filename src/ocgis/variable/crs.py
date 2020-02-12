@@ -352,6 +352,8 @@ class AbstractCRS(AbstractInterfaceObject):
             else:
                 raise NotImplementedError(target)
 
+            target.wrapped_state = "auto"
+
     @classmethod
     def _get_wrapped_state_from_array_(cls, arr):
         """

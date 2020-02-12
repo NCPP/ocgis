@@ -4,8 +4,9 @@ from unittest import SkipTest
 
 import mock
 import numpy as np
-import ocgis
 from click.testing import CliRunner
+
+import ocgis
 from ocgis import RequestDataset, Variable, Grid, vm
 from ocgis import env
 from ocgis.constants import DecompositionType
@@ -290,17 +291,17 @@ class TestChunkedRWG(TestBase):
 
         wd = os.path.join(self.current_dir_output, 'chunks')
         weight = os.path.join(self.current_dir_output, 'weights.nc')
+        spatial_subset = os.path.join(self.current_dir_output, 'spatial_subset.nc')
 
         runner = CliRunner()
         cli_args = ['chunked-rwg', '--source', source, '--destination', destination, '--wd', wd, '--spatial_subset',
-                    '--weight', weight, '--esmf_regrid_method', 'BILINEAR', '--persist']
+                    '--spatial_subset_path', spatial_subset, '--weight', weight, '--esmf_regrid_method', 'BILINEAR',
+                    '--persist']
         result = runner.invoke(ocli, args=cli_args, catch_exceptions=False)
         self.assertEqual(result.exit_code, 0)
 
-        dst_path = os.path.join(wd, 'spatial_subset.nc')
-
         self.assertTrue(os.path.exists(weight))
-        actual = RequestDataset(uri=dst_path).create_field()
+        actual = RequestDataset(uri=spatial_subset).create_field()
         actual_ymean = actual.grid.get_value_stacked()[0].mean()
         actual_xmean = actual.grid.get_value_stacked()[1].mean()
         self.assertEqual(actual_ymean, 45.)

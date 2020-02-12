@@ -74,6 +74,8 @@ class TestDriverESMFUnstruct(TestBase):
 
     @attr('mpi', 'slow')
     def test_system_converting_state_boundaries_shapefile(self):
+        verbose = False
+        if verbose: ocgis.vm.barrier_print("starting test")
         ocgis.env.USE_NETCDF4_MPI = False  # tdk:FIX: this hangs in the STATE_FIPS write for asynch might be nc4 bug...
         keywords = {'transform_to_crs': [None, Spherical],
                     'use_geometry_iterator': [False, True]}
@@ -95,7 +97,9 @@ class TestDriverESMFUnstruct(TestBase):
             self.assertEqual(len(field.data_variables), 2)
 
             # Test there is no mask present.
+            if verbose: ocgis.vm.barrier_print("before geom.load()")
             field.geom.load()
+            if verbose: ocgis.vm.barrier_print("after geom.load()")
             self.assertFalse(field.geom.has_mask)
             self.assertNotIn(VariableName.SPATIAL_MASK, field)
             self.assertIsNone(field.dimension_map.get_spatial_mask())
@@ -105,6 +109,7 @@ class TestDriverESMFUnstruct(TestBase):
                 field.update_crs(desired_crs)
             self.assertEqual(len(field.data_variables), 2)
             self.assertEqual(len(field.geom.parent.data_variables), 2)
+            if verbose: ocgis.vm.barrier_print("starting conversion")
             try:
                 gc = field.geom.convert_to(pack=False, use_geometry_iterator=k.use_geometry_iterator, to_crs=to_crs)
             except ValueError as e:
@@ -115,6 +120,7 @@ class TestDriverESMFUnstruct(TestBase):
                     raise e
                 else:
                     continue
+            if verbose: ocgis.vm.barrier_print("after conversion")
 
             actual_xsums.append(gc.x.get_value().sum())
             actual_ysums.append(gc.y.get_value().sum())
@@ -128,27 +134,32 @@ class TestDriverESMFUnstruct(TestBase):
             path = self.get_temporary_file_path('esmf_state_boundaries.nc')
             self.assertEqual(gc.parent.crs, desired_crs)
             gc.parent.write(path, driver=DriverKey.NETCDF_ESMF_UNSTRUCT)
+            if verbose: ocgis.vm.barrier_print("after gc.parent.write")
 
             gathered_geoms = vm.gather(field.geom.get_value())
-            if vm.rank == 0:
-                actual_geoms = []
-                for g in gathered_geoms:
-                    actual_geoms.extend(g)
+            if verbose: ocgis.vm.barrier_print("after gathered_geoms")
+            with vm.scoped("gather test", [0]):
+                if not vm.is_null:
+                    actual_geoms = []
+                    for g in gathered_geoms:
+                        actual_geoms.extend(g)
 
-                rd = RequestDataset(path, driver=DriverKey.NETCDF_ESMF_UNSTRUCT)
-                infield = rd.get()
-                self.assertEqual(create_crs(infield.crs.value), desired_crs)
-                for dv in field.data_variables:
-                    self.assertIn(dv.name, infield)
-                ingrid = infield.grid
-                self.assertIsInstance(ingrid, GridUnstruct)
+                    rd = RequestDataset(path, driver=DriverKey.NETCDF_ESMF_UNSTRUCT)
+                    infield = rd.get()
+                    self.assertEqual(create_crs(infield.crs.value), desired_crs)
+                    for dv in field.data_variables:
+                        self.assertIn(dv.name, infield)
+                    ingrid = infield.grid
+                    self.assertIsInstance(ingrid, GridUnstruct)
 
-                for g in ingrid.archetype.iter_geometries():
-                    self.assertPolygonSimilar(g[1], actual_geoms[g[0]], check_type=False)
+                    for g in ingrid.archetype.iter_geometries():
+                        self.assertPolygonSimilar(g[1], actual_geoms[g[0]], check_type=False)
+            if verbose: ocgis.vm.barrier_print("after gathered_geoms testing")
 
         vm.barrier()
 
         # Test coordinates have actually changed.
+        if verbose: ocgis.vm.barrier_print("before use_geometry_iterator test")
         if not k.use_geometry_iterator:
             for ctr, to_test in enumerate([actual_xsums, actual_ysums]):
                 for lhs, rhs in itertools.combinations(to_test, 2):
@@ -172,10 +183,6 @@ class TestDriverESMFUnstruct(TestBase):
         self.assertIsInstance(sub.geom, GeometryVariable)
         gc = sub.geom.convert_to(use_geometry_iterator=True)
         self.assertIsInstance(gc, PolygonGC)
-
-        # Test the new object does not share data with the source.
-        for dn in data_variable_names:
-            self.assertNotIn(dn, gc.parent)
 
         self.assertFalse(sub.geom.has_allocated_value)
         self.assertTrue(field.geom.protected)
@@ -321,6 +328,7 @@ class TestDriverESMFUnstruct(TestBase):
         path = self.get_temporary_file_path('foo.nc')
         actual.write(path)
 
+        # Optional test for loading the mesh file if ESMF is available.
         try:
             import ESMF
         except ImportError:

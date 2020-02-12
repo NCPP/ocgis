@@ -4,14 +4,15 @@ from abc import abstractmethod
 
 import numpy as np
 import six
+from pyproj import Proj, transform
+from shapely.geometry import box
+
 from ocgis import Variable, SourcedVariable, vm
 from ocgis.base import raise_if_empty, is_field, AbstractInterfaceObject
 from ocgis.constants import KeywordArgument, VariableName, WrapAction, DMK, SPATIALDECOMP_BUFFER
 from ocgis.exc import GridDeficientError
 from ocgis.variable import crs
 from ocgis.variable.base import AbstractContainer
-from pyproj import Proj, transform
-from shapely.geometry import box
 
 
 class AbstractSpatialObject(AbstractInterfaceObject):
@@ -700,10 +701,12 @@ def create_spatial_mask_variable(name, mask_value, dimensions):
     return mask_variable
 
 
-def create_split_polygons(geom, split_shape):
+def create_split_polygons(geom, split_shape, jitter=None):
+    if jitter is None:
+        jitter = [0.0] * 4
     minx, miny, maxx, maxy = geom.bounds
-    rows = np.linspace(miny, maxy, split_shape[0] + 1)
-    cols = np.linspace(minx, maxx, split_shape[1] + 1)
+    rows = np.linspace(miny + jitter[0], maxy + jitter[1], split_shape[0] + 1)
+    cols = np.linspace(minx + jitter[2], maxx + jitter[3], split_shape[1] + 1)
 
     return create_split_polygons_from_meshgrid_vectors(cols, rows)
 
@@ -772,10 +775,14 @@ def iter_spatial_decomposition(sobj, splits, **kwargs):
 
     # For each split polygon, subset the target spatial object and yield it. -------------------------------------------
     extent_global = sobj.extent_global
-    # Add a slight buffer to the overall global extent. This will avoid touches on center coordinates if the center
-    # coordinates are used to calculate the spatial extent.
+    # Add a slight buffer to the overall global extent followed by some jitter to the spatial decomposition. A touching
+    # barrier will prevent duplicate destination cells.
     bbox = box(*extent_global).buffer(SPATIALDECOMP_BUFFER).envelope
-    split_polygons = create_split_polygons(bbox, split_shape)
+    jitter = np.random.random_sample(4) * SPATIALDECOMP_BUFFER
+    for ii in range(jitter.size):
+        if np.random.random() > 0.5:
+            jitter[ii] *= 1
+    split_polygons = create_split_polygons(bbox, split_shape, jitter=jitter)
     for ctr, sp in enumerate(split_polygons):
         if yield_idx is not None:
             if ctr < yield_idx:

@@ -8,14 +8,14 @@ from shapely.geometry import box
 from ocgis import constants
 from ocgis.base import AbstractOcgisObject, grid_abstraction_scope
 from ocgis.collection.field import Field
-from ocgis.constants import GridChunkerConstants, RegriddingRole, Topology, WrappedState
+from ocgis.constants import GridChunkerConstants, RegriddingRole, Topology
 from ocgis.driver.request.core import RequestDataset
 from ocgis.spatial.base import iter_spatial_decomposition
 from ocgis.spatial.geomc import AbstractGeometryCoordinates
 from ocgis.spatial.grid import GridUnstruct, AbstractGrid, Grid
+from ocgis.spatial.spatial_subset import SpatialSubsetOperation
 from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import VariableCollection, Variable
-from ocgis.variable.crs import Spherical
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.vmachine.core import vm
@@ -102,7 +102,7 @@ class GridChunker(AbstractOcgisObject):
     def __init__(self, source, destination, nchunks_dst=None, paths=None, check_contains=False, allow_masked=True,
                  src_grid_resolution=None, dst_grid_resolution=None, optimized_bbox_subset='auto', iter_dst=None,
                  buffer_value=None, redistribute=False, genweights=False, esmf_kwargs=None, use_spatial_decomp='auto',
-                 eager=True):
+                 eager=True, debug=False):
         self._src_grid = None
         self._dst_grid = None
         self._buffer_value = None
@@ -114,6 +114,7 @@ class GridChunker(AbstractOcgisObject):
         self.source = source
         self.destination = destination
         self.eager = eager
+        self.debug = debug
 
         if esmf_kwargs is None:
             esmf_kwargs = {}
@@ -152,6 +153,21 @@ class GridChunker(AbstractOcgisObject):
         if 'wd' not in paths:
             paths['wd'] = os.getcwd()
         self.paths = paths
+
+        if self.debug:
+            import tempfile
+            outdir = tempfile.mkdtemp(dir=os.path.expanduser("~/Dropbox/dtmp"), prefix="ocgis-debug-")
+            s = [{"grid": self.dst_grid, "label": "dst"}, {"grid": self.src_grid, "label": "src"}]
+            for e in s:
+                print("processing: {}".format(s))
+                grid = e["grid"]
+                label = e["label"]
+                assert(grid.abstraction == "point")
+                gvar = grid.get_abstraction_geometry()
+                gvar.write_vector(os.path.join(outdir, "{}-grid-point.shp".format(label)))
+                grid.abstraction = "polygon"
+                gvar = grid.get_abstraction_geometry()
+                gvar.write_vector(os.path.join(outdir, "{}-grid-polygon.shp".format(label)))
 
     @property
     def buffer_value(self):
@@ -484,6 +500,10 @@ class GridChunker(AbstractOcgisObject):
         else:
             iter_dst = self.iter_dst_grid_subsets(yield_slice=yield_slice, yield_idx=yield_idx)
 
+        if self.debug:
+            import tempfile
+            outdir = tempfile.mkdtemp(dir=os.path.expanduser("~/Dropbox/dtmp"), prefix="ocgis-debug-chunks-")
+
         # Loop over each destination grid subset.
         ocgis_lh(logger=_LOCAL_LOGGER, msg='starting "for yld in iter_dst"', level=logging.DEBUG)
         for iter_dst_ctr, yld in enumerate(iter_dst, start=1):
@@ -492,6 +512,20 @@ class GridChunker(AbstractOcgisObject):
                 dst_grid_subset, dst_slice = yld
             else:
                 dst_grid_subset = yld
+
+            if self.debug:
+                s = [{"grid": dst_grid_subset, "label": "dst-{}".format(iter_dst_ctr)}]
+                for e in s:
+                    print("processing: {}".format(s))
+                    grid = e["grid"]
+                    label = e["label"]
+                    assert (grid.abstraction == "point")
+                    gvar = grid.get_abstraction_geometry()
+                    gvar.write_vector(os.path.join(outdir, "{}-grid-point.shp".format(label)))
+                    grid.abstraction = "polygon"
+                    gvar = grid.get_abstraction_geometry()
+                    gvar.write_vector(os.path.join(outdir, "{}-grid-polygon.shp".format(label)))
+                    grid.abstraction = "point"
 
             # All masked destinations are very problematic for ESMF
             with vm.scoped_by_emptyable('global mask', dst_grid_subset):
@@ -533,15 +567,6 @@ class GridChunker(AbstractOcgisObject):
                     if extent_global is None:
                         with grid_abstraction_scope(target_grid, Topology.POLYGON):
                             extent_global = target_grid.extent_global
-                            # HACK: Bad corner coordinates can lead to bad extents. In this case, the lower bound on the
-                            #  x-coordinate is unreasonable and breaks wrapping code. Set to 0.0 which is a reasonable
-                            #  lower x-coordate for unwrapped datasets.
-                            if (isinstance(target_grid.crs, Spherical)) and \
-                                    dst_grid_wrapped_state == WrappedState.UNWRAPPED and \
-                                    extent_global[0] < 0.0:
-                                e = list(extent_global)
-                                e[0] = 0.0
-                                extent_global = tuple(e)
 
                     if self.check_contains:
                         dst_box = box(*target_grid.extent_global)
@@ -567,10 +592,13 @@ class GridChunker(AbstractOcgisObject):
             sub_box = sub_box.prepare(archetype=self.src_grid)
             ocgis_lh(logger=_LOCAL_LOGGER, msg='prepared geometry', level=logging.DEBUG)
 
+            # Execute the spatial operation
             ocgis_lh(logger=_LOCAL_LOGGER, msg='starting "self.src_grid.get_intersects"', level=logging.DEBUG)
-            src_grid_subset, src_grid_slice = self.src_grid.get_intersects(sub_box, keep_touches=False, cascade=False,
+            so = SpatialSubsetOperation(self.src_grid.parent)
+            src_grid_subset, src_grid_slice = so.get_spatial_subset("intersects", sub_box, keep_touches=False, cascade=False,
                                                                            optimized_bbox_subset=self.optimized_bbox_subset,
                                                                            return_slice=True)
+            src_grid_subset = src_grid_subset.grid
             ocgis_lh(logger=_LOCAL_LOGGER, msg='finished "self.src_grid.get_intersects"', level=logging.DEBUG)
 
             # Reload the data using a new source index distribution.
@@ -605,6 +633,20 @@ class GridChunker(AbstractOcgisObject):
                         ocgis_lh(logger=_LOCAL_LOGGER, msg='starting reduce_global', level=logging.DEBUG)
                         src_grid_subset = src_grid_subset.reduce_global()
                         ocgis_lh(logger=_LOCAL_LOGGER, msg='finished reduce_global', level=logging.DEBUG)
+
+                    if self.debug:
+                        s = [{"grid": src_grid_subset, "label": "src-{}".format(iter_dst_ctr)}]
+                        for e in s:
+                            print("processing: {}".format(s))
+                            grid = e["grid"]
+                            label = e["label"]
+                            assert (grid.abstraction == "point")
+                            gvar = grid.get_abstraction_geometry()
+                            gvar.write_vector(os.path.join(outdir, "{}-grid-point.shp".format(label)))
+                            grid.abstraction = "polygon"
+                            gvar = grid.get_abstraction_geometry()
+                            gvar.write_vector(os.path.join(outdir, "{}-grid-polygon.shp".format(label)))
+                            grid.abstraction = "point"
                 else:
                     pass
                     # src_grid_subset = VariableCollection(is_empty=True)
@@ -633,6 +675,10 @@ class GridChunker(AbstractOcgisObject):
         Write grid subsets to netCDF files using the provided filename templates. This will also generate ESMF
         regridding weights for each subset if requested.
         """
+
+        if self.is_one_chunk:
+            raise ValueError("no destination chunks provided - nchunks_dst is 1. nothing to do.")
+
         src_filenames = []
         dst_filenames = []
         wgt_filenames = []
@@ -756,13 +802,15 @@ class GridChunker(AbstractOcgisObject):
         :param dst_grid: If provided, use this destination grid for identifying ESMF parameters
         :type dst_grid: :class:`ocgis.spatial.grid.AbstractGrid`
         """
+        assert wgt_path is not None
+        assert src_path is not None
+        assert dst_path is not None
+
         from ocgis.regrid.base import create_esmf_field, create_esmf_regrid
         if src_grid is None:
             src_grid = self.src_grid
         if dst_grid is None:
             dst_grid = self.dst_grid
-
-        assert wgt_path is not None
 
         ocgis_lh(msg="creating esmf source field...", logger=_LOCAL_LOGGER, level=logging.DEBUG)
         srcfield, srcgrid = create_esmf_field(src_path, src_grid, self.esmf_kwargs)

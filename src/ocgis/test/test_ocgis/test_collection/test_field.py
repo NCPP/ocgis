@@ -6,13 +6,17 @@ from copy import deepcopy
 import numpy as np
 from mock import Mock
 from nose.plugins.skip import SkipTest
+from shapely.geometry import Point
+from shapely.geometry import box
+from shapely.geometry.base import BaseGeometry
+
 from ocgis import RequestDataset, vm, DimensionMap
 from ocgis import constants
 from ocgis import netcdftime
 from ocgis.base import get_variable_names, atleast_ncver
 from ocgis.collection.field import Field, get_name_mapping
 from ocgis.collection.spatial import SpatialCollection
-from ocgis.constants import HeaderName, KeywordArgument, DriverKey, DimensionMapKey, DMK, Topology
+from ocgis.constants import HeaderName, KeywordArgument, DriverKey, DimensionMapKey, DMK, Topology, WrappedState
 from ocgis.conv.nc import NcConverter
 from ocgis.driver.csv_ import DriverCSV
 from ocgis.driver.nc import DriverNetcdf
@@ -20,6 +24,7 @@ from ocgis.driver.vector import DriverVector
 from ocgis.spatial.base import create_spatial_mask_variable
 from ocgis.spatial.geom_cabinet import GeomCabinetIterator
 from ocgis.spatial.grid import Grid
+from ocgis.spatial.spatial_subset import SpatialSubsetOperation
 from ocgis.test.base import attr, AbstractTestInterface, create_gridxy_global, create_exact_field
 from ocgis.util.helpers import reduce_multiply
 from ocgis.variable.base import Variable
@@ -28,9 +33,6 @@ from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.variable.temporal import TemporalVariable
 from ocgis.vmachine.mpi import MPI_SIZE, MPI_RANK, MPI_COMM
-from shapely.geometry import Point
-from shapely.geometry import box
-from shapely.geometry.base import BaseGeometry
 
 
 class TestField(AbstractTestInterface):
@@ -205,6 +207,26 @@ class TestField(AbstractTestInterface):
         desired = OrderedDict([('time', (3,)), ('time_bounds', (3, 2)), ('other', (3,)), ('xc', (1,)), ('yc', (2,)),
                                ('data', (1, 2)), ])
         self.assertEqual(spatial_sub.shapes, desired)
+
+    def test_system_spherical_unwrapped_grid_negative_values(self):
+        """Test with negative values in an unwrapped spherical dataset."""
+
+        xc = np.arange(-10, 350, step=10, dtype=float)
+        yc = np.arange(-90, 100, step=10, dtype=float)
+        xv = Variable("lon", xc, dimensions=["lon"])
+        yv = Variable("lat", yc, dimensions=["lat"])
+        grid = Grid(x=xv, y=yv, crs=Spherical())
+        self.assertEqual(grid.wrapped_state, WrappedState.UNWRAPPED)
+        self.assertEqual(grid._wrapped_state, "auto")
+
+        subbox = box(240, -10, 360, 10)
+        subbox = GeometryVariable(name='subset', value=subbox, is_bbox=True, dimensions="ngeom", crs=Spherical())
+        so = SpatialSubsetOperation(grid.parent)
+        subfield = so.get_spatial_subset("intersects", subbox)
+        self.assertTrue(grid.is_vectorized)
+        self.assertFalse(subfield.grid.get_mask()[0, 0])
+        self.assertEqual(grid.x.v()[0], -10.0)
+        self.assertIsNone(so._transformed_unwrapped_select)
 
     def test_system_subsetting(self):
         """Test subsetting operations."""

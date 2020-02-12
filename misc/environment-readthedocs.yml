@@ -1,8 +1,7 @@
 name: rtd
 
-channels:
-- conda-forge
-
 dependencies:
-- ocgis
-- esmpy
+- GDAL
+- numpy
+- shapely
+- fiona

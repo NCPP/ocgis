@@ -17,6 +17,10 @@ import fiona
 import netCDF4 as nc
 import numpy as np
 import six
+from shapely import wkt
+from shapely.geometry import Point
+from shapely.geometry.base import BaseMultipartGeometry
+
 from ocgis import RequestDataset
 from ocgis import SourcedVariable
 from ocgis import Variable, Dimension
@@ -32,9 +36,6 @@ from ocgis.variable.crs import CoordinateReferenceSystem
 from ocgis.variable.geom import GeometryVariable
 from ocgis.variable.temporal import TemporalVariable
 from ocgis.vmachine.mpi import get_standard_comm_state, OcgDist, MPI_RANK, variable_scatter, variable_collection_scatter
-from shapely import wkt
-from shapely.geometry import Point
-from shapely.geometry.base import BaseMultipartGeometry
 
 """
 Definitions for various "attrs":
@@ -75,6 +76,8 @@ class TestBase(unittest.TestCase):
     remove_dir = True
     # set to false to not shutdown logging
     shutdown_logging = True
+    # set to true for test printing/logging to be enabled
+    debug = False
     # prefix for the temporary test directories
     _prefix_path_test = 'ocgis_test_'
 
@@ -420,11 +423,11 @@ class TestBase(unittest.TestCase):
             meth()
             self.assertTrue(any(item.category == warning for item in warning_list))
 
-    def assertWeightFilesEquivalent(self, global_weights_filename, merged_weights_filename):
+    def assertWeightFilesEquivalent(self, src_filename, dst_filename):
         """Assert weight files are equivalent."""
 
-        nwf = RequestDataset(merged_weights_filename).get()
-        gwf = RequestDataset(global_weights_filename).get()
+        nwf = RequestDataset(dst_filename).get()
+        gwf = RequestDataset(src_filename).get()
         nwf_row = nwf['row'].get_value()
         gwf_row = gwf['row'].get_value()
         self.assertAsSetEqual(nwf_row, gwf_row)
@@ -786,6 +789,10 @@ class TestBase(unittest.TestCase):
     def path_state_boundaries(self):
         path_shp = os.path.join(self.path_bin, 'shp', 'state_boundaries', 'state_boundaries.shp')
         return path_shp
+
+    def dprint(self, *args, **kwargs):
+        if self.debug:
+            self.rank_print(*args, **kwargs)
 
     def pprint(self, *args, **kwargs):
         print('')

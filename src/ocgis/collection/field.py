@@ -3,6 +3,8 @@ from collections import OrderedDict
 from collections import deque
 from copy import deepcopy
 
+from shapely.geometry import shape
+
 from ocgis import env, DimensionMap, VariableCollection
 from ocgis.base import get_dimension_names, get_variable_names, get_variables, renamed_dimensions_on_variables, \
     revert_renamed_dimensions_on_variables, raise_if_empty
@@ -16,7 +18,6 @@ from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable
 from ocgis.variable.iterator import Iterator
 from ocgis.variable.temporal import TemporalGroupVariable, TemporalVariable
-from shapely.geometry import shape
 
 
 class Field(VariableCollection):
@@ -385,7 +386,7 @@ class Field(VariableCollection):
         return ret
 
     @classmethod
-    def from_records(cls, records, schema=None, crs=UNINITIALIZED, uid=None, union=False, data_model=None):
+    def from_records(cls, records, schema=None, crs=UNINITIALIZED, uid=None, union=False, data_model=None, strict=False):
         """
         Create a :class:`~ocgis.Field` from Fiona-like records.
 
@@ -404,6 +405,8 @@ class Field(VariableCollection):
         :param bool union: If ``True``, union the geometries from records yielding a single geometry with a unique
          identifier value of ``1``.
         :param str data_model: See :meth:`~ocgis.driver.nc.create_typed_variable_from_data_model`.
+        :param bool strict: Default is ``false``. When ``false``, remove list-valued properties and issue a warning.
+         If ``true``, do not allow list-valued properties.
         :returns: Field object constructed from records.
         :rtype: :class:`~ocgis.Field`
         """
@@ -494,14 +497,19 @@ class Field(VariableCollection):
             else:
                 has_schema = True
 
+            skips = []
             for idx, record in enumerate(records):
                 if idx == 0 and not has_schema:
                     schema = {'properties': OrderedDict()}
                     for k, v in list(record['properties'].items()):
-                        schema['properties'][k] = get_fiona_type_from_pydata(v)
+                        if not strict and isinstance(v, (tuple, list)):
+                            ocgis_lh(msg="Property type for '{}' is list/tuple. Skipping.".format(k), level=logging.WARN)
+                            skips.append(k)
+                        else:
+                            schema['properties'][k] = get_fiona_type_from_pydata(v)
                 if idx == 0:
                     for k, v in list(schema['properties'].items()):
-                        if k == uid.name:
+                        if k == uid.name or k in skips:
                             continue
                         dtype = get_dtype_from_fiona_type(v, data_model=data_model)
                         var = Variable(name=k, dtype=dtype, dimensions=dim)
@@ -509,7 +517,7 @@ class Field(VariableCollection):
                             var.set_string_max_length_global(value=int(v.split(':')[1]))
                         field.add_variable(var)
                 for k, v in list(record['properties'].items()):
-                    if k == uid.name:
+                    if k == uid.name or k in skips:
                         continue
 
                     if v is None:
@@ -522,7 +530,7 @@ class Field(VariableCollection):
 
         data_variables = [uid.name]
         if not union:
-            data_variables += [k for k in list(schema['properties'].keys()) if k != uid.name]
+            data_variables += [k for k in list(schema['properties'].keys()) if k != uid.name or k in skips]
         field.append_to_tags(TagName.DATA_VARIABLES, data_variables, create=True)
 
         return field

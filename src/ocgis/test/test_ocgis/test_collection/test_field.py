@@ -10,7 +10,7 @@ from shapely.geometry import Point
 from shapely.geometry import box
 from shapely.geometry.base import BaseGeometry
 
-from ocgis import RequestDataset, vm, DimensionMap
+from ocgis import RequestDataset, vm, DimensionMap, env
 from ocgis import constants
 from ocgis import netcdftime
 from ocgis.base import get_variable_names, atleast_ncver
@@ -21,12 +21,14 @@ from ocgis.conv.nc import NcConverter
 from ocgis.driver.csv_ import DriverCSV
 from ocgis.driver.nc import DriverNetcdf
 from ocgis.driver.vector import DriverVector
+from ocgis.exc import OcgWarning
 from ocgis.spatial.base import create_spatial_mask_variable
 from ocgis.spatial.geom_cabinet import GeomCabinetIterator
 from ocgis.spatial.grid import Grid
 from ocgis.spatial.spatial_subset import SpatialSubsetOperation
 from ocgis.test.base import attr, AbstractTestInterface, create_gridxy_global, create_exact_field
 from ocgis.util.helpers import reduce_multiply
+from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.base import Variable
 from ocgis.variable.crs import CoordinateReferenceSystem, WGS84, Spherical
 from ocgis.variable.dimension import Dimension
@@ -286,6 +288,18 @@ class TestField(AbstractTestInterface):
                    'ID': np.int32}
         for v in desired.keys():
             self.assertEqual(actual[v].get_value().dtype, desired[v])
+
+        # Test strictness with list/tuple
+
+        def _run_():
+            env.SUPPRESS_WARNINGS = False
+            ocgis_lh.configure(to_stream=True)
+            records = [{'geom': Point(1, 2), 'properties': {'a_list': [1, 2, 3]}}]
+            actual = Field.from_records(records)
+            self.assertNotIn("a_list", actual.keys())
+            env.SUPPRESS_WARNINGS = True
+
+        self.assertWarns(OcgWarning, _run_)
 
     def test_get_by_tag(self):
         v1 = Variable(name='tas')

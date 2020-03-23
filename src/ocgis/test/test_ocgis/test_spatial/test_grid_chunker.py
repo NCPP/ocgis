@@ -345,8 +345,6 @@ class TestGridChunker(AbstractTestInterface, FixtureDriverNetcdfSCRIP):
         # Merge weight files -------------------------------------------------------------------------------------------
 
         merged_weight_filename = self.get_temporary_file_path('merged_weights.nc')
-        if filemode == "WITHAUX": #tdk:rm
-            print(self.current_dir_output) #tdk:rm
         gs.create_merged_weight_file(merged_weight_filename)
 
         # Generate a global weight file using ESMF ---------------------------------------------------------------------

@@ -333,12 +333,20 @@ class TestGridChunker(AbstractTestInterface, FixtureDriverNetcdfSCRIP):
 
         esmf_kwargs = {"filemode": filemode}
         gs = GridChunker(src_grid, dst_grid, (2, 2), check_contains=False, allow_masked=True, paths=self.fixture_paths,
-                         genweights=True)
+                         genweights=True, esmf_kwargs=esmf_kwargs)
         gs.write_chunks()
+
+        if filemode == "WITHAUX":
+            weightfile = self.get_temporary_file_path('esmf_weights_1.nc')
+            rd = RequestDataset(weightfile, driver='netcdf')
+            field = rd.create_field()
+            self.assertGreater(len(field.keys()), 3)
 
         # Merge weight files -------------------------------------------------------------------------------------------
 
         merged_weight_filename = self.get_temporary_file_path('merged_weights.nc')
+        if filemode == "WITHAUX": #tdk:rm
+            print(self.current_dir_output) #tdk:rm
         gs.create_merged_weight_file(merged_weight_filename)
 
         # Generate a global weight file using ESMF ---------------------------------------------------------------------
@@ -360,7 +368,9 @@ class TestGridChunker(AbstractTestInterface, FixtureDriverNetcdfSCRIP):
 
     @attr('esmf')
     def test_create_merged_weight_file(self):
-        for filemode in [None, "WITHAUX"]:
+        # poss = [None, "WITHAUX"] #tdk:uncomm
+        poss = ["WITHAUX"]
+        for filemode in poss:
             self.run_create_merged_weight_file(filemode)
             self.tearDown()
             os.mkdir(self.current_dir_output)

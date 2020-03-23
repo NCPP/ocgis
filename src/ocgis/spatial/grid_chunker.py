@@ -808,6 +808,8 @@ class GridChunker(AbstractOcgisObject):
         assert dst_path is not None
 
         from ocgis.regrid.base import create_esmf_field, create_esmf_regrid
+        import ESMF
+
         if src_grid is None:
             src_grid = self.src_grid
         if dst_grid is None:
@@ -819,6 +821,12 @@ class GridChunker(AbstractOcgisObject):
         dstfield, dstgrid = create_esmf_field(dst_path, dst_grid, self.esmf_kwargs)
         regrid = None
 
+        # If auxiliary weight file variables are being written, update the ESMF arguments with some additional metadata.
+        if self.esmf_kwargs.get('filemode', None) == ESMF.FileMode.WITHAUX:
+            self.esmf_kwargs['src_file'] = src_path
+            self.esmf_kwargs['dst_file'] = dst_path
+            self.esmf_kwargs['src_file_type'] = self.src_grid.driver.get_esmf_fileformat()
+            self.esmf_kwargs['dst_file_type'] = self.dst_grid.driver.get_esmf_fileformat()
         try:
             ocgis_lh(msg="creating esmf regrid...", logger=_LOCAL_LOGGER, level=logging.DEBUG)
             regrid = create_esmf_regrid(srcfield=srcfield, dstfield=dstfield, filename=wgt_path, **self.esmf_kwargs)

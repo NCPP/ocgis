@@ -426,8 +426,8 @@ class TestBase(unittest.TestCase):
     def assertWeightFilesEquivalent(self, src_filename, dst_filename):
         """Assert weight files are equivalent."""
 
-        nwf = RequestDataset(dst_filename).get()
-        gwf = RequestDataset(src_filename).get()
+        nwf = RequestDataset(dst_filename, driver="netcdf").get()
+        gwf = RequestDataset(src_filename, driver="netcdf").get()
 
         self.assertEqual(nwf.keys(), gwf.keys())
 

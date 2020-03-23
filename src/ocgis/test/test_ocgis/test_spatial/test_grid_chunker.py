@@ -350,7 +350,9 @@ class TestGridChunker(AbstractTestInterface, FixtureDriverNetcdfSCRIP):
         srcfield = ESMF.Field(grid=srcgrid)
         dstfield = ESMF.Field(grid=dstgrid)
         _ = ESMF.Regrid(srcfield=srcfield, dstfield=dstfield, filename=global_weights_filename,
-                        regrid_method=ESMF.RegridMethod.CONSERVE, filemode=esmf_filemode)
+                        regrid_method=ESMF.RegridMethod.CONSERVE, filemode=esmf_filemode, src_file=path_src,
+                        dst_file=path_dst, src_file_type=ESMF.FileFormat.GRIDSPEC,
+                        dst_file_type=ESMF.FileFormat.GRIDSPEC)
 
         # Test merged and global weight files are equivalent -----------------------------------------------------------
 

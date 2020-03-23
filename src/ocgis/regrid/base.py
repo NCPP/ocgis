@@ -869,6 +869,10 @@ def update_esmf_kwargs(target):
         except KeyError:
             raise ValueError('Chunked regridding does not support "{}".'.format(unmapped_action))
 
+    if 'filemode' not in target:
+        target['filemode'] = "BASIC"
+    target['filemode'] = getattr(ESMF.FileMode, target['filemode'])
+
     # Never create a route handle for weight generation only.
     target['create_rh'] = False
 

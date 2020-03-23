@@ -428,6 +428,9 @@ class TestBase(unittest.TestCase):
 
         nwf = RequestDataset(dst_filename).get()
         gwf = RequestDataset(src_filename).get()
+
+        self.assertEqual(nwf.keys(), gwf.keys())
+
         nwf_row = nwf['row'].get_value()
         gwf_row = gwf['row'].get_value()
         self.assertAsSetEqual(nwf_row, gwf_row)

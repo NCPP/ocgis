@@ -13,6 +13,7 @@ from ocgis import RequestDataset, GeometryVariable, constants
 from ocgis.base import grid_abstraction_scope, raise_if_empty
 from ocgis.constants import DriverKey, Topology, GridChunkerConstants, DecompositionType
 from ocgis.driver.nc_ugrid import DriverNetcdfUGRID
+from ocgis.messages import M5
 from ocgis.spatial.grid_chunker import GridChunker
 from ocgis.spatial.spatial_subset import SpatialSubsetOperation
 from ocgis.util.logging_ocgis import ocgis_lh
@@ -91,9 +92,10 @@ def ocli():
 @click.option('--verbose/--not_verbose', default=False, help='If True, log to standard out using verbosity level.')
 @click.option('--loglvl', default="INFO", help='Verbosity level for standard out logging. Default is '
               '"INFO". See Python logging level docs for additional values: https://docs.python.org/3/howto/logging.html')
+@click.option('--weightfilemode', default="BASIC", help=M5)
 def chunked_rwg(source, destination, weight, nchunks_dst, merge, esmf_src_type, esmf_dst_type, genweights,
                 esmf_regrid_method, spatial_subset, src_resolution, dst_resolution, buffer_distance, wd, persist,
-                eager, ignore_degenerate, data_variables, spatial_subset_path, verbose, loglvl):
+                eager, ignore_degenerate, data_variables, spatial_subset_path, verbose, loglvl, weightfilemode):
     if verbose:
         ocgis_lh.configure(to_stream=True, level=getattr(logging, loglvl))
     ocgis_lh(msg="Starting Chunked Regrid Weight Generation", level=logging.INFO, logger=CRWG_LOG)

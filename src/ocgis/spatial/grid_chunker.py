@@ -88,6 +88,7 @@ class GridChunker(AbstractOcgisObject):
     ``'regrid_method'``     ``'CONSERVE'`` ``'CONSERVE'``, ``'BILINEAR'``, ``'PATCH'``, ``'NEAREST_STOD'``
     ``'unmapped_action'``   ``'IGNORE'``   ``'IGNORE'``, ``'ERROR'``
     ``'ignore_degenerate'`` ``False``      ``True``/``False``
+    ``'filemode'``          ``'BASIC'``    ``'BASIC'``, ``'WITHAUX'``
     ======================= ============== ===============================================================
 
     :param bool use_spatial_decomp: If ``True``, use a spatial decomposition as opposed to an index-based decomposition

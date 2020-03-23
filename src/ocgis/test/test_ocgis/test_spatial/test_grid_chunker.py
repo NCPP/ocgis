@@ -313,9 +313,12 @@ class TestGridChunker(AbstractTestInterface, FixtureDriverNetcdfSCRIP):
         self.run_system_splitting_unstructured(True)
         # subprocess.check_call(['tree', self.current_dir_output])
 
-    @attr('esmf')
-    def test_create_merged_weight_file(self):
+    def run_create_merged_weight_file(self, filemode):
         import ESMF
+
+        if filemode is None:
+            filemode = "BASIC"
+        esmf_filemode = getattr(ESMF.FileMode, filemode)
 
         path_src = self.get_temporary_file_path('src.nc')
         path_dst = self.get_temporary_file_path('dst.nc')
@@ -328,6 +331,7 @@ class TestGridChunker(AbstractTestInterface, FixtureDriverNetcdfSCRIP):
 
         # Split source and destination grids ---------------------------------------------------------------------------
 
+        esmf_kwargs = {"filemode": filemode}
         gs = GridChunker(src_grid, dst_grid, (2, 2), check_contains=False, allow_masked=True, paths=self.fixture_paths,
                          genweights=True)
         gs.write_chunks()
@@ -346,11 +350,18 @@ class TestGridChunker(AbstractTestInterface, FixtureDriverNetcdfSCRIP):
         srcfield = ESMF.Field(grid=srcgrid)
         dstfield = ESMF.Field(grid=dstgrid)
         _ = ESMF.Regrid(srcfield=srcfield, dstfield=dstfield, filename=global_weights_filename,
-                        regrid_method=ESMF.RegridMethod.CONSERVE)
+                        regrid_method=ESMF.RegridMethod.CONSERVE, filemode=esmf_filemode)
 
         # Test merged and global weight files are equivalent -----------------------------------------------------------
 
         self.assertWeightFilesEquivalent(global_weights_filename, merged_weight_filename)
+
+    @attr('esmf')
+    def test_create_merged_weight_file(self):
+        for filemode in [None, "WITHAUX"]:
+            self.run_create_merged_weight_file(filemode)
+            self.tearDown()
+            os.mkdir(self.current_dir_output)
 
     @attr('esmf')
     def test_create_merged_weight_file_unstructured(self):

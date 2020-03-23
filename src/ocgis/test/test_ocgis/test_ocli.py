@@ -45,6 +45,7 @@ class TestChunkedRWG(TestBase):
         poss.spatial_subset = ['__exclude__', '__include__']
         poss.not_eager = ['__exclude__', '__include__']
         poss.ignore_degenerate = ['__exclude__', '__include__']
+        poss.weightfilemode = ['__exclude__', 'basic', 'withaux']
 
         return poss
 

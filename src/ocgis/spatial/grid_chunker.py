@@ -353,7 +353,7 @@ class GridChunker(AbstractOcgisObject):
                     raise IOError(wfn)
                 else:
                     continue
-            wdata = RequestDataset(wfn).get()
+            wdata = RequestDataset(wfn, driver='netcdf').get()
             for wvn in wf_varnames:
                 odata = wdata[wvn].get_value()
                 try:

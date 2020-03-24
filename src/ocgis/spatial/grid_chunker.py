@@ -89,7 +89,6 @@ class GridChunker(AbstractOcgisObject):
     ``'regrid_method'``     ``'CONSERVE'`` ``'CONSERVE'``, ``'BILINEAR'``, ``'PATCH'``, ``'NEAREST_STOD'``
     ``'unmapped_action'``   ``'IGNORE'``   ``'IGNORE'``, ``'ERROR'``
     ``'ignore_degenerate'`` ``False``      ``True``/``False``
-    ``'filemode'``          ``'BASIC'``    ``'BASIC'``, ``'WITHAUX'``
     ======================= ============== ===============================================================
 
     :param bool use_spatial_decomp: If ``True``, use a spatial decomposition as opposed to an index-based decomposition
@@ -98,9 +97,10 @@ class GridChunker(AbstractOcgisObject):
     :param bool eager: If ``True``, load grid data from disk before chunking. This avoids always loading the data from
      disk for sourced datasets following a subset. There will be an improvement in performance but an increase in the
      memory used.
+    :param str filemode: If ``'BASIC'`` (the default), only write source/destination indices and weight factors to the
+     output weight file. If ``'WITHAUX'`` also write geometry-related auxiliary variables to the output weight file.
     :raises: ValueError
     """
-    #tdk:doc: filemode
 
     def __init__(self, source, destination, nchunks_dst=None, paths=None, check_contains=False, allow_masked=True,
                  src_grid_resolution=None, dst_grid_resolution=None, optimized_bbox_subset='auto', iter_dst=None,
@@ -825,9 +825,10 @@ class GridChunker(AbstractOcgisObject):
         :type src_grid: :class:`ocgis.spatial.grid.AbstractGrid`
         :param dst_grid: If provided, use this destination grid for identifying ESMF parameters
         :type dst_grid: :class:`ocgis.spatial.grid.AbstractGrid`
+        :param str filemode: If ``'BASIC'`` (default when ``None``), only write source/destination indices and weight
+         factors to the output weight file. If ``'WITHAUX'`` also write geometry-related auxiliary variables to the
+         output weight file.
         """
-        #tdk:doc: filemode
-        #tdk:doc: remove filemode from GridChunker.__init__ documentation in esmf_kwargs
         assert wgt_path is not None
         assert src_path is not None
         assert dst_path is not None

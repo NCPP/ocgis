@@ -76,7 +76,7 @@ class TestDriverESMFUnstruct(TestBase):
     def test_system_converting_state_boundaries_shapefile(self):
         verbose = False
         if verbose: ocgis.vm.barrier_print("starting test")
-        ocgis.env.USE_NETCDF4_MPI = False  # tdk:FIX: this hangs in the STATE_FIPS write for asynch might be nc4 bug...
+        ocgis.env.USE_NETCDF4_MPI = False  # tdk:RELEASE:FIX: this hangs in the STATE_FIPS write for asynch might be nc4 bug...
         keywords = {'transform_to_crs': [None, Spherical],
                     'use_geometry_iterator': [False, True]}
         actual_xsums = []

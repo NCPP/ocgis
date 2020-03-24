@@ -188,7 +188,7 @@ class TestSimple(TestSimpleBase):
 
     def test_selection_geometry_crs_differs(self):
         """Test selection is appropriate when CRS of selection geometry differs from source."""
-        #tdk:FIX: get test working for release. fails with a newer version of ogr on travis ci
+        #tdk:RELEASE:FIX: get test working for release. fails with a newer version of ogr on travis ci
         raise(SkipTest)
         dataset = self.get_dataset()
         rd = RequestDataset(**dataset)

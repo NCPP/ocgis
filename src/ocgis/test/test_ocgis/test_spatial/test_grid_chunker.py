@@ -457,7 +457,7 @@ class TestGridChunker(AbstractTestInterface, FixtureDriverNetcdfSCRIP):
 
     @attr('esmf', 'mpi')
     def test_write_esmf_weights(self):
-        #tdk:FIX: before release. masking is source of the problem for the smm assert failures
+        #tdk:RELEASE:FIX: before release. masking is source of the problem for the smm assert failures
         raise(SkipTest)
         # Create source and destination fields. This is the identity test, so the source and destination fields are
         # equivalent.

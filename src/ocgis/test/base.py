@@ -458,6 +458,8 @@ class TestBase(unittest.TestCase):
         diffs = np.abs(diffs)
         self.assertLess(diffs.max(), 1e-14)
 
+        self.assertEqual(nwf.attrs, gwf.attrs)
+
     @staticmethod
     def barrier_print(*args, **kwargs):
         from ocgis.vmachine.mpi import barrier_print

@@ -187,7 +187,7 @@ def chunked_rwg(source, destination, weight, nchunks_dst, merge, esmf_src_type, 
             msg = "Writing ESMF weights..."
             ocgis_lh(msg=msg, level=logging.INFO, logger=CRWG_LOG)
             handle_weight_file_check(weight)
-            gs.write_esmf_weights(source, destination, weight)
+            gs.write_esmf_weights(source, destination, weight, filemode=weightfilemode)
 
     # Create the global weight file. This does not apply to spatial subsets because there will always be one weight
     # file.

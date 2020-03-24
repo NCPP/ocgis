@@ -244,6 +244,7 @@ class TestGridChunker(AbstractTestInterface, FixtureDriverNetcdfSCRIP):
 
     @attr('esmf', 'slow')
     def test_system_negative_values_in_spherical_grid(self):
+        original_dir = os.getcwd()
         xcn = np.arange(-10, 350, step=10, dtype=float)
         xc = np.arange(0, 360, step=10, dtype=float)
         yc = np.arange(-90, 100, step=10, dtype=float)
@@ -253,7 +254,6 @@ class TestGridChunker(AbstractTestInterface, FixtureDriverNetcdfSCRIP):
         yv = Variable("lat", yc, dimensions=["lat"])
 
         gridn = Grid(x=xvn.copy(), y=yv.copy(), crs=Spherical())
-        print(gridn.x.v())
         gridu = Grid(x=xv.copy(), y=yv.copy(), crs=Spherical())
         gridw = create_gridxy_global(5, with_bounds=False, crs=Spherical())
         grids = [gridn, gridu, gridw]
@@ -293,6 +293,8 @@ class TestGridChunker(AbstractTestInterface, FixtureDriverNetcdfSCRIP):
                 src_filename = os.path.join(griddir, "ctr-{}".format(ctr), "merged-weights.nc")
                 dst_filename = os.path.join(griddir, "global-weights.nc")
                 self.assertWeightFilesEquivalent(src_filename, dst_filename)
+
+        os.chdir(original_dir)
 
     def test_system_scrip_destination_splitting(self):
         """Test splitting a SCRIP destination grid."""

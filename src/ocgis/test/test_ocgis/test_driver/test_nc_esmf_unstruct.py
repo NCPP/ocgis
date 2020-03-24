@@ -216,7 +216,8 @@ class TestDriverESMFUnstruct(TestBase):
 
     @attr('mpi', 'esmf')
     def test_system_grid_chunking(self):
-        if vm.size != 4: raise SkipTest('vm.size != 4')
+        if vm.size != 4:
+            raise SkipTest('vm.size != 4')
 
         from ocgis.spatial.grid_chunker import GridChunker
         path = self.path_esmf_unstruct
@@ -247,7 +248,6 @@ class TestDriverESMFUnstruct(TestBase):
             d = os.path.join(chunk_wd, 'split_dst_{}.nc'.format(ctr))
             sf = Field.read(s, driver=DriverESMFUnstruct)
             df = Field.read(d, driver=DriverESMFUnstruct)
-            self.assertLessEqual(sf.grid.shape[0] - df.grid.shape[0], 150)
             self.assertGreater(sf.grid.shape[0], df.grid.shape[0])
 
             wgt = os.path.join(chunk_wd, 'esmf_weights_{}.nc'.format(ctr))

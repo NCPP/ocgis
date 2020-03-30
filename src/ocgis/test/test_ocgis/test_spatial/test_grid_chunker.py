@@ -370,7 +370,7 @@ class TestGridChunker(AbstractTestInterface, FixtureDriverNetcdfSCRIP):
 
         # Test merged and global weight files are equivalent -----------------------------------------------------------
 
-        self.assertWeightFilesEquivalent(global_weights_filename, merged_weight_filename)
+        self.assertWeightFilesEquivalent(global_weights_filename, merged_weight_filename, remove_created=True)
 
     @attr('esmf')
     def test_create_merged_weight_file(self):

@@ -348,6 +348,13 @@ class GridChunker(AbstractOcgisObject):
                             vc.add_variable(var)
                 # Also copy over global attributes
                 vc.attrs = vc_target.attrs
+                # Add some additional stuff for record keeping
+                import getpass
+                import socket
+                import datetime
+                vc.attrs['created_by_user'] = getpass.getuser()
+                vc.attrs['created_on_hostname'] = socket.getfqdn()
+                vc.attrs['created_at_datetime'] = str(datetime.datetime.now())
             ctr += 1
 
         # Create output weight file.

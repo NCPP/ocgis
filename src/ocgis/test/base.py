@@ -423,7 +423,7 @@ class TestBase(unittest.TestCase):
             meth()
             self.assertTrue(any(item.category == warning for item in warning_list))
 
-    def assertWeightFilesEquivalent(self, src_filename, dst_filename, remove_created=False):
+    def assertWeightFilesEquivalent(self, src_filename, dst_filename, special_history=True):
         """Assert weight files are equivalent."""
 
         nwf = RequestDataset(dst_filename, driver="netcdf").get()
@@ -458,22 +458,18 @@ class TestBase(unittest.TestCase):
         diffs = np.abs(diffs)
         self.assertLess(diffs.max(), 1e-14)
 
-        if remove_created:
+        if special_history:
             actual = nwf.attrs.copy()
             desired = gwf.attrs.copy()
-            to_remove = []
-            for k in actual.keys():
-                if k.startswith('created_'):
-                    to_remove.append(k)
-            for target in [actual, desired]:
-                for t in to_remove:
-                    try:
-                        target.pop(t)
-                    except KeyError:
-                        continue
+            removes = ['history', 'created_by_user', 'created_on_hostname']
+            for r in removes:
+                actual.pop(r, None)
+                desired.pop(r, None)
             self.assertEqual(actual, desired)
         else:
-            self.assertEqual(nwf.attrs, gwf.attrs)
+            actual = nwf.attrs
+            desired = gwf.attrs
+        self.assertEqual(actual, desired)
 
     @staticmethod
     def barrier_print(*args, **kwargs):

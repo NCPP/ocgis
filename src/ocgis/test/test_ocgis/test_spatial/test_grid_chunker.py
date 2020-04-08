@@ -370,15 +370,15 @@ class TestGridChunker(AbstractTestInterface, FixtureDriverNetcdfSCRIP):
 
         # Test merged and global weight files are equivalent -----------------------------------------------------------
 
-        self.assertWeightFilesEquivalent(global_weights_filename, merged_weight_filename, remove_created=True)
+        self.assertWeightFilesEquivalent(global_weights_filename, merged_weight_filename)
 
     @attr('esmf')
-    def test_create_merged_weight_file(self):
-        poss = ["BASIC", "WITHAUX"]
-        for filemode in poss:
-            self.run_create_merged_weight_file(filemode)
-            self.tearDown()
-            os.mkdir(self.current_dir_output)
+    def test_create_merged_weight_file_basic(self):
+        self.run_create_merged_weight_file("BASIC")
+
+    @attr('esmf')
+    def test_create_merged_weight_file_withaux(self):
+        self.run_create_merged_weight_file("WITHAUX")
 
     @attr('esmf')
     def test_create_merged_weight_file_unstructured(self):

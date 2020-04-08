@@ -1,11 +1,12 @@
 #!/usr/bin/env python
-
+import datetime
 import logging
 import os
 import shutil
 import tempfile
 
 import click
+import netCDF4 as nc
 from shapely.geometry import box
 
 import ocgis
@@ -96,6 +97,10 @@ def ocli():
 def chunked_rwg(source, destination, weight, nchunks_dst, merge, esmf_src_type, esmf_dst_type, genweights,
                 esmf_regrid_method, spatial_subset, src_resolution, dst_resolution, buffer_distance, wd, persist,
                 eager, ignore_degenerate, data_variables, spatial_subset_path, verbose, loglvl, weightfilemode):
+
+    # Used for creating the history string.
+    the_locals = locals()
+
     if verbose:
         ocgis_lh.configure(to_stream=True, level=getattr(logging, loglvl))
     ocgis_lh(msg="Starting Chunked Regrid Weight Generation", level=logging.INFO, logger=CRWG_LOG)
@@ -208,6 +213,20 @@ def chunked_rwg(source, destination, weight, nchunks_dst, merge, esmf_src_type, 
 
         ocgis.vm.barrier()
 
+    # Append the history string if there is an output weight file.
+    if weight and ocgis.vm.rank == 0:
+        if os.path.exists(weight):
+            # Add some additional stuff for record keeping
+            import getpass
+            import socket
+            import datetime
+
+            with nc.Dataset(weight, 'a') as ds:
+                ds.setncattr('created_by_user', getpass.getuser())
+                ds.setncattr('created_on_hostname', socket.getfqdn())
+                ds.setncattr('history', create_history_string(the_locals))
+    ocgis.vm.barrier()
+
     # Remove the working directory unless the persist flag is provided.
     if not persist:
         if ocgis.vm.rank == 0:
@@ -218,6 +237,27 @@ def chunked_rwg(source, destination, weight, nchunks_dst, merge, esmf_src_type, 
 
     ocgis_lh(msg="Success!", level=logging.INFO, logger=CRWG_LOG)
     return 0
+
+
+def create_history_string(the_locals):
+    history_parms = {}
+    for k, v in the_locals.items():
+        if v is not None and k != 'history_parms':
+            if type(v) == bool:
+                if not v:
+                    history_parms['--no_' + k] = v
+            else:
+                history_parms['--' + k] = v
+    try:
+        import ESMF
+        ever = ESMF.__version__
+    except ImportError:
+        ever = None
+    history = "{}: Created by ocgis (v{}) and ESMF (v{}) with CLI command: ocli chunked-rwg".format(
+        datetime.datetime.now(), ocgis.__version__, ever)
+    for k, v in history_parms.items():
+        history += " {} {}".format(k, v)
+    return history
 
 
 @ocli.command(help='Apply weights in chunked files with an option to insert the global data.', name='chunked-smm')

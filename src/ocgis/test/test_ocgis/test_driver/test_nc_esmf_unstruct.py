@@ -76,7 +76,7 @@ class TestDriverESMFUnstruct(TestBase):
     def test_system_converting_state_boundaries_shapefile(self):
         verbose = False
         if verbose: ocgis.vm.barrier_print("starting test")
-        ocgis.env.USE_NETCDF4_MPI = False  # tdk:FIX: this hangs in the STATE_FIPS write for asynch might be nc4 bug...
+        ocgis.env.USE_NETCDF4_MPI = False  # tdk:RELEASE:FIX: this hangs in the STATE_FIPS write for asynch might be nc4 bug...
         keywords = {'transform_to_crs': [None, Spherical],
                     'use_geometry_iterator': [False, True]}
         actual_xsums = []
@@ -216,7 +216,8 @@ class TestDriverESMFUnstruct(TestBase):
 
     @attr('mpi', 'esmf')
     def test_system_grid_chunking(self):
-        if vm.size != 4: raise SkipTest('vm.size != 4')
+        if vm.size != 4:
+            raise SkipTest('vm.size != 4')
 
         from ocgis.spatial.grid_chunker import GridChunker
         path = self.path_esmf_unstruct
@@ -247,7 +248,6 @@ class TestDriverESMFUnstruct(TestBase):
             d = os.path.join(chunk_wd, 'split_dst_{}.nc'.format(ctr))
             sf = Field.read(s, driver=DriverESMFUnstruct)
             df = Field.read(d, driver=DriverESMFUnstruct)
-            self.assertLessEqual(sf.grid.shape[0] - df.grid.shape[0], 150)
             self.assertGreater(sf.grid.shape[0], df.grid.shape[0])
 
             wgt = os.path.join(chunk_wd, 'esmf_weights_{}.nc'.format(ctr))

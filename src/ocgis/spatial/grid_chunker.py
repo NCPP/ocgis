@@ -6,7 +6,7 @@ import numpy as np
 from shapely.geometry import box
 
 from ocgis import constants
-from ocgis.base import AbstractOcgisObject, grid_abstraction_scope
+from ocgis.base import AbstractOcgisObject, grid_abstraction_scope, orphaned
 from ocgis.collection.field import Field
 from ocgis.constants import GridChunkerConstants, RegriddingRole, Topology
 from ocgis.driver.request.core import RequestDataset
@@ -22,6 +22,7 @@ from ocgis.vmachine.core import vm
 from ocgis.vmachine.mpi import redistribute_by_src_idx
 
 _LOCAL_LOGGER = "grid_chunker"
+
 
 class GridChunker(AbstractOcgisObject):
     """
@@ -96,13 +97,15 @@ class GridChunker(AbstractOcgisObject):
     :param bool eager: If ``True``, load grid data from disk before chunking. This avoids always loading the data from
      disk for sourced datasets following a subset. There will be an improvement in performance but an increase in the
      memory used.
+    :param str filemode: If ``'BASIC'`` (the default), only write source/destination indices and weight factors to the
+     output weight file. If ``'WITHAUX'`` also write geometry-related auxiliary variables to the output weight file.
     :raises: ValueError
     """
 
     def __init__(self, source, destination, nchunks_dst=None, paths=None, check_contains=False, allow_masked=True,
                  src_grid_resolution=None, dst_grid_resolution=None, optimized_bbox_subset='auto', iter_dst=None,
                  buffer_value=None, redistribute=False, genweights=False, esmf_kwargs=None, use_spatial_decomp='auto',
-                 eager=True, debug=False):
+                 eager=True, filemode="BASIC", debug=False):
         self._src_grid = None
         self._dst_grid = None
         self._buffer_value = None
@@ -114,6 +117,7 @@ class GridChunker(AbstractOcgisObject):
         self.source = source
         self.destination = destination
         self.eager = eager
+        self.filemode = filemode
         self.debug = debug
 
         if esmf_kwargs is None:
@@ -305,7 +309,7 @@ class GridChunker(AbstractOcgisObject):
             raise ValueError("'create_merged_weight_file' does not work in parallel")
 
         index_filename = self.create_full_path_from_template('index_file')
-        ifile = RequestDataset(uri=index_filename).get()
+        ifile = RequestDataset(uri=index_filename, driver='netcdf').get()
         ifile.load()
         ifc = GridChunkerConstants.IndexFile
         gidx = ifile[ifc.NAME_INDEX_VARIABLE].attrs
@@ -313,11 +317,15 @@ class GridChunker(AbstractOcgisObject):
         src_global_shape = gidx[ifc.NAME_SRC_GRID_SHAPE]
         dst_global_shape = gidx[ifc.NAME_DST_GRID_SHAPE]
 
+        vc = VariableCollection()
+        wf_varnames = ['row', 'col', 'S']
+
         # Get the global weight dimension size.
         n_s_size = 0
         weight_filename = ifile[gidx[ifc.NAME_WEIGHTS_VARIABLE]]
         wv = weight_filename.join_string_value()
         split_weight_file_directory = self.paths['wd']
+        ctr = 0
         for wfn in map(lambda x: os.path.join(split_weight_file_directory, os.path.split(x)[1]), wv):
             ocgis_lh(msg="current merge weight file target: {}".format(wfn), level=logging.DEBUG, logger=_LOCAL_LOGGER)
             if not os.path.exists(wfn):
@@ -325,19 +333,30 @@ class GridChunker(AbstractOcgisObject):
                     raise IOError(wfn)
                 else:
                     continue
-            curr_dimsize = RequestDataset(wfn).get().dimensions['n_s'].size
+            vc_target = RequestDataset(wfn, driver='netcdf').get()
+            curr_dimsize = vc_target.dimensions['n_s'].size
             # ESMF writes the weight file, but it may be empty if there are no generated weights.
             if curr_dimsize is not None:
                 n_s_size += curr_dimsize
 
+            # Copy over auxiliary variables if they are required.
+            if self.filemode == 'WITHAUX' and ctr == 0:
+                for var in vc_target.values():
+                    if var.name not in wf_varnames:
+                        var.load()
+                        with orphaned(var, keep_dimensions=True):
+                            vc.add_variable(var)
+                # Also copy over global attributes
+                vc.attrs = vc_target.attrs
+            ctr += 1
+
         # Create output weight file.
-        wf_varnames = ['row', 'col', 'S']
         wf_dtypes = [np.int32, np.int32, np.float64]
-        vc = VariableCollection()
         dim = Dimension('n_s', n_s_size)
         for w, wd in zip(wf_varnames, wf_dtypes):
             var = Variable(name=w, dimensions=dim, dtype=wd)
             vc.add_variable(var)
+
         vc.write(merged_weight_filename)
 
         # Transfer weights to the merged file.
@@ -352,7 +371,7 @@ class GridChunker(AbstractOcgisObject):
                     raise IOError(wfn)
                 else:
                     continue
-            wdata = RequestDataset(wfn).get()
+            wdata = RequestDataset(wfn, driver='netcdf').get()
             for wvn in wf_varnames:
                 odata = wdata[wvn].get_value()
                 try:
@@ -722,16 +741,21 @@ class GridChunker(AbstractOcgisObject):
                                  level=logging.DEBUG)
                 cc += 1
 
-            # Increment the counter outside of the loop to avoid counting empty subsets.
-            ctr += 1
-
             # Generate an ESMF weights file if requested and at least one rank has data on it.
             if self.genweights and len(vm.get_live_ranks_from_object(sub_src)) > 0:
                 vm.barrier()
+                if (ctr == 1) and (self.filemode == 'WITHAUX'):
+                    filemode = 'WITHAUX'
+                else:
+                    filemode = 'BASIC'
                 ocgis_lh(logger=_LOCAL_LOGGER, msg='write_chunks:writing esmf weights: {}'.format(wgt_path),
                          level=logging.DEBUG)
-                self.write_esmf_weights(src_path, dst_path, wgt_path, src_grid=sub_src, dst_grid=sub_dst)
+                self.write_esmf_weights(src_path, dst_path, wgt_path, src_grid=sub_src, dst_grid=sub_dst,
+                                        filemode=filemode)
                 vm.barrier()
+
+            # Increment the counter outside of the loop to avoid counting empty subsets.
+            ctr += 1
 
         # Global shapes require a VM global scope to collect.
         src_global_shape = global_grid_shape(self.src_grid)
@@ -790,7 +814,7 @@ class GridChunker(AbstractOcgisObject):
 
         vm.barrier()
 
-    def write_esmf_weights(self, src_path, dst_path, wgt_path, src_grid=None, dst_grid=None):
+    def write_esmf_weights(self, src_path, dst_path, wgt_path, src_grid=None, dst_grid=None, filemode=None):
         """
         Write ESMF regridding weights for a source and destination filename combination.
 
@@ -801,12 +825,21 @@ class GridChunker(AbstractOcgisObject):
         :type src_grid: :class:`ocgis.spatial.grid.AbstractGrid`
         :param dst_grid: If provided, use this destination grid for identifying ESMF parameters
         :type dst_grid: :class:`ocgis.spatial.grid.AbstractGrid`
+        :param str filemode: If ``'BASIC'`` (default when ``None``), only write source/destination indices and weight
+         factors to the output weight file. If ``'WITHAUX'`` also write geometry-related auxiliary variables to the
+         output weight file.
         """
         assert wgt_path is not None
         assert src_path is not None
         assert dst_path is not None
 
         from ocgis.regrid.base import create_esmf_field, create_esmf_regrid
+        import ESMF
+
+        if filemode is None:
+            filemode = "BASIC"
+        filemode = getattr(ESMF.FileMode, filemode)
+
         if src_grid is None:
             src_grid = self.src_grid
         if dst_grid is None:
@@ -818,9 +851,25 @@ class GridChunker(AbstractOcgisObject):
         dstfield, dstgrid = create_esmf_field(dst_path, dst_grid, self.esmf_kwargs)
         regrid = None
 
+        # If auxiliary weight file variables are being written, update the ESMF arguments with some additional metadata.
+        if filemode == ESMF.FileMode.WITHAUX:
+            try:
+                self.esmf_kwargs['src_file'] = get_file_path(self.source)
+                self.esmf_kwargs['dst_file'] = get_file_path(self.destination)
+            except Exception as e:
+                vm.abort(exc=e)
+            self.esmf_kwargs['src_file_type'] = self.src_grid.driver.get_esmf_fileformat()
+            self.esmf_kwargs['dst_file_type'] = self.dst_grid.driver.get_esmf_fileformat()
         try:
             ocgis_lh(msg="creating esmf regrid...", logger=_LOCAL_LOGGER, level=logging.DEBUG)
-            regrid = create_esmf_regrid(srcfield=srcfield, dstfield=dstfield, filename=wgt_path, **self.esmf_kwargs)
+
+            # Older versions of ESMPy do not support 'filemode'. If it is set to BASIC (the legacy default) then remove
+            # the filemode argument.
+            if filemode == ESMF.FileMode.BASIC:
+                regrid = create_esmf_regrid(srcfield=srcfield, dstfield=dstfield, filename=wgt_path, **self.esmf_kwargs)
+            else:
+                regrid = create_esmf_regrid(srcfield=srcfield, dstfield=dstfield, filename=wgt_path, filemode=filemode,
+                                            **self.esmf_kwargs)
         finally:
             to_destroy = [regrid, srcgrid, srcfield, dstgrid, dstfield]
             for t in to_destroy:
@@ -893,6 +942,12 @@ def get_grid_object(obj, load=True):
         res.parent.load()
 
     return res
+
+
+def get_file_path(rd):
+    if not isinstance(rd, RequestDataset):
+        raise ValueError('must be a RequestDataset')
+    return rd.uri
 
 
 def global_grid_shape(grid):

@@ -1,11 +1,12 @@
 #!/usr/bin/env python
-
+import datetime
 import logging
 import os
 import shutil
 import tempfile
 
 import click
+import netCDF4 as nc
 from shapely.geometry import box
 
 import ocgis
@@ -13,6 +14,7 @@ from ocgis import RequestDataset, GeometryVariable, constants
 from ocgis.base import grid_abstraction_scope, raise_if_empty
 from ocgis.constants import DriverKey, Topology, GridChunkerConstants, DecompositionType
 from ocgis.driver.nc_ugrid import DriverNetcdfUGRID
+from ocgis.messages import M5
 from ocgis.spatial.grid_chunker import GridChunker
 from ocgis.spatial.spatial_subset import SpatialSubsetOperation
 from ocgis.util.logging_ocgis import ocgis_lh
@@ -91,9 +93,14 @@ def ocli():
 @click.option('--verbose/--not_verbose', default=False, help='If True, log to standard out using verbosity level.')
 @click.option('--loglvl', default="INFO", help='Verbosity level for standard out logging. Default is '
               '"INFO". See Python logging level docs for additional values: https://docs.python.org/3/howto/logging.html')
+@click.option('--weightfilemode', default="BASIC", help=M5)
 def chunked_rwg(source, destination, weight, nchunks_dst, merge, esmf_src_type, esmf_dst_type, genweights,
                 esmf_regrid_method, spatial_subset, src_resolution, dst_resolution, buffer_distance, wd, persist,
-                eager, ignore_degenerate, data_variables, spatial_subset_path, verbose, loglvl):
+                eager, ignore_degenerate, data_variables, spatial_subset_path, verbose, loglvl, weightfilemode):
+
+    # Used for creating the history string.
+    the_locals = locals()
+
     if verbose:
         ocgis_lh.configure(to_stream=True, level=getattr(logging, loglvl))
     ocgis_lh(msg="Starting Chunked Regrid Weight Generation", level=logging.INFO, logger=CRWG_LOG)
@@ -185,7 +192,7 @@ def chunked_rwg(source, destination, weight, nchunks_dst, merge, esmf_src_type, 
             msg = "Writing ESMF weights..."
             ocgis_lh(msg=msg, level=logging.INFO, logger=CRWG_LOG)
             handle_weight_file_check(weight)
-            gs.write_esmf_weights(source, destination, weight)
+            gs.write_esmf_weights(source, destination, weight, filemode=weightfilemode)
 
     # Create the global weight file. This does not apply to spatial subsets because there will always be one weight
     # file.
@@ -206,6 +213,20 @@ def chunked_rwg(source, destination, weight, nchunks_dst, merge, esmf_src_type, 
 
         ocgis.vm.barrier()
 
+    # Append the history string if there is an output weight file.
+    if weight and ocgis.vm.rank == 0:
+        if os.path.exists(weight):
+            # Add some additional stuff for record keeping
+            import getpass
+            import socket
+            import datetime
+
+            with nc.Dataset(weight, 'a') as ds:
+                ds.setncattr('created_by_user', getpass.getuser())
+                ds.setncattr('created_on_hostname', socket.getfqdn())
+                ds.setncattr('history', create_history_string(the_locals))
+    ocgis.vm.barrier()
+
     # Remove the working directory unless the persist flag is provided.
     if not persist:
         if ocgis.vm.rank == 0:
@@ -216,6 +237,27 @@ def chunked_rwg(source, destination, weight, nchunks_dst, merge, esmf_src_type, 
 
     ocgis_lh(msg="Success!", level=logging.INFO, logger=CRWG_LOG)
     return 0
+
+
+def create_history_string(the_locals):
+    history_parms = {}
+    for k, v in the_locals.items():
+        if v is not None and k != 'history_parms':
+            if type(v) == bool:
+                if not v:
+                    history_parms['--no_' + k] = v
+            else:
+                history_parms['--' + k] = v
+    try:
+        import ESMF
+        ever = ESMF.__version__
+    except ImportError:
+        ever = None
+    history = "{}: Created by ocgis (v{}) and ESMF (v{}) with CLI command: ocli chunked-rwg".format(
+        datetime.datetime.now(), ocgis.__version__, ever)
+    for k, v in history_parms.items():
+        history += " {} {}".format(k, v)
+    return history
 
 
 @ocli.command(help='Apply weights in chunked files with an option to insert the global data.', name='chunked-smm')

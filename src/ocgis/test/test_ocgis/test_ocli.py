@@ -45,6 +45,7 @@ class TestChunkedRWG(TestBase):
         poss.spatial_subset = ['__exclude__', '__include__']
         poss.not_eager = ['__exclude__', '__include__']
         poss.ignore_degenerate = ['__exclude__', '__include__']
+        poss.weightfilemode = ['__exclude__', 'basic', 'withaux']
 
         return poss
 
@@ -300,10 +301,13 @@ class TestChunkedRWG(TestBase):
         result = runner.invoke(ocli, args=cli_args, catch_exceptions=False)
         self.assertEqual(result.exit_code, 0)
 
-        self.assertTrue(os.path.exists(weight))
         actual = RequestDataset(uri=spatial_subset).create_field()
         actual_ymean = actual.grid.get_value_stacked()[0].mean()
         actual_xmean = actual.grid.get_value_stacked()[1].mean()
         self.assertEqual(actual_ymean, 45.)
         self.assertEqual(actual_xmean, -85.)
         self.assertEqual(actual.grid.shape, (14, 14))
+
+        self.assertTrue(os.path.exists(weight))
+        actual = RequestDataset(weight, driver='netcdf').create_field()
+        self.assertIn('history', actual.attrs)

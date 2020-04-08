@@ -423,11 +423,14 @@ class TestBase(unittest.TestCase):
             meth()
             self.assertTrue(any(item.category == warning for item in warning_list))
 
-    def assertWeightFilesEquivalent(self, src_filename, dst_filename):
+    def assertWeightFilesEquivalent(self, src_filename, dst_filename, special_history=True):
         """Assert weight files are equivalent."""
 
-        nwf = RequestDataset(dst_filename).get()
-        gwf = RequestDataset(src_filename).get()
+        nwf = RequestDataset(dst_filename, driver="netcdf").get()
+        gwf = RequestDataset(src_filename, driver="netcdf").get()
+
+        self.assertEqual(nwf.keys(), gwf.keys())
+
         nwf_row = nwf['row'].get_value()
         gwf_row = gwf['row'].get_value()
         self.assertAsSetEqual(nwf_row, gwf_row)
@@ -454,6 +457,19 @@ class TestBase(unittest.TestCase):
             diffs.append(nwf_S_sub - gwf_S_sub)
         diffs = np.abs(diffs)
         self.assertLess(diffs.max(), 1e-14)
+
+        if special_history:
+            actual = nwf.attrs.copy()
+            desired = gwf.attrs.copy()
+            removes = ['history', 'created_by_user', 'created_on_hostname']
+            for r in removes:
+                actual.pop(r, None)
+                desired.pop(r, None)
+            self.assertEqual(actual, desired)
+        else:
+            actual = nwf.attrs
+            desired = gwf.attrs
+        self.assertEqual(actual, desired)
 
     @staticmethod
     def barrier_print(*args, **kwargs):

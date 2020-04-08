@@ -8,6 +8,7 @@ import netCDF4 as nc
 import numpy as np
 import six
 from netCDF4._netCDF4 import VLType, MFDataset, MFTime
+
 from ocgis import constants, vm
 from ocgis import env
 from ocgis.base import orphaned, raise_if_empty
@@ -262,7 +263,7 @@ class DriverNetcdf(AbstractDriver):
                     if kwargs.get('parallel') and kwargs.get('comm') is None:
                         kwargs['comm'] = lvm.comm
             ret = nc.Dataset(uri, mode=mode, **kwargs)
-            # tdk:FIX: this should be enabled for MFDataset as well. see https://github.com/Unidata/netcdf4-python/issues/809#issuecomment-435144221
+            # tdk:RELEASE:FIX: this should be enabled for MFDataset as well. see https://github.com/Unidata/netcdf4-python/issues/809#issuecomment-435144221
             # netcdf4 >= 1.4.0 always returns masked arrays. This is inefficient and is turned off by default by ocgis.
             if hasattr(ret, 'set_always_mask'):
                 ret.set_always_mask(False)

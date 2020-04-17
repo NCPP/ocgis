@@ -4,8 +4,9 @@ import os
 import sys
 from warnings import warn
 
-import ocgis
 import six
+
+import ocgis
 from ocgis import env, vm
 from ocgis.exc import OcgWarning
 
@@ -101,7 +102,7 @@ class OcgisLogging(object):
             else:
                 if level == logging.WARN:
                     wmsg = '{0}: {1}'.format(exc.__class__.__name__, str(exc))
-                    dest_logger.warn(wmsg)
+                    dest_logger.warning(wmsg)
                 else:
                     dest_logger.exception(msg)
                     raise exc

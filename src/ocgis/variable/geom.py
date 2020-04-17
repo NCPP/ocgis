@@ -362,6 +362,7 @@ class GeometryVariable(AbstractSpatialVariable):
          errors are encountered during splitting operations. These exceptions may occur when holes/interiors are
          encountered or a node threshold is exceeded.
         """
+        #tdk:doc: remove_self_intersects
 
         # TODO: IMPLEMENT: Line conversion.
         # TODO: IMPLEMENT: Storage method for holes/interiors. Interiors are currently only split not stored.
@@ -394,6 +395,7 @@ class GeometryVariable(AbstractSpatialVariable):
         to_crs = kwargs.pop('to_crs', None)
         start_index = kwargs.pop('start_index', 0)
         allow_splitting_excs = kwargs.pop('allow_splitting_excs', False)
+        remove_self_intersects = kwargs.pop('remove_self_intersects', False)
         assert len(kwargs) == 0
         if to_crs is not None and not use_geometry_iterator:
             raise ValueError("'to_crs' only applies when using a geometry iterator")
@@ -409,6 +411,7 @@ class GeometryVariable(AbstractSpatialVariable):
 
         # Problematic indices in the conversion. These may be removed if allow_splitting_excs is true.
         removed_indices = []
+        has_z = False
         if target == ConversionTarget.GEOMETRY_COORDS:
             if use_geometry_iterator:
                 has_z_itr = self._request_dataset.driver.get_variable_value(self, as_geometry_iterator=True)
@@ -464,6 +467,11 @@ class GeometryVariable(AbstractSpatialVariable):
                         geom = to_transform.get_value()[0]
 
                     if geom.geom_type in polygon_types:
+                        # Identify and remove self-intersections if requested. These can create virtual holes/interiors
+                        # in polygon objects leading to issues with splitting for node reduction and hole removal.
+                        if remove_self_intersects:
+                            geom = do_remove_self_intersects(geom)
+
                         try:
                             gsplitter = GeometrySplitter(geom)
                         except NoInteriorsError:
@@ -1414,3 +1422,32 @@ def geometryvariable_get_mask_from_intersects(gvar, geometry, use_spatial_index=
             ref_fill_mask[global_index[idx]] = bool_value
 
     return fill
+
+
+def do_remove_self_intersects(poly):
+    #tdk:doc
+    if not isinstance(poly, Polygon):
+        exc = ValueError("only Polygons supported")
+        try:
+            raise exc
+        finally:
+            vm.abort(exc=exc)
+
+    coords = np.array(poly.exterior.coords)
+    if np.all(coords[0, :] == coords[-1, :]):
+        coords = coords[0:-1]
+    _, idx, counts = np.unique(coords, return_index=True, return_counts=True, axis=0)
+    self_intersects_index = idx[counts > 1]
+    should_keep = np.ones(coords.shape[0], dtype=bool)
+    should_keep[self_intersects_index] = False
+    new_coords = coords[should_keep]
+    new_coords = np.vstack((new_coords, coords[0, :]))
+    new_poly = Polygon(new_coords)
+
+    if not new_poly.is_valid:
+        exc = ValueError("new polygon is not valid")
+        try:
+            raise exc
+        finally:
+            vm.abort(exc=exc)
+    return new_poly

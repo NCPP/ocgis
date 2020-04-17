@@ -25,8 +25,30 @@ from ocgis.variable.base import Variable, VariableCollection
 from ocgis.variable.crs import WGS84, Spherical, Cartesian
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable, GeometryProcessor, get_split_polygon_by_node_threshold, \
-    GeometrySplitter
+    GeometrySplitter, do_remove_self_intersects
 from ocgis.vmachine.mpi import OcgDist, MPI_RANK, variable_scatter, MPI_SIZE, variable_gather, MPI_COMM
+
+
+class FixtureSelfIntersectingPolygon(object):
+
+    @property
+    def fixture_self_intersecting_polygon_coords(self):
+        coords = [(0, 0), (0, 3), (2, 3), (2, 2), (1, 2), (1, 1), (2, 1), (2, 2), (3, 2), (3, 0), (0, 0)]
+        return coords
+
+
+class TestGeom(TestBase, FixtureSelfIntersectingPolygon):
+
+    def test_do_remove_self_intersects(self):
+
+        poly = Polygon(self.fixture_self_intersecting_polygon_coords)
+        # gvar = GeometryVariable.from_shapely(poly)
+        # gvar.write_vector('/tmp/vector.shp')
+
+        new_poly = do_remove_self_intersects(poly)
+        self.assertEqual(np.array(poly.exterior.coords).shape[0] - 1, np.array(new_poly.exterior.coords).shape[0])
+        self.assertTrue(new_poly.is_valid)
+        # GeometryVariable.from_shapely(new_poly).write_vector('/tmp/new_vector.shp')
 
 
 class TestGeometryProcessor(AbstractTestInterface):
@@ -159,7 +181,7 @@ class TestGeometrySplitter(TestBase, FixturePolygonWithHole):
         self.assertEqual(actual, [(2.5, 10.5, 3.5, 15.5)])
 
 
-class TestGeometryVariable(AbstractTestInterface, FixturePolygonWithHole):
+class TestGeometryVariable(AbstractTestInterface, FixturePolygonWithHole, FixtureSelfIntersectingPolygon):
 
     @staticmethod
     def get_geometryvariable_with_parent():
@@ -404,6 +426,15 @@ class TestGeometryVariable(AbstractTestInterface, FixturePolygonWithHole):
 
             for actual_geom, desired_geom in zip(actual.get_geometry_iterable(), geom.get_value().flat):
                 self.assertEqual(actual_geom[1], desired_geom)
+
+    def test_convert_to_self_intersecting(self):
+        poly = Polygon(self.fixture_self_intersecting_polygon_coords)
+        gvar = GeometryVariable.from_shapely(poly)
+        without_si = gvar.convert_to(remove_self_intersects=True)
+        gvar2 = without_si.convert_to()
+        desired = do_remove_self_intersects(poly)
+        self.assertPolygonSimilar(gvar2.v()[0], desired)
+        # gvar2.write_vector('/tmp/without_si.shp')
 
     @attr('mpi')
     def test_create_ugid_global(self):

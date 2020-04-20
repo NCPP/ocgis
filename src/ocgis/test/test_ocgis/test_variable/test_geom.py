@@ -25,7 +25,7 @@ from ocgis.variable.base import Variable, VariableCollection
 from ocgis.variable.crs import WGS84, Spherical, Cartesian
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable, GeometryProcessor, get_split_polygon_by_node_threshold, \
-    GeometrySplitter, do_remove_self_intersects
+    GeometrySplitter, do_remove_self_intersects, do_remove_self_intersects_multi
 from ocgis.vmachine.mpi import OcgDist, MPI_RANK, variable_scatter, MPI_SIZE, variable_gather, MPI_COMM
 
 
@@ -432,9 +432,34 @@ class TestGeometryVariable(AbstractTestInterface, FixturePolygonWithHole, Fixtur
         gvar = GeometryVariable.from_shapely(poly)
         without_si = gvar.convert_to(remove_self_intersects=True)
         gvar2 = without_si.convert_to()
-        desired = do_remove_self_intersects(poly)
+        desired = do_remove_self_intersects_multi(poly)
         self.assertPolygonSimilar(gvar2.v()[0], desired)
         # gvar2.write_vector('/tmp/without_si.shp')
+
+    def test_convert_to_au_catch(self):
+        #tdk:rm
+        # self.skipTest("development test")
+        bad = [320, 991, 1934, 1984, 2185, 4069, 6477, 7625, 7639, 9134, 10507, 10825, 10831, 15537, 15578, 15840, 16022, 18831, 20315, 21437, 23408, 23703]
+        path = '/home/benkoziol/Downloads/au_catch/au_catch.gpkg'
+        # gci = GeomCabinetIterator(path=path)
+        # fixed = []
+        # for idx, row in enumerate(gci):
+        #     if idx == bad[20]:
+        #         print(idx, row)
+        #         gvar = GeometryVariable.from_shapely(row['geom'])
+        #         gvar.write_vector('/tmp/au_bad.shp')
+                # mpfixed = do_remove_self_intersects_multi(row['geom'])
+                # fixed.append(mpfixed)
+                # gvarfixed = GeometryVariable.from_shapely(mpfixed)
+                # gvarfixed.write_vector('/tmp/au_bad_fixed.shp')
+        # gvar = GeometryVariable(value=fixed, dimensions='geom')
+        # gvar.write_vector('/tmp/fixed.shp')
+
+        rd = RequestDataset(uri='/tmp/fixed.shp', driver='vector')
+        field = rd.create_field()
+        # Convert the field geometry to an unstructured grid format based on the UGRID spec.
+        gc = field.geom.convert_to(use_geometry_iterator=True, pack=False, node_threshold=None, split_interiors=False,
+                                   remove_self_intersects=True, allow_splitting_excs=True)
 
     @attr('mpi')
     def test_create_ugid_global(self):

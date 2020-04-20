@@ -469,8 +469,8 @@ class GeometryVariable(AbstractSpatialVariable):
                     if geom.geom_type in polygon_types:
                         # Identify and remove self-intersections if requested. These can create virtual holes/interiors
                         # in polygon objects leading to issues with splitting for node reduction and hole removal.
-                        if remove_self_intersects and isinstance(geom, Polygon):
-                            geom = do_remove_self_intersects(geom)
+                        if remove_self_intersects:
+                            geom = do_remove_self_intersects_multi(geom)
 
                         try:
                             gsplitter = GeometrySplitter(geom)
@@ -1451,3 +1451,13 @@ def do_remove_self_intersects(poly):
         finally:
             vm.abort(exc=exc)
     return new_poly
+
+
+def do_remove_self_intersects_multi(poly):
+    #tdk:doc
+    if isinstance(poly, MultiPolygon):
+        newpoly = [do_remove_self_intersects(p) for p in poly]
+        newpoly = MultiPolygon(newpoly)
+    else:
+        newpoly = do_remove_self_intersects(poly)
+    return newpoly

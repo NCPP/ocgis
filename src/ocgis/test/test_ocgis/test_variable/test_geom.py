@@ -438,7 +438,7 @@ class TestGeometryVariable(AbstractTestInterface, FixturePolygonWithHole, Fixtur
 
     def test_convert_to_au_catch(self):
         #tdk:rm
-        # self.skipTest("development test")
+        self.skipTest("development test")
         bad = [320, 991, 1934, 1984, 2185, 4069, 6477, 7625, 7639, 9134, 10507, 10825, 10831, 15537, 15578, 15840, 16022, 18831, 20315, 21437, 23408, 23703]
         path = '/home/benkoziol/Downloads/au_catch/au_catch.gpkg'
         # gci = GeomCabinetIterator(path=path)

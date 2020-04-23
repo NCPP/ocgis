@@ -36,19 +36,32 @@ class FixtureSelfIntersectingPolygon(object):
         coords = [(0, 0), (0, 3), (2, 3), (2, 2), (1, 2), (1, 1), (2, 1), (2, 2), (3, 2), (3, 0), (0, 0)]
         return coords
 
+    @property
+    def fixture_self_intersecting_polygon_coords_first(self):
+        # Fixture has the first coordinate as the repeating one.
+        coords = [(2, 2), (3, 2), (3, 0), (0, 0), (0, 3), (2, 3), (2, 2), (1, 2), (1, 1), (2, 1), (2, 2)]
+        return coords
+
 
 class TestGeom(TestBase, FixtureSelfIntersectingPolygon):
 
-    def test_do_remove_self_intersects(self):
-
-        poly = Polygon(self.fixture_self_intersecting_polygon_coords)
-        # gvar = GeometryVariable.from_shapely(poly)
-        # gvar.write_vector('/tmp/vector.shp')
+    def run_do_remove_self_intersects(self, fixture, debug=False):
+        poly = Polygon(fixture)
+        if debug:
+            gvar = GeometryVariable.from_shapely(poly)
+            gvar.write_vector('/tmp/vector.shp')
 
         new_poly = do_remove_self_intersects(poly)
         self.assertEqual(np.array(poly.exterior.coords).shape[0] - 1, np.array(new_poly.exterior.coords).shape[0])
         self.assertTrue(new_poly.is_valid)
-        # GeometryVariable.from_shapely(new_poly).write_vector('/tmp/new_vector.shp')
+        if debug:
+            GeometryVariable.from_shapely(new_poly).write_vector('/tmp/new_vector.shp')
+
+    def test_do_remove_self_intersects(self):
+        self.run_do_remove_self_intersects(self.fixture_self_intersecting_polygon_coords)
+
+    def test_do_remove_self_intersects_first(self):
+        self.run_do_remove_self_intersects(self.fixture_self_intersecting_polygon_coords_first, debug=False)
 
 
 class TestGeometryProcessor(AbstractTestInterface):
@@ -435,31 +448,6 @@ class TestGeometryVariable(AbstractTestInterface, FixturePolygonWithHole, Fixtur
         desired = do_remove_self_intersects_multi(poly)
         self.assertPolygonSimilar(gvar2.v()[0], desired)
         # gvar2.write_vector('/tmp/without_si.shp')
-
-    def test_convert_to_au_catch(self):
-        #tdk:rm
-        self.skipTest("development test")
-        bad = [320, 991, 1934, 1984, 2185, 4069, 6477, 7625, 7639, 9134, 10507, 10825, 10831, 15537, 15578, 15840, 16022, 18831, 20315, 21437, 23408, 23703]
-        path = '/home/benkoziol/Downloads/au_catch/au_catch.gpkg'
-        # gci = GeomCabinetIterator(path=path)
-        # fixed = []
-        # for idx, row in enumerate(gci):
-        #     if idx == bad[20]:
-        #         print(idx, row)
-        #         gvar = GeometryVariable.from_shapely(row['geom'])
-        #         gvar.write_vector('/tmp/au_bad.shp')
-                # mpfixed = do_remove_self_intersects_multi(row['geom'])
-                # fixed.append(mpfixed)
-                # gvarfixed = GeometryVariable.from_shapely(mpfixed)
-                # gvarfixed.write_vector('/tmp/au_bad_fixed.shp')
-        # gvar = GeometryVariable(value=fixed, dimensions='geom')
-        # gvar.write_vector('/tmp/fixed.shp')
-
-        rd = RequestDataset(uri='/tmp/fixed.shp', driver='vector')
-        field = rd.create_field()
-        # Convert the field geometry to an unstructured grid format based on the UGRID spec.
-        gc = field.geom.convert_to(use_geometry_iterator=True, pack=False, node_threshold=None, split_interiors=False,
-                                   remove_self_intersects=True, allow_splitting_excs=True)
 
     @attr('mpi')
     def test_create_ugid_global(self):

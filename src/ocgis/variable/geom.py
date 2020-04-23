@@ -1435,13 +1435,13 @@ def do_remove_self_intersects(poly):
 
     coords = np.array(poly.exterior.coords)
     if np.all(coords[0, :] == coords[-1, :]):
-        coords = coords[0:-1]
+        coords = coords[0:-1, :]
     _, idx, counts = np.unique(coords, return_index=True, return_counts=True, axis=0)
     self_intersects_index = idx[counts > 1]
     should_keep = np.ones(coords.shape[0], dtype=bool)
     should_keep[self_intersects_index] = False
-    new_coords = coords[should_keep]
-    new_coords = np.vstack((new_coords, coords[0, :]))
+    new_coords = coords[should_keep, :]
+    new_coords = np.vstack((new_coords, new_coords[0, :]))
     new_poly = Polygon(new_coords)
 
     if not new_poly.is_valid:

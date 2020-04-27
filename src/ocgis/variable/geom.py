@@ -482,7 +482,7 @@ class GeometryVariable(AbstractSpatialVariable):
                             except SelfIntersectsRemovalError as e:
                                 if allow_splitting_excs:
                                     removed_indices.append(idx)
-                                    print(removed_indices) #tdk:p
+                                    ocgis_lh(msg='current removed indices: {}'.format(removed_indices), logger=_LOCAL_LOG)  # tdk:p
                                     continue
                                 else:
                                     try:

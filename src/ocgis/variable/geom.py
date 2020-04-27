@@ -1485,8 +1485,8 @@ def do_remove_self_intersects(poly, try_again=True):
             if try_again:
                 new_poly = do_remove_self_intersects(new_poly, try_again=False)
             else:
-                GeometryVariable.from_shapely(poly).write_vector('/tmp/poly.shp') #tdk:p
-                GeometryVariable.from_shapely(new_poly).write_vector('/tmp/new_poly.shp') #tdk:p
+                # GeometryVariable.from_shapely(poly).write_vector('/tmp/poly.shp') #tdk:p
+                # GeometryVariable.from_shapely(new_poly).write_vector('/tmp/new_poly.shp') #tdk:p
                 raise SelfIntersectsRemovalError()
     return new_poly
 

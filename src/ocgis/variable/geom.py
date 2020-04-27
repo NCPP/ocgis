@@ -20,7 +20,7 @@ from ocgis.base import get_dimension_names, get_variable_names, raise_if_empty
 from ocgis.constants import KeywordArgument, HeaderName, VariableName, DimensionName, ConversionTarget, DriverKey, \
     WrappedState, AttributeName, WrapAction
 from ocgis.environment import ogr
-from ocgis.exc import EmptySubsetError, RequestableFeature, NoInteriorsError
+from ocgis.exc import EmptySubsetError, RequestableFeature, NoInteriorsError, SelfIntersectsRemovalError
 from ocgis.spatial.base import AbstractSpatialVariable, create_split_polygons
 from ocgis.util.addict import Dict
 from ocgis.util.helpers import iter_array, get_trimmed_array_by_mask, get_swap_chain, find_index, \
@@ -34,7 +34,19 @@ from ocgis.variable.iterator import Iterator
 CreateGeometryFromWkb, Geometry, wkbGeometryCollection, wkbPoint = ogr.CreateGeometryFromWkb, ogr.Geometry, \
                                                                    ogr.wkbGeometryCollection, ogr.wkbPoint
 GEOM_TYPE_MAPPING = {'Polygon': Polygon, 'Point': Point, 'MultiPoint': MultiPoint, 'MultiPolygon': MultiPolygon}
-_LOCAL_LOG = "spatial.base"
+_LOCAL_LOG = "geom"
+
+
+def count_interiors(geometry):
+    if not isinstance(geometry, Polygon) or not isinstance(geometry, MultiPolygon):
+        return 0
+    try:
+        ret = len(geometry.interiors)
+    except AttributeError:
+        ret = 0
+        for g in geometry:
+            ret += len(g.interiors)
+    return ret
 
 
 class GeometrySplitter(AbstractOcgisObject):
@@ -48,13 +60,7 @@ class GeometrySplitter(AbstractOcgisObject):
 
     @property
     def interior_count(self):
-        try:
-            ret = len(self.geometry.interiors)
-        except AttributeError:
-            ret = 0
-            for g in self.geometry:
-                ret += len(g.interiors)
-        return ret
+        return count_interiors(self.geometry)
 
     def create_split_vector_dict(self, interior):
         minx, miny, maxx, maxy = self.geometry.buffer(self._buffer_split).bounds
@@ -461,6 +467,7 @@ class GeometryVariable(AbstractSpatialVariable):
                     from_crs = self._request_dataset.crs
 
                 for idx, geom in enumerate(geom_itr):
+                    ocgis_lh(msg='processing index: {}'.format(idx), logger=_LOCAL_LOG) #tdk:p
                     if to_crs is not None:
                         to_transform = GeometryVariable.from_shapely(geom, crs=from_crs)
                         to_transform.update_crs(to_crs)
@@ -470,8 +477,19 @@ class GeometryVariable(AbstractSpatialVariable):
                         # Identify and remove self-intersections if requested. These can create virtual holes/interiors
                         # in polygon objects leading to issues with splitting for node reduction and hole removal.
                         if remove_self_intersects:
-                            geom = do_remove_self_intersects_multi(geom)
-
+                            try:
+                                geom = do_remove_self_intersects_multi(geom)
+                            except SelfIntersectsRemovalError as e:
+                                if allow_splitting_excs:
+                                    removed_indices.append(idx)
+                                    print(removed_indices) #tdk:p
+                                    continue
+                                else:
+                                    try:
+                                        ocgis_lh(level=logging.ERROR, msg="processing index: {}".format(idx),
+                                                 logger=_LOCAL_LOG, exc=e)  # tdk:p
+                                    finally:
+                                        vm.abort()
                         try:
                             gsplitter = GeometrySplitter(geom)
                         except NoInteriorsError:
@@ -1424,7 +1442,7 @@ def geometryvariable_get_mask_from_intersects(gvar, geometry, use_spatial_index=
     return fill
 
 
-def do_remove_self_intersects(poly):
+def do_remove_self_intersects(poly, try_again=True):
     #tdk:doc
     if not isinstance(poly, Polygon):
         exc = ValueError("only Polygons supported")
@@ -1432,24 +1450,44 @@ def do_remove_self_intersects(poly):
             raise exc
         finally:
             vm.abort(exc=exc)
+    if count_interiors(poly) > 0:
+        raise SelfIntersectsRemovalError('not supported when polygon has interiors')
 
-    coords = np.array(poly.exterior.coords)
-    if np.all(coords[0, :] == coords[-1, :]):
-        coords = coords[0:-1, :]
-    _, idx, counts = np.unique(coords, return_index=True, return_counts=True, axis=0)
-    self_intersects_index = idx[counts > 1]
-    should_keep = np.ones(coords.shape[0], dtype=bool)
-    should_keep[self_intersects_index] = False
-    new_coords = coords[should_keep, :]
-    new_coords = np.vstack((new_coords, new_coords[0, :]))
-    new_poly = Polygon(new_coords)
+    coords = np.array(poly.exterior.coords[0:-1])
+    coords_to_remove = deque()
+    indices_to_remove = deque()
+    for idx in range(coords.shape[0]):
+        ctr = 0
+        for idx2 in range(coords.shape[0]):
+            if np.all(coords[idx, :] == coords[idx2, :]):
+                ctr += 1
+            if ctr > 1 and not any([np.all(c == coords[idx, :]) for c in coords_to_remove]):
+                coords_to_remove.append(coords[idx, :])
+                indices_to_remove.append(idx)
+
+    if len(coords_to_remove) == 0:
+        new_poly = poly
+    else:
+        new_poly_points = np.zeros((coords.shape[0]-len(coords_to_remove)+1, 2), dtype=float)
+        offset = 0
+        for idx in range(coords.shape[0]):
+            if idx not in indices_to_remove:
+                new_poly_points[offset] = coords[idx, :]
+                offset += 1
+            else:
+                indices_to_remove.remove(idx)
+        new_poly_points[-1, :] = new_poly_points[0, :]
+        new_poly = Polygon(new_poly_points)
 
     if not new_poly.is_valid:
-        exc = ValueError("new polygon is not valid")
-        try:
-            raise exc
-        finally:
-            vm.abort(exc=exc)
+        new_poly = new_poly.buffer(0)
+        if not new_poly.is_valid:
+            if try_again:
+                new_poly = do_remove_self_intersects(new_poly, try_again=False)
+            else:
+                GeometryVariable.from_shapely(poly).write_vector('/tmp/poly.shp') #tdk:p
+                GeometryVariable.from_shapely(new_poly).write_vector('/tmp/new_poly.shp') #tdk:p
+                raise SelfIntersectsRemovalError()
     return new_poly
 
 

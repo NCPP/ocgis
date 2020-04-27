@@ -1,4 +1,5 @@
 import itertools
+import os
 from collections import OrderedDict
 from copy import deepcopy
 
@@ -14,7 +15,7 @@ from shapely.geometry.multilinestring import MultiLineString
 from shapely.geometry.multipolygon import MultiPolygon
 
 import ocgis
-from ocgis import RequestDataset, vm, Field
+from ocgis import RequestDataset, vm, Field, GeomCabinetIterator
 from ocgis import env, CoordinateReferenceSystem
 from ocgis.constants import DMK, WrappedState, OcgisConvention, DriverKey
 from ocgis.exc import EmptySubsetError, NoInteriorsError, RequestableFeature
@@ -25,7 +26,7 @@ from ocgis.variable.base import Variable, VariableCollection
 from ocgis.variable.crs import WGS84, Spherical, Cartesian
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable, GeometryProcessor, get_split_polygon_by_node_threshold, \
-    GeometrySplitter, do_remove_self_intersects, do_remove_self_intersects_multi
+    GeometrySplitter, do_remove_self_intersects_multi
 from ocgis.vmachine.mpi import OcgDist, MPI_RANK, variable_scatter, MPI_SIZE, variable_gather, MPI_COMM
 
 
@@ -51,17 +52,35 @@ class TestGeom(TestBase, FixtureSelfIntersectingPolygon):
             gvar = GeometryVariable.from_shapely(poly)
             gvar.write_vector('/tmp/vector.shp')
 
-        new_poly = do_remove_self_intersects(poly)
+        new_poly = do_remove_self_intersects_multi(poly)
         self.assertEqual(np.array(poly.exterior.coords).shape[0] - 1, np.array(new_poly.exterior.coords).shape[0])
         self.assertTrue(new_poly.is_valid)
         if debug:
             GeometryVariable.from_shapely(new_poly).write_vector('/tmp/new_vector.shp')
 
     def test_do_remove_self_intersects(self):
-        self.run_do_remove_self_intersects(self.fixture_self_intersecting_polygon_coords)
+        self.run_do_remove_self_intersects(self.fixture_self_intersecting_polygon_coords, debug=False)
 
     def test_do_remove_self_intersects_first(self):
         self.run_do_remove_self_intersects(self.fixture_self_intersecting_polygon_coords_first, debug=False)
+
+    def test_dev(self):
+        #tdk:rm
+        self.skipTest("dev test")
+        path = '/home/benkoziol/htmp/bad_geoms/bad_geom.shp'
+        new_records = []
+        gci = GeomCabinetIterator(path=path)
+        n = len(gci)
+        for ctr, row in enumerate(gci):
+            print('{} of {}'.format(ctr, n))
+            print(row)
+            poly = row['geom']
+            new_poly = do_remove_self_intersects_multi(poly)
+            self.assertTrue(new_poly.is_valid)
+            row['geom'] = new_poly
+            new_records.append(row)
+        field = Field.from_records(new_records)
+        field.write(os.path.expanduser('~/htmp/clean_geoms.shp'), driver='vector')
 
 
 class TestGeometryProcessor(AbstractTestInterface):

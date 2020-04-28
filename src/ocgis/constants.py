@@ -1,6 +1,7 @@
 from collections import OrderedDict
 
 import numpy as np
+
 from ocgis.util.enum import Enum, IntEnum
 
 UNINITIALIZED = -999
@@ -173,6 +174,7 @@ class AttributeName(object):
     UNIQUE_GEOMETRY_IDENTIFIER = 'ocgis_geom_uid'
     ORIGINAL_SPATIAL_BOUNDS = '_ocgis_original_bounds_name'
     START_INDEX = 'start_index'
+    ESMF_GLOBAL_INDICES = 'ocgis_esmf_global_indices'  # Values are 1/0 True/False
 
 
 class DimensionName(object):

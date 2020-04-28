@@ -1,9 +1,9 @@
 from copy import deepcopy, copy
 
-from ocgis import env, vm
+from ocgis import env, vm, Variable
 from ocgis.base import raise_if_empty, AbstractOcgisObject
 from ocgis.collection.field import Field
-from ocgis.constants import WrappedState
+from ocgis.constants import WrappedState, AttributeName
 from ocgis.variable.crs import CFRotatedPole, CFSpherical, Spherical
 from ocgis.variable.geom import GeometryVariable
 
@@ -26,7 +26,7 @@ class SpatialSubsetOperation(AbstractOcgisObject):
 
     _rotated_pole_destination_crs = env.DEFAULT_COORDSYS
 
-    def __init__(self, field, output_crs='input', wrap=None):
+    def __init__(self, field, output_crs='input', wrap=None, add_esmf_index=False):
         if not isinstance(field, Field):
             raise ValueError('"field" must be an "Field" object.')
         raise_if_empty(field)
@@ -34,6 +34,7 @@ class SpatialSubsetOperation(AbstractOcgisObject):
         self.field = field
         self.output_crs = output_crs
         self.wrap = wrap
+        self.add_esmf_index = add_esmf_index
 
         self._original_rotated_pole_state = None
         self._transformed_unwrapped_select = None
@@ -252,6 +253,15 @@ class SpatialSubsetOperation(AbstractOcgisObject):
         elif field_wrapped_state == WrappedState.WRAPPED:
             if prepared_wrapped_state == WrappedState.UNWRAPPED:
                 prepared.wrap()
+
+        # Add the ESMF index variable if requested
+        #tdk:todo: implement find by attribute instead of checking for this name in keys
+        if self.add_esmf_index and AttributeName.ESMF_GLOBAL_INDICES not in self.field.keys():
+            grid = self.field.grid
+            vals = grid._gc_create_global_indices_(grid.shape_global)
+            var = Variable(name=AttributeName.ESMF_GLOBAL_INDICES, value=vals, dimensions=grid.dimensions)
+            var.attrs[AttributeName.ESMF_GLOBAL_INDICES] = 1
+            self.field.add_variable(var)
 
         return prepared
 

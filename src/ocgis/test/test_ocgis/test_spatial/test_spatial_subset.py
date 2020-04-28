@@ -2,12 +2,16 @@ from copy import deepcopy
 from unittest import SkipTest
 
 import numpy as np
+from shapely import wkt
+from shapely.geometry import box
+
 from ocgis import CoordinateReferenceSystem, vm
 from ocgis import env
 from ocgis.collection.field import Field
-from ocgis.constants import WrappedState, DimensionMapKey, KeywordArgument
+from ocgis.constants import WrappedState, DimensionMapKey, KeywordArgument, AttributeName
 from ocgis.exc import EmptySubsetError
 from ocgis.spatial.spatial_subset import SpatialSubsetOperation
+from ocgis.test import create_gridxy_global
 from ocgis.test.base import TestBase, attr, get_geometry_dictionaries
 from ocgis.test.strings import GERMANY_WKT, NEBRASKA_WKT
 from ocgis.util.helpers import make_poly
@@ -15,7 +19,6 @@ from ocgis.util.itester import itr_products_keywords
 from ocgis.variable.crs import CFRotatedPole, WGS84, CFSpherical
 from ocgis.variable.geom import GeometryVariable
 from ocgis.vmachine.mpi import MPI_COMM, MPI_RANK
-from shapely import wkt
 
 
 class TestSpatialSubsetOperation(TestBase):
@@ -271,6 +274,22 @@ class TestSpatialSubsetOperation(TestBase):
         ret = ss.get_spatial_subset('intersects', self.nebraska['geom'], geom_crs=WGS84())
         self.assertEqual(ret.wrapped_state, WrappedState.UNWRAPPED)
         self.assertAlmostEqual(ret.grid.get_value_stacked()[1].mean(), 260.15625)
+
+    def test_system_spatial_subset_with_esmf_index(self):
+        """Test adding an ESMF index to a spatial subset."""
+        #tdk:test: with unstructured grid
+        #tdk:test: parallel
+        #tdk:order
+
+        grid = create_gridxy_global()
+        subset_geom = box(10, 30, 20, 40)
+        sso = SpatialSubsetOperation(grid.parent, add_esmf_index=True)
+        sub = sso.get_spatial_subset('intersects', subset_geom)
+        print(sub.grid.extent) #tdk:p
+        self.assertIn(AttributeName.ESMF_GLOBAL_INDICES, sub.keys())
+        self.assertNotEqual(sub[AttributeName.ESMF_GLOBAL_INDICES].v()[0, 0], 1)
+        print(sub[AttributeName.ESMF_GLOBAL_INDICES].v()) #tdk:p
+        self.assertIn(AttributeName.ESMF_GLOBAL_INDICES, sub[AttributeName.ESMF_GLOBAL_INDICES].attrs)
 
     @attr('data')
     def test_prepare_target(self):

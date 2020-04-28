@@ -3,8 +3,11 @@ import itertools
 from collections import OrderedDict
 
 import numpy as np
-import ocgis
 import six
+from shapely.geometry import Polygon, Point, box
+from shapely.geometry.base import BaseGeometry, BaseMultipartGeometry
+
+import ocgis
 from ocgis import Variable, vm
 from ocgis.base import get_dimension_names, raise_if_empty, AbstractOcgisObject, get_variable_names, \
     is_unstructured_driver
@@ -19,8 +22,6 @@ from ocgis.variable.base import get_dslice, get_dimension_lengths
 from ocgis.variable.dimension import Dimension
 from ocgis.variable.geom import GeometryVariable, get_masking_slice, GeometryProcessor
 from ocgis.vmachine.mpi import MPI_SIZE
-from shapely.geometry import Polygon, Point, box
-from shapely.geometry.base import BaseGeometry, BaseMultipartGeometry
 
 CreateGeometryFromWkb, Geometry, wkbGeometryCollection, wkbPoint = ogr.CreateGeometryFromWkb, ogr.Geometry, \
                                                                    ogr.wkbGeometryCollection, ogr.wkbPoint
@@ -882,6 +883,7 @@ class Grid(AbstractGrid, AbstractXYZSpatialContainer):
 
     @staticmethod
     def _gc_create_global_indices_(global_shape, **kwargs):
+        #tdk:doc: indicate this creates ESMF global indices
         return np.arange(1, six.moves.reduce(lambda x, y: x * y, global_shape) + 1, **kwargs).reshape(*global_shape,
                                                                                                       order='C')
 

@@ -10,7 +10,7 @@ from ocgis import constants, Dimension, RequestDataset, vm
 from ocgis import env
 from ocgis.base import AbstractOcgisObject, get_dimension_names, iter_dict_slices
 from ocgis.collection.field import Field
-from ocgis.constants import DMK, GridChunkerConstants, DecompositionType
+from ocgis.constants import DMK, GridChunkerConstants, DecompositionType, AttributeName
 from ocgis.exc import RegriddingError, CornersInconsistentError
 from ocgis.spatial.grid import Grid, expand_grid
 from ocgis.spatial.spatial_subset import SpatialSubsetOperation
@@ -926,6 +926,13 @@ def create_esmf_grid_fromfile(filename, grid, esmf_kwargs):
     else:
         meshname = str(grid.dimension_map.get_variable(DMK.ATTRIBUTE_HOST))
         ret = klass(filename=filename, filetype=filetype, meshname=meshname)
+
+    vc = RequestDataset(uri=filename, driver='netcdf', decomp_type=DecompositionType.ESMF).create_field()
+    poss = vc.find_by_attribute(key=AttributeName.ESMF_GLOBAL_INDICES, value=1)
+    if len(poss) > 0:
+        assert(len(poss) == 1)
+        ret._set_arb_indices_(poss[0].v().flatten())
+
     return ret
 
 

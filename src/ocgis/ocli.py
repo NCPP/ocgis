@@ -94,9 +94,12 @@ def ocli():
 @click.option('--loglvl', default="INFO", help='Verbosity level for standard out logging. Default is '
               '"INFO". See Python logging level docs for additional values: https://docs.python.org/3/howto/logging.html')
 @click.option('--weightfilemode', default="BASIC", help=M5)
+@click.option('--esmf_global_index/--not_esmf_global_index', default=True)
 def chunked_rwg(source, destination, weight, nchunks_dst, merge, esmf_src_type, esmf_dst_type, genweights,
                 esmf_regrid_method, spatial_subset, src_resolution, dst_resolution, buffer_distance, wd, persist,
-                eager, ignore_degenerate, data_variables, spatial_subset_path, verbose, loglvl, weightfilemode):
+                eager, ignore_degenerate, data_variables, spatial_subset_path, verbose, loglvl, weightfilemode,
+                esmf_global_index):
+    #tdk:doc: esmf_global_index
 
     # Used for creating the history string.
     the_locals = locals()
@@ -164,7 +167,8 @@ def chunked_rwg(source, destination, weight, nchunks_dst, merge, esmf_src_type, 
             spatial_subset_path = os.path.join(wd, 'spatial_subset.nc')
         msg = "Executing spatial subset. Output path is: {}".format(spatial_subset_path)
         ocgis_lh(msg=msg, level=logging.INFO, logger=CRWG_LOG)
-        _write_spatial_subset_(rd_src, rd_dst, spatial_subset_path, src_resmax=src_resolution)
+        _write_spatial_subset_(rd_src, rd_dst, spatial_subset_path, src_resmax=src_resolution,
+                               esmf_global_index=esmf_global_index)
     # Only split grids if a spatial subset is not requested.
     else:
         # Update the paths to use for the grid.
@@ -321,10 +325,10 @@ def _is_subdir_(path, potential_subpath):
     return not relative.startswith(os.pardir + os.sep)
 
 
-def _write_spatial_subset_(rd_src, rd_dst, spatial_subset_path, src_resmax=None):
+def _write_spatial_subset_(rd_src, rd_dst, spatial_subset_path, src_resmax=None, esmf_global_index=False):
     src_field = rd_src.create_field()
     dst_field = rd_dst.create_field()
-    sso = SpatialSubsetOperation(src_field)
+    sso = SpatialSubsetOperation(src_field, add_esmf_index=esmf_global_index)
 
     with grid_abstraction_scope(dst_field.grid, Topology.POLYGON):
         dst_field_extent = dst_field.grid.extent_global

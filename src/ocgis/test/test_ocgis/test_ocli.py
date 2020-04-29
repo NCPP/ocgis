@@ -266,7 +266,7 @@ class TestChunkedRWG(TestBase):
                 m.reset_mock()
 
     @attr('esmf')
-    def test_chunked_rwg_spatial_subset(self):
+    def test_system_chunked_rwg_spatial_subset(self):
         env.CLOBBER_UNITS_ON_BOUNDS = False
 
         src_grid = create_gridxy_global(crs=Spherical())
@@ -297,7 +297,7 @@ class TestChunkedRWG(TestBase):
         runner = CliRunner()
         cli_args = ['chunked-rwg', '--source', source, '--destination', destination, '--wd', wd, '--spatial_subset',
                     '--spatial_subset_path', spatial_subset, '--weight', weight, '--esmf_regrid_method', 'BILINEAR',
-                    '--persist']
+                    '--persist', '--esmf_global_index']
         result = runner.invoke(ocli, args=cli_args, catch_exceptions=False)
         self.assertEqual(result.exit_code, 0)
 
@@ -311,3 +311,6 @@ class TestChunkedRWG(TestBase):
         self.assertTrue(os.path.exists(weight))
         actual = RequestDataset(weight, driver='netcdf').create_field()
         self.assertIn('history', actual.attrs)
+
+        # Test that the arbitrary sequence indices are used.
+        self.assertGreater(actual['col'].v().min(), 4000)

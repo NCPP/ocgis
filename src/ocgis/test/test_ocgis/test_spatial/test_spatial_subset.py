@@ -108,6 +108,19 @@ class TestSpatialSubsetOperation(TestBase):
                 if isinstance(k.target, Field):
                     self.assertEqual(ss.sdim.crs, k.target.spatial.crs)
 
+    def test_system_spatial_subset_with_esmf_index(self):
+        """Test adding an ESMF index to a spatial subset."""
+        #tdk:test: with unstructured grid
+        #tdk:test: parallel
+
+        grid = create_gridxy_global()
+        subset_geom = box(10, 30, 20, 40)
+        sso = SpatialSubsetOperation(grid.parent, add_esmf_index=True)
+        sub = sso.get_spatial_subset('intersects', subset_geom)
+        self.assertIn(AttributeName.ESMF_GLOBAL_INDICES, sub.keys())
+        self.assertNotEqual(sub[AttributeName.ESMF_GLOBAL_INDICES].v()[0, 0], 1)
+        self.assertEqual(sub[AttributeName.ESMF_GLOBAL_INDICES].attrs[AttributeName.ESMF_GLOBAL_INDICES], 1)
+
     def test_get_buffered_geometry(self):
         proj4 = '+proj=aea +lat_1=20 +lat_2=60 +lat_0=40 +lon_0=-96 +x_0=0 +y_0=0 +ellps=GRS80 +datum=NAD83 +units=m +no_defs'
         buffer_crs_list = [None, CoordinateReferenceSystem(proj4=proj4)]
@@ -274,22 +287,6 @@ class TestSpatialSubsetOperation(TestBase):
         ret = ss.get_spatial_subset('intersects', self.nebraska['geom'], geom_crs=WGS84())
         self.assertEqual(ret.wrapped_state, WrappedState.UNWRAPPED)
         self.assertAlmostEqual(ret.grid.get_value_stacked()[1].mean(), 260.15625)
-
-    def test_system_spatial_subset_with_esmf_index(self):
-        """Test adding an ESMF index to a spatial subset."""
-        #tdk:test: with unstructured grid
-        #tdk:test: parallel
-        #tdk:order
-
-        grid = create_gridxy_global()
-        subset_geom = box(10, 30, 20, 40)
-        sso = SpatialSubsetOperation(grid.parent, add_esmf_index=True)
-        sub = sso.get_spatial_subset('intersects', subset_geom)
-        print(sub.grid.extent) #tdk:p
-        self.assertIn(AttributeName.ESMF_GLOBAL_INDICES, sub.keys())
-        self.assertNotEqual(sub[AttributeName.ESMF_GLOBAL_INDICES].v()[0, 0], 1)
-        print(sub[AttributeName.ESMF_GLOBAL_INDICES].v()) #tdk:p
-        self.assertIn(AttributeName.ESMF_GLOBAL_INDICES, sub[AttributeName.ESMF_GLOBAL_INDICES].attrs)
 
     @attr('data')
     def test_prepare_target(self):

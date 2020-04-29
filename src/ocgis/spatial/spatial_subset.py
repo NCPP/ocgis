@@ -255,8 +255,8 @@ class SpatialSubsetOperation(AbstractOcgisObject):
                 prepared.wrap()
 
         # Add the ESMF index variable if requested
-        #tdk:todo: implement find by attribute instead of checking for this name in keys
-        if self.add_esmf_index and AttributeName.ESMF_GLOBAL_INDICES not in self.field.keys():
+        possvars = self.field.find_by_attribute(key=AttributeName.ESMF_GLOBAL_INDICES, value=1)
+        if self.add_esmf_index and len(possvars) == 0:
             grid = self.field.grid
             vals = grid._gc_create_global_indices_(grid.shape_global)
             var = Variable(name=AttributeName.ESMF_GLOBAL_INDICES, value=vals, dimensions=grid.dimensions)

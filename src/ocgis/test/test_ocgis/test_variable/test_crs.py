@@ -5,6 +5,9 @@ from unittest import SkipTest
 
 import netCDF4 as nc
 import numpy as np
+from shapely.geometry import Point, MultiPoint
+from shapely.geometry.multipolygon import MultiPolygon
+
 import ocgis
 from ocgis import constants, vm
 from ocgis.collection.field import Field
@@ -18,11 +21,10 @@ from ocgis.util.helpers import make_poly
 from ocgis.util.itester import itr_products_keywords
 from ocgis.variable.base import Variable
 from ocgis.variable.crs import CoordinateReferenceSystem, CFAlbersEqualArea, CFLambertConformal, \
-    CFRotatedPole, WGS84, Spherical, CFSpherical, Tripole, Cartesian, AbstractProj4CRS, create_crs
+    CFRotatedPole, WGS84, Spherical, CFSpherical, Tripole, Cartesian, AbstractProj4CRS, create_crs, \
+    CFPolarStereographic
 from ocgis.variable.geom import GeometryVariable
 from ocgis.vmachine.mpi import OcgDist, MPI_RANK, variable_scatter
-from shapely.geometry import Point, MultiPoint
-from shapely.geometry.multipolygon import MultiPolygon
 
 
 class Test(TestBase):
@@ -564,3 +566,10 @@ class TestTripole(TestBase):
             for a, d in zip(actual, desired):
                 are = np.abs(a - d)
                 self.assertLessEqual(are.max(), 1e-6)
+
+
+class TestCFCoordinateSystem(TestBase):
+
+    def test(self):
+        with self.assertRaises(ValueError):
+            CFPolarStereographic(epsg=3333)

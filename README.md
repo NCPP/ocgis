@@ -27,6 +27,7 @@ OpenClimateGIS supports many file formats and NetCDF metadata conventions:
 * Handles CF-based coordinate systems with full support for coordinate transformations (including the rotated pole coordinate system)
 * Geometry wrapping and unwrapping to maintain logically consistent longitudinal domains.
 * Polygon, line, and point geometric abstractions.
+* ESMPy regridding
 
 # Data Conversion
 

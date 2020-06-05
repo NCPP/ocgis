@@ -12,11 +12,12 @@ The OpenClimateGIS command line interface provides access to Python capabilities
 
 Current subcommands:
 
-=============== ========================== =======================================================================================================================================================================================
+=============== ========================== ======================
 Subcommand      Long Name                  Description
-=============== ========================== =======================================================================================================================================================================================
+=============== ========================== ======================
 ``chunked-rwg`` :ref:`chunked_rwg_section` Chunked regrid weight generation using OCGIS spatial decompositions and ESMF weight generation. Allows weight generation for very high resolution grids in memory-limited environments.
-=============== ========================== =======================================================================================================================================================================================
+``chunked-smm`` :ref:`chunked_smm_section` Chunked sparse matrix multiplication using output from ``chunked-rwg``.
+=============== ========================== ======================
 
 .. _chunked_rwg_section:
 
@@ -48,9 +49,7 @@ Limitations
 -----------
 
 * Reducing memory overhead leverages IO heavily. Best performance is attained when `netCDF4-python <http://unidata.github.io/netcdf4-python/>`_ is built with parallel support to allow concurrent IO writes with OpenClimateGIS. A warning will be emitted by OpenClimateGIS if a serial only `netCDF4-python <http://unidata.github.io/netcdf4-python/>`_ installation is detected.
-* Supports `weight generation only` without weight application (sparse matrix multiplication).
-* Works for spherical latitude/longitude grids only.
-* When a spatial decomposition is used on the destination grid, there may be duplicate entries in the merged, global weight file. These may be ignored as it results in only minor performance hits for sparse matrix multiplications.
+* Supports `weight generation only` without weight application (sparse matrix multiplication). Use ``chunked-smm`` for sparse matrix multiplication.
 
 --------
 Examples
@@ -71,6 +70,8 @@ _____________________________________
 This example creates a global, spherical, latitude/longitude grid. It also creates a grid with a single cell. The spatial extent of the single cell grid is much smaller than the global grid. Spatially subsetting the source grid prior to weight generation decreases the amount of source grid information required in the weight calculation.
 
 .. literalinclude:: sphinx_examples/chunked_rwg_ss.py
+
+.. _chunked_smm_section:
 
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 Chunked Sparse Matrix Multiplication (Weight Application)

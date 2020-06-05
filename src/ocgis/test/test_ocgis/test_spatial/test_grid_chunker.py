@@ -4,6 +4,7 @@ import sys
 from copy import deepcopy
 from unittest import SkipTest
 
+import netCDF4 as nc
 import numpy as np
 from mock import mock, PropertyMock
 from shapely.geometry import box
@@ -375,6 +376,9 @@ class TestGridChunker(AbstractTestInterface, FixtureDriverNetcdfSCRIP):
     @attr('esmf')
     def test_create_merged_weight_file_basic(self):
         self.run_create_merged_weight_file("BASIC")
+        ds = nc.Dataset(os.path.join(self.current_dir_output, "merged_weights.nc"))
+        self.assertEqual(ds.data_model, "NETCDF3_64BIT_DATA")
+        ds.close()
 
     @attr('esmf')
     def test_create_merged_weight_file_withaux(self):

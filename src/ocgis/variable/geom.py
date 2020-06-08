@@ -467,7 +467,8 @@ class GeometryVariable(AbstractSpatialVariable):
                     from_crs = self._request_dataset.crs
 
                 for idx, geom in enumerate(geom_itr):
-                    ocgis_lh(msg='processing index: {}'.format(idx), logger=_LOCAL_LOG) #tdk:p
+                    if idx%100 == 0: #tdk:p
+                        ocgis_lh(msg='processing index: {}'.format(idx), logger=_LOCAL_LOG) #tdk:p
                     if to_crs is not None:
                         to_transform = GeometryVariable.from_shapely(geom, crs=from_crs)
                         to_transform.update_crs(to_crs)

@@ -481,5 +481,5 @@ class NoTouching(OcgException):
 
 
 class SelfIntersectsRemovalError(OcgException):
-    #tdk:doc
+    """Raised when node removal to fix self-intersections causes a geometry validation error."""
     omessage = 'Polygon not valid after removing self-intersecting points.'

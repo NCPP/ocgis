@@ -367,8 +367,9 @@ class GeometryVariable(AbstractSpatialVariable):
         :keyword bool allow_splitting_excs: ``(=False)`` If ``True``, log and emit a warning when geometry processing
          errors are encountered during splitting operations. These exceptions may occur when holes/interiors are
          encountered or a node threshold is exceeded.
+        :keyword bool remove_self_intersects: ``(=False)`` If ``True``, attempt to remove self-intersections from
+         polygon objects.
         """
-        #tdk:doc: remove_self_intersects
 
         # TODO: IMPLEMENT: Line conversion.
         # TODO: IMPLEMENT: Storage method for holes/interiors. Interiors are currently only split not stored.
@@ -467,8 +468,6 @@ class GeometryVariable(AbstractSpatialVariable):
                     from_crs = self._request_dataset.crs
 
                 for idx, geom in enumerate(geom_itr):
-                    if idx%100 == 0: #tdk:p
-                        ocgis_lh(msg='processing index: {}'.format(idx), logger=_LOCAL_LOG) #tdk:p
                     if to_crs is not None:
                         to_transform = GeometryVariable.from_shapely(geom, crs=from_crs)
                         to_transform.update_crs(to_crs)
@@ -483,14 +482,7 @@ class GeometryVariable(AbstractSpatialVariable):
                             except SelfIntersectsRemovalError as e:
                                 if allow_splitting_excs:
                                     removed_indices.append(idx)
-                                    ocgis_lh(msg='current removed indices: {}'.format(removed_indices), logger=_LOCAL_LOG)  # tdk:p
                                     continue
-                                else:
-                                    try:
-                                        ocgis_lh(level=logging.ERROR, msg="processing index: {}".format(idx),
-                                                 logger=_LOCAL_LOG, exc=e)  # tdk:p
-                                    finally:
-                                        vm.abort()
                         try:
                             gsplitter = GeometrySplitter(geom)
                         except NoInteriorsError:
@@ -1444,7 +1436,6 @@ def geometryvariable_get_mask_from_intersects(gvar, geometry, use_spatial_index=
 
 
 def do_remove_self_intersects(poly, try_again=True):
-    #tdk:doc
     if not isinstance(poly, Polygon):
         exc = ValueError("only Polygons supported")
         try:
@@ -1486,14 +1477,11 @@ def do_remove_self_intersects(poly, try_again=True):
             if try_again:
                 new_poly = do_remove_self_intersects(new_poly, try_again=False)
             else:
-                # GeometryVariable.from_shapely(poly).write_vector('/tmp/poly.shp') #tdk:p
-                # GeometryVariable.from_shapely(new_poly).write_vector('/tmp/new_poly.shp') #tdk:p
                 raise SelfIntersectsRemovalError()
     return new_poly
 
 
 def do_remove_self_intersects_multi(poly):
-    #tdk:doc
     if isinstance(poly, MultiPolygon):
         newpoly = [do_remove_self_intersects(p) for p in poly]
         newpoly = MultiPolygon(newpoly)

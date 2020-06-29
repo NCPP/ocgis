@@ -38,7 +38,7 @@ _LOCAL_LOG = "geom"
 
 
 def count_interiors(geometry):
-    if not isinstance(geometry, Polygon) or not isinstance(geometry, MultiPolygon):
+    if not isinstance(geometry, Polygon) and not isinstance(geometry, MultiPolygon):
         return 0
     try:
         ret = len(geometry.interiors)

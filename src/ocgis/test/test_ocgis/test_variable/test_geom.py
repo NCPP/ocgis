@@ -1,5 +1,4 @@
 import itertools
-import os
 from collections import OrderedDict
 from copy import deepcopy
 
@@ -15,7 +14,7 @@ from shapely.geometry.multilinestring import MultiLineString
 from shapely.geometry.multipolygon import MultiPolygon
 
 import ocgis
-from ocgis import RequestDataset, vm, Field, GeomCabinetIterator
+from ocgis import RequestDataset, vm, Field
 from ocgis import env, CoordinateReferenceSystem
 from ocgis.constants import DMK, WrappedState, OcgisConvention, DriverKey
 from ocgis.exc import EmptySubsetError, NoInteriorsError, RequestableFeature
@@ -63,24 +62,6 @@ class TestGeom(TestBase, FixtureSelfIntersectingPolygon):
 
     def test_do_remove_self_intersects_first(self):
         self.run_do_remove_self_intersects(self.fixture_self_intersecting_polygon_coords_first, debug=False)
-
-    def test_dev(self):
-        #tdk:rm
-        self.skipTest("dev test")
-        path = '/home/benkoziol/htmp/bad_geoms/bad_geom.shp'
-        new_records = []
-        gci = GeomCabinetIterator(path=path)
-        n = len(gci)
-        for ctr, row in enumerate(gci):
-            print('{} of {}'.format(ctr, n))
-            print(row)
-            poly = row['geom']
-            new_poly = do_remove_self_intersects_multi(poly)
-            self.assertTrue(new_poly.is_valid)
-            row['geom'] = new_poly
-            new_records.append(row)
-        field = Field.from_records(new_records)
-        field.write(os.path.expanduser('~/htmp/clean_geoms.shp'), driver='vector')
 
 
 class TestGeometryProcessor(AbstractTestInterface):

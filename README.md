@@ -1,8 +1,8 @@
 [![Build Status](https://travis-ci.org/NCPP/ocgis.svg?branch=master)](https://travis-ci.org/NCPP/ocgis)
 
-For documentation please visit: https://ocgis.readthedocs.io/en/latest/
+For documentation: https://ocgis.readthedocs.io/en/latest/
 
-For additional project information please visit: http://www.earthsystemcog.org/projects/openclimategis/
+For additional project information: http://www.earthsystemcog.org/projects/openclimategis/
 
 For questions or to file a bug report, please create a GitHub issue.
 
@@ -10,11 +10,13 @@ For questions or to file a bug report, please create a GitHub issue.
 
 OpenClimateGIS (OCGIS) is a Python package designed for geospatial manipulation, subsetting, computation, and translation of spatiotemporal datasets stored in local NetCDF files or files served through THREDDS data servers. OpenClimateGIS has a straightforward, request-based API that is simple to use yet complex enough to perform a variety of computational tasks. The software is built entirely from open source packages.
 
-OpenClimateGIS supports many NetCDF metadata conventions (ESRI Shapefiles / File Geodatabases and CSV formats are also supported):
+OpenClimateGIS supports many file formats and NetCDF metadata conventions:
 * Climate & Forecast (CF) Grid
 * Unstructured Grid (UGRID)
 * SCRIP
 * ESMF Unstructured
+* GDAL-supported vector formats (ESRI Shapefiles, File Geodatabases, GeoPackage, GeoJSON, etc.)
+* Comma-Separated Value (CSV)
 
 # GIS Capabilities
 
@@ -25,6 +27,7 @@ OpenClimateGIS supports many NetCDF metadata conventions (ESRI Shapefiles / File
 * Handles CF-based coordinate systems with full support for coordinate transformations (including the rotated pole coordinate system)
 * Geometry wrapping and unwrapping to maintain logically consistent longitudinal domains.
 * Polygon, line, and point geometric abstractions.
+* ESMPy regridding
 
 # Data Conversion
 

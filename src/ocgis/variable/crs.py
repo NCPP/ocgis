@@ -895,6 +895,9 @@ class CFCoordinateReferenceSystem(CoordinateReferenceSystem):
     map_parameters_defaults = {}
 
     def __init__(self, **kwds):
+        if 'epsg' in kwds:
+            raise ValueError('EPSG codes not enabled when creating CF coordinate systems.')
+
         self.projection_x_coordinate = kwds.pop('projection_x_coordinate', None)
         self.projection_y_coordinate = kwds.pop('projection_y_coordinate', None)
 

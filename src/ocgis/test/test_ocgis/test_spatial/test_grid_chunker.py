@@ -271,7 +271,12 @@ class TestGridChunker(AbstractTestInterface, FixtureDriverNetcdfSCRIP):
                 dstgridname = "grid.nc"
                 dst.parent.write(dstgridname)
 
-                nchunks_dst = [(4, 1), (3, 1), (2, 1), (1, 1)]
+                nchunks_dst = [
+                    (4, 1),
+                    (3, 1),
+                    (2, 1),
+                    (1, 1)
+                ]
                 for ctr, n in enumerate(nchunks_dst):
                     os.chdir(griddir)
                     dirname = 'ctr-{}'.format(ctr)
@@ -294,7 +299,6 @@ class TestGridChunker(AbstractTestInterface, FixtureDriverNetcdfSCRIP):
                     src_filename = os.path.join(griddir, "ctr-{}".format(ctr), "merged-weights.nc")
                     dst_filename = os.path.join(griddir, "global-weights.nc")
                     self.assertWeightFilesEquivalent(src_filename, dst_filename)
-
         finally:
             os.chdir(original_dir)
 

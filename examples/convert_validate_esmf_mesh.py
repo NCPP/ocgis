@@ -19,6 +19,12 @@ GEOPKG = '/home/benkoziol/l/data/esmf/hdma-catchments-cesm-20200729/hdma_global_
 OUTDIR_TEMPLATE = '/home/benkoziol/l/data/esmf/hdma-catchments-cesm-20200729/individual-element-nc/hruid-tmp-{}'
 # Debugging to simulate errors
 DEBUG = False
+# Number of nodes for each virtual polygon
+NODE_THRESHOLD = 5000
+# De-duplicate nodes (serial only). Leave this off for initial testing since there is only one node coordinates array
+PACK = False
+# Whether to split holes/interiors. Start with False just to use exteriors
+SPLIT_INTERIORS = False
 
 
 def do_destroy(to_destroy):
@@ -42,7 +48,9 @@ def do_esmf(ncpath, exedir, dst_logdir):
         mesh = ESMF.Mesh(filename=ncpath, filetype=ESMF.constants.FileFormat.ESMFMESH)
         # Create the source
         src = ESMF.Field(mesh, ndbounds=np.array([1, 1]), meshloc=ESMF.constants.MeshLoc.ELEMENT)
+        # Create the destination
         dst = ESMF.Field(mesh, ndbounds=np.array([1, 1]), meshloc=ESMF.constants.MeshLoc.ELEMENT)
+        # This will create the route handle and return some weights
         regrid = ESMF.Regrid(srcfield=src, dstfield=dst, regrid_method=ESMF.constants.RegridMethod.CONSERVE, factors=True)
         factors = regrid.get_weights_dict(deep_copy=True)
         assert factors is not None
@@ -75,8 +83,8 @@ def do_record_test(exedir, record):
     field.update_crs(ocgis.crs.Spherical())
     # Convert the field geometry to an unstructured grid format based on the UGRID spec.
     gc = field.geom.convert_to(
-        pack=False,
-        node_threshold=None,
+        pack=PACK,
+        node_threshold=NODE_THRESHOLD,
         split_interiors=False,
         remove_self_intersects=False,
         allow_splitting_excs=False

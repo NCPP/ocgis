@@ -4,6 +4,7 @@ Test conversion of GeoPackage GIS data to ESMF Unstructured validating each mesh
 import os
 import random
 import shutil
+import tempfile
 
 import ESMF
 import numpy as np
@@ -13,10 +14,10 @@ import ocgis
 ESMF.Manager(debug=True)
 
 # Path to the source GIS data assuming a GeoPackage
-GEOPKG = '/home/benkoziol/l/data/esmf/hdma-catchments-cesm-20200729/hdma_global_catch_0.gpkg'
+GEOPKG = 'hdma_global_catch_0.gpkg'
 # This is the template for catchment-specific directories. If the test operation is successful, this will deleted. If it
 # is not successful, the directory will be left behind.
-OUTDIR_TEMPLATE = '/home/benkoziol/l/data/esmf/hdma-catchments-cesm-20200729/individual-element-nc/hruid-tmp-{}'
+OUTDIR_TEMPLATE = os.path.join(tempfile.gettempdir(), 'individual-element-nc', 'hruid-tmp-{}')
 # Debugging to simulate errors
 DEBUG = False
 # Number of nodes for each virtual polygon
@@ -85,7 +86,7 @@ def do_record_test(exedir, record):
     gc = field.geom.convert_to(
         pack=PACK,
         node_threshold=NODE_THRESHOLD,
-        split_interiors=False,
+        split_interiors=SPLIT_INTERIORS,
         remove_self_intersects=False,
         allow_splitting_excs=False
     )

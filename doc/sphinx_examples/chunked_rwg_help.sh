@@ -1,6 +1,4 @@
-$ ocli chunked-rwg --help
-
-Usage: ocli chunked-rwg [OPTIONS]
+Usage: ocli.py chunked-rwg [OPTIONS]
 
   Generate regridding weights using a spatial decomposition.
 
@@ -23,9 +21,11 @@ Options:
   -w, --weight PATH               Path to the output global weight file.
                                   Required if --merge.
   --esmf_src_type TEXT            (default=GRIDSPEC) ESMF source grid type.
-                                  Supports GRIDSPEC, UGRID, and SCRIP.
+                                  Supports GRIDSPEC, UGRID, ESMFMESH, and
+                                  SCRIP.
   --esmf_dst_type TEXT            (default=GRIDSPEC) ESMF destination grid
-                                  type. Supports GRIDSPEC, UGRID, and SCRIP.
+                                  type. Supports GRIDSPEC, UGRID, ESMFMESH,
+                                  and SCRIP.
   --genweights / --no_genweights  (default=True) Generate weights using ESMF
                                   for each source and destination subset.
   --esmf_regrid_method TEXT       (default=CONSERVE) The ESMF regrid method.
@@ -68,4 +68,25 @@ Options:
                                   Set this to --not_eager for a more memory
                                   efficient execution at the expense of
                                   additional IO operations.
+  --ignore_degenerate / --no_ignore_degenerate
+                                  (default=no_ignore_degenerate) If
+                                  --ignore_degenerate, skip degenerate
+                                  coordinates when regridding and do not raise
+                                  an exception.
+  --data_variables TEXT           List of comma-separated data variable names
+                                  to overload auto-discovery.
+  --spatial_subset_path PATH      Optional path to the output spatial subset
+                                  file. Only applicable when using
+                                  --spatial_subset.
+  --verbose / --not_verbose       If True, log to standard out using verbosity
+                                  level.
+  --loglvl TEXT                   Verbosity level for standard out logging.
+                                  Default is "INFO". See Python logging level
+                                  docs for additional values:
+                                  https://docs.python.org/3/howto/logging.html
+  --weightfilemode TEXT           The ESMF FileMode constant value. BASIC (the
+                                  default) only writes the factor index list
+                                  and weight factor variables. WITHAUX adds
+                                  auxiliary variables and additional file
+                                  metadata to the output weight file.
   --help                          Show this message and exit.

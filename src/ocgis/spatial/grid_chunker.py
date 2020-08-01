@@ -99,13 +99,14 @@ class GridChunker(AbstractOcgisObject):
      memory used.
     :param str filemode: If ``'BASIC'`` (the default), only write source/destination indices and weight factors to the
      output weight file. If ``'WITHAUX'`` also write geometry-related auxiliary variables to the output weight file.
+    :param str nc_format: The NetCDF data model to use for merged weight files.
     :raises: ValueError
     """
 
     def __init__(self, source, destination, nchunks_dst=None, paths=None, check_contains=False, allow_masked=True,
                  src_grid_resolution=None, dst_grid_resolution=None, optimized_bbox_subset='auto', iter_dst=None,
                  buffer_value=None, redistribute=False, genweights=False, esmf_kwargs=None, use_spatial_decomp='auto',
-                 eager=True, filemode="BASIC", debug=False):
+                 eager=True, filemode="BASIC", nc_format='NETCDF3_64BIT_DATA', debug=False):
         self._src_grid = None
         self._dst_grid = None
         self._buffer_value = None
@@ -118,6 +119,7 @@ class GridChunker(AbstractOcgisObject):
         self.destination = destination
         self.eager = eager
         self.filemode = filemode
+        self.nc_format = nc_format
         self.debug = debug
 
         if esmf_kwargs is None:
@@ -357,7 +359,7 @@ class GridChunker(AbstractOcgisObject):
             var = Variable(name=w, dimensions=dim, dtype=wd)
             vc.add_variable(var)
 
-        vc.write(merged_weight_filename)
+        vc.write(merged_weight_filename, dataset_kwargs={"format": self.nc_format})
 
         # Transfer weights to the merged file.
         sidx = 0

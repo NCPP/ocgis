@@ -72,7 +72,7 @@ class DriverESMFUnstruct(AbstractUnstructuredDriver, AbstractDriverNetcdfCF):
         dmap = field.dimension_map
         driver = dmap.get_driver()
         if driver == DriverKey.NETCDF_UGRID:
-            ret = cls._convert_to_ugrid_(field)
+            ret = cls._convert_from_ugrid_(field)
         elif driver == DriverKey.NETCDF_ESMF_UNSTRUCT:
             ret = field.copy()
             # Coordinate variables were "sectioned" when loaded in. They need to be put back together before writing to
@@ -95,7 +95,7 @@ class DriverESMFUnstruct(AbstractUnstructuredDriver, AbstractDriverNetcdfCF):
         return ret
 
     @staticmethod
-    def _convert_to_ugrid_(field):
+    def _convert_from_ugrid_(field):
         """
         Takes field data out of the OCGIS unstructured format (similar to UGRID) converting to the format expected
         by ESMF Unstructured metadata.

@@ -478,3 +478,8 @@ class NoTouching(OcgException):
     decomposition.
     """
     omessage = "No touching allowed by spatial operation."
+
+
+class SelfIntersectsRemovalError(OcgException):
+    """Raised when node removal to fix self-intersections causes a geometry validation error."""
+    omessage = 'Polygon not valid after removing self-intersecting points.'

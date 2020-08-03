@@ -1,6 +1,6 @@
 $ ocli chunked-rwg --help
 
-Usage: ocli.py chunked-rwg [OPTIONS]
+Usage: ocli chunked-rwg [OPTIONS]
 
   Generate regridding weights using a spatial decomposition.
 

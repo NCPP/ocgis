@@ -415,7 +415,7 @@ class TestGeometryVariable(AbstractTestInterface, FixturePolygonWithHole, Fixtur
         keywords = dict(split_interiors=[True, False])
         for k in self.iter_product_keywords(keywords):
             try:
-                gc = gvar.convert_to(split_interiors=k.split_interiors)
+                gc = gvar.convert_to(split_interiors=k.split_interiors, allow_interiors=False)
             except ValueError:
                 self.assertFalse(k.split_interiors)
                 continue

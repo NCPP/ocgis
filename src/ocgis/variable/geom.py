@@ -369,6 +369,8 @@ class GeometryVariable(AbstractSpatialVariable):
          encountered or a node threshold is exceeded.
         :keyword bool remove_self_intersects: ``(=False)`` If ``True``, attempt to remove self-intersections from
          polygon objects.
+        :keyword bool allow_interiors: ``(=True)`` If ``True``, allow holes/interiors in polygons if we are not splitting
+         to accommodate them.
         """
 
         # TODO: IMPLEMENT: Line conversion.
@@ -403,6 +405,7 @@ class GeometryVariable(AbstractSpatialVariable):
         start_index = kwargs.pop('start_index', 0)
         allow_splitting_excs = kwargs.pop('allow_splitting_excs', False)
         remove_self_intersects = kwargs.pop('remove_self_intersects', False)
+        allow_interiors = kwargs.pop('allow_interiors', True)
         assert len(kwargs) == 0
         if to_crs is not None and not use_geometry_iterator:
             raise ValueError("'to_crs' only applies when using a geometry iterator")
@@ -500,7 +503,8 @@ class GeometryVariable(AbstractSpatialVariable):
                                         raise e.__class__(str(e) + extra)
                                 is_multi = True
                             else:
-                                raise ValueError('Interiors are not handled unless they are split.')
+                                if not allow_interiors:
+                                    raise ValueError('Interiors are not handled unless they are split.')
 
                         if node_threshold is not None and get_node_count(geom) > node_threshold:
                             try:

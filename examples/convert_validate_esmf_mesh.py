@@ -26,6 +26,8 @@ NODE_THRESHOLD = 5000
 PACK = False
 # Whether to split holes/interiors. Start with False just to use exteriors
 SPLIT_INTERIORS = False
+# The index to start from if we are resuming checking
+CHECK_START_INDEX = 0
 
 
 def do_destroy(to_destroy):
@@ -125,6 +127,8 @@ def main():
     # Number of records in the GeoPackage
     len_gc = len(gc)
     for ctr, record in enumerate(gc):
+        if ctr < CHECK_START_INDEX:
+            continue
         # Print an update every 100 iterations
         if ctr % 100 == 0:
             print('INFO: Index {} of {}'.format(ctr, len_gc))

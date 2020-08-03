@@ -218,6 +218,8 @@ class TestChunkedRWG(TestBase):
             elif k['nchunks_dst'] == '1':
                 self.assertEqual(call_args[1]['nchunks_dst'], (1,))
 
+            self.assertIn(call_args[1]["filemode"].lower(), ["withaux", "basic"])
+
             actual = call_args[1]['eager']
             if k['not_eager'] == '__include__':
                 self.assertFalse(actual)

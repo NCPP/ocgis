@@ -177,7 +177,8 @@ def chunked_rwg(source, destination, weight, nchunks_dst, merge, esmf_src_type, 
     # Create the chunked regridding object. This is used for both chunked regridding and a regrid with a spatial subset.
     gs = GridChunker(rd_src, rd_dst, nchunks_dst=nchunks_dst, src_grid_resolution=src_resolution, paths=paths,
                      dst_grid_resolution=dst_resolution, buffer_value=buffer_distance, redistribute=True,
-                     genweights=genweights, esmf_kwargs=esmf_kwargs, use_spatial_decomp='auto', eager=eager)
+                     genweights=genweights, esmf_kwargs=esmf_kwargs, use_spatial_decomp='auto', eager=eager,
+                     filemode=weightfilemode)
 
     # Write subsets and generate weights if requested in the grid splitter.
     # TODO: Need a weight only option. If chunks are written, then weights are written...

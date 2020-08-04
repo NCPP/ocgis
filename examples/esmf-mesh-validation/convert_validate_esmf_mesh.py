@@ -54,25 +54,30 @@ def do_record_test(exedir, record):
     field = ocgis.Field.from_records([record], crs=crs)
     field.update_crs(ocgis.crs.Spherical())
     # Convert the field geometry to an unstructured grid format based on the UGRID spec.
-    gc = field.geom.convert_to(
-        pack=PACK,
-        node_threshold=NODE_THRESHOLD,
-        split_interiors=SPLIT_INTERIORS,
-        remove_self_intersects=False,
-        allow_splitting_excs=False
-    )
-    # Path to the output netCDF file for the current element
-    out_element_nc = os.path.join(curr_outdir, "esmf-element_hruid-{}.nc".format(hruid))
-    # Add the center coordinate to make ESMF happy (even though we are not using it)
-    if DEBUG and random.random() > 0.9:
-        pass  # Purposefully make an error in the file
+    try:
+        gc = field.geom.convert_to(
+            pack=PACK,
+            node_threshold=NODE_THRESHOLD,
+            split_interiors=SPLIT_INTERIORS,
+            remove_self_intersects=False,
+            allow_splitting_excs=False
+        )
+    except Exception as e:
+        print('ERROR: OCGIS conversion problem for hruid={}'.format(hruid))
+        success = False
     else:
-        centerCoords = np.array([field.geom.v()[0].centroid.x, field.geom.v()[0].centroid.y]).reshape(1, 2)
-        ocgis.Variable(name='centerCoords', value=centerCoords, dimensions=['elementCount', 'coordDim'], attrs={'units': 'degrees'}, parent=gc.parent)
-    # When writing the data to file, convert to ESMF unstructured format.
-    gc.parent.write(out_element_nc, driver='netcdf-esmf-unstruct')
-    # Run the simple regridding test
-    success = do_esmf(out_element_nc, exedir)
+        # Path to the output netCDF file for the current element
+        out_element_nc = os.path.join(curr_outdir, "esmf-element_hruid-{}.nc".format(hruid))
+        # Add the center coordinate to make ESMF happy (even though we are not using it)
+        if DEBUG and random.random() > 0.9:
+            pass  # Purposefully make an error in the file
+        else:
+            centerCoords = np.array([field.geom.v()[0].centroid.x, field.geom.v()[0].centroid.y]).reshape(1, 2)
+            ocgis.Variable(name='centerCoords', value=centerCoords, dimensions=['elementCount', 'coordDim'], attrs={'units': 'degrees'}, parent=gc.parent)
+        # When writing the data to file, convert to ESMF unstructured format.
+        gc.parent.write(out_element_nc, driver='netcdf-esmf-unstruct')
+        # Run the simple regridding test
+        success = do_esmf(out_element_nc, exedir)
     if success:
         # If successful, remove the directory
         assert 'hruid-tmp-' in curr_outdir

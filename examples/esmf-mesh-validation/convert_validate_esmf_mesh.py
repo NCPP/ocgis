@@ -4,17 +4,18 @@ Test conversion of GeoPackage GIS data to ESMF Unstructured validating each mesh
 import os
 import random
 import shutil
+import subprocess
+import sys
 import tempfile
+from subprocess import CalledProcessError
 
-import ESMF
 import numpy as np
 
 import ocgis
 
-ESMF.Manager(debug=True)
-
 # Path to the source GIS data assuming a GeoPackage
-GEOPKG = 'hdma_global_catch_0.gpkg'
+# GEOPKG = 'hdma_global_catch_0.gpkg'
+GEOPKG = '/home/benkoziol/l/data/esmf/hdma-catchments-cesm-20200729/hdma_global_catch_0.gpkg'
 # This is the template for catchment-specific directories. If the test operation is successful, this will deleted. If it
 # is not successful, the directory will be left behind.
 OUTDIR_TEMPLATE = os.path.join(tempfile.gettempdir(), 'individual-element-nc', 'hruid-tmp-{}')
@@ -26,48 +27,16 @@ NODE_THRESHOLD = 5000
 PACK = False
 # Whether to split holes/interiors. Start with False just to use exteriors
 SPLIT_INTERIORS = False
-# The index to start from if we are resuming checking
-CHECK_START_INDEX = 0
 
 
-def do_destroy(to_destroy):
-    for t in to_destroy:
-        try:
-            t.destroy()
-        except:
-            pass
-
-
-def do_esmf(ncpath, exedir, dst_logdir):
+def do_esmf(ncpath, exedir):
     # Will return True if the operation is successful
-    was_successful = False
-    # Destroy the ESMF objects so deleting them if there is a failure is smoother
-    mesh, src, dst, regrid = [None]*4
     try:
-        # Fake debug error simulation
-        if DEBUG and random.random() > 0.5:
-            raise ValueError('a fake debug error for testing')
-        # Create the ESMF mesh
-        mesh = ESMF.Mesh(filename=ncpath, filetype=ESMF.constants.FileFormat.ESMFMESH)
-        # Create the source
-        src = ESMF.Field(mesh, ndbounds=np.array([1, 1]), meshloc=ESMF.constants.MeshLoc.ELEMENT)
-        # Create the destination
-        dst = ESMF.Field(mesh, ndbounds=np.array([1, 1]), meshloc=ESMF.constants.MeshLoc.ELEMENT)
-        # This will create the route handle and return some weights
-        regrid = ESMF.Regrid(srcfield=src, dstfield=dst, regrid_method=ESMF.constants.RegridMethod.CONSERVE, factors=True)
-        factors = regrid.get_weights_dict(deep_copy=True)
-        assert factors is not None
+        subprocess.check_call([sys.executable, os.path.join(exedir, 'run_esmf_mesh_test.py'), ncpath])
         was_successful = True
-    except Exception as e:
-        print('ERROR: {}: ESMF read/regridding problem with file path {}'.format(str(e), ncpath))
-        # Copy over the ESMF log file
-        srcpath = os.path.join(exedir, 'PET0.ESMF_LogFile')
-        dstpath = os.path.join(dst_logdir, 'PET0.ESMF_LogFile')
-        if os.path.exists(srcpath):
-            shutil.copy2(srcpath, dstpath)
-        raise
-    finally:
-        do_destroy([mesh, src, dst, regrid])
+    except CalledProcessError:
+        was_successful = False
+        print('ERROR: ESMF read/regridding problem with file path {}'.format(ncpath))
     return was_successful
 
 
@@ -95,12 +64,15 @@ def do_record_test(exedir, record):
     # Path to the output netCDF file for the current element
     out_element_nc = os.path.join(curr_outdir, "esmf-element_hruid-{}.nc".format(hruid))
     # Add the center coordinate to make ESMF happy (even though we are not using it)
-    centerCoords = np.array([field.geom.v()[0].centroid.x, field.geom.v()[0].centroid.y]).reshape(1, 2)
-    ocgis.Variable(name='centerCoords', value=centerCoords, dimensions=['elementCount', 'coordDim'], attrs={'units': 'degrees'}, parent=gc.parent)
+    if DEBUG and random.random() > 0.9:
+        pass  # Purposefully make an error in the file
+    else:
+        centerCoords = np.array([field.geom.v()[0].centroid.x, field.geom.v()[0].centroid.y]).reshape(1, 2)
+        ocgis.Variable(name='centerCoords', value=centerCoords, dimensions=['elementCount', 'coordDim'], attrs={'units': 'degrees'}, parent=gc.parent)
     # When writing the data to file, convert to ESMF unstructured format.
     gc.parent.write(out_element_nc, driver='netcdf-esmf-unstruct')
     # Run the simple regridding test
-    success = do_esmf(out_element_nc, exedir, curr_outdir)
+    success = do_esmf(out_element_nc, exedir)
     if success:
         # If successful, remove the directory
         assert 'hruid-tmp-' in curr_outdir
@@ -114,12 +86,9 @@ def do_record_test(exedir, record):
             f.write(str(record))
     # Change back to the execution directory
     os.chdir(exedir)
-    # Try to remove the log file if it exists.
-    if os.path.exists('PET0.ESMF_LogFile'):
-        os.remove('PET0.ESMF_LogFile')
 
 
-def main():
+def main(check_start_index):
     # The execution directory
     exedir = os.getcwd()
     # An iterator over the geometries in the GeoPackage
@@ -127,13 +96,13 @@ def main():
     # Number of records in the GeoPackage
     len_gc = len(gc)
     for ctr, record in enumerate(gc):
-        if ctr < CHECK_START_INDEX:
+        if ctr < check_start_index:
             continue
         # Print an update every 100 iterations
-        if ctr % 100 == 0:
+        if ctr % 10 == 0:
             print('INFO: Index {} of {}'.format(ctr, len_gc))
         do_record_test(exedir, record)
 
 
 if __name__ == "__main__":
-    main()
+    main(int(sys.argv[1]))

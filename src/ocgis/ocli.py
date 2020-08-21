@@ -14,7 +14,7 @@ from ocgis import RequestDataset, GeometryVariable, constants
 from ocgis.base import grid_abstraction_scope, raise_if_empty
 from ocgis.constants import DriverKey, Topology, GridChunkerConstants, DecompositionType
 from ocgis.driver.nc_ugrid import DriverNetcdfUGRID
-from ocgis.messages import M5
+from ocgis.messages import M5, M6
 from ocgis.spatial.grid_chunker import GridChunker
 from ocgis.spatial.spatial_subset import SpatialSubsetOperation
 from ocgis.util.logging_ocgis import ocgis_lh
@@ -94,9 +94,11 @@ def ocli():
 @click.option('--loglvl', default="INFO", help='Verbosity level for standard out logging. Default is '
               '"INFO". See Python logging level docs for additional values: https://docs.python.org/3/howto/logging.html')
 @click.option('--weightfilemode', default="BASIC", help=M5)
+@click.option('--64bit_offset/--no_64bit_offset', 'large_file', default=False, help=M6)
 def chunked_rwg(source, destination, weight, nchunks_dst, merge, esmf_src_type, esmf_dst_type, genweights,
                 esmf_regrid_method, spatial_subset, src_resolution, dst_resolution, buffer_distance, wd, persist,
-                eager, ignore_degenerate, data_variables, spatial_subset_path, verbose, loglvl, weightfilemode):
+                eager, ignore_degenerate, data_variables, spatial_subset_path, verbose, loglvl, weightfilemode,
+                large_file):
 
     # Used for creating the history string.
     the_locals = locals()
@@ -172,7 +174,8 @@ def chunked_rwg(source, destination, weight, nchunks_dst, merge, esmf_src_type, 
 
     # Arguments to ESMF regridding.
     esmf_kwargs = {'regrid_method': esmf_regrid_method,
-                   'ignore_degenerate': ignore_degenerate}
+                   'ignore_degenerate': ignore_degenerate,
+                   'large_file': large_file}
 
     # Create the chunked regridding object. This is used for both chunked regridding and a regrid with a spatial subset.
     gs = GridChunker(rd_src, rd_dst, nchunks_dst=nchunks_dst, src_grid_resolution=src_resolution, paths=paths,

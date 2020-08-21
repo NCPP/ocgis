@@ -2,3 +2,4 @@ M1 = 'No dimensioned variables found. This typically means no target variables i
 M3 = 'Output path exists "{0}" and must be removed before proceeding. Set "overwrite" argument or env.OVERWRITE to True to overwrite.'
 M4 = """A level subset was requested but the target dataset does not have a level dimension. The dataset's alias is: {0}"""
 M5 = "The ESMF FileMode constant value. BASIC (the default) only writes the factor index list and weight factor variables. WITHAUX adds auxiliary variables and additional file metadata to the output weight file."
+M6 = "If provided, create the weight file in NetCDF using the 64-bit offset format to allow variables larger than 2GB. Note the 64-bit offset format is not supported in the NetCDF version earlier than 3.6.0.  An error message will be generated if this flag is specified while the application is linked with a NetCDF library earlier than 3.6.0."

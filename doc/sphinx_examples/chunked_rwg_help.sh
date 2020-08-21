@@ -91,4 +91,13 @@ Options:
                                   and weight factor variables. WITHAUX adds
                                   auxiliary variables and additional file
                                   metadata to the output weight file.
+  --64bit_offset / --no_64bit_offset
+                                  If provided, create the weight file in
+                                  NetCDF using the 64-bit offset format to
+                                  allow variables larger than 2GB. Note the
+                                  64-bit offset format is not supported in the
+                                  NetCDF version earlier than 3.6.0.  An error
+                                  message will be generated if this flag is
+                                  specified while the application is linked
+                                  with a NetCDF library earlier than 3.6.0.
   --help                          Show this message and exit.

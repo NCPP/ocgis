@@ -174,8 +174,10 @@ def chunked_rwg(source, destination, weight, nchunks_dst, merge, esmf_src_type, 
 
     # Arguments to ESMF regridding.
     esmf_kwargs = {'regrid_method': esmf_regrid_method,
-                   'ignore_degenerate': ignore_degenerate,
-                   'large_file': large_file}
+                   'ignore_degenerate': ignore_degenerate,}
+    # Allow older versions of ESMF to work with a default large file flag.
+    if large_file:
+        esmf_kwargs['large_file'] = large_file
 
     # Create the chunked regridding object. This is used for both chunked regridding and a regrid with a spatial subset.
     gs = GridChunker(rd_src, rd_dst, nchunks_dst=nchunks_dst, src_grid_resolution=src_resolution, paths=paths,

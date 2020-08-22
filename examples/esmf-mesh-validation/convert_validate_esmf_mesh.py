@@ -7,9 +7,11 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from copy import deepcopy
 from subprocess import CalledProcessError
 
 import numpy as np
+from shapely.geometry import MultiPolygon, Polygon
 
 import ocgis
 
@@ -27,6 +29,69 @@ NODE_THRESHOLD = 5000
 PACK = False
 # Whether to split holes/interiors. Start with False just to use exteriors
 SPLIT_INTERIORS = False
+
+
+def itr_polygon(geom):
+    if is_multipolygon(geom):
+        itr = geom
+    else:
+        itr = [geom]
+    for g in itr:
+        yield g
+
+
+def is_multipolygon(geom):
+    return isinstance(geom, MultiPolygon)
+
+
+def shift_coords(geom):
+    is_multi = is_multipolygon(geom)
+    new_geom = []
+    for g in itr_polygon(geom):
+        coords = np.array(g.exterior.coords)
+        select = coords[:, 0] >= 180.0
+        adjusted = False
+        if np.any(select):
+            adjusted = True
+            # coords[select, 0] = 180.0 - 1e-6
+            # import ipdb;ipdb.set_trace() #tdk:rm
+            # with open('/tmp/coords.csv', 'w') as f:
+            #     for i in range(coords.shape[0]):
+            #         f.write('{},{}\n'.format(coords[i, 0], coords[i, 1]))
+            coords[select, 0] = 180.0 - 1e-6
+        if adjusted:
+            new_geom.append(Polygon(coords).buffer(0.0))
+        else:
+            # pass
+            new_geom.append(g) #tdk:enable
+    if is_multi:
+        ret = MultiPolygon(new_geom)
+    else:
+        ret = new_geom[0]
+    return ret
+
+
+def assign_longitude(src, dst):
+    is_multi = is_multipolygon(src)
+    new_geom = []
+    for s, d in zip(itr_polygon(src), itr_polygon(dst)):
+        src_coords = np.array(s.exterior.coords)
+        dst_coords = np.array(d.exterior.coords)
+        dst_coords[:, 0] = src_coords[:, 0]
+        new_geom.append(Polygon(dst_coords).buffer(0.0))
+    if is_multi:
+        ret = MultiPolygon(new_geom)
+    else:
+        ret = new_geom[0]
+    return ret
+
+
+def check_crs_transform(original, transformed):
+    """
+    Return True if the transform is okay.
+    """
+    diff = np.abs(original.area - transformed.area)
+    return diff < 1.0
 
 
 def do_esmf(ncpath, exedir):
@@ -53,6 +118,20 @@ def do_record_test(exedir, record):
     crs = ocgis.crs.CoordinateReferenceSystem(value=record['meta']['crs'])
     field = ocgis.Field.from_records([record], crs=crs)
     field.update_crs(ocgis.crs.Spherical())
+    # Check if the CRS transformation is valid
+    original_geom = ofield.geom.v().flatten()[0]
+    crs_transform_valid = check_crs_transform(original_geom, field.geom.v().flatten()[0])
+    # If the transform is not valid, then adjust the coordinate system of the original and update the CRS again.
+    if not crs_transform_valid:
+        shifted = shift_coords(original_geom)
+        shifted_field = deepcopy(ofield)
+        shifted_field.geom.v().flatten()[0] = shifted
+        shifted_field.update_crs(ocgis.crs.Spherical())
+        # If it is still not valid, swap out the longitudes since only the latitude is transformed.
+        if not check_crs_transform(shifted, shifted_field.geom.one()):
+            assigned = assign_longitude(shifted, shifted_field.geom.one())
+            shifted_field.geom.v()[0] = assigned
+        field = shifted_field
     # Convert the field geometry to an unstructured grid format based on the UGRID spec.
     try:
         gc = field.geom.convert_to(
@@ -103,6 +182,8 @@ def main(check_start_index):
     for ctr, record in enumerate(gc):
         if ctr < check_start_index:
             continue
+        # if record['properties']['hruid'] != 1033010:
+        #     continue
         # Print an update every 100 iterations
         if ctr % 10 == 0:
             print('INFO: Index {} of {}'.format(ctr, len_gc))

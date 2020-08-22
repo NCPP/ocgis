@@ -1078,6 +1078,16 @@ class GeometryVariable(AbstractSpatialVariable):
         else:
             return
 
+    def one(self):
+        """
+        Return the one Shapely geometry object in storage. Raise a ``ValueError`` if there is none or more than one geometry
+        objects in the storage arragy.
+        """
+        if self.size != 1:
+            raise ValueError("Allows for only one geometry in storage")
+        else:
+            return self.v().flatten()[0]
+
     def prepare(self, archetype=None):
         """
         Prepare the geometry variable for spatial operations by calling its coordinate system's :meth:`ocgis.variable.crs.AbstractCRS.prepare_geometry_variable`

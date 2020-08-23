@@ -2,7 +2,6 @@
 Test conversion of GeoPackage GIS data to ESMF Unstructured validating each mesh element along the way.
 """
 import os
-import random
 import shutil
 import subprocess
 import sys
@@ -119,44 +118,44 @@ def do_record_test(exedir, record):
     field = ocgis.Field.from_records([record], crs=crs)
     field.update_crs(ocgis.crs.Spherical())
     # Check if the CRS transformation is valid
-    original_geom = ofield.geom.v().flatten()[0]
-    crs_transform_valid = check_crs_transform(original_geom, field.geom.v().flatten()[0])
+    crs_transform_valid = check_crs_transform(ofield.geom.one(), field.geom.v().flatten()[0])
     # If the transform is not valid, then adjust the coordinate system of the original and update the CRS again.
-    if not crs_transform_valid:
-        shifted = shift_coords(original_geom)
-        shifted_field = deepcopy(ofield)
-        shifted_field.geom.v().flatten()[0] = shifted
-        shifted_field.update_crs(ocgis.crs.Spherical())
-        # If it is still not valid, swap out the longitudes since only the latitude is transformed.
-        if not check_crs_transform(shifted, shifted_field.geom.one()):
-            assigned = assign_longitude(shifted, shifted_field.geom.one())
-            shifted_field.geom.v()[0] = assigned
-        field = shifted_field
-    # Convert the field geometry to an unstructured grid format based on the UGRID spec.
+    success = True
     try:
-        gc = field.geom.convert_to(
-            pack=PACK,
-            node_threshold=NODE_THRESHOLD,
-            split_interiors=SPLIT_INTERIORS,
-            remove_self_intersects=False,
-            allow_splitting_excs=False
-        )
+        if not crs_transform_valid:
+            shifted_field = shift_field_coordinates(ofield)
+            field = shifted_field
     except Exception as e:
-        print('ERROR: OCGIS conversion problem for hruid={}'.format(hruid))
+        print('ERROR: OCGIS shift field problem for hruid={}'.format(hruid))
+        raise #tdk:rm
         success = False
     else:
-        # Path to the output netCDF file for the current element
-        out_element_nc = os.path.join(curr_outdir, "esmf-element_hruid-{}.nc".format(hruid))
-        # Add the center coordinate to make ESMF happy (even though we are not using it)
-        if DEBUG and random.random() > 0.9:
-            pass  # Purposefully make an error in the file
-        else:
-            centerCoords = np.array([field.geom.v()[0].centroid.x, field.geom.v()[0].centroid.y]).reshape(1, 2)
-            ocgis.Variable(name='centerCoords', value=centerCoords, dimensions=['elementCount', 'coordDim'], attrs={'units': 'degrees'}, parent=gc.parent)
-        # When writing the data to file, convert to ESMF unstructured format.
-        gc.parent.write(out_element_nc, driver='netcdf-esmf-unstruct')
-        # Run the simple regridding test
-        success = do_esmf(out_element_nc, exedir)
+        # Convert the field geometry to an unstructured grid format based on the UGRID spec.
+        try:
+            gc = field.geom.convert_to(
+                pack=PACK,
+                node_threshold=NODE_THRESHOLD,
+                split_interiors=SPLIT_INTERIORS,
+                remove_self_intersects=False,
+                allow_splitting_excs=False
+            )
+        except Exception as e:
+            print('ERROR: OCGIS conversion problem for hruid={}'.format(hruid))
+            raise #tdk:rm
+            success = False
+    # else:
+    #     # Path to the output netCDF file for the current element
+    #     out_element_nc = os.path.join(curr_outdir, "esmf-element_hruid-{}.nc".format(hruid))
+    #     # Add the center coordinate to make ESMF happy (even though we are not using it)
+    #     if DEBUG and random.random() > 0.9:
+    #         pass  # Purposefully make an error in the file
+    #     else:
+    #         centerCoords = np.array([field.geom.v()[0].centroid.x, field.geom.v()[0].centroid.y]).reshape(1, 2)
+    #         ocgis.Variable(name='centerCoords', value=centerCoords, dimensions=['elementCount', 'coordDim'], attrs={'units': 'degrees'}, parent=gc.parent)
+    #     # When writing the data to file, convert to ESMF unstructured format.
+    #     gc.parent.write(out_element_nc, driver='netcdf-esmf-unstruct')
+    #     # Run the simple regridding test
+    #     success = do_esmf(out_element_nc, exedir)
     if success:
         # If successful, remove the directory
         assert 'hruid-tmp-' in curr_outdir
@@ -172,6 +171,18 @@ def do_record_test(exedir, record):
     os.chdir(exedir)
 
 
+def shift_field_coordinates(ofield):
+    shifted = shift_coords(ofield.geom.one())
+    shifted_field = deepcopy(ofield)
+    shifted_field.geom.v().flatten()[0] = shifted
+    shifted_field.update_crs(ocgis.crs.Spherical())
+    # If it is still not valid, swap out the longitudes since only the latitude is transformed.
+    if not check_crs_transform(shifted, shifted_field.geom.one()):
+        assigned = assign_longitude(shifted, shifted_field.geom.one())
+        shifted_field.geom.v()[0] = assigned
+    return shifted_field
+
+
 def main(check_start_index):
     # The execution directory
     exedir = os.getcwd()
@@ -182,9 +193,9 @@ def main(check_start_index):
     for ctr, record in enumerate(gc):
         if ctr < check_start_index:
             continue
-        # if record['properties']['hruid'] != 1033010:
-        #     continue
         # Print an update every 100 iterations
+        # if record['properties']['hruid'] != 1072416:
+        #     continue
         if ctr % 10 == 0:
             print('INFO: Index {} of {}'.format(ctr, len_gc))
         do_record_test(exedir, record)

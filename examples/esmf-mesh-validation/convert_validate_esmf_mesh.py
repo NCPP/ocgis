@@ -144,32 +144,19 @@ def do_record_test(exedir, record):
     crs = ocgis.crs.CoordinateReferenceSystem(value=record['meta']['crs'])
     # Create the OCGIS Field from the GIS record
     field = ocgis.Field.from_records([record], crs=crs)
-    field.update_crs(ocgis.crs.Spherical())
-    # Check if the CRS transformation is valid
-    crs_transform_valid = check_crs_transform(ofield.geom.one(), field.geom.v().flatten()[0])
-    # If the transform is not valid, then adjust the coordinate system of the original and update the CRS again.
+    # Keep this around for debugging coordinate system transformation issues
+    ofield = deepcopy(field)
+    # Flag to indicate if an error occurred.
     success = True
     try:
-        if not crs_transform_valid:
-            shifted_field = shift_field_coordinates(ofield)
-            field = shifted_field
-    except Exception as e:
-        print('ERROR: OCGIS shift field problem for hruid={}'.format(hruid))
-        raise #tdk:rm
-        success = False
-    else:
-        # Convert the field geometry to an unstructured grid format based on the UGRID spec.
+        gc = do_ocgis_conversion(field, ofield, buffer_union=False)
+    except:
+        log('OCGIS: First conversion failed. Attempting a buffer.', level=logging.WARNING)
         try:
-            gc = field.geom.convert_to(
-                pack=PACK,
-                node_threshold=NODE_THRESHOLD,
-                split_interiors=SPLIT_INTERIORS,
-                remove_self_intersects=False,
-                allow_splitting_excs=False
-            )
+            gc = do_ocgis_conversion(field, ofield, buffer_union=True)
         except Exception as e:
-            print('ERROR: OCGIS conversion problem for hruid={}'.format(hruid))
-            raise #tdk:rm
+            tb = "OCGIS: {}: {}".format(e.__class__, str(e))
+            log(tb, level=logging.ERROR)
             success = False
     if success:
         # Path to the output netCDF file for the current element
@@ -193,6 +180,7 @@ def do_record_test(exedir, record):
         # If it's not successful, leave the directory. Write the shapefile so it's easy to look at. Also send the record
         # string to a file.
         field.geom.write_vector('02-problem-hruid-{}.shp'.format(hruid))
+        ofield.geom.write_vector('03-original-geom-problem-hruid-{}.shp'.format(hruid))
         record_out = '01-problem-record-hruid-{}.out'.format(hruid)
         with open(record_out, 'w') as f:
             f.write(str(record))

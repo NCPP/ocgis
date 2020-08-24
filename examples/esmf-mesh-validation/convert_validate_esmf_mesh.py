@@ -1,11 +1,14 @@
 """
 Test conversion of GeoPackage GIS data to ESMF Unstructured validating each mesh element along the way.
 """
+import logging
 import os
+import random
 import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from copy import deepcopy
 from subprocess import CalledProcessError
 
@@ -16,7 +19,7 @@ import ocgis
 
 # Path to the source GIS data assuming a GeoPackage
 # GEOPKG = 'hdma_global_catch_0.gpkg'
-GEOPKG = '/home/benkoziol/l/data/esmf/hdma-catchments-cesm-20200729/hdma_global_catch_0.gpkg'
+GEOPKG = '/home/benkoziol/l/data/esmf/hdma-catchments-cesm-20200729/hdma_global_catch_v2.gpkg'
 # This is the template for catchment-specific directories. If the test operation is successful, this will deleted. If it
 # is not successful, the directory will be left behind.
 OUTDIR_TEMPLATE = os.path.join(tempfile.gettempdir(), 'individual-element-nc', 'hruid-tmp-{}')
@@ -28,6 +31,14 @@ NODE_THRESHOLD = 5000
 PACK = False
 # Whether to split holes/interiors. Start with False just to use exteriors
 SPLIT_INTERIORS = False
+# Path to the logfile
+LOGFILE = 'ocgis.log'
+# Default logging level
+LOGLVL = logging.INFO
+
+
+def log(msg, level=LOGLVL, **kwargs):
+    logging.log(level, msg, **kwargs)
 
 
 def itr_polygon(geom):
@@ -52,17 +63,11 @@ def shift_coords(geom):
         adjusted = False
         if np.any(select):
             adjusted = True
-            # coords[select, 0] = 180.0 - 1e-6
-            # import ipdb;ipdb.set_trace() #tdk:rm
-            # with open('/tmp/coords.csv', 'w') as f:
-            #     for i in range(coords.shape[0]):
-            #         f.write('{},{}\n'.format(coords[i, 0], coords[i, 1]))
             coords[select, 0] = 180.0 - 1e-6
         if adjusted:
             new_geom.append(Polygon(coords).buffer(0.0))
         else:
-            # pass
-            new_geom.append(g) #tdk:enable
+            new_geom.append(g)
     if is_multi:
         ret = MultiPolygon(new_geom)
     else:
@@ -100,8 +105,30 @@ def do_esmf(ncpath, exedir):
         was_successful = True
     except CalledProcessError:
         was_successful = False
-        print('ERROR: ESMF read/regridding problem with file path {}'.format(ncpath))
+        log('ESMF read/regridding problem with file path {}'.format(ncpath), level=logging.ERROR)
     return was_successful
+
+
+def do_ocgis_conversion(field, ofield, buffer_union=False):
+    if buffer_union:
+        field.geom.v()[0] = field.geom.v()[0].buffer(1e-6)
+        field = field.geom.get_unioned().parent
+    field.update_crs(ocgis.crs.Spherical())
+    # Check if the CRS transformation is valid
+    crs_transform_valid = check_crs_transform(ofield.geom.one(), field.geom.v().flatten()[0])
+    # If the transform is not valid, then adjust the coordinate system of the original and update the CRS again.
+    if not crs_transform_valid:
+        log('CRS transform produced odd coordinates, attempting a shift', level=logging.WARNING)
+        shifted_field = shift_field_coordinates(ofield)
+        field = shifted_field
+    gc = field.geom.convert_to(
+        pack=PACK,
+        node_threshold=NODE_THRESHOLD,
+        split_interiors=SPLIT_INTERIORS,
+        remove_self_intersects=False,
+        allow_splitting_excs=False
+    )
+    return gc
 
 
 def do_record_test(exedir, record):
@@ -115,6 +142,7 @@ def do_record_test(exedir, record):
     os.chdir(curr_outdir)
     # We need to transform the coordinate system from WGS84 to Spherical for ESMF
     crs = ocgis.crs.CoordinateReferenceSystem(value=record['meta']['crs'])
+    # Create the OCGIS Field from the GIS record
     field = ocgis.Field.from_records([record], crs=crs)
     field.update_crs(ocgis.crs.Spherical())
     # Check if the CRS transformation is valid
@@ -143,19 +171,20 @@ def do_record_test(exedir, record):
             print('ERROR: OCGIS conversion problem for hruid={}'.format(hruid))
             raise #tdk:rm
             success = False
-    # else:
-    #     # Path to the output netCDF file for the current element
-    #     out_element_nc = os.path.join(curr_outdir, "esmf-element_hruid-{}.nc".format(hruid))
-    #     # Add the center coordinate to make ESMF happy (even though we are not using it)
-    #     if DEBUG and random.random() > 0.9:
-    #         pass  # Purposefully make an error in the file
-    #     else:
-    #         centerCoords = np.array([field.geom.v()[0].centroid.x, field.geom.v()[0].centroid.y]).reshape(1, 2)
-    #         ocgis.Variable(name='centerCoords', value=centerCoords, dimensions=['elementCount', 'coordDim'], attrs={'units': 'degrees'}, parent=gc.parent)
-    #     # When writing the data to file, convert to ESMF unstructured format.
-    #     gc.parent.write(out_element_nc, driver='netcdf-esmf-unstruct')
-    #     # Run the simple regridding test
-    #     success = do_esmf(out_element_nc, exedir)
+    if success:
+        # Path to the output netCDF file for the current element
+        out_element_nc = os.path.join(curr_outdir, "esmf-element_hruid-{}.nc".format(hruid))
+        # Add the center coordinate to make ESMF happy (even though we are not using it)
+        if DEBUG and random.random() > 0.9:
+            pass  # Purposefully make an error in the file
+        else:
+            centerCoords = np.array([field.geom.v()[0].centroid.x, field.geom.v()[0].centroid.y]).reshape(1, 2)
+            ocgis.Variable(name='centerCoords', value=centerCoords, dimensions=['elementCount', 'coordDim'],
+                           attrs={'units': 'degrees'}, parent=gc.parent)
+        # When writing the data to file, convert to ESMF unstructured format
+        gc.parent.write(out_element_nc, driver='netcdf-esmf-unstruct')
+        # Run the simple regridding test
+        success = do_esmf(out_element_nc, exedir)
     if success:
         # If successful, remove the directory
         assert 'hruid-tmp-' in curr_outdir
@@ -183,7 +212,14 @@ def shift_field_coordinates(ofield):
     return shifted_field
 
 
-def main(check_start_index):
+def main(start, stop):
+    logging.basicConfig(
+        level=LOGLVL,
+        format='[%(name)s][%(levelname)s][%(asctime)s]:: %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+        handlers=[
+            logging.FileHandler('ocgis-{}-{}.log'.format(start, stop), mode='w'),
+            logging.StreamHandler()])
     # The execution directory
     exedir = os.getcwd()
     # An iterator over the geometries in the GeoPackage
@@ -191,15 +227,22 @@ def main(check_start_index):
     # Number of records in the GeoPackage
     len_gc = len(gc)
     for ctr, record in enumerate(gc):
-        if ctr < check_start_index:
+        if ctr < start:
             continue
-        # Print an update every 100 iterations
+        elif ctr == stop:
+            log('success')
+            break
         # if record['properties']['hruid'] != 1072416:
         #     continue
-        if ctr % 10 == 0:
-            print('INFO: Index {} of {}'.format(ctr, len_gc))
+        # Print an update every many iterations
+        # if ctr % 1 == 0:
+        log('Index {} of {}, hruid={}, time={}'.format(ctr, len_gc, record['properties']['hruid'], time.time()))
         do_record_test(exedir, record)
+        # if record['properties']['hruid'] == 1072416:
+        #     print(ctr)
+        #     print('FOUND!')
+        #     break
 
 
 if __name__ == "__main__":
-    main(int(sys.argv[1]))
+    main(int(sys.argv[1]), int(sys.argv[2]))

@@ -401,7 +401,7 @@ class GeometryVariable(AbstractSpatialVariable):
         split_interiors = kwargs.pop('split_interiors', False)
         driver = get_driver_class(kwargs.pop('driver', None), default=DriverKey.NETCDF_UGRID)
         use_geometry_iterator = kwargs.pop('use_geometry_iterator', False)
-        to_crs = kwargs.pop('to_crs', None)
+        to_crs = kwargs.pop('to_crs', None) #tdk:doc
         start_index = kwargs.pop('start_index', 0)
         allow_splitting_excs = kwargs.pop('allow_splitting_excs', False)
         remove_self_intersects = kwargs.pop('remove_self_intersects', False)
@@ -472,9 +472,18 @@ class GeometryVariable(AbstractSpatialVariable):
 
                 for idx, geom in enumerate(geom_itr):
                     if to_crs is not None:
+                        assert from_crs is not None
                         to_transform = GeometryVariable.from_shapely(geom, crs=from_crs)
-                        to_transform.update_crs(to_crs)
-                        geom = to_transform.get_value()[0]
+                        if True: #tdk:todo: add parameter
+                            ofield = deepcopy(to_transform.parent)
+                            field = to_transform.parent
+                            try:
+                                field = do_ocgis_coordinate_transform(field, ofield, to_crs, buffer_union=False)
+                            except:
+                                field = do_ocgis_coordinate_transform(field, ofield, to_crs, buffer_union=True)
+                        else:
+                            to_transform.update_crs(to_crs)
+                            geom = to_transform.get_value()[0]
 
                     if geom.geom_type in polygon_types:
                         # Identify and remove self-intersections if requested. These can create virtual holes/interiors
@@ -1502,3 +1511,87 @@ def do_remove_self_intersects_multi(poly):
     else:
         newpoly = do_remove_self_intersects(poly)
     return newpoly
+
+
+def check_crs_transform(original, transformed):
+    """
+    Return True if the transform is okay.
+    """
+    diff = np.abs(original.area - transformed.area)
+    return diff < 1.0
+
+
+def shift_coords(geom):
+    is_multi = is_multipolygon(geom)
+    new_geom = []
+    for g in itr_polygon(geom):
+        coords = np.array(g.exterior.coords)
+        select = coords[:, 0] >= 180.0
+        adjusted = False
+        if np.any(select):
+            adjusted = True
+            coords[select, 0] = 180.0 - 1e-6
+        if adjusted:
+            new_geom.append(Polygon(coords).buffer(0.0))
+        else:
+            new_geom.append(g)
+    if is_multi:
+        ret = MultiPolygon(new_geom)
+    else:
+        ret = new_geom[0]
+    return ret
+
+
+def assign_longitude(src, dst):
+    is_multi = is_multipolygon(src)
+    new_geom = []
+    for s, d in zip(itr_polygon(src), itr_polygon(dst)):
+        src_coords = np.array(s.exterior.coords)
+        dst_coords = np.array(d.exterior.coords)
+        dst_coords[:, 0] = src_coords[:, 0]
+        new_geom.append(Polygon(dst_coords).buffer(0.0))
+    if is_multi:
+        ret = MultiPolygon(new_geom)
+    else:
+        ret = new_geom[0]
+    return ret
+
+
+def itr_polygon(geom):
+    if is_multipolygon(geom):
+        itr = geom
+    else:
+        itr = [geom]
+    for g in itr:
+        yield g
+
+
+def is_multipolygon(geom):
+    return isinstance(geom, MultiPolygon)
+
+
+def shift_field_coordinates(ofield, to_crs):
+    shifted = shift_coords(ofield.geom.one())
+    shifted_field = deepcopy(ofield)
+    shifted_field.geom.v().flatten()[0] = shifted
+    shifted_field.update_crs(to_crs)
+    # If it is still not valid, swap out the longitudes since only the latitude is transformed.
+    if not check_crs_transform(shifted, shifted_field.geom.one()):
+        assigned = assign_longitude(shifted, shifted_field.geom.one())
+        shifted_field.geom.v()[0] = assigned
+    return shifted_field
+
+
+def do_ocgis_coordinate_transform(field, ofield, to_crs, buffer_union=False):
+    if buffer_union:
+        field.geom.v()[0] = field.geom.v()[0].buffer(1e-6)
+        field = field.geom.get_unioned().parent
+    field.update_crs(to_crs)
+    # Check if the CRS transformation is valid
+    crs_transform_valid = check_crs_transform(ofield.geom.one(), field.geom.v().flatten()[0])
+    # If the transform is not valid, then adjust the coordinate system of the original and update the CRS again.
+    if not crs_transform_valid:
+        # log('CRS transform produced odd coordinates, attempting a shift', level=logging.WARNING)
+        shifted_field = shift_field_coordinates(ofield, to_crs)
+        field = shifted_field
+    return field

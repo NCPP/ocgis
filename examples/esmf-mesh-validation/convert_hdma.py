@@ -13,8 +13,6 @@ FEATURE_CLASS = 'Catchment'
 ocgis_lh.configure(to_stream=True, level=logging.DEBUG)
 
 # Create the request dataset and field identifying the target feature class in the process.
-# rd = ocgis.RequestDataset(PATH_GDB, driver=DriverKey.VECTOR,
-#                           driver_kwargs={'feature_class': FEATURE_CLASS})
 rd = ocgis.RequestDataset(INPATH, driver=DriverKey.VECTOR,
                           driver_kwargs={'feature_class': FEATURE_CLASS})
 field = rd.get()

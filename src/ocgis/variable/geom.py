@@ -34,7 +34,7 @@ from ocgis.variable.iterator import Iterator
 CreateGeometryFromWkb, Geometry, wkbGeometryCollection, wkbPoint = ogr.CreateGeometryFromWkb, ogr.Geometry, \
                                                                    ogr.wkbGeometryCollection, ogr.wkbPoint
 GEOM_TYPE_MAPPING = {'Polygon': Polygon, 'Point': Point, 'MultiPoint': MultiPoint, 'MultiPolygon': MultiPolygon}
-_LOCAL_LOG = "geom"
+_LOCAL_LOG = "variable.geom"
 
 
 def count_interiors(geometry):
@@ -406,6 +406,7 @@ class GeometryVariable(AbstractSpatialVariable):
         allow_splitting_excs = kwargs.pop('allow_splitting_excs', False)
         remove_self_intersects = kwargs.pop('remove_self_intersects', False)
         allow_interiors = kwargs.pop('allow_interiors', True)
+        add_center_coords = kwargs.pop('add_center_coords', False)
         assert len(kwargs) == 0
         if to_crs is not None and not use_geometry_iterator:
             raise ValueError("'to_crs' only applies when using a geometry iterator")
@@ -470,7 +471,11 @@ class GeometryVariable(AbstractSpatialVariable):
                 if to_crs is not None:
                     from_crs = self._request_dataset.crs
 
+                center_coords = deque()
+
                 for idx, geom in enumerate(geom_itr):
+                    if idx % 100 == 0:
+                        ocgis_lh("current convert_to idx={}".format(idx), logger=_LOCAL_LOG, level=logging.DEBUG)
                     if to_crs is not None:
                         assert from_crs is not None
                         to_transform = GeometryVariable.from_shapely(geom, crs=from_crs)
@@ -526,6 +531,9 @@ class GeometryVariable(AbstractSpatialVariable):
                                     extra = ". Current ocgis geometry iterator index={}".format(idx)
                                     raise e.__class__(str(e) + extra)
                             is_multi = True
+
+                        if add_center_coords:
+                            center_coords.append((geom.centroid.x, geom.centroid.y))
 
                     fill_cidx = np.array([], dtype=env.NP_INT)
 
@@ -637,6 +645,12 @@ class GeometryVariable(AbstractSpatialVariable):
             dvc.load()
             ret.parent.add_variable(dvc, is_data=True)
 
+        if add_center_coords:
+            dim_coord = Dimension(name='coordDim', size=2)
+            Variable(name='centerCoords', value=np.array(center_coords).reshape(-1, 2),
+                     dimensions=[element_dim, dim_coord],
+                     attrs={'units': 'degrees'}, parent=ret.parent)
+
         # Slice out any geometries removed due to splitting errors. This will always have length 0 unless splitting
         # exceptions are allowed _and_ an error was encountered during splitting (removing interiors and/or node
         # thresholding).
@@ -646,6 +660,10 @@ class GeometryVariable(AbstractSpatialVariable):
                 select[r] = False
             ret = ret[select]
 
+        if to_crs:
+            ret.parent.set_crs(to_crs)
+
+        ocgis_lh("returning from convert_to".format(idx), logger=_LOCAL_LOG, level=logging.DEBUG)
         return ret
 
     @classmethod

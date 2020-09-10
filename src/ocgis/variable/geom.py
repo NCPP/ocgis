@@ -524,12 +524,15 @@ class GeometryVariable(AbstractSpatialVariable):
                             try:
                                 geom = get_split_polygon_by_node_threshold(geom, node_threshold)
                             except TypeError as e:
-                                if allow_splitting_excs:
-                                    removed_indices.append(idx)
-                                    continue
-                                else:
-                                    extra = ". Current ocgis geometry iterator index={}".format(idx)
-                                    raise e.__class__(str(e) + extra)
+                                ocgis_lh("failed polygon splitting idx={}".format(idx), logger=_LOCAL_LOG,
+                                         level=logging.DEBUG)
+                                pass
+                                # if allow_splitting_excs:
+                                #     removed_indices.append(idx)
+                                #     continue
+                                # else:
+                                #     extra = ". Current ocgis geometry iterator index={}".format(idx)
+                                #     raise e.__class__(str(e) + extra)
                             is_multi = True
 
                         if add_center_coords:

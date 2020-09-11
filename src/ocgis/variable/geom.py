@@ -1605,7 +1605,7 @@ def shift_field_coordinates(ofield, to_crs):
 
 def do_ocgis_coordinate_transform(field, ofield, to_crs, buffer_union=False):
     if buffer_union:
-        field.geom.v()[0] = field.geom.v()[0].buffer(1e-6)
+        field.geom.v()[0] = field.geom.v()[0].buffer(1e-16)
         field = field.geom.get_unioned().parent
     field.update_crs(to_crs)
     # Check if the CRS transformation is valid

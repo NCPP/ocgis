@@ -8,6 +8,7 @@ import netCDF4 as nc
 import numpy as np
 import six
 from netCDF4._netCDF4 import VLType, MFDataset, MFTime
+from numpy.ma.core import MaskedConstant
 
 from ocgis import constants, vm
 from ocgis import env
@@ -159,6 +160,8 @@ class DriverNetcdf(AbstractDriver):
                                 msg = "Variable name is '{}'. Original message: ".format(var.name) + str(e)
                                 raise e.__class__(msg)
                             for sidx, sval in enumerate(curr_value):
+                                if isinstance(sval, MaskedConstant):
+                                    sval = ''
                                 ncvar[idx, sidx] = sval
                     elif var.ndim == 0:
                         ncvar[:] = data_value

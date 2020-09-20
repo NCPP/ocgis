@@ -408,12 +408,12 @@ class GeometryVariable(AbstractSpatialVariable):
         allow_interiors = kwargs.pop('allow_interiors', True)
         add_center_coords = kwargs.pop('add_center_coords', False)
         assert len(kwargs) == 0
-        if to_crs is not None and not use_geometry_iterator:
-            raise ValueError("'to_crs' only applies when using a geometry iterator")
 
         polygon_types = ('Polygon', 'MultiPolygon')
 
         geom_type = self.geom_type
+        # Flag to indicate if we encountered a multi-geometry
+        has_multi = False
         # Flag to indicate if we are processing multi-geometries.
         if geom_type.lower().startswith('multi'):
             is_multi = True
@@ -479,7 +479,7 @@ class GeometryVariable(AbstractSpatialVariable):
                     if to_crs is not None:
                         assert from_crs is not None
                         to_transform = GeometryVariable.from_shapely(geom, crs=from_crs)
-                        if True: #tdk:todo: add parameter
+                        if False: #tdk:todo: add parameter
                             ofield = deepcopy(to_transform.parent)
                             field = to_transform.parent
                             try:
@@ -544,6 +544,7 @@ class GeometryVariable(AbstractSpatialVariable):
                         # Insert a break value if we are on the second or greater component geometry of a
                         # multi-geometry.
                         if subidx > 0:
+                            has_multi = True
                             fill_cidx = np.hstack((fill_cidx, np.array([multi_break_value], dtype=env.NP_INT)))
 
                         subgeom = get_ccw_oriented_and_valid_shapely_polygon(subgeom)
@@ -600,7 +601,7 @@ class GeometryVariable(AbstractSpatialVariable):
                                          dtype=ocgis_dtype, attrs={AttributeName.START_INDEX: start_index})
 
                 # Indicate there are multi-geometries in the coordinates objects.
-                if is_multi:
+                if has_multi:
                     element_index.attrs[name_mbv] = multi_break_value
                 else:
                     element_index.attrs.pop(name_mbv, None)

@@ -1,6 +1,7 @@
 from copy import deepcopy
 
 import six
+
 from ocgis.base import AbstractOcgisObject
 from ocgis.base import get_dimension_names
 from ocgis.base import get_variable_names
@@ -306,7 +307,7 @@ class DimensionMap(AbstractOcgisObject):
                 # are atomic in the dimension map (x-coordinate is one variable). However, some metadata formats put
                 # both coordinates in a single variable (x/y-coordinate is one variable with the dimension name
                 # determining what the values represent.
-                if section is not None:
+                if section is not None and ret != "centerCoords":
                     has_sections = True
                     section = get_formatted_slice(section, base_variable_ndim)
                     new_variable = base_variable[section]

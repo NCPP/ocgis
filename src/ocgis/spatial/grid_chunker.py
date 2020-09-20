@@ -168,12 +168,14 @@ class GridChunker(AbstractOcgisObject):
                 print("processing: {}".format(s))
                 grid = e["grid"]
                 label = e["label"]
-                assert(grid.abstraction == "point")
+                orig_grid_abstraction = grid.abstraction
+                grid.abstraction = 'point'
                 gvar = grid.get_abstraction_geometry()
                 gvar.write_vector(os.path.join(outdir, "{}-grid-point.shp".format(label)))
                 grid.abstraction = "polygon"
                 gvar = grid.get_abstraction_geometry()
                 gvar.write_vector(os.path.join(outdir, "{}-grid-polygon.shp".format(label)))
+                grid.abstraction = orig_grid_abstraction
 
     @property
     def buffer_value(self):

@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 from unittest import SkipTest
@@ -9,10 +10,12 @@ from click.testing import CliRunner
 import ocgis
 from ocgis import RequestDataset, Variable, Grid, vm
 from ocgis import env
-from ocgis.constants import DecompositionType
+from ocgis.constants import DecompositionType, DriverKey
 from ocgis.ocli import ocli
+from ocgis.spatial.grid_chunker import GridChunker
 from ocgis.test.base import TestBase, attr, create_gridxy_global, create_exact_field
 from ocgis.util.addict import Dict
+from ocgis.util.logging_ocgis import ocgis_lh
 from ocgis.variable.crs import Spherical
 
 
@@ -264,6 +267,70 @@ class TestChunkedRWG(TestBase):
             mocks = [mRequestDataset, mGridChunker, m_mkdtemp, m_rmtree, m_makedirs, m_write_spatial_subset]
             for m in mocks:
                 m.reset_mock()
+
+    @attr('esmf', 'mpi')
+    def test_system_esmf_unstructured(self):
+        """Test regridding to an ESMF unstructured grid from a rectilinear grid."""
+
+        #tdk:resume
+        self.remove_dir = False #tdk
+        ocgis_lh.configure(to_stream=True, level=logging.DEBUG)
+        env.CLOBBER_UNITS_ON_BOUNDS = False
+
+        # Create the source field --------------------------------------------------------------------------------------
+
+        src_grid = create_gridxy_global(crs=Spherical())
+        src_field = create_exact_field(src_grid, 'foo')
+
+        if ocgis.vm.rank == 0:
+            source = self.get_temporary_file_path('source.nc')
+        else:
+            source = None
+        source = ocgis.vm.bcast(source)
+        src_field.write(source)
+
+        # Create the destination grid ----------------------------------------------------------------------------------
+
+        inpath = self.path_state_boundaries
+        if ocgis.vm.rank == 0:
+            outpath = self.get_temporary_file_path("dst_esmf_unstruct.nc")
+        else:
+            outpath = None
+        outpath = ocgis.vm.bcast(outpath)
+
+        rd = ocgis.RequestDataset(inpath, driver="vector")
+        field = rd.get()
+
+        gc = field.geom.convert_to(use_geometry_iterator=True, pack=False,
+                                   node_threshold=None, split_interiors=False,
+                                   remove_self_intersects=False,
+                                   to_crs=None, #consider spherical
+                                   allow_splitting_excs=False,
+                                   add_center_coords=True)
+
+        gc.parent.write(outpath, driver=DriverKey.NETCDF_ESMF_UNSTRUCT)
+
+        # Call into the CLI --------------------------------------------------------------------------------------------
+
+        srcrd = RequestDataset(uri=source)
+        dstrd = RequestDataset(uri=outpath, driver=DriverKey.NETCDF_ESMF_UNSTRUCT)
+
+        wd = os.path.join(self.current_dir_output, 'chunks')
+        if ocgis.vm.rank == 0:
+            os.mkdir(wd)
+        gc = GridChunker(source=srcrd, destination=dstrd, paths={'wd': os.path.join(self.current_dir_output, 'chunks')},
+                         src_grid_resolution=src_field.grid.resolution_max, dst_grid_resolution=src_field.grid.resolution_max,
+                         genweights=True, debug=True)
+        gc.write_chunks()
+
+        # cli_args = ['chunked-rwg', '--source', source, '--destination', outpath, '--nchunks_dst', '10',
+        #             '--esmf_src_type', 'GRIDSPEC', '--esmf_dst_type', 'ESMFMESH', '--genweights',
+        #             '--esmf_regrid_method', 'CONSERVE', '--persist', '--weight', os.path.join(self.current_dir_output, 'weight.nc'),
+        #             '--src_grid_resolution', src_field.grid.resolution_max, '--dst_grid_resolution', src_field.grid.resolution_max,
+        #             '--verbose', '--loglvl', 'DEBUG']
+        # runner = CliRunner()
+        # result = runner.invoke(ocli, args=cli_args, catch_exceptions=False)
+        # self.assertEqual(result, 0)
 
     @attr('esmf')
     def test_chunked_rwg_spatial_subset(self):

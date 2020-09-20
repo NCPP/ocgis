@@ -460,7 +460,7 @@ class TestGeometryVariable(AbstractTestInterface, FixturePolygonWithHole, Fixtur
                 select = field["STATE_NAME"].v() == state_name
                 assert(select.any())
                 field = field["STATE_NAME"][select].parent
-                field.geom.write_vector(self.get_temporary_file_path("target.shp"))
+                # field.geom.write_vector(self.get_temporary_file_path("target.shp"))
 
                 gc = field.geom.convert_to(use_geometry_iterator=False, pack=False,
                                            node_threshold=50, split_interiors=False,
@@ -475,7 +475,7 @@ class TestGeometryVariable(AbstractTestInterface, FixturePolygonWithHole, Fixtur
                 inrd = RequestDataset(out_es, driver=DriverKey.NETCDF_ESMF_UNSTRUCT)
                 infield = inrd.create_field()
                 geom = infield.grid.convert_to()
-                geom.write_vector(self.get_temporary_file_path("converted.shp"))
+                # geom.write_vector(self.get_temporary_file_path("converted.shp"))
                 try:
                     self.assertIn('polygon_break_value', infield.grid.cindex.attrs)
                 except AssertionError:

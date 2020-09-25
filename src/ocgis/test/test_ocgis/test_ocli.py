@@ -346,7 +346,7 @@ class TestChunkedRWG(TestBase):
                 sub.parent.set_driver(DriverESMFUnstruct)
 
                 if yield_slice:
-                    yield sub, (ii, slice(None))
+                    yield sub, None
                 else:
                     yield sub
 

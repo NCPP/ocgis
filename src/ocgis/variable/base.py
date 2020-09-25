@@ -9,6 +9,7 @@ import six
 from numpy.core.multiarray import ndarray
 from numpy.ma import MaskedArray
 from numpy.ma.core import MaskedConstant
+
 from ocgis import constants, vm
 from ocgis.base import AbstractNamedObject, get_dimension_names, get_variable_names, get_variables, iter_dict_slices, \
     orphaned, raise_if_empty
@@ -669,6 +670,27 @@ class Variable(AbstractContainer, Attributes):
         :rtype: tuple
         """
         return self._get_shape_()
+
+    @property
+    def shape_global(self):
+        """
+        Get the global shape across the current :class:`~ocgis.OcgVM`.
+
+        :rtype: :class:`tuple` of :class:`int`
+        :raises: :class:`~ocgis.exc.EmptyObjectError`
+        """
+
+        raise_if_empty(self)
+
+        maxd = [max(d.bounds_global) for d in self.dimensions]
+        shapes = vm.gather(maxd)
+        if vm.rank == 0:
+            shape_global = tuple(np.max(shapes, axis=0))
+        else:
+            shape_global = None
+        shape_global = vm.bcast(shape_global)
+
+        return shape_global
 
     @property
     def size(self):

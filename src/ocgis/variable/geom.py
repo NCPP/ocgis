@@ -1274,6 +1274,9 @@ class GeometryVariable(AbstractSpatialVariable):
             raise RequestableFeature('Extent not supported for more than one geometry.')
         return self.get_value().flatten()[0].bounds
 
+    def _gc_create_global_indices_(self, global_shape, **kwargs):
+        return self.ugid.v().flatten()
+
 
 def get_masking_slice(intersects_mask_value, target, apply_slice=True):
     """

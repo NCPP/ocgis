@@ -310,6 +310,8 @@ class TestChunkedRWG(TestBase):
 
         gc.parent.write(outpath, driver=DriverKey.NETCDF_ESMF_UNSTRUCT)
 
+        dstrd = RequestDataset(uri=outpath, driver=DriverKey.NETCDF_ESMF_UNSTRUCT)
+
         # Call into the CLI --------------------------------------------------------------------------------------------
 
         srcrd = RequestDataset(uri=source)
@@ -350,7 +352,7 @@ class TestChunkedRWG(TestBase):
                 else:
                     yield sub
 
-        gc = GridChunker(source=srcrd, destination=dstrd, paths={'wd': os.path.join(self.current_dir_output, 'chunks')},
+        gc = GridChunker(source=srcrd, destination=dst, paths={'wd': os.path.join(self.current_dir_output, 'chunks')},
                          src_grid_resolution=src_field.grid.resolution_max, dst_grid_resolution=src_field.grid.resolution_max,
                          genweights=True, debug=False, iter_dst=iter_dst_grid_subsets, esmf_kwargs={"ignore_degenerate": True})
         gc.write_chunks()

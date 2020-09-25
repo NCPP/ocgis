@@ -812,8 +812,9 @@ class GridChunker(AbstractOcgisObject):
                                                        bounds_dimension)
 
                 # Destination ------------------------------------------------------------------------------------------
-                self.dst_grid._gc_create_index_bounds_(RegriddingRole.DESTINATION, vidx, vc, dst_slices, dim,
-                                                       bounds_dimension)
+                if not isinstance(self.dst_grid, GeometryVariable):
+                    self.dst_grid._gc_create_index_bounds_(RegriddingRole.DESTINATION, vidx, vc, dst_slices, dim,
+                                                           bounds_dimension)
 
                 vc.write(index_path)
 
@@ -899,7 +900,7 @@ class GridChunker(AbstractOcgisObject):
         else:
             ifc = GridChunkerConstants.IndexFile
             if wvn == 'row':
-                is_unstruct = isinstance(self.dst_grid, GridUnstruct)
+                is_unstruct = isinstance(self.dst_grid, (GridUnstruct, GeometryVariable))
                 if is_unstruct:
                     dst_filename = ifile[gidx[ifc.NAME_DESTINATION_VARIABLE]].join_string_value()[ii]
                     dst_filename = os.path.join(split_grids_directory, dst_filename)

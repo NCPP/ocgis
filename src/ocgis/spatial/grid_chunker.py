@@ -856,6 +856,7 @@ class GridChunker(AbstractOcgisObject):
         try:
             dstfield, dstgrid = create_esmf_field(dst_path, dst_grid, self.esmf_kwargs)
         except ValueError:
+            import ipdb;ipdb.set_trace() #tdk:rm
             #tdk: this try/except is for debugging
             ocgis_lh(logger=_LOCAL_LOGGER, level=logging.DEBUG, msg="ERROR: Could not read file: {}".format(dst_path))
             return

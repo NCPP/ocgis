@@ -8,9 +8,10 @@ import numpy as np
 from click.testing import CliRunner
 
 import ocgis
-from ocgis import RequestDataset, Variable, Grid, vm
+from ocgis import RequestDataset, Variable, Grid, vm, constants
 from ocgis import env
 from ocgis.constants import DecompositionType, DriverKey
+from ocgis.driver.nc_esmf_unstruct import DriverESMFUnstruct
 from ocgis.ocli import ocli
 from ocgis.spatial.grid_chunker import GridChunker
 from ocgis.test.base import TestBase, attr, create_gridxy_global, create_exact_field
@@ -268,7 +269,7 @@ class TestChunkedRWG(TestBase):
             for m in mocks:
                 m.reset_mock()
 
-    @attr('esmf', 'mpi')
+    @attr('esmf')
     def test_system_esmf_unstructured(self):
         """Test regridding to an ESMF unstructured grid from a rectilinear grid."""
 
@@ -334,9 +335,16 @@ class TestChunkedRWG(TestBase):
                                            allow_splitting_excs=False,
                                            add_center_coords=True)
 
+                guidx = Variable(name=constants.GridChunkerConstants.IndexFile.NAME_DSTIDX_GUID,
+                                 dimensions=['elementCount'],
+                                 value=field["UGID"].v())
+                sub.parent.add_variable(guidx)
+
                 sub.parent.write(os.path.join(gc.paths['wd'], gc.paths['dst_template'].format(ii+1)), driver=DriverKey.NETCDF_ESMF_UNSTRUCT)
-            # for slc in self.iter_dst_grid_slices(yield_idx=yield_idx):
-            #     sub = self.dst_grid.get_distributed_slice(slc)
+                # Indicate the file is actually written as a ESMF unstructured file. Otherwise the default mesh file
+                # format will be UGRID.
+                sub.parent.set_driver(DriverESMFUnstruct)
+
                 if yield_slice:
                     yield sub, (ii, slice(None))
                 else:
@@ -346,6 +354,7 @@ class TestChunkedRWG(TestBase):
                          src_grid_resolution=src_field.grid.resolution_max, dst_grid_resolution=src_field.grid.resolution_max,
                          genweights=True, debug=False, iter_dst=iter_dst_grid_subsets, esmf_kwargs={"ignore_degenerate": True})
         gc.write_chunks()
+        gc.create_merged_weight_file(self.get_temporary_file_path("merged_weights.nc"))
 
         # cli_args = ['chunked-rwg', '--source', source, '--destination', outpath, '--nchunks_dst', '10',
         #             '--esmf_src_type', 'GRIDSPEC', '--esmf_dst_type', 'ESMFMESH', '--genweights',

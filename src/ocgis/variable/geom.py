@@ -469,7 +469,11 @@ class GeometryVariable(AbstractSpatialVariable):
                     seqs.append(zv)
 
                 if to_crs is not None:
-                    from_crs = self._request_dataset.crs
+                    try:
+                        from_crs = self._request_dataset.crs
+                    except AttributeError:
+                        # Assume no request dataset
+                        from_crs = self.crs
 
                 center_coords = deque()
 

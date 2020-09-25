@@ -269,12 +269,12 @@ class TestChunkedRWG(TestBase):
             for m in mocks:
                 m.reset_mock()
 
-    @attr('esmf')
+    @attr('esmf', 'slow')
     def test_system_esmf_unstructured(self):
         """Test regridding to an ESMF unstructured grid from a rectilinear grid."""
 
-        self.remove_dir = False #tdk
-        ocgis_lh.configure(to_stream=True, level=logging.DEBUG)
+        # self.remove_dir = False #tdk
+        # ocgis_lh.configure(to_stream=True, level=logging.DEBUG)
         env.CLOBBER_UNITS_ON_BOUNDS = False
 
         # Create the source field --------------------------------------------------------------------------------------
@@ -291,26 +291,26 @@ class TestChunkedRWG(TestBase):
 
         # Create the destination grid ----------------------------------------------------------------------------------
 
-        inpath = self.path_state_boundaries
-        if ocgis.vm.rank == 0:
-            outpath = self.get_temporary_file_path("dst_esmf_unstruct.nc")
-        else:
-            outpath = None
-        outpath = ocgis.vm.bcast(outpath)
-
-        rd = ocgis.RequestDataset(inpath, driver="vector")
-        field = rd.get()
-
-        gc = field.geom.convert_to(use_geometry_iterator=True, pack=False,
-                                   node_threshold=None, split_interiors=False,
-                                   remove_self_intersects=False,
-                                   to_crs=ocgis.crs.Spherical(),
-                                   allow_splitting_excs=False,
-                                   add_center_coords=True)
-
-        gc.parent.write(outpath, driver=DriverKey.NETCDF_ESMF_UNSTRUCT)
-
-        dstrd = RequestDataset(uri=outpath, driver=DriverKey.NETCDF_ESMF_UNSTRUCT)
+        # inpath = self.path_state_boundaries
+        # if ocgis.vm.rank == 0:
+        #     outpath = self.get_temporary_file_path("dst_esmf_unstruct.nc")
+        # else:
+        #     outpath = None
+        # outpath = ocgis.vm.bcast(outpath)
+        #
+        # rd = ocgis.RequestDataset(inpath, driver="vector")
+        # field = rd.get()
+        #
+        # gc = field.geom.convert_to(use_geometry_iterator=True, pack=False,
+        #                            node_threshold=None, split_interiors=False,
+        #                            remove_self_intersects=False,
+        #                            to_crs=ocgis.crs.Spherical(),
+        #                            allow_splitting_excs=False,
+        #                            add_center_coords=True)
+        #
+        # gc.parent.write(outpath, driver=DriverKey.NETCDF_ESMF_UNSTRUCT)
+        #
+        # dstrd = RequestDataset(uri=outpath, driver=DriverKey.NETCDF_ESMF_UNSTRUCT)
 
         # Call into the CLI --------------------------------------------------------------------------------------------
 
@@ -322,6 +322,7 @@ class TestChunkedRWG(TestBase):
             os.mkdir(wd)
 
         def iter_dst_grid_subsets(gc, yield_slice=False, yield_idx=None):
+            ocgis_lh(msg="entering iter_dst_grid_subsets", level=logging.DEBUG, logger="external.iter_dst")
             field = RequestDataset(self.path_state_boundaries, driver="vector").create_field()
             state_names = field["STATE_NAME"].v().tolist()
             for ii, state_name in enumerate(state_names):
@@ -357,15 +358,6 @@ class TestChunkedRWG(TestBase):
                          genweights=True, debug=False, iter_dst=iter_dst_grid_subsets, esmf_kwargs={"ignore_degenerate": True})
         gc.write_chunks()
         gc.create_merged_weight_file(self.get_temporary_file_path("merged_weights.nc"))
-
-        # cli_args = ['chunked-rwg', '--source', source, '--destination', outpath, '--nchunks_dst', '10',
-        #             '--esmf_src_type', 'GRIDSPEC', '--esmf_dst_type', 'ESMFMESH', '--genweights',
-        #             '--esmf_regrid_method', 'CONSERVE', '--persist', '--weight', os.path.join(self.current_dir_output, 'weight.nc'),
-        #             '--src_grid_resolution', src_field.grid.resolution_max, '--dst_grid_resolution', src_field.grid.resolution_max,
-        #             '--verbose', '--loglvl', 'DEBUG']
-        # runner = CliRunner()
-        # result = runner.invoke(ocli, args=cli_args, catch_exceptions=False)
-        # self.assertEqual(result, 0)
 
     @attr('esmf')
     def test_chunked_rwg_spatial_subset(self):

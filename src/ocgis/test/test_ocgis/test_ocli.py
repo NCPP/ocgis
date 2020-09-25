@@ -272,7 +272,6 @@ class TestChunkedRWG(TestBase):
     def test_system_esmf_unstructured(self):
         """Test regridding to an ESMF unstructured grid from a rectilinear grid."""
 
-        #tdk:resume
         self.remove_dir = False #tdk
         ocgis_lh.configure(to_stream=True, level=logging.DEBUG)
         env.CLOBBER_UNITS_ON_BOUNDS = False
@@ -304,7 +303,7 @@ class TestChunkedRWG(TestBase):
         gc = field.geom.convert_to(use_geometry_iterator=True, pack=False,
                                    node_threshold=None, split_interiors=False,
                                    remove_self_intersects=False,
-                                   to_crs=None, #consider spherical
+                                   to_crs=ocgis.crs.Spherical(),
                                    allow_splitting_excs=False,
                                    add_center_coords=True)
 
@@ -318,9 +317,34 @@ class TestChunkedRWG(TestBase):
         wd = os.path.join(self.current_dir_output, 'chunks')
         if ocgis.vm.rank == 0:
             os.mkdir(wd)
+
+        def iter_dst_grid_subsets(gc, yield_slice=False, yield_idx=None):
+            field = RequestDataset(self.path_state_boundaries, driver="vector").create_field()
+            state_names = field["STATE_NAME"].v().tolist()
+            for ii, state_name in enumerate(state_names):
+                field = RequestDataset(self.path_state_boundaries, driver="vector").create_field()
+                select = field["STATE_NAME"].v() == state_name
+                assert (select.any())
+                field = field["STATE_NAME"][select].parent
+
+                sub = field.geom.convert_to(use_geometry_iterator=False, pack=False,
+                                           node_threshold=50, split_interiors=False,
+                                           remove_self_intersects=False,
+                                           to_crs=Spherical(),
+                                           allow_splitting_excs=False,
+                                           add_center_coords=True)
+
+                sub.parent.write(os.path.join(gc.paths['wd'], gc.paths['dst_template'].format(ii+1)), driver=DriverKey.NETCDF_ESMF_UNSTRUCT)
+            # for slc in self.iter_dst_grid_slices(yield_idx=yield_idx):
+            #     sub = self.dst_grid.get_distributed_slice(slc)
+                if yield_slice:
+                    yield sub, (ii, slice(None))
+                else:
+                    yield sub
+
         gc = GridChunker(source=srcrd, destination=dstrd, paths={'wd': os.path.join(self.current_dir_output, 'chunks')},
                          src_grid_resolution=src_field.grid.resolution_max, dst_grid_resolution=src_field.grid.resolution_max,
-                         genweights=True, debug=True)
+                         genweights=True, debug=False, iter_dst=iter_dst_grid_subsets, esmf_kwargs={"ignore_degenerate": True})
         gc.write_chunks()
 
         # cli_args = ['chunked-rwg', '--source', source, '--destination', outpath, '--nchunks_dst', '10',

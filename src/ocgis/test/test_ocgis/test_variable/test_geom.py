@@ -451,16 +451,18 @@ class TestGeometryVariable(AbstractTestInterface, FixturePolygonWithHole, Fixtur
 
     @attr('slow')
     def test_convert_to_with_crs_transform_esmf_unstruct(self):
+        self.remove_dir = False #tdk
         field = RequestDataset(self.path_state_boundaries, driver="vector").create_field()
         state_names = field["STATE_NAME"].v().tolist()
 
-        for state_name in state_names:
+        for ctr, state_name in enumerate(state_names):
             for to_crs in [None, ocgis.crs.Spherical()]:
                 field = RequestDataset(self.path_state_boundaries, driver="vector").create_field()
                 select = field["STATE_NAME"].v() == state_name
                 assert(select.any())
                 field = field["STATE_NAME"][select].parent
-                # field.geom.write_vector(self.get_temporary_file_path("target.shp"))
+                crs_tag = to_crs is not None
+                field.geom.write_vector(self.get_temporary_file_path("target-{}-{}.shp".format(state_name, crs_tag))) #tdk:disable
 
                 gc = field.geom.convert_to(use_geometry_iterator=False, pack=False,
                                            node_threshold=50, split_interiors=False,
@@ -469,13 +471,13 @@ class TestGeometryVariable(AbstractTestInterface, FixturePolygonWithHole, Fixtur
                                            allow_splitting_excs=False,
                                            add_center_coords=True)
 
-                out_es = self.get_temporary_file_path("esmf_unstruct.nc")
+                out_es = self.get_temporary_file_path("esmf_unstruct-{}-{}.nc".format(state_name, crs_tag))
                 gc.parent.write(out_es, driver=DriverKey.NETCDF_ESMF_UNSTRUCT)
 
                 inrd = RequestDataset(out_es, driver=DriverKey.NETCDF_ESMF_UNSTRUCT)
                 infield = inrd.create_field()
                 geom = infield.grid.convert_to()
-                # geom.write_vector(self.get_temporary_file_path("converted.shp"))
+                geom.write_vector(self.get_temporary_file_path("converted-{}-{}.shp".format(state_name, crs_tag))) #tdk:disable
                 try:
                     self.assertIn('polygon_break_value', infield.grid.cindex.attrs)
                 except AssertionError:
@@ -485,6 +487,8 @@ class TestGeometryVariable(AbstractTestInterface, FixturePolygonWithHole, Fixtur
                     self.assertAlmostEqual(geom.v()[0].area, field.geom.v()[0].area)
                 else:
                     self.assertNotEqual(geom.v()[0].area, field.geom.v()[0].area)
+
+                # break #tdk:rm
 
     @attr('mpi')
     def test_create_ugid_global(self):

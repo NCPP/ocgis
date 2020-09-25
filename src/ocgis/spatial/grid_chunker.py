@@ -579,12 +579,13 @@ class GridChunker(AbstractOcgisObject):
 
                     # Try to reduce the coordinates in the case of unstructured grid data. Ensure the data also has a
                     # coordinate index. SCRIP grid files, for example, do not have a coordinate index like UGRID.
-                    if hasattr(target_grid, 'reduce_global') and Topology.POLYGON in target_grid.abstractions_available and target_grid.cindex is not None:
-                        ocgis_lh(logger=_LOCAL_LOGGER, msg='starting reduce_global for dst_grid_subset',
-                                 level=logging.DEBUG)
-                        target_grid = target_grid.reduce_global()
-                        ocgis_lh(logger=_LOCAL_LOGGER, msg='finished reduce_global for dst_grid_subset',
-                                 level=logging.DEBUG)
+                    if not self.iter_dst:
+                        if hasattr(target_grid, 'reduce_global') and Topology.POLYGON in target_grid.abstractions_available and target_grid.cindex is not None:
+                            ocgis_lh(logger=_LOCAL_LOGGER, msg='starting reduce_global for dst_grid_subset',
+                                     level=logging.DEBUG)
+                            target_grid = target_grid.reduce_global()
+                            ocgis_lh(logger=_LOCAL_LOGGER, msg='finished reduce_global for dst_grid_subset',
+                                     level=logging.DEBUG)
 
                     extent_global = target_grid.parent.attrs.get('extent_global')
                     if extent_global is None:
@@ -852,7 +853,12 @@ class GridChunker(AbstractOcgisObject):
         ocgis_lh(msg="creating esmf source field...", logger=_LOCAL_LOGGER, level=logging.DEBUG)
         srcfield, srcgrid = create_esmf_field(src_path, src_grid, self.esmf_kwargs)
         ocgis_lh(msg="creating esmf destination field...", logger=_LOCAL_LOGGER, level=logging.DEBUG)
-        dstfield, dstgrid = create_esmf_field(dst_path, dst_grid, self.esmf_kwargs)
+        try:
+            dstfield, dstgrid = create_esmf_field(dst_path, dst_grid, self.esmf_kwargs)
+        except ValueError:
+            #tdk: this try/except is for debugging
+            ocgis_lh(logger=_LOCAL_LOGGER, level=logging.DEBUG, msg="ERROR: Could not read file: {}".format(dst_path))
+            return
         regrid = None
 
         # If auxiliary weight file variables are being written, update the ESMF arguments with some additional metadata.

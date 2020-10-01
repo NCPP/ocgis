@@ -844,7 +844,11 @@ class GridChunker(AbstractOcgisObject):
 
         if filemode is None:
             filemode = "BASIC"
-        filemode = getattr(ESMF.FileMode, filemode)
+        try:
+            filemode = getattr(ESMF.FileMode, filemode)
+        except AttributeError:
+            # Assume this version of ESMF does not support FileMode
+            pass
 
         if src_grid is None:
             src_grid = self.src_grid
@@ -863,7 +867,7 @@ class GridChunker(AbstractOcgisObject):
         regrid = None
 
         # If auxiliary weight file variables are being written, update the ESMF arguments with some additional metadata.
-        if filemode == ESMF.FileMode.WITHAUX:
+        if hasattr(ESMF, "FileMode") and filemode == ESMF.FileMode.WITHAUX:
             try:
                 self.esmf_kwargs['src_file'] = get_file_path(self.source)
                 self.esmf_kwargs['dst_file'] = get_file_path(self.destination)
@@ -876,7 +880,7 @@ class GridChunker(AbstractOcgisObject):
 
             # Older versions of ESMPy do not support 'filemode'. If it is set to BASIC (the legacy default) then remove
             # the filemode argument.
-            if filemode == ESMF.FileMode.BASIC:
+            if not hasattr(ESMF, "FileMode") or filemode == ESMF.FileMode.BASIC:
                 regrid = create_esmf_regrid(srcfield=srcfield, dstfield=dstfield, filename=wgt_path, **self.esmf_kwargs)
             else:
                 regrid = create_esmf_regrid(srcfield=srcfield, dstfield=dstfield, filename=wgt_path, filemode=filemode,

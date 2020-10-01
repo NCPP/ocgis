@@ -528,8 +528,9 @@ class GeometryVariable(AbstractSpatialVariable):
                             try:
                                 geom = get_split_polygon_by_node_threshold(geom, node_threshold)
                             except TypeError as e:
+                                raise #tdk: figure out what to do with these exceptions
                                 ocgis_lh("failed polygon splitting idx={}".format(idx), logger=_LOCAL_LOG,
-                                         level=logging.DEBUG)
+                                         level=logging.WARNING)
                                 pass
                                 # if allow_splitting_excs:
                                 #     removed_indices.append(idx)

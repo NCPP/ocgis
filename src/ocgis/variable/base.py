@@ -2630,8 +2630,16 @@ def stack(targets, stack_dim):
             new_dimensions[ii] = nd
 
         # Construct the outgoing variable.
-        new_var = Variable(name=arch.name, dtype=arch.dtype, dimensions=new_dimensions, attrs=arch.attrs,
-                           fill_value=arch.fill_value)
+        from ocgis import GeometryVariable
+        if isinstance(arch, GeometryVariable):
+            klass = GeometryVariable
+        else:
+            klass = Variable
+        new_var = klass(name=arch.name, dtype=arch.dtype, dimensions=new_dimensions, attrs=arch.attrs,
+                        fill_value=arch.fill_value)
+        if isinstance(new_var, GeometryVariable):
+            # Geometry variables are sourced variables and do not like empty data if no default value is provided.
+            new_var.allocate_value()
 
         # Fill the outgoing variable with data from the original variables.
         for ii, var in enumerate(targets):

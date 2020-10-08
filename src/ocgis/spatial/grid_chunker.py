@@ -334,6 +334,7 @@ class GridChunker(AbstractOcgisObject):
                 if strict:
                     raise IOError(wfn)
                 else:
+                    ocgis_lh(msg="weight file not found, skipping: {}".format(wfn), level=logging.DEBUG, logger=_LOCAL_LOGGER)
                     continue
             vc_target = RequestDataset(wfn, driver='netcdf').get()
             curr_dimsize = vc_target.dimensions['n_s'].size

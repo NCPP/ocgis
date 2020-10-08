@@ -368,11 +368,13 @@ class GridChunker(AbstractOcgisObject):
         dst_indices = self.dst_grid._gc_create_global_indices_(dst_global_shape)
 
         out_wds = nc.Dataset(merged_weight_filename, 'a')
+        ocgis_lh(msg="opened output merged weight file in append mode. starting insert loop: {}".format(merged_weight_filename), level=logging.DEBUG, logger=_LOCAL_LOGGER)
         for ii, wfn in enumerate(map(lambda x: os.path.join(split_weight_file_directory, x), wv)):
             if not os.path.exists(wfn):
                 if strict:
                     raise IOError(wfn)
                 else:
+                    ocgis_lh(msg="weight file not found in append loop, skipping: {}".format(wfn), level=logging.DEBUG, logger=_LOCAL_LOGGER)
                     continue
             wdata = RequestDataset(wfn, driver='netcdf').get()
             for wvn in wf_varnames:

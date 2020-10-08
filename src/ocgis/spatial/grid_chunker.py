@@ -146,7 +146,8 @@ class GridChunker(AbstractOcgisObject):
 
         # Call each grid's grid splitter initialize routine.
         self.src_grid._gc_initialize_(RegriddingRole.SOURCE)
-        self.dst_grid._gc_initialize_(RegriddingRole.DESTINATION)
+        if self.iter_dst is None:
+            self.dst_grid._gc_initialize_(RegriddingRole.DESTINATION)
 
         # Construct default paths if None are provided.
         defaults = constants.GridChunkerConstants.DEFAULT_PATHS
@@ -219,12 +220,18 @@ class GridChunker(AbstractOcgisObject):
 
     @property
     def is_one_chunk(self):
-        return all([ii == 1 for ii in self.nchunks_dst])
+        if self.iter_dst:
+            return False
+        else:
+            return all([ii == 1 for ii in self.nchunks_dst])
 
     @property
     def nchunks_dst(self):
         if self._nchunks_dst is None:
-            ret = self.dst_grid._gc_nchunks_dst_(self)
+            if self.iter_dst:
+                ret = None
+            else:
+                ret = self.dst_grid._gc_nchunks_dst_(self)
         else:
             ret = self._nchunks_dst
         return ret
@@ -950,6 +957,9 @@ def get_grid_object(obj, load=True):
         res = obj.create_field().grid
     elif isinstance(obj, Field):
         res = obj.grid
+    elif isinstance(obj, GeometryVariable):
+        res = obj
+        load = False
     else:
         raise NotImplementedError(obj)
 

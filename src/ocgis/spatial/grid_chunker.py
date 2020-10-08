@@ -369,7 +369,7 @@ class GridChunker(AbstractOcgisObject):
 
         out_wds = nc.Dataset(merged_weight_filename, 'a')
         ocgis_lh(msg="opened output merged weight file in append mode. starting insert loop: {}".format(merged_weight_filename), level=logging.DEBUG, logger=_LOCAL_LOGGER)
-        for ii, wfn in enumerate(map(lambda x: os.path.join(split_weight_file_directory, x), wv)):
+        for ii, wfn in enumerate(map(lambda x: os.path.join(split_weight_file_directory, os.path.split(x)[1]), wv)):
             if not os.path.exists(wfn):
                 if strict:
                     raise IOError(wfn)

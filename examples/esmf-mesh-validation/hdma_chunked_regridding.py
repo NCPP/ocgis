@@ -29,6 +29,11 @@ src_field = create_exact_field(src_grid, 'foo')
 source = os.path.join(WD, "source.nc")
 src_field.write(source)
 
+# Grid shapes --------------------------------------------------------------------------------------------------
+
+# shapes = [(81, 67), (66, 75), (57, 56), (75, 78), (81, 96), (84, 44), (53, 149), (88, 66), (39, 360), (62, 95),
+#           (51, 251), (121, 360), (37, 44), (61, 95), (39, 67)]
+
 # Call into the CLI --------------------------------------------------------------------------------------------
 
 srcrd = RequestDataset(uri=source)
@@ -57,7 +62,7 @@ def iter_dst_grid_subsets(gc, yield_slice=False, yield_idx=None):
     gitr = GeomCabinetIterator(path=DSTPATH, as_field=True)
     nelements = len(gitr)
     # accum_count = 1
-    accum_count = 10000
+    accum_count = 20000
     accum_ctr = 0
     accum_group = 0
     fields = []

@@ -412,13 +412,6 @@ class GeometryVariable(AbstractSpatialVariable):
         polygon_types = ('Polygon', 'MultiPolygon')
 
         geom_type = self.geom_type
-        # Flag to indicate if we encountered a multi-geometry
-        has_multi = False
-        # Flag to indicate if we are processing multi-geometries.
-        if geom_type.lower().startswith('multi'):
-            is_multi = True
-        else:
-            is_multi = False
 
         # Problematic indices in the conversion. These may be removed if allow_splitting_excs is true.
         removed_indices = []
@@ -519,7 +512,6 @@ class GeometryVariable(AbstractSpatialVariable):
                                     else:
                                         extra = ". Current ocgis geometry iterator index={}".format(idx)
                                         raise e.__class__(str(e) + extra)
-                                is_multi = True
                             else:
                                 if not allow_interiors:
                                     raise ValueError('Interiors are not handled unless they are split.')
@@ -538,7 +530,6 @@ class GeometryVariable(AbstractSpatialVariable):
                                 # else:
                                 #     extra = ". Current ocgis geometry iterator index={}".format(idx)
                                 #     raise e.__class__(str(e) + extra)
-                            is_multi = True
 
                         if add_center_coords:
                             center_coords.append((geom.centroid.x, geom.centroid.y))
@@ -549,7 +540,6 @@ class GeometryVariable(AbstractSpatialVariable):
                         # Insert a break value if we are on the second or greater component geometry of a
                         # multi-geometry.
                         if subidx > 0:
-                            has_multi = True
                             fill_cidx = np.hstack((fill_cidx, np.array([multi_break_value], dtype=env.NP_INT)))
 
                         subgeom = get_ccw_oriented_and_valid_shapely_polygon(subgeom)
@@ -605,11 +595,8 @@ class GeometryVariable(AbstractSpatialVariable):
                 element_index = Variable(name=element_index_name, value=element_index, dimensions=element_index_dims,
                                          dtype=ocgis_dtype, attrs={AttributeName.START_INDEX: start_index})
 
-                # Indicate there are multi-geometries in the coordinates objects.
-                if has_multi:
-                    element_index.attrs[name_mbv] = multi_break_value
-                else:
-                    element_index.attrs.pop(name_mbv, None)
+                # Indicate there may be multi-geometries in the coordinates objects.
+                element_index.attrs[name_mbv] = multi_break_value
             else:
                 msg = "Conversion for this geometry type is not implemented: '{}'".format(geom_type)
                 raise RequestableFeature(message=msg)

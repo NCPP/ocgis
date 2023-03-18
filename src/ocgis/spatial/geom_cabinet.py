@@ -2,7 +2,7 @@ import os
 from collections import OrderedDict
 
 import fiona
-import ogr
+from osgeo import ogr
 from ocgis import env
 from ocgis.collection.field import Field
 from ocgis.util.helpers import get_formatted_slice
